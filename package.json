@@ -1,0 +1,99 @@
+{
+  "name": "@optiprune/core",
+  "version": "1.0.1",
+  "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "homepage": "https://opti.drml.int.yt/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/optiprune/core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/optiprune/core/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./reporters": {
+      "types": "./dist/reporters.d.ts",
+      "import": "./dist/reporters.js"
+    },
+    "./fs-utils": {
+      "types": "./dist/fs-utils.d.ts",
+      "import": "./dist/fs-utils.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --no-file-parallelism"
+  },
+  "keywords": [
+    "analysis",
+    "analyze",
+    "class",
+    "cli",
+    "dead code",
+    "dependencies",
+    "detect",
+    "devDependencies",
+    "duplicate",
+    "entropy",
+    "enum",
+    "export",
+    "files",
+    "find",
+    "javascript",
+    "lint",
+    "maintenance",
+    "members",
+    "missing",
+    "monorepo",
+    "namespace",
+    "package",
+    "scan",
+    "types",
+    "typescript",
+    "unreferenced",
+    "unresolved",
+    "unused",
+    "workspace",
+    "optiprune",
+    "pruning",
+    "dead",
+    "opti",
+    "optimization"
+  ],
+  "dependencies": {
+    "esbuild": "^0.28.1",
+    "fast-glob": "^3.3.3",
+    "js-yaml": "^5.2.2",
+    "pathe": "2.0.3",
+    "quickjs-emscripten": "^0.32.0",
+    "yuku-ast": "^0.8.3",
+    "yuku-codegen": "^0.8.3",
+    "yuku-parser": "^0.8.3",
+    "z3-solver": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "license": "MIT",
+  "author": "DreamLongYT"
+}
