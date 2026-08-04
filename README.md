@@ -1,4 +1,4 @@
-![Optiprune Logo](docs/public/logo.svg)
+![Optiprune Logo](./logo.svg)
 ![NPM Version](https://img.shields.io/npm/v/optiprune)
 ![GitHub License](https://img.shields.io/github/license/DreamLongYT/optiprune)
 
