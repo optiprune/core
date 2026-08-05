@@ -1,6 +1,6 @@
 ![Optiprune Logo](./logo.svg)
-![NPM Version](https://img.shields.io/npm/v/optiprune)
-![GitHub License](https://img.shields.io/github/license/DreamLongYT/optiprune)
+![NPM Version](https://img.shields.io/npm/v/@optiprune/core)
+![GitHub License](https://img.shields.io/github/license/optiprune/core)
 
 # 🚀 OptiPrune
 ---
