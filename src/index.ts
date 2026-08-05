@@ -199,9 +199,12 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         const normalized = path.normalize(e);
         if (isRoot && includeConventionalEntries) {
           entryPoints.add(normalized);
+          publicEntryPoints.add(normalized);
         }
         // Monorepo package entries are ALWAYS publicEntryPoints to protect their API
-        publicEntryPoints.add(normalized);
+        if (!isRoot) {
+          publicEntryPoints.add(normalized);
+        }
       }
     }
   };

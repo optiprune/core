@@ -419,17 +419,16 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     // Mark exports as used if they are referenced locally within the module
     for (const exportRecord of module.exports) {
       if (module.localReferences && module.localReferences.includes(exportRecord.name)) {
-        const current = usage.get(module.id) ?? {
-          consumers: new Set<string>(),
-          names: new Set<string>(),
+        const current = usage.get(module.id) ?? { 
+          consumers: new Set<string>(), 
+          names: new Set<string>(), 
           memberAccess: new Map<string, Set<string>>(),
           wildcard: false,
-          reExportOnly: true
+          reExportOnly: true 
         };
         current.names.add(exportRecord.exportedAs);
-        // We don't set reExportOnly = false here because local usage 
-        // within an entry point shouldn't protect OTHER exports in the same file.
-        // The export is already marked as used via current.names.add().
+        // Note: We keep reExportOnly = true here to not block unused-export detection 
+        // if this is the ONLY usage.
         usage.set(module.id, current);
       }
     }
@@ -437,30 +436,40 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
   return usage;
 }
 
-export function buildUsedExports(modules: Map<string, ModuleRecord>): { usedExports: Set<string>, usedMembers: Set<string> } {
+export function buildUsedExports(modules: Map<string, ModuleRecord>, options: ResolvedOptions): { usedExports: Set<string>, usedMembers: Set<string> } {
   const usedExports = new Set<string>();
   const usedMembers = new Set<string>();
   const importUsage = buildImportUsage(modules);
   // 1. Initial pass: Mark exports used by non-re-export imports
   // and resolve explicit re-exports (export { x } from 'mod')
   const worklist: Array<{ moduleId: string, name: string }> = [];
-  for (const [moduleId, usage] of importUsage.entries()) {
-    const module = modules.get(moduleId);
-    if (!module) continue;
+  for (const [targetId, usage] of importUsage.entries()) {
+    const targetModule = modules.get(targetId);
+    if (!targetModule) continue;
 
-    for (const exp of module.exports) {
+    if (options.verbose) {
+      console.error(`[Graph] Processing module ${targetId}`);
+      console.error(`  - Consumers: ${Array.from(usage.consumers).join(', ')}`);
+      console.error(`  - reExportOnly: ${usage.reExportOnly}`);
+    }
+
+    for (const exp of targetModule.exports) {
       if (exp.isExternalContract) {
-        usedExports.add(`${moduleId}:${exp.exportedAs}`);
+        usedExports.add(`${targetId}:${exp.exportedAs}`);
         continue;
       }
 
+      // SELF-IMPORT FIX: Check if there are consumers OTHER than the module itself.
+      // If a file imports from itself, that shouldn't count as an external usage.
+      const hasExternalConsumers = Array.from(usage.consumers).some(c => c !== targetId);
+
       // If it's a direct import (not a re-export)
-      if (!usage.reExportOnly) {
+      if (!usage.reExportOnly && hasExternalConsumers) {
         const isRequested = usage.wildcard || usage.names.has(exp.exportedAs) || (exp.isDefault && usage.names.has('default'));
         if (isRequested) {
-          if (!usedExports.has(`${moduleId}:${exp.exportedAs}`)) {
-            usedExports.add(`${moduleId}:${exp.exportedAs}`);
-            worklist.push({ moduleId, name: exp.exportedAs });
+          if (!usedExports.has(`${targetId}:${exp.exportedAs}`)) {
+            usedExports.add(`${targetId}:${exp.exportedAs}`);
+            worklist.push({ moduleId: targetId, name: exp.exportedAs });
           }
           
           // Track member access
@@ -469,7 +478,7 @@ export function buildUsedExports(modules: Map<string, ModuleRecord>): { usedExpo
           if (accessed) {
             for (const m of accessed) {
               
-              usedMembers.add(`${moduleId}:${exp.exportedAs}:${m}`);
+              usedMembers.add(`${targetId}:${exp.exportedAs}:${m}`);
             }
           }
         }
@@ -573,14 +582,20 @@ export function buildUsedExports(modules: Map<string, ModuleRecord>): { usedExpo
       const localDeps = module.localSymbolMap || {};
       
       // INTERNAL REFERENCE FIX: Symbols used in top-level code
-      const topLevelRefs = localDeps[""] || [];
-      for (const refName of topLevelRefs) {
-        const internalExport = module.exports.find(e => e.name === refName);
-        if (internalExport) {
-          const internalKey = `${module.id}:${internalExport.exportedAs}`;
-          if (!usedExports.has(internalKey)) {
-            usedExports.add(internalKey);
-            changed = true;
+      // We only mark internal exports as used if the module itself is reachable.
+      // If the module is unreachable, its internal references don't matter.
+      const isReachable = usedExports.size > 0 && Array.from(usedExports).some(k => k.startsWith(`${module.id}:`));
+      
+      if (isReachable) {
+        const topLevelRefs = localDeps[""] || [];
+        for (const refName of topLevelRefs) {
+          const internalExport = module.exports.find(e => e.name === refName);
+          if (internalExport) {
+            const internalKey = `${module.id}:${internalExport.exportedAs}`;
+            if (!usedExports.has(internalKey)) {
+              usedExports.add(internalKey);
+              changed = true;
+            }
           }
         }
       }
@@ -654,7 +669,17 @@ export function buildGraph(
   // Apply SCC reachability check
   calculateComponentReachability(components, reachability.reachable, reachability.maybeReachable);
   
-  const { usedExports, usedMembers } = buildUsedExports(modules);
+  const { usedExports, usedMembers } = buildUsedExports(modules, options);
+
+  if (options.verbose) {
+    console.error(`[Graph] Reachable files: ${reachability.reachable.size}`);
+    console.error(`[Graph] Maybe reachable: ${reachability.maybeReachable.size}`);
+    console.error(`[Graph] Used exports: ${usedExports.size}`);
+    for (const exp of usedExports) {
+      console.error(`  - ${exp}`);
+    }
+  }
+
   return { components, ...reachability, usedExports, usedMembers };
 }
 
