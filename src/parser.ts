@@ -557,13 +557,63 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
           if (location) {
             // Find the containing function or block to capture local variables
             let contextCode = "";
-            const scopeNode = [...stack].reverse().find(n => 
+            const reversedStack = [...stack].reverse();
+            const scopeNode = reversedStack.find(n => 
               n.type === "FunctionDeclaration" || 
               n.type === "FunctionExpression" || 
               n.type === "ArrowFunctionExpression" ||
               n.type === "ClassMethod" ||
               n.type === "ObjectMethod"
             );
+
+            // ── TEMPLATE-STRING LOOP FIX ──────────────────────────────────────
+            // When the dynamic import lives inside a forEach/map/filter callback
+            // (i.e. the immediate scopeNode is an ArrowFunctionExpression/
+            // FunctionExpression whose parent is a .forEach/.map call), the
+            // callback parameter (e.g. `file`) is a loop variable whose value
+            // is never assigned inside the callback body.  QuickJS would
+            // evaluate the template with `file === undefined` and produce a
+            // useless `./plugins/undefined` path.
+            //
+            // Fix: detect this pattern and capture the *outer* enclosing scope
+            // (the block that contains the forEach call and the array
+            // declaration) as the context body.  We also record the loop
+            // variable names so Layer 4 can rewrite the simulation to iterate
+            // over the mocked file list instead of running once with undefined.
+            let loopVariableNames: string[] = [];
+            let effectiveScopeNode = scopeNode;
+
+            if (scopeNode && (scopeNode.type === "ArrowFunctionExpression" || scopeNode.type === "FunctionExpression")) {
+              // Check whether this function is the callback of a .forEach/.map/.filter call
+              const scopeIndex = reversedStack.indexOf(scopeNode);
+              const parentCallExpr = scopeIndex >= 0 ? reversedStack[scopeIndex + 1] : undefined;
+              if (parentCallExpr && parentCallExpr.type === "CallExpression") {
+                const callee = (parentCallExpr as any).callee;
+                const isIteratorCallback =
+                  callee?.type === "MemberExpression" &&
+                  ["forEach", "map", "filter", "flatMap", "reduce", "some", "every", "find"]
+                    .includes(callee.property?.name ?? "");
+                if (isIteratorCallback) {
+                  // Collect the parameter names of the callback (the loop variables)
+                  const params = (scopeNode as any).params as unknown[];
+                  if (Array.isArray(params)) {
+                    loopVariableNames = params.flatMap(p => bindingNames(p as AstNode));
+                  }
+                  // Walk up to the next enclosing function/block to get the outer scope
+                  const outerScope = reversedStack.slice(scopeIndex + 1).find(n =>
+                    n.type === "FunctionDeclaration" ||
+                    n.type === "FunctionExpression" ||
+                    n.type === "ArrowFunctionExpression" ||
+                    n.type === "ClassMethod" ||
+                    n.type === "ObjectMethod" ||
+                    n.type === "Program"
+                  );
+                  if (outerScope) {
+                    effectiveScopeNode = outerScope;
+                  }
+                }
+              }
+            }
             
             // IMPROVEMENT: Capture both the top-level definitions and the specific 
             // function body to ensure variables from outer scopes are available 
@@ -586,16 +636,17 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
 
             let bodyCode = "";
             
-            if (scopeNode && isNode(scopeNode.body)) {
-              const body = scopeNode.body as any;
+            const activeScopeNode = effectiveScopeNode;
+            if (activeScopeNode && isNode(activeScopeNode.body)) {
+              const body = activeScopeNode.body as any;
               const start = body.start;
               if (typeof start === "number" && typeof node.start === "number") {
                 const bStart = (body.type === "BlockStatement" ? start + 1 : start) as number;
                 const bEnd = (body.end as number) - (body.type === "BlockStatement" ? 1 : 0);
                 bodyCode = sourceText.slice(bStart, bEnd);
                 
-                // Prepend parameters
-                const params = (scopeNode as any).params;
+                // Prepend parameters of the outer scope (not the forEach callback)
+                const params = (activeScopeNode as any).params;
                 if (Array.isArray(params)) {
                   const paramNames = params.flatMap(p => bindingNames(p));
                   if (paramNames.length > 0) {
@@ -603,9 +654,19 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
                   }
                 }
               }
+            } else if (activeScopeNode && activeScopeNode.type === "Program") {
+              // Top-level module scope: the topLevelCode already covers it
+              bodyCode = "";
             }
 
-            contextCode = `${topLevelCode}\n\n// --- Function Body ---\n${bodyCode || expressionText}`;
+            // Attach loop variable metadata so Layer 4 knows which identifiers
+            // inside the template literal are iteration variables and must be
+            // replaced with a for-of loop over the mocked directory listing.
+            const loopVarHint = loopVariableNames.length > 0
+              ? `\n// __optiprune_loop_vars__: ${loopVariableNames.join(",")}` 
+              : "";
+
+            contextCode = `${topLevelCode}\n\n// --- Function Body ---\n${bodyCode || expressionText}${loopVarHint}`;
 
             dynamicImportCandidates.push({
               file,
