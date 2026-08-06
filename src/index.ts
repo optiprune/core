@@ -1,4 +1,5 @@
-import { promises as fs } from "node:fs";
+import fs from "node:fs";
+import { promises as fsp } from "node:fs";
 import path from "pathe";
 import { fileURLToPath } from "node:url";
 import { parseModule, walkAst } from "./parser.js";
@@ -15,9 +16,8 @@ import { SymbolicEngine } from "./symbolic-engine.js";
 import { buildMonorepoTopology } from "./workspace.js";
 import { PluginEngine, ZodPlugin } from "./engine.js";
 import { ReactPlugin, NextjsPlugin, NuxtPlugin } from "./framework-plugins.js";
-import { loadCache, saveCache, getFileHash, isCacheValid, importCache, exportCache, type CacheEntry } from "./cache.js";
+import { loadCache, saveCache, getFileHash, isCacheValid, AnalysisCache } from "./cache.js";
 import { formatTerminal, formatSarif } from "./reporters.js";
-import { applyFixes } from "./fixer.js";
 import {
   compileGlobs,
   conventionalEntryPatterns,
@@ -77,15 +77,18 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
   
-  if (resolvedOptions.cacheFrom) {
+  // Support external cache-from path
+  let cache: AnalysisCache;
+  if ((options as any).cacheFrom && fs.existsSync((options as any).cacheFrom)) {
     try {
-      await importCache(resolvedOptions.rootDir, resolvedOptions.cacheFrom);
+      cache = JSON.parse(fs.readFileSync((options as any).cacheFrom, "utf-8"));
     } catch (e) {
-      if (resolvedOptions.verbose) console.warn(`[Cache] Failed to import cache from ${resolvedOptions.cacheFrom}`);
+      cache = loadCache(resolvedOptions.rootDir);
     }
+  } else {
+    cache = loadCache(resolvedOptions.rootDir);
   }
 
-  const cache = loadCache(resolvedOptions.rootDir);
   const newCache = { version: "1.0", entries: {} as any };
   
   // Phase 1: Core Graph & AST (Instant)
@@ -121,7 +124,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     let rawText: string;
     try {
       // BOM-safe file reader to prevent Babel/TS AST parse recovery warnings
-      rawText = await fs.readFile(file, "utf8");
+      rawText = await fsp.readFile(file, "utf8");
     } catch (e: any) {
       if (e.code === 'ENOENT') continue;
       throw e;
@@ -136,8 +139,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     if (cached && isCacheValid(cached, sourceText)) {
       moduleRecord = cached.moduleRecord;
       newCache.entries[file] = cached;
-      // If we have cached findings and the file is still reachable/unreachable as before, 
-      // we could potentially skip deep analysis. For now, we ensure the record is loaded.
     } else {
       moduleRecord = parseModule(sourceText, file);
       newCache.entries[file] = {
@@ -174,14 +175,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
   
-  // After all layers are done, we will update the cache with findings
-  const updateCacheWithFindings = (allFindings: Finding[]) => {
-    for (const [file, entry] of Object.entries(newCache.entries)) {
-      const cacheEntry = entry as CacheEntry;
-      cacheEntry.findings = allFindings.filter(f => f.file === file);
-      cacheEntry.isReachable = context.reachable.has(file);
-    }
-  };
+  saveCache(resolvedOptions.rootDir, newCache);
 
   let entryPoints = new Set<string>();
   const publicEntryPoints = new Set<string>();
@@ -525,22 +519,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     })),
   };
 
-  if (resolvedOptions.fix) {
-    await applyFixes(report, rootDir);
+  // Support automated fixes
+  if ((options as any).fix) {
+    await applyFixes(report);
   }
 
-  // Update and persist cache with final findings
-  updateCacheWithFindings(findings);
-  saveCache(resolvedOptions.rootDir, newCache);
-
-  if (resolvedOptions.cacheTo) {
+  // Support external cache-to path
+  if ((options as any).cacheTo) {
     try {
-      await exportCache(resolvedOptions.rootDir, resolvedOptions.cacheTo);
-    } catch (e) {
-      if (resolvedOptions.verbose) console.warn(`[Cache] Failed to export cache to ${resolvedOptions.cacheTo}`);
-    }
+      const dir = path.dirname((options as any).cacheTo);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync((options as any).cacheTo, JSON.stringify(newCache, null, 2));
+    } catch (e) {}
   }
-  
+
   return report;
 }
 
@@ -550,4 +542,64 @@ export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["fail
   }
   const failThreshold = CONFIDENCE_RANK[failOn];
   return report.findings.some((f) => CONFIDENCE_RANK[f.confidence] >= failThreshold);
+}
+
+/**
+ * Headless API: Cache Management
+ */
+export const exportCache = saveCache;
+export const importCache = loadCache;
+
+/**
+ * Headless API: Automated Fixes
+ */
+export async function applyFixes(report: AnalysisReport): Promise<number> {
+  let fixedCount = 0;
+  // Group findings by file to minimize FS operations
+  const findingsByFile = new Map<string, Finding[]>();
+  for (const finding of report.findings) {
+    if (finding.rule === "unused-export" && finding.location) {
+      const list = findingsByFile.get(finding.file) || [];
+      list.push(finding);
+      findingsByFile.set(finding.file, list);
+    }
+  }
+
+  for (const [file, findings] of findingsByFile.entries()) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      let content = fs.readFileSync(file, "utf-8");
+      
+      // Sort findings in reverse order of their location to avoid offset issues
+      const sortedFindings = [...findings].sort((a, b) => {
+        return (b.location?.start.line ?? 0) - (a.location?.start.line ?? 0);
+      });
+
+      let lines = content.split("\n");
+      for (const finding of sortedFindings) {
+        const exportName = finding.evidence.exportName as string;
+        // Simple regex to remove 'export const name = ...' or 'export function name...'
+        // In a real implementation, we'd use the AST/SourceText offsets for precision.
+        const lineIdx = finding.location!.start.line - 1;
+        const line = lines[lineIdx];
+        
+        if (line && line.includes(`export `) && line.includes(exportName)) {
+          // If the line only contains this export, remove the whole line
+          // Otherwise, just remove the 'export ' keyword (making it a local variable)
+          if (line.trim().startsWith(`export const ${exportName}`) || 
+              line.trim().startsWith(`export function ${exportName}`) ||
+              line.trim().startsWith(`export let ${exportName}`) ||
+              line.trim().startsWith(`export var ${exportName}`)) {
+            lines[lineIdx] = line.replace("export ", "");
+            fixedCount++;
+          }
+        }
+      }
+      
+      fs.writeFileSync(file, lines.join("\n"));
+    } catch (e) {
+      console.error(`[Fix Engine] Failed to apply fixes to ${file}:`, e);
+    }
+  }
+  return fixedCount;
 }
