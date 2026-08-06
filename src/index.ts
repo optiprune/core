@@ -3,7 +3,7 @@ import { promises as fsp } from "node:fs";
 import path from "pathe";
 import { fileURLToPath } from "node:url";
 import { parseModule, walkAst } from "./parser.js";
-import { buildGraph, contextWithGraph, buildImportUsage } from "./graph.js";
+import { buildGraph, contextWithGraph, buildImportUsage, calculateReachability, calculateComponentReachability } from "./graph.js";
 import { analyzeLayer2 } from "./layer2.js";
 import { analyzeLayer3 } from "./layer3.js";
 import { analyzeLayer4 } from "./layer4.js";
@@ -258,6 +258,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   pluginEngine.register(NextjsPlugin);
   pluginEngine.register(NuxtPlugin);
   const pluginFindings = await pluginEngine.run(context);
+  
+  // --- PATCH: RE-CALCULATE REACHABILITY ---
+  const newReachability = calculateReachability(modules, context.reachable);
+  for (const r of newReachability.reachable) context.reachable.add(r);
+  for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
+  calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
+
   findings.push(...pluginFindings);
 
   // Headless Living Graph Engine: Initial Ingestion
@@ -579,13 +586,10 @@ export async function applyFixes(report: AnalysisReport): Promise<number> {
       for (const finding of sortedFindings) {
         const exportName = finding.evidence.exportName as string;
         // Simple regex to remove 'export const name = ...' or 'export function name...'
-        // In a real implementation, we'd use the AST/SourceText offsets for precision.
         const lineIdx = finding.location!.start.line - 1;
         const line = lines[lineIdx];
         
         if (line && line.includes(`export `) && line.includes(exportName)) {
-          // If the line only contains this export, remove the whole line
-          // Otherwise, just remove the 'export ' keyword (making it a local variable)
           if (line.trim().startsWith(`export const ${exportName}`) || 
               line.trim().startsWith(`export function ${exportName}`) ||
               line.trim().startsWith(`export let ${exportName}`) ||
@@ -603,3 +607,6 @@ export async function applyFixes(report: AnalysisReport): Promise<number> {
   }
   return fixedCount;
 }
+
+// Fix für CLI-Imports
+export { exportCache as exportCacheAlias, importCache as importCacheAlias } from './cache.js';

@@ -7,28 +7,41 @@ export const StorybookPlugin: AnalyzerPlugin = {
   name: "storybook-plugin",
   version: "1.0.0",
 
+  /**
+   * Erkennt Storybook anhand der Abhängigkeiten in der package.json.
+   */
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    const deps = { ...pkg?.dependencies, ...pkg?.devDependencies };
+    if (!pkg) return false;
+
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     return Object.keys(deps).some((dep) => dep.includes("storybook"));
   },
 
   lifecycle: {
+    /**
+     * Markiert Story-Dateien und den .storybook-Ordner als implizite Einstiegspunkte.
+     */
     onFileStart: (fileId, adapter) => {
-      // Story files and .storybook configs are implicit entry points
       if (STORY_FILE_REGEX.test(fileId) || STORYBOOK_DIR_REGEX.test(fileId)) {
         adapter.markAsUsed(fileId);
       }
     },
 
+    /**
+     * Analysiert die AST-Knoten von Story-Dateien, um sicherzustellen, 
+     * dass sowohl der Default-Export (Meta) als auch die benannten Stories (Named Exports) 
+     * als "verwendet" markiert werden.
+     */
     onASTNode: (node, fileId, adapter) => {
-      // Story files use default export (meta) and named exports (stories)
       if (!STORY_FILE_REGEX.test(fileId)) return;
 
+      // Schützt 'export default { ... }'
       if (node.type === "ExportDefaultDeclaration") {
         adapter.markAsUsed(fileId, "default");
       }
 
+      // Schützt benannte Story-Exporte wie 'export const Primary = ...'
       if (node.type === "ExportNamedDeclaration" && node.declaration) {
         const decl = node.declaration;
         if (decl.type === "VariableDeclaration") {
