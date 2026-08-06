@@ -54,6 +54,8 @@ export const BabelPlugin: AnalyzerPlugin = {
           const value = node.value;
           if (value.includes('@babel/preset-') || value.includes('@babel/plugin-')) {
             adapter.markAsUsed(fileId);
+            // Babel plugins/presets always imply @babel/core is needed
+            adapter.markAsUsed('@babel/core');
           }
         }
 
@@ -136,6 +138,17 @@ export const BabelPlugin: AnalyzerPlugin = {
         const source = node.source.value;
         if (source.includes('@babel/preset-')) {
           adapter.markAsUsed(fileId);
+          adapter.markAsUsed('@babel/core');
+        }
+      }
+
+      // Detect @babel/runtime or @babel/helpers usage
+      if (t.isImportDeclaration(node)) {
+        const source = node.source.value;
+        if (source.includes('@babel/runtime') || source.includes('@babel/helpers')) {
+          adapter.markAsUsed(fileId);
+          // Runtime/helpers usually mean we are using compiled code that needs @babel/core or @babel/runtime
+          adapter.markAsUsed('@babel/runtime');
         }
       }
     }
