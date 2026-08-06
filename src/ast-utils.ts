@@ -1,8 +1,3 @@
-/**
- * Shared AST Utilities for Yuku-compatible ESTree ASTs.
- * Replaces @babel/types for common type-guarding tasks.
- */
-
 export const t = {
   isStringLiteral: (n: unknown): n is { type: "Literal"; value: string } =>
     !!n && typeof n === 'object' && (n as any).type === 'Literal' && typeof (n as any).value === 'string',
@@ -90,4 +85,14 @@ export const t = {
 
   isDecorator: (n: unknown): n is { type: "Decorator"; expression: any } =>
     !!n && typeof n === 'object' && (n as any).type === 'Decorator',
+  isProgram: (n: unknown): n is { type: "Program"; body: any[] } =>
+    !!n && typeof n === 'object' && (n as any).type === 'Program',
+  isVariableDeclaration: (n: unknown): n is { type: "VariableDeclaration"; declarations: any[]; kind: string } =>
+    !!n && typeof n === 'object' && (n as any).type === 'VariableDeclaration',
+  isArrayExpression: (n: unknown): n is { type: "ArrayExpression"; elements: any[] } =>
+    !!n && typeof n === 'object' && (n as any).type === 'ArrayExpression',
+  isAssignmentExpression: (n: unknown): n is { type: "AssignmentExpression"; left: any; right: any } =>
+    !!n && typeof n === 'object' && (n as any).type === 'AssignmentExpression',
+  isArrowFunctionExpression: (n: unknown): n is { type: "ArrowFunctionExpression"; params: any[]; body: any } =>
+    !!n && typeof n === 'object' && (n as any).type === 'ArrowFunctionExpression',
 };
