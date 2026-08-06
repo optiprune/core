@@ -21,8 +21,11 @@ export const PrettierPlugin: AnalyzerPlugin = {
   name: "prettier-plugin",
   version: "1.0.0",
 
+  /**
+   * Erkennt Prettier anhand der package.json oder vorhandener Konfigurationsdateien.
+   */
   detect: async (adapter) => {
-    // 1. Check package.json dependencies or embedded "prettier" key
+    // 1. Prüfung der package.json (Dependencies oder "prettier"-Key)
     try {
       const pkg = await adapter.readJson("package.json");
       const deps = { ...pkg?.dependencies, ...pkg?.devDependencies };
@@ -30,52 +33,50 @@ export const PrettierPlugin: AnalyzerPlugin = {
         return true;
       }
     } catch {
-      // package.json might not exist or be invalid JSON
+      // package.json fehlt oder ist ungültig
     }
 
-    // 2. Fallback: Check if any standard Prettier config file exists in workspace root
+    // 2. Fallback: Prüfung auf Standard-Konfigurationsdateien im Root
     for (const configFile of PRETTIER_CONFIG_FILES) {
       try {
         const content = await adapter.readFile(configFile);
         if (content) return true;
       } catch {
-        // File doesn't exist, continue checking next
+        // Datei existiert nicht
       }
     }
-
     return false;
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
-      // Parse .prettierrc or package.json "prettier" key to extract custom plugins
       let prettierConfig: any = null;
-
-      // Check standalone JSON configs
+      
+      // Versuche Konfiguration aus JSON-Dateien zu lesen
       for (const file of [".prettierrc", ".prettierrc.json"]) {
         try {
           prettierConfig = await adapter.readJson(file);
           if (prettierConfig) break;
         } catch {
-          // Skip if missing/unparseable
+          // Überspringen bei Fehlern
         }
       }
 
-      // Fallback: Check package.json "prettier" key
+      // Fallback auf package.json "prettier" Key
       if (!prettierConfig) {
         try {
           const pkg = await adapter.readJson("package.json");
           prettierConfig = pkg?.prettier;
         } catch {
-          // ignore
+          // ignorieren
         }
       }
 
-      // Protect custom plugins listed in prettier config (e.g., plugins: ["prettier-plugin-tailwindcss"])
+      // Schütze lokale Plugins, die in der Prettier-Config gelistet sind
       if (prettierConfig && Array.isArray(prettierConfig.plugins)) {
         for (const pluginName of prettierConfig.plugins) {
           if (typeof pluginName === "string" && pluginName.startsWith(".")) {
-            // Local file plugin reference -> protect file
+            // Lokale Dateireferenz -> Datei schützen
             adapter.markAsUsed(pluginName);
           }
         }
@@ -83,7 +84,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      // Mark Prettier config and ignore files as implicit entry points
+      // Markiert Prettier-Config und .prettierignore als Einstiegspunkte
       const fileName = fileId.split("/").pop() || "";
       if (PRETTIER_FILE_REGEX.test(fileName)) {
         adapter.markAsUsed(fileId);
@@ -91,14 +92,14 @@ export const PrettierPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      // Protect default exports in JS/MJS/CJS Prettier configs
+      // Schützt Exporte in JS/MJS/CJS Prettier-Konfigurationen
       const fileName = fileId.split("/").pop() || "";
       if (PRETTIER_FILE_REGEX.test(fileName)) {
         if (node.type === "ExportDefaultDeclaration") {
           adapter.markAsUsed(fileId, "default");
         }
         if (node.type === "AssignmentExpression") {
-          // Support module.exports = { ... }
+          // Unterstützung für module.exports = { ... }
           if (
             node.left?.type === "MemberExpression" &&
             node.left.object?.name === "module" &&
