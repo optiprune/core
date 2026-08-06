@@ -15,8 +15,9 @@ import { SymbolicEngine } from "./symbolic-engine.js";
 import { buildMonorepoTopology } from "./workspace.js";
 import { PluginEngine, ZodPlugin } from "./engine.js";
 import { ReactPlugin, NextjsPlugin, NuxtPlugin } from "./framework-plugins.js";
-import { loadCache, saveCache, getFileHash, isCacheValid } from "./cache.js";
+import { loadCache, saveCache, getFileHash, isCacheValid, importCache, exportCache, type CacheEntry } from "./cache.js";
 import { formatTerminal, formatSarif } from "./reporters.js";
+import { applyFixes } from "./fixer.js";
 import {
   compileGlobs,
   conventionalEntryPatterns,
@@ -75,6 +76,15 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
 
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
+  
+  if (resolvedOptions.cacheFrom) {
+    try {
+      await importCache(resolvedOptions.rootDir, resolvedOptions.cacheFrom);
+    } catch (e) {
+      if (resolvedOptions.verbose) console.warn(`[Cache] Failed to import cache from ${resolvedOptions.cacheFrom}`);
+    }
+  }
+
   const cache = loadCache(resolvedOptions.rootDir);
   const newCache = { version: "1.0", entries: {} as any };
   
@@ -126,6 +136,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     if (cached && isCacheValid(cached, sourceText)) {
       moduleRecord = cached.moduleRecord;
       newCache.entries[file] = cached;
+      // If we have cached findings and the file is still reachable/unreachable as before, 
+      // we could potentially skip deep analysis. For now, we ensure the record is loaded.
     } else {
       moduleRecord = parseModule(sourceText, file);
       newCache.entries[file] = {
@@ -162,7 +174,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
   
-  saveCache(resolvedOptions.rootDir, newCache);
+  // After all layers are done, we will update the cache with findings
+  const updateCacheWithFindings = (allFindings: Finding[]) => {
+    for (const [file, entry] of Object.entries(newCache.entries)) {
+      const cacheEntry = entry as CacheEntry;
+      cacheEntry.findings = allFindings.filter(f => f.file === file);
+      cacheEntry.isReachable = context.reachable.has(file);
+    }
+  };
 
   let entryPoints = new Set<string>();
   const publicEntryPoints = new Set<string>();
@@ -467,7 +486,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     warnings: findings.filter((f) => f.severity === "warning").length,
   };
 
-  return {
+  const report: AnalysisReport = {
     version: VERSION,
     rootDir,
     entryPoints: [...entryPoints].map((p) => relativeDisplayPath(rootDir, p)),
@@ -505,6 +524,24 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       isCycle: c.isCycle,
     })),
   };
+
+  if (resolvedOptions.fix) {
+    await applyFixes(report, rootDir);
+  }
+
+  // Update and persist cache with final findings
+  updateCacheWithFindings(findings);
+  saveCache(resolvedOptions.rootDir, newCache);
+
+  if (resolvedOptions.cacheTo) {
+    try {
+      await exportCache(resolvedOptions.rootDir, resolvedOptions.cacheTo);
+    } catch (e) {
+      if (resolvedOptions.verbose) console.warn(`[Cache] Failed to export cache to ${resolvedOptions.cacheTo}`);
+    }
+  }
+  
+  return report;
 }
 
 export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["failOn"]): boolean {

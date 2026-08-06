@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import type { ModuleRecord } from "./types.js";
+import type { ModuleRecord, Finding } from "./types.js";
 
 export interface CacheEntry {
   hash: string;
   moduleRecord: ModuleRecord;
+  findings?: Finding[];
+  isReachable?: boolean;
   timestamp: number;
 }
 
@@ -43,6 +45,24 @@ export function saveCache(rootDir: string, cache: AnalysisCache): void {
   } catch (e) {
     // Ignore cache write errors in environments like tests where rootDir might be problematic
   }
+}
+
+/**
+ * Exports the current cache to a standalone JSON file, 
+ * suitable for uploading to a remote storage or CI cache.
+ */
+export async function exportCache(rootDir: string, targetPath: string): Promise<void> {
+  const cache = loadCache(rootDir);
+  await fs.promises.writeFile(targetPath, JSON.stringify(cache, null, 2));
+}
+
+/**
+ * Imports a cache from an external JSON file into the local .optiprune directory.
+ */
+export async function importCache(rootDir: string, sourcePath: string): Promise<void> {
+  const content = await fs.promises.readFile(sourcePath, "utf-8");
+  const cache = JSON.parse(content) as AnalysisCache;
+  saveCache(rootDir, cache);
 }
 
 export function isCacheValid(entry: CacheEntry, currentContent: string): boolean {

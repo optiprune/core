@@ -143,7 +143,10 @@ export interface Finding {
     | "unknown-dynamic-import"
     | "no-entry-points"
     | "unreachable-dynamic-path"
-    | "protected-contract";
+    | "protected-contract"
+    | "missing-dependency"
+    | "unused-dependency"
+    | "unused-dev-dependency";
   severity: Severity;
   confidence: Confidence;
   message: string;
@@ -166,6 +169,9 @@ export interface AnalyzerOptions {
   skip3?: boolean;
   skip4?: boolean;
   verbose?: boolean;
+  fix?: boolean;
+  cacheFrom?: string;
+  cacheTo?: string;
 }
 
 export type RuleSeverity = "error" | "warning" | "off";
@@ -181,6 +187,7 @@ export interface Config {
   failOn?: FailOn;
   json?: boolean;
   verbose?: boolean;
+  fix?: boolean;
   layers?: {
     smtTimeoutMs?: number;
     isolateMemoryLimitMb?: number;
@@ -206,6 +213,9 @@ export interface ResolvedOptions {
   baseUrl?: string;
   externalContracts: string[];
   verbose: boolean;
+  fix: boolean;
+  cacheFrom?: string;
+  cacheTo?: string;
   layers: {
     smtTimeoutMs: number;
     isolateMemoryLimitMb: number;

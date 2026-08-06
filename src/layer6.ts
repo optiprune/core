@@ -205,17 +205,42 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       // 1. Collect binary usages from scripts
       const scriptUsages = new Set<string>();
+      const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun']);
+      
       for (const script of Object.values(scripts) as string[]) {
-        // Better heuristic: find all potential binaries
-        const words = script.split(/[\s|&;><!]/).filter(w => w.length > 0 && !w.startsWith('-'));
-        for (const word of words) {
-          scriptUsages.add(word);
+        // Improved Regex-based binary extraction
+        const commandRegex = /(?:^|[&&|;(|{}])\s*([@\w\-/]+)/g;
+        let match;
+        while ((match = commandRegex.exec(script)) !== null) {
+          const cmd = match[1];
+          if (cmd && !shellCommands.has(cmd)) {
+            scriptUsages.add(cmd);
+          }
         }
-        
-        // Specifically check for npx/pnpm/yarn/npm exec patterns
-        const execMatches = script.matchAll(/(?:npx|pnpm|yarn|npm)\s+([@\w\-/]+)/g);
-        for (const match of execMatches) {
-          if (match[1]) scriptUsages.add(match[1]);
+
+        const execRegex = /(?:npx|pnpm|yarn|npm|bun)\s+(?:exec\s+)?([@\w\-/]+)/g;
+        while ((match = execRegex.exec(script)) !== null) {
+          if (match[1] && !['exec', ...shellCommands].includes(match[1])) {
+            scriptUsages.add(match[1]);
+          }
+        }
+      }
+
+      // 1.5. Report Unlisted Binaries
+      for (const bin of scriptUsages) {
+        if (!dependencies[bin] && !devDependencies[bin] && !bin.startsWith('./') && !bin.startsWith('../')) {
+          // Check if it's a known global or common binary we should ignore
+          const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget'];
+          if (!COMMON_GLOBALS.includes(bin)) {
+            findings.push({
+              rule: 'missing-dependency',
+              severity: 'error',
+              confidence: 'high',
+              message: `Binary '${bin}' is used in scripts but not declared in package.json.`,
+              file: relativeManifest,
+              evidence: { package: bin, type: 'binary' }
+            });
+          }
         }
       }
 
@@ -225,7 +250,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep);
         if (!isUsed) {
           findings.push({
-            rule: 'unused-export',
+            rule: 'unused-dependency',
             severity: 'warning',
             confidence: 'high',
             message: `Package '${dep}' is declared as a dependency in ${relativeManifest} but never imported or used in scripts.`,
@@ -278,7 +303,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         if (!isUsed) {
           findings.push({
-            rule: 'unused-export',
+            rule: 'unused-dev-dependency',
             severity: 'info', // devDeps are usually less critical
             confidence: 'medium',
             message: `DevDependency '${dep}' in ${relativeManifest} appears unused.`,
