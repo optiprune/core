@@ -906,9 +906,9 @@ export function parseModule(sourceText: string, file: string): ModuleRecord {
   try {
     // RESILIENCE FIX: Handle literal \n sequences often found in generated tests or copy-pastes
     // This ensures the parser doesn't choke on "Invalid Unicode escape sequence"
-    if (sourceText.includes('\\n')) {
+    /* if (sourceText.includes('\\n')) {
       sourceText = sourceText.replace(/\\n/g, '\n');
-    }
+    } */
 
     // Use yuku-parser instead of @babel/parser.
     // yuku-parser infers the best language variant from the file extension;
