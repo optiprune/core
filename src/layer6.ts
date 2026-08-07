@@ -205,7 +205,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       // 1. Collect binary usages from scripts
       const scriptUsages = new Set<string>();
-      const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun']);
+      const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve']);
       
       for (const script of Object.values(scripts) as string[]) {
         // Improved Regex-based binary extraction
@@ -218,19 +218,22 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           }
         }
 
-        const execRegex = /(?:npx|pnpm|yarn|npm|bun)\s+(?:exec\s+)?([@\w\-/]+)/g;
+        const execRegex = /(?:npx|pnpm|yarn|npm|bun)\s+(?:exec\s+|run\s+)?([@\w\-/.]+)/g;
         while ((match = execRegex.exec(script)) !== null) {
-          if (match[1] && !['exec', ...shellCommands].includes(match[1])) {
-            scriptUsages.add(match[1]);
+          const cmd = match[1];
+          if (cmd && !shellCommands.has(cmd) && !cmd.startsWith('.') && !cmd.startsWith('/') && !cmd.includes('/') && !cmd.endsWith('.ts') && !cmd.endsWith('.js')) {
+            scriptUsages.add(cmd);
           }
         }
       }
 
       // 1.5. Report Unlisted Binaries
+      const BINARY_TO_PACKAGE: Record<string, string> = { 'tsc': 'typescript', 'vitest': 'vitest', 'jest': 'jest', 'eslint': 'eslint', 'prettier': 'prettier', 'oxlint': 'oxlint', 'oxfmt': 'oxfmt', 'tsdown': 'tsdown', 'vite': 'vite', 'rollup': 'rollup', 'webpack': 'webpack', 'esbuild': 'esbuild' };
       for (const bin of scriptUsages) {
-        if (!dependencies[bin] && !devDependencies[bin] && !bin.startsWith('./') && !bin.startsWith('../')) {
+        const pkgName = BINARY_TO_PACKAGE[bin] || bin;
+        if (!dependencies[pkgName] && !devDependencies[pkgName] && !bin.startsWith('./') && !bin.startsWith('../')) {
           // Check if it's a known global or common binary we should ignore
-          const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget'];
+          const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget', 'git', 'sudo', 'chmod', 'chown', 'env', 'xargs'];
           if (!COMMON_GLOBALS.includes(bin)) {
             findings.push({
               rule: 'missing-dependency',
