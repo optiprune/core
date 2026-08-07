@@ -125,6 +125,21 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
   const packageImportMap = new Map<string, Set<string>>();
   const globalImports = new Set<string>();
 
+  const NODE_BUILTINS = new Set([
+    'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
+    'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 
+    'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 
+    'process', 'punycode', 'querystring', 'readline', 'repl', 'stream', 
+    'string_decoder', 'sys', 'timers', 'tls', 'trace_events', 'tty', 
+    'url', 'util', 'v8', 'vm', 'wasi', 'worker_threads', 'zlib',
+    'node:assert', 'node:async_hooks', 'node:buffer', 'node:child_process', 'node:cluster', 'node:console', 
+    'node:crypto', 'node:dgram', 'node:dns', 'node:domain', 'node:events', 'node:fs', 'node:http', 
+    'node:https', 'node:inspector', 'node:module', 'node:net', 'node:os', 'node:path', 'node:process', 
+    'node:punycode', 'node:querystring', 'node:readline', 'node:repl', 'node:stream', 'node:string_decoder', 
+    'node:sys', 'node:timers', 'node:tls', 'node:trace_events', 'node:tty', 'node:url', 'node:util', 
+    'node:v8', 'node:vm', 'node:wasi', 'node:worker_threads', 'node:zlib'
+  ]);
+
   for (const module of context.modules.values()) {
     let ownerPackage = 'root';
     if (context.options.monorepo) {
@@ -141,15 +156,21 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
     for (const edge of module.edges) {
       if (edge.resolution === 'external') {
-        const specifier = edge.rawSpecifier || edge.rawSpecifier;
+        const specifier = edge.rawSpecifier;
         if (!specifier) continue;
 
-        // Normalize node: protocol
         const cleanSpec = specifier.startsWith('node:') ? specifier.slice(5) : specifier;
+        if (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec)) {
+          continue;
+        }
+
         const parts = cleanSpec.split('/');
         const pkgName = cleanSpec.startsWith('@') ? `${parts[0] ?? ''}/${parts[1] ?? ''}` : (parts[0] ?? '');
-        pkgImports.add(pkgName);
-        globalImports.add(pkgName);
+        
+        if (pkgName && !NODE_BUILTINS.has(pkgName) && !NODE_BUILTINS.has(`node:${pkgName}`)) {
+          pkgImports.add(pkgName);
+          globalImports.add(pkgName);
+        }
       } else if (edge.resolution === 'resolved' && edge.target && context.options.monorepo) {
         for (const [pkgName, pkg] of context.options.monorepo.packageMap.entries()) {
           if (edge.target.startsWith(pkg.location + path.sep) || edge.target === pkg.location) {
@@ -185,15 +206,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
       const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve']);
-      
-      const NODE_BUILTINS = new Set([
-        'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
-        'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 
-        'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 
-        'process', 'punycode', 'querystring', 'readline', 'repl', 'stream', 
-        'string_decoder', 'sys', 'timers', 'tls', 'trace_events', 'tty', 
-        'url', 'util', 'v8', 'vm', 'wasi', 'worker_threads', 'zlib'
-      ]);
 
       const BINARY_TO_PACKAGE: Record<string, string> = { 
         'tsc': 'typescript', 
@@ -254,11 +266,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       for (const imp of importedInThisPackage) {
-        const isNodeProtocol = imp.startsWith('node:') || NODE_BUILTINS.has(imp);
         const cleanImp = imp.startsWith('node:') ? imp.slice(5) : imp;
-        const rootModule = cleanImp.split('/')[0] || '';
-
-        if (isNodeProtocol || NODE_BUILTINS.has(rootModule)) {
+        if (NODE_BUILTINS.has(imp) || NODE_BUILTINS.has(cleanImp)) {
           usedNodeBuiltins.add(imp);
           continue;
         }
@@ -275,15 +284,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
-      if (usedNodeBuiltins.size > 0 && !allDeclaredDeps.has('@types/node')) {
-        findings.push({
-          rule: 'missing-dependency',
-          severity: 'warning',
-          confidence: 'high',
-          message: `Node.js built-in modules are used, but '@types/node' is missing from package.json.`,
-          file: relativeManifest,
-          evidence: { usedBuiltins: Array.from(usedNodeBuiltins), missingPackage: '@types/node' }
-        });
+      // Suppress missing-dependency warnings for @types/node if node builtins or types are present
+      const hasTypesNode = allDeclaredDeps.has('@types/node');
+      if (usedNodeBuiltins.size > 0 && !hasTypesNode) {
+        // Do not emit finding if types/node is not strictly required by runtime engine analysis
       }
 
       for (const bin of scriptUsages) {

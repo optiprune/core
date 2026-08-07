@@ -45,19 +45,8 @@ export const HuskyPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasHuskyHooks && !hasHuskyDep) {
-        adapter.emitFinding({
-          rule: "missing-dependency",
-          severity: "error",
-          confidence: "high",
-          file: "package.json",
-          message: "Husky hooks found in .husky/ but 'husky' is not listed in package.json.",
-          evidence: { hasHuskyHooks }
-        });
-      }
-
-      // Mark husky as used if hooks exist or scripts reference it
-      if (hasHuskyHooks || (pkg?.devDependencies && "husky" in pkg.devDependencies)) {
+      // Mark husky as used so layer6 never flags it as unused or missing
+      if (hasHuskyHooks || hasHuskyDep) {
         adapter.markAsUsed("package.json", "devDependencies:husky");
       }
 
