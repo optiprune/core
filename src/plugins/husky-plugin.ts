@@ -16,19 +16,17 @@ const HUSKY_HOOKS = [
 
 export const HuskyPlugin: AnalyzerPlugin = {
   name: "husky-plugin",
-  version: "1.2.1",
+  version: "1.2.2",
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
     if (pkg && (pkg.devDependencies?.["husky"] || pkg.dependencies?.["husky"])) {
       return true;
     }
     
-    // Check for any common husky hook files
     for (const hook of HUSKY_HOOKS) {
       if ((await adapter.readFile(`.husky/${hook}`)) !== null) return true;
     }
     
-    // Also check for legacy .huskyrc or husky.config.js
     if ((await adapter.readFile(".huskyrc")) !== null) return true;
     if ((await adapter.readFile("husky.config.js")) !== null) return true;
     
@@ -58,7 +56,11 @@ export const HuskyPlugin: AnalyzerPlugin = {
         });
       }
 
-      // Mark husky-related scripts as used
+      // Mark husky as used if hooks exist or scripts reference it
+      if (hasHuskyHooks || (pkg?.devDependencies && "husky" in pkg.devDependencies)) {
+        adapter.markAsUsed("package.json", "devDependencies:husky");
+      }
+
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (typeof scriptContent === "string" && scriptContent.includes("husky")) {
@@ -68,7 +70,6 @@ export const HuskyPlugin: AnalyzerPlugin = {
       }
     },
     onFileStart: (fileId, adapter) => {
-      // Mark any file inside .husky directory as used to prevent unreachable-file warnings
       if (fileId.includes(".husky/")) {
         adapter.markAsUsed(fileId);
       }

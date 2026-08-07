@@ -17,11 +17,6 @@ export interface DependencyNode {
   dependencies: Set<string>;
 }
 
-/**
- * Parses a library's entry point `.d.ts` file using yuku-parser.
- * Handles Windows & POSIX paths natively.
- * Replaces the previous SWC-based implementation.
- */
 export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsExportGraph> {
   const absolutePath = path.resolve(entryPointRelative);
 
@@ -30,7 +25,6 @@ export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsEx
   }
 
   const source = fs.readFileSync(absolutePath, 'utf-8');
-  // yuku-parser: use 'dts' lang for declaration files
   const result = yukuParse(source, { lang: 'dts', sourceType: 'module' });
   const program = result.program as any;
 
@@ -38,16 +32,13 @@ export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsEx
   let hasModuleAugmentation = false;
 
   for (const item of (program.body ?? []) as any[]) {
-    // yuku-parser emits ESTree-compatible nodes (ExportNamedDeclaration, ExportDefaultDeclaration)
     if (item.type === 'ExportNamedDeclaration') {
-      // Inline declaration: export interface Foo {}, export type Bar = ...
       if (item.declaration) {
         const decl = item.declaration as any;
         if (decl.id?.name) {
           exportedTypes.add(decl.id.name);
         }
       }
-      // Re-export specifiers: export { Foo, Bar }
       for (const spec of (item.specifiers ?? []) as any[]) {
         if (spec.type === 'ExportSpecifier') {
           const name = spec.exported?.name ?? spec.local?.name;
@@ -58,7 +49,6 @@ export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsEx
       exportedTypes.add('default');
     }
 
-    // Detect ambient module augmentation: declare module "..."
     if (
       item.type === 'TSModuleDeclaration' ||
       (item.type === 'ExportNamedDeclaration' && item.declaration?.type === 'TSModuleDeclaration')
@@ -74,9 +64,6 @@ export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsEx
   };
 }
 
-/**
- * Fast-path topology extraction from lockfiles.
- */
 export function buildLockfileGraph(projectRoot: string): Map<string, DependencyNode> {
   const graph = new Map<string, DependencyNode>();
   const pnpmLockPath = path.join(projectRoot, 'pnpm-lock.yaml');
@@ -103,9 +90,7 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
           dependencies: deps,
         });
       }
-    } catch (e) {
-      // Ignore lockfile parse errors
-    }
+    } catch (e) {}
   } else if (fs.existsSync(pnpmLockPath)) {
     try {
       const raw = fs.readFileSync(pnpmLockPath, 'utf-8');
@@ -126,31 +111,21 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
           dependencies: deps,
         });
       }
-    } catch (e) {
-      // Ignore lockfile parse errors
-    }
+    } catch (e) {}
   }
 
   return graph;
 }
 
-/**
- * Layer 6: Dependency & Boundary Engine
- * Audits package usage and refines Layer 5 protections.
- */
 export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]> {
   const findings: Finding[] = [];
   const projectRoot = context.options.rootDir;
   
-  // 1. Audit declared dependencies vs imported ones
   const lockfileGraph = buildLockfileGraph(projectRoot);
-  
-  // Track imports per-package for monorepos, or globally for simple repos
   const packageImportMap = new Map<string, Set<string>>();
   const globalImports = new Set<string>();
 
   for (const module of context.modules.values()) {
-    // Determine which workspace this module belongs to
     let ownerPackage = 'root';
     if (context.options.monorepo) {
       for (const [name, pkg] of context.options.monorepo.packageMap.entries()) {
@@ -166,8 +141,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
     for (const edge of module.edges) {
       if (edge.resolution === 'external') {
-        const parts = edge.rawSpecifier.split('/');
-        const pkgName = edge.rawSpecifier.startsWith('@') ? `${parts[0] ?? ''}/${parts[1] ?? ''}` : (parts[0] ?? '');
+        const specifier = edge.rawSpecifier || edge.rawSpecifier;
+        if (!specifier) continue;
+
+        // Normalize node: protocol
+        const cleanSpec = specifier.startsWith('node:') ? specifier.slice(5) : specifier;
+        const parts = cleanSpec.split('/');
+        const pkgName = cleanSpec.startsWith('@') ? `${parts[0] ?? ''}/${parts[1] ?? ''}` : (parts[0] ?? '');
         pkgImports.add(pkgName);
         globalImports.add(pkgName);
       } else if (edge.resolution === 'resolved' && edge.target && context.options.monorepo) {
@@ -182,7 +162,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     }
   }
 
-  // Find unused direct dependencies from all package.json files
   const manifestPaths = new Map<string, string>();
   manifestPaths.set('root', path.join(projectRoot, 'package.json'));
   if (context.options.monorepo) {
@@ -203,7 +182,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       
       const importedInThisPackage = packageImportMap.get(pkgName) || new Set<string>();
 
-      // 1. Collect binary usages from scripts
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
       const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve']);
@@ -237,7 +215,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       };
 
       for (const script of Object.values(scripts) as string[]) {
-        // Improved Regex-based binary extraction
         const commandRegex = /(?:^|[&&|;(|{}])\s*([@\w\-/]+)/g;
         let match;
         while ((match = commandRegex.exec(script)) !== null) {
@@ -257,18 +234,15 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           }
         }
 
-        // Special flag detection (e.g. vitest --coverage)
         if (script.includes('vitest') && script.includes('--coverage')) {
           scriptPackages.add('@vitest/coverage-v8');
           scriptPackages.add('@vitest/coverage-c8');
         }
       }
 
-      // 1.5. Audit Imports vs package.json (Missing Dependencies)
       const usedNodeBuiltins = new Set<string>();
       const allDeclaredDeps = new Set([...Object.keys(dependencies), ...Object.keys(devDependencies), ...Object.keys(pkg.peerDependencies || {})]);
       
-      // Also include root dependencies if in a monorepo
       if (context.options.monorepo && pkgName !== 'root') {
         const rootManifest = manifestPaths.get('root');
         if (rootManifest && fs.existsSync(rootManifest)) {
@@ -280,8 +254,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       for (const imp of importedInThisPackage) {
-        const isNodeProtocol = imp.startsWith('node:');
-        const cleanImp = isNodeProtocol ? imp.slice(5) : imp;
+        const isNodeProtocol = imp.startsWith('node:') || NODE_BUILTINS.has(imp);
+        const cleanImp = imp.startsWith('node:') ? imp.slice(5) : imp;
         const rootModule = cleanImp.split('/')[0] || '';
 
         if (isNodeProtocol || NODE_BUILTINS.has(rootModule)) {
@@ -301,7 +275,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
-      // 1.6. Check for missing @types/node if built-ins are used
       if (usedNodeBuiltins.size > 0 && !allDeclaredDeps.has('@types/node')) {
         findings.push({
           rule: 'missing-dependency',
@@ -313,11 +286,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         });
       }
 
-      // 1.7. Report Unlisted Binaries
       for (const bin of scriptUsages) {
         const pkgName = BINARY_TO_PACKAGE[bin] || bin;
         if (!allDeclaredDeps.has(pkgName) && !bin.startsWith('./') && !bin.startsWith('../')) {
-          // Check if it's a known global or common binary we should ignore
           const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget', 'git', 'sudo', 'chmod', 'chown', 'env', 'xargs'];
           if (!COMMON_GLOBALS.includes(bin)) {
             findings.push({
@@ -332,22 +303,19 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
-      // Shared Core Tooling Whitelist
       const CORE_TOOLING = [
         'optiprune', '@optiprune/cli', '@optiprune/core', 'typescript', 'ts-node', 'tsx', 'babel', 'swc',
-        'eslint', 'prettier', 'husky', 'lint-staged', 'commitlint',
+        'eslint', 'prettier', 'husky', 'lint-staged', 'commitlint', 'knip',
         'vitest', 'jest', 'cypress', 'playwright', 'semantic-release',
         '@types/node', '@types/react', '@types/react-dom', '@types/jest'
       ];
 
-      // Heuristic: Check for common config files in root
       const commonConfigs = [
         '.eslintrc', '.prettierrc', 'vitest.config', 'jest.config', 'webpack.config', 'vite.config', 'rollup.config',
         'postcss.config', 'tailwind.config', 'tsconfig.json', 'babel.config', 'swc.config', 'lerna.json', 'turbo.json',
-        'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky'
+        'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky', 'knip.json'
       ];
 
-      // 2. Audit Dependencies
       for (const dep of Object.keys(dependencies)) {
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
         const hasRelatedConfig = commonConfigs.some(cfg => {
@@ -355,7 +323,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return cfg.includes(depBase || '___never___');
         });
 
-        // In monorepo, we check if it's used in this package OR if it's a workspace package used elsewhere
         const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
         
         if (!isUsed) {
@@ -370,14 +337,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
-      // 3. Audit DevDependencies
       for (const dep of Object.keys(devDependencies)) {
-        // Prevent self-reporting (ignore the package's own name if listed in devDeps)
         if (pkg.name && dep === pkg.name) {
           continue;
         }
 
-        // Special handling for @types/
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
           if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
@@ -393,7 +357,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
-        // Extra check for ESLint/Prettier plugins if the main tool is used
         let isPluginUsed = false;
         if (!isUsed && (dep.includes('eslint-plugin-') || dep.includes('prettier-plugin-'))) {
           if (scriptPackages.has('eslint') || scriptPackages.has('prettier') || hasRelatedConfig) {
@@ -404,7 +367,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (!isUsed && !isPluginUsed) {
           findings.push({
             rule: 'unused-dev-dependency',
-            severity: 'info', // devDeps are usually less critical
+            severity: 'info',
             confidence: 'medium',
             message: `DevDependency '${dep}' in ${relativeManifest} appears unused.`,
             file: relativeManifest,
@@ -415,7 +378,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     }
   }
 
-  // 2. Refine Layer 5 Protection
   for (const module of context.modules.values()) {
     const isReachable = context.reachable.has(module.id) || context.maybeReachable.has(module.id);
     if (!isReachable) {
