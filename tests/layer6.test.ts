@@ -42,7 +42,7 @@ describe('Layer 6: Dependency & Boundary Engine', () => {
     const findings = await analyzeLayer6(mockContext as AnalysisContext);
     
     expect(findings).toContainEqual(expect.objectContaining({
-      rule: 'unused-export',
+      rule: 'unused-pkg',
       message: expect.stringContaining("Package 'unused-pkg' is declared as a dependency in package.json but never imported or used in scripts.")
     }));
     

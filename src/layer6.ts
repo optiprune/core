@@ -284,12 +284,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
-      // Suppress missing-dependency warnings for @types/node if node builtins or types are present
-      const hasTypesNode = allDeclaredDeps.has('@types/node');
-      if (usedNodeBuiltins.size > 0 && !hasTypesNode) {
-        // Do not emit finding if types/node is not strictly required by runtime engine analysis
-      }
-
       for (const bin of scriptUsages) {
         const pkgName = BINARY_TO_PACKAGE[bin] || bin;
         if (!allDeclaredDeps.has(pkgName) && !bin.startsWith('./') && !bin.startsWith('../')) {
@@ -321,13 +315,24 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       ];
 
       for (const dep of Object.keys(dependencies)) {
+        // --- IMPROVED HUSKY & TOOLING PROTECTION ---
+        const isMarkedUsed = context.usedExports.has(`${relativeManifest}:dependencies:${dep}`) || 
+                             context.usedExports.has(`${relativeManifest}:devDependencies:${dep}`) ||
+                             context.usedExports.has(`package.json:dependencies:${dep}`) ||
+                             context.usedExports.has(`package.json:devDependencies:${dep}`);
+
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
+        
+        // Physical existence check for configs
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '');
-          return cfg.includes(depBase || '___never___');
+          if (cfg.includes(depBase || '___never___')) {
+             return fs.existsSync(path.join(projectRoot, cfg));
+          }
+          return false;
         });
 
-        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
         
         if (!isUsed) {
           findings.push({
@@ -353,13 +358,24 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           }
         }
 
+        // --- IMPROVED HUSKY & TOOLING PROTECTION ---
+        const isMarkedUsed = context.usedExports.has(`${relativeManifest}:dependencies:${dep}`) || 
+                             context.usedExports.has(`${relativeManifest}:devDependencies:${dep}`) ||
+                             context.usedExports.has(`package.json:dependencies:${dep}`) ||
+                             context.usedExports.has(`package.json:devDependencies:${dep}`);
+
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
+        
+        // Physical existence check for configs
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '');
-          return cfg.includes(depBase || '___never___');
+          if (cfg.includes(depBase || '___never___')) {
+             return fs.existsSync(path.join(projectRoot, cfg));
+          }
+          return false;
         });
 
-        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
         let isPluginUsed = false;
         if (!isUsed && (dep.includes('eslint-plugin-') || dep.includes('prettier-plugin-'))) {
