@@ -2,8 +2,10 @@ import { AnalyzerPlugin } from "../types.js";
 
 /**
  * Node Built-in Plugin for OptiPrune
- * Prevents flagging Node.js built-in modules (e.g., node:os, fs) as missing dependencies
- * if @types/node is present in package.json.
+ * 
+ * 1. Prevents flagging Node.js built-in modules (e.g., node:os, fs) as missing dependencies 
+ *    if @types/node is present.
+ * 2. Flags a missing devDependency if Node built-ins are used but @types/node is missing.
  */
 export const NodeBuiltinPlugin: AnalyzerPlugin = {
   name: "node-builtin-plugin",
@@ -16,13 +18,13 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson('package.json');
       if (!pkg) return;
-
+      
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
         ...pkg.peerDependencies
       };
-
+      
       const hasTypesNode = !!allDeps['@types/node'];
       
       // Node.js built-in modules list
@@ -35,20 +37,51 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
         'url', 'util', 'v8', 'vm', 'worker_threads', 'zlib'
       ]);
 
-      if (hasTypesNode) {
-        // We tell the adapter to treat these as "internally handled"
-        // In the future, the PluginAdapter could have a 'registerExternalResolution' method
-        adapter.attachMetadata(global, 'handled-builtins', Array.from(nodeBuiltins));
-      }
+      // Store state for use in other hooks
+      (adapter as any).__nodePluginState = {
+        hasTypesNode,
+        nodeBuiltins,
+        usedBuiltins: new Set<string>()
+      };
     },
     onASTNode: (node: any, fileId, adapter) => {
-      // Check for imports of Node.js built-ins
+      const state = (adapter as any).__nodePluginState;
+      if (!state) return;
+
+      // Check for imports/exports of Node.js built-ins
       if (node.type === 'ImportDeclaration' || node.type === 'ExportNamedDeclaration' || node.type === 'ExportAllDeclaration') {
         const specifier = node.source?.value;
-        if (specifier && (specifier.startsWith('node:') || specifier === 'process')) {
-          // Mark as handled to prevent "missing-dependency" errors
+        if (!specifier) return;
+
+        const isNodeProtocol = specifier.startsWith('node:');
+        const cleanSpecifier = isNodeProtocol ? specifier.slice(5) : specifier;
+        const rootModule = cleanSpecifier.split('/')[0];
+
+        if (isNodeProtocol || state.nodeBuiltins.has(rootModule)) {
+          // 1. Mark as used to prevent core "missing-dependency" errors when types are present
           adapter.markAsUsed(fileId, specifier);
+          
+          // 2. Track for the missing types check
+          state.usedBuiltins.add(specifier);
         }
+      }
+    },
+    onAnalysisComplete: async (adapter) => {
+      const state = (adapter as any).__nodePluginState;
+      if (!state || state.hasTypesNode) return;
+
+      if (state.usedBuiltins.size > 0) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "warning",
+          confidence: "high",
+          file: "package.json",
+          message: `Node.js built-in module(s) [${Array.from(state.usedBuiltins).join(', ')}] are used, but '@types/node' is missing from package.json.`,
+          evidence: { 
+            usedBuiltins: Array.from(state.usedBuiltins),
+            missingPackage: '@types/node'
+          }
+        });
       }
     }
   }
