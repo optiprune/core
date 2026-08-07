@@ -549,8 +549,7 @@ export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["fail
 /**
  * Headless API: Cache Management
  */
-export const exportCache = saveCache;
-export const importCache = loadCache;
+export { exportCache, importCache } from './cache.js';
 
 /**
  * Headless API: Automated Fixes
