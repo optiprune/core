@@ -48,11 +48,20 @@ export const VitestPlugin: AnalyzerPlugin = {
       }
     },
     onFileStart: (fileId, adapter) => {
-      // Markiert Testdateien und Konfigurationen als Einstiegspunkte
+      // Markiert Testdateien, Konfigurationen und Test-Ordner als Einstiegspunkte
+      // Erkennt Dateien mit .test. oder .spec. Endungen
       const isTestFile = /\.(test|spec)\.[jt]sx?$/.test(fileId);
-      const isConfigFile = fileId.includes('vitest.config.') || fileId.includes('vitest.setup.');
       
-      if (isTestFile || isConfigFile) {
+      // Erkennt Dateien in typischen Test-Verzeichnissen (test, tests, __tests__)
+      const isInTestFolder = /[\\/](test|tests|__tests__)[\\/]/.test(fileId);
+      
+      // Erkennt Vitest-Konfigurationsdateien
+      const isConfigFile = fileId.includes('vitest.config.') || 
+                          fileId.includes('vitest.setup.') || 
+                          fileId.includes('vitest.workspace.');
+      
+      if (isTestFile || isInTestFolder || isConfigFile) {
+        // Markiert die Datei als erreichbar/aktiv, um "unreachable-file" Warnungen zu verhindern
         adapter.markAsUsed(fileId);
       }
     }
