@@ -272,8 +272,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       if (context.options.monorepo && pkgName !== 'root') {
         const rootManifest = manifestPaths.get('root');
         if (rootManifest && fs.existsSync(rootManifest)) {
-          const rootPkg = JSON.parse(fs.readFileSync(rootManifest, 'utf-8'));
-          [...Object.keys(rootPkg.dependencies || {}), ...Object.keys(rootPkg.devDependencies || {}), ...Object.keys(rootPkg.peerDependencies || {})].forEach(d => allDeclaredDeps.add(d));
+          try {
+            const rootPkg = JSON.parse(fs.readFileSync(rootManifest, 'utf-8'));
+            [...Object.keys(rootPkg.dependencies || {}), ...Object.keys(rootPkg.devDependencies || {}), ...Object.keys(rootPkg.peerDependencies || {})].forEach(d => allDeclaredDeps.add(d));
+          } catch (e) {}
         }
       }
 
@@ -330,10 +332,32 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
+      // Shared Core Tooling Whitelist
+      const CORE_TOOLING = [
+        'optiprune', '@optiprune/cli', '@optiprune/core', 'typescript', 'ts-node', 'tsx', 'babel', 'swc',
+        'eslint', 'prettier', 'husky', 'lint-staged', 'commitlint',
+        'vitest', 'jest', 'cypress', 'playwright', 'semantic-release',
+        '@types/node', '@types/react', '@types/react-dom', '@types/jest'
+      ];
+
+      // Heuristic: Check for common config files in root
+      const commonConfigs = [
+        '.eslintrc', '.prettierrc', 'vitest.config', 'jest.config', 'webpack.config', 'vite.config', 'rollup.config',
+        'postcss.config', 'tailwind.config', 'tsconfig.json', 'babel.config', 'swc.config', 'lerna.json', 'turbo.json',
+        'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky'
+      ];
+
       // 2. Audit Dependencies
       for (const dep of Object.keys(dependencies)) {
+        const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
+        const hasRelatedConfig = commonConfigs.some(cfg => {
+          const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '');
+          return cfg.includes(depBase || '___never___');
+        });
+
         // In monorepo, we check if it's used in this package OR if it's a workspace package used elsewhere
-        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep);
+        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        
         if (!isUsed) {
           findings.push({
             rule: 'unused-dependency',
@@ -361,27 +385,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           }
         }
 
-        // Refined Whitelist for config/tooling packages
-        // We only whitelist very core tools that are almost always implicitly used
-        const CORE_TOOLING = [
-          'optiprune', '@optiprune/cli', '@optiprune/core', 'typescript', 'ts-node', 'tsx', 'babel', 'swc',
-          'eslint', 'prettier', 'husky', 'lint-staged', 'commitlint',
-          'vitest', 'jest', 'cypress', 'playwright', 'semantic-release',
-          '@types/node', '@types/react', '@types/react-dom', '@types/jest'
-        ];
-        
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
-        
-        // Heuristic: Check for common config files in root
-        const commonConfigs = [
-          '.eslintrc', '.prettierrc', 'vitest.config', 'jest.config', 'webpack.config', 'vite.config', 'rollup.config',
-          'postcss.config', 'tailwind.config', 'tsconfig.json', 'babel.config', 'swc.config', 'lerna.json', 'turbo.json',
-          'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky'
-        ];
-        
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '');
-          // If the dependency name (or part of it) is found in a config file name, it's likely used
           return cfg.includes(depBase || '___never___');
         });
 
