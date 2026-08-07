@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { PluginEngine } from '../../src/engine.js';
-import { ReactPlugin, NextjsPlugin, NuxtPlugin } from '../../src/framework-plugins.js';
+import { ReactPlugin } from '../../src/plugins/react-plugin.js';
+import { NextjsPlugin } from '../../src/plugins/nextjs-plugin.js';
+import { NuxtPlugin } from '../../src/plugins/nuxtjs-plugin.js';
 import { parseModule } from '../../src/parser.js';
 import { AnalysisContext, ResolvedOptions, ModuleRecord } from '../../src/types.js';
 

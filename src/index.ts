@@ -14,8 +14,7 @@ import { SemanticGraph } from "./semantic-graph.js";
 import { TopologyManager } from "./topology-manager.js";
 import { SymbolicEngine } from "./symbolic-engine.js";
 import { buildMonorepoTopology } from "./workspace.js";
-import { PluginEngine, ZodPlugin } from "./engine.js";
-import { ReactPlugin, NextjsPlugin, NuxtPlugin } from "./framework-plugins.js";
+import { PluginEngine } from "./engine.js";
 import { loadCache, saveCache, getFileHash, isCacheValid, AnalysisCache } from "./cache.js";
 import { formatTerminal, formatSarif } from "./reporters.js";
 import {
@@ -253,10 +252,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Gated Layer 2: Plugin-based Instruction Engine (Hardening)
   const pluginEngine = new PluginEngine();
-  pluginEngine.register(ZodPlugin);
-  pluginEngine.register(ReactPlugin);
-  pluginEngine.register(NextjsPlugin);
-  pluginEngine.register(NuxtPlugin);
   const pluginFindings = await pluginEngine.run(context);
   
   // --- PATCH: RE-CALCULATE REACHABILITY ---

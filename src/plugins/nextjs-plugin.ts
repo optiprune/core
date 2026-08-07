@@ -1,25 +1,53 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import path from "pathe";
+
+const NEXT_CONFIG_FILES = ['next.config.js', 'next.config.mjs', 'next.config.ts', 'next.config.cjs'];
 
 /**
  * Next.js Plugin
- * Handles Next.js-specific patterns: page.tsx, route.ts, layout.tsx, middleware, API routes, etc.
+ * Handles Next.js specific entry points and conventions.
  */
-export const NextJsPlugin: AnalyzerPlugin = {
+export const NextjsPlugin: AnalyzerPlugin = {
   name: "nextjs-plugin",
-  version: "1.0.0",
+  version: "1.2.0",
   detect: async (adapter) => {
     const pkg = await adapter.readJson('package.json');
-    if (pkg) {
-      const hasDep = !!(pkg.dependencies?.['next'] || pkg.devDependencies?.['next']);
-      if (hasDep) return true;
+    if (pkg && (pkg.dependencies?.['next'] || pkg.devDependencies?.['next'])) {
+      return true;
     }
-    // Fallback: If we see next.config.js, enable it
-    const nextConfig = await adapter.readFile('next.config.js');
-    return !!nextConfig;
+    for (const file of NEXT_CONFIG_FILES) {
+      if ((await adapter.readFile(file)) !== null) return true;
+    }
+    return false;
   },
   lifecycle: {
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson('package.json');
+      const hasNext = pkg ? !!(pkg.dependencies?.['next'] || pkg.devDependencies?.['next']) : false;
+      
+      let hasConfigFile = false;
+      for (const file of NEXT_CONFIG_FILES) {
+        if ((await adapter.readFile(file)) !== null) {
+          hasConfigFile = true;
+          break;
+        }
+      }
+
+      if (hasConfigFile && !hasNext) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Next.js configuration found but 'next' is not listed in package.json.",
+          evidence: { hasConfigFile }
+        });
+      }
+    },
     onFileStart: (fileId, adapter) => {
+      const filename = path.basename(fileId);
+      
       // Mark Next.js conventional files as entry points
       const nextJsPatterns = [
         'page.tsx', 'page.ts', 'page.jsx', 'page.js',
@@ -33,25 +61,34 @@ export const NextJsPlugin: AnalyzerPlugin = {
         'default.tsx', 'default.ts'
       ];
 
-      if (nextJsPatterns.some(pattern => fileId.endsWith(pattern))) {
+      if (nextJsPatterns.includes(filename)) {
+        adapter.markAsUsed(fileId);
+      }
+      
+      if (fileId.includes('/pages/api/') || fileId.includes('/app/')) {
+        adapter.markAsUsed(fileId);
+      }
+      
+      if (NEXT_CONFIG_FILES.includes(filename)) {
         adapter.markAsUsed(fileId);
       }
     },
     onASTNode: (node, fileId, adapter) => {
-      // Detect Next.js data fetching functions
-      if (t.isExportNamedDeclaration(node) || t.isExportDefaultDeclaration(node)) {
-        if (t.isFunctionDeclaration(node.declaration) || t.isFunctionExpression(node.declaration)) {
-          const funcName = (node.declaration as any).id?.name;
-          if (funcName && ['getServerSideProps', 'getStaticProps', 'getStaticPaths', 'generateStaticParams', 'generateMetadata'].includes(funcName)) {
-            adapter.markAsUsed(fileId, funcName);
+      // Detect Next.js data fetching functions and metadata exports
+      if (t.isExportNamedDeclaration(node) && node.declaration) {
+        const decl = node.declaration;
+        if (t.isFunctionDeclaration(decl) && decl.id) {
+          const name = decl.id.name;
+          if (['getServerSideProps', 'getStaticProps', 'getStaticPaths', 'generateStaticParams', 'generateMetadata'].includes(name)) {
+            adapter.markAsUsed(fileId, name);
           }
         }
       }
 
-      // Detect Next.js hooks usage (useRouter, usePathname, useSearchParams, etc.)
+      // Detect Next.js hooks usage
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
         const hookName = node.callee.name;
-        if (['useRouter', 'usePathname', 'useSearchParams', 'useParams', 'useServerInsertedHTML'].includes(hookName)) {
+        if (hookName.startsWith('use') && ['useRouter', 'usePathname', 'useSearchParams', 'useParams', 'useServerInsertedHTML'].includes(hookName)) {
           adapter.markAsUsed(fileId);
         }
       }
@@ -63,8 +100,16 @@ export const NextJsPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
+      
+      // Handle next.config.js exports
+      const filename = path.basename(fileId);
+      if (NEXT_CONFIG_FILES.includes(filename)) {
+        if (node.type === "ExportDefaultDeclaration") {
+          adapter.markAsUsed(fileId, "default");
+        }
+      }
     }
   }
 };
 
-export default NextJsPlugin;
+export default NextjsPlugin;

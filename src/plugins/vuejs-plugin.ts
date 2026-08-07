@@ -1,5 +1,8 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import path from "pathe";
+
+const VUE_CONFIG_FILES = ["vue.config.js", "vue.config.ts", "nuxt.config.js", "nuxt.config.ts"];
 
 /**
  * Vue.js Plugin
@@ -7,23 +10,50 @@ import { t } from "../ast-utils.js";
  */
 export const VueJsPlugin: AnalyzerPlugin = {
   name: "vuejs-plugin",
-  version: "1.0.1", // Incrementing version for the update
+  version: "1.1.0",
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      const hasDep = !!(pkg.dependencies?.["vue"] || pkg.devDependencies?.["vue"]);
-      if (hasDep) return true;
+    if (pkg && (pkg.dependencies?.["vue"] || pkg.devDependencies?.["vue"])) {
+      return true;
     }
-    // Fallback: If we see .vue files, enable it
-    // This might need a more robust check, e.g., globbing for .vue files
-    const vueConfig = await adapter.readFile("vite.config.ts"); // Revert to original check or similar
-    return !!vueConfig;
+    for (const file of VUE_CONFIG_FILES) {
+      if ((await adapter.readFile(file)) !== null) return true;
+    }
+    // Check for any .vue files in the project root or src
+    const hasVueFile = await adapter.readFile("src/App.vue") || await adapter.readFile("App.vue");
+    return !!hasVueFile;
   },
   lifecycle: {
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson("package.json");
+      const hasVueDep = pkg ? !!(pkg.dependencies?.["vue"] || pkg.devDependencies?.["vue"]) : false;
+      
+      let hasConfigFile = false;
+      for (const file of VUE_CONFIG_FILES) {
+        if ((await adapter.readFile(file)) !== null) {
+          hasConfigFile = true;
+          break;
+        }
+      }
+
+      if (hasConfigFile && !hasVueDep) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Vue configuration found but 'vue' is not listed in package.json.",
+          evidence: { hasConfigFile }
+        });
+      }
+    },
     onFileStart: (fileId, adapter) => {
-      // Vue components are entry points by nature if they are not imported elsewhere
-      // For now, we mark all .vue files as potentially used, further analysis will refine
+      // Vue components are entry points by nature
       if (fileId.endsWith(".vue")) {
+        adapter.markAsUsed(fileId);
+      }
+      const fileName = path.basename(fileId);
+      if (VUE_CONFIG_FILES.includes(fileName)) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -32,25 +62,11 @@ export const VueJsPlugin: AnalyzerPlugin = {
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
         const apiName = node.callee.name;
         const vueAPIs = [
-          // Composition API lifecycle hooks
           "onMounted", "onUpdated", "onUnmounted", "onBeforeMount", "onBeforeUpdate", "onBeforeUnmount",
           "onActivated", "onDeactivated", "onErrorCaptured", "onRenderTracked", "onRenderTriggered",
-          // Reactivity APIs
           "ref", "reactive", "computed", "watch", "watchEffect", "provide", "inject",
-          // Component definition helpers
           "defineComponent", "defineProps", "defineEmits", "defineExpose", "defineOptions", "defineSlots",
-          // Vue Router (common usage)
-          "useRouter", "useRoute",
-          // Pinia (common usage)
-          "defineStore", "useStore",
-          // More Vue 3 Composition API and utilities
-          "h", "resolveComponent", "resolveDirective", "withDirectives", "withModifiers",
-          "nextTick", "markRaw", "toRaw", "toRef", "toRefs", "unref", "isRef", "customRef",
-          "isProxy", "isReactive", "isReadonly", "isShallow", "shallowRef", "shallowReactive", "shallowReadonly",
-          "triggerRef", "effect", "effectScope", "getCurrentScope", "onScopeDispose",
-          "watchPostEffect", "watchSyncEffect",
-          // Teleport, Suspense, Transition, KeepAlive (components, but often used as functions in render context)
-          "Teleport", "Suspense", "Transition", "KeepAlive"
+          "useRouter", "useRoute", "defineStore", "useStore"
         ];
         if (vueAPIs.includes(apiName)) {
           adapter.markAsUsed(fileId);
@@ -58,9 +74,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       }
 
       // Handle <script setup> implicit exports
-      // In a compiled Vue SFC, top-level declarations in <script setup> are implicitly exposed.
-      // We need to identify these declarations and mark them as used.
-      if (t.isProgram(node)) {
+      if (t.isProgram(node) && fileId.endsWith(".vue")) {
         for (const statement of node.body) {
           if (t.isVariableDeclaration(statement)) {
             for (const declarator of statement.declarations) {
@@ -70,36 +84,20 @@ export const VueJsPlugin: AnalyzerPlugin = {
             }
           } else if (t.isFunctionDeclaration(statement) && statement.id) {
             adapter.markAsUsed(fileId, statement.id.name);
-          } else if (t.isClassDeclaration(statement) && statement.id) {
-            adapter.markAsUsed(fileId, statement.id.name);
           }
         }
       }
 
-      // Handle options API properties within defineComponent
+      // Handle options API
       if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === 'defineComponent' && node.arguments.length > 0 && t.isObjectExpression(node.arguments[0])) {
         const optionsObject = node.arguments[0];
         for (const prop of optionsObject.properties) {
           if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
             const propName = prop.key.name;
-            // Mark common options API properties as used
             if (['props', 'emits', 'data', 'methods', 'computed', 'watch', 'setup'].includes(propName)) {
               adapter.markAsUsed(fileId, propName);
             }
           }
-        }
-      }
-
-      // Vue template refs ($refs)
-      if (t.isMemberExpression(node) && t.isIdentifier(node.property) && node.property.name === '$refs') {
-        adapter.markAsUsed(fileId);
-      }
-
-      // Components used in JSX/TSX (e.g., <MyComponent />)
-      if (t.isJSXElement(node) && t.isJSXIdentifier(node.openingElement.name)) {
-        const componentName = node.openingElement.name.name;
-        if (componentName[0] === componentName[0].toUpperCase()) {
-          adapter.markAsUsed(fileId, componentName);
         }
       }
     }

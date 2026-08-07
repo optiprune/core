@@ -30,6 +30,44 @@ export const BabelPlugin: AnalyzerPlugin = {
     return !!babelConfig;
   },
   lifecycle: {
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson('package.json');
+      const hasBabelDep = pkg ? !!(
+        pkg.dependencies?.['@babel/core'] ||
+        pkg.dependencies?.['@babel/cli'] ||
+        pkg.devDependencies?.['@babel/core'] ||
+        pkg.devDependencies?.['@babel/cli']
+      ) : false;
+
+      const babelConfigFiles = [
+        'babel.config.js',
+        'babel.config.cjs',
+        'babel.config.mjs',
+        '.babelrc',
+        '.babelrc.js',
+        '.babelrc.cjs',
+        '.babelrc.json'
+      ];
+
+      let hasConfigFile = false;
+      for (const file of babelConfigFiles) {
+        if (await adapter.readFile(file) !== null) {
+          hasConfigFile = true;
+          break;
+        }
+      }
+
+      if (hasConfigFile && !hasBabelDep) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Babel configuration found but '@babel/core' or '@babel/cli' is not listed in package.json.",
+          evidence: { hasConfigFile }
+        });
+      }
+    },
     onFileStart: (fileId, adapter) => {
       // Mark Babel config files as entry points
       const babelConfigFiles = [

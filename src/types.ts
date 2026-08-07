@@ -146,7 +146,8 @@ export interface Finding {
     | "protected-contract"
     | "missing-dependency"
     | "unused-dependency"
-    | "unused-dev-dependency";
+    | "unused-dev-dependency"
+    | (string & {});
   severity: Severity;
   confidence: Confidence;
   message: string;
@@ -300,7 +301,7 @@ export interface PluginAdapter {
   readJson(filename: string): Promise<any | null>;
   
   // Writing Abilities
-  emitFinding(finding: Omit<Finding, "rule">): void;
+  emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;
   markAsUsed(fileId: string, symbol?: string): void;
   attachMetadata(node: any, key: string, value: any): void;
 }

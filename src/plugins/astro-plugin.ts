@@ -1,5 +1,8 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import path from "pathe";
+
+const ASTRO_CONFIG_FILES = ["astro.config.mjs", "astro.config.js", "astro.config.ts", "astro.config.cjs"];
 
 /**
  * Astro Plugin
@@ -7,55 +10,59 @@ import { t } from "../ast-utils.js";
  */
 export const AstroPlugin: AnalyzerPlugin = {
   name: "astro-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
   detect: async (adapter) => {
     const pkg = await adapter.readJson('package.json');
-    if (pkg) {
-      const hasDep = !!(pkg.dependencies?.['astro'] || pkg.devDependencies?.['astro']);
-      if (hasDep) return true;
+    if (pkg && (pkg.dependencies?.['astro'] || pkg.devDependencies?.['astro'])) {
+      return true;
     }
-    // Fallback: If we see astro.config.mjs, enable it
-    const astroConfig = await adapter.readFile('astro.config.mjs');
-    return !!astroConfig;
+    for (const file of ASTRO_CONFIG_FILES) {
+      if ((await adapter.readFile(file)) !== null) return true;
+    }
+    return false;
   },
   lifecycle: {
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson('package.json');
+      const hasAstroDep = pkg ? !!(pkg.dependencies?.['astro'] || pkg.devDependencies?.['astro']) : false;
+      
+      let hasConfigFile = false;
+      for (const file of ASTRO_CONFIG_FILES) {
+        if ((await adapter.readFile(file)) !== null) {
+          hasConfigFile = true;
+          break;
+        }
+      }
+
+      if (hasConfigFile && !hasAstroDep) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Astro configuration found but 'astro' is not listed in package.json.",
+          evidence: { hasConfigFile }
+        });
+      }
+    },
     onFileStart: (fileId, adapter) => {
       // Mark Astro conventional files as entry points
-      const astroPatterns = [
-        '.astro',
-        'pages/', 'layouts/', 'components/', 'api/'
-      ];
-
+      const astroPatterns = ['.astro', 'pages/', 'layouts/', 'components/', 'api/'];
       if (astroPatterns.some(pattern => fileId.includes(pattern) || fileId.endsWith(pattern))) {
         adapter.markAsUsed(fileId);
       }
-
-      // Mark .astro files
-      if (fileId.endsWith('.astro')) {
-        adapter.markAsUsed(fileId);
-      }
-
-      // Mark API route files
-      if (fileId.includes('pages/api/') || fileId.includes('api/')) {
+      const fileName = path.basename(fileId);
+      if (ASTRO_CONFIG_FILES.includes(fileName)) {
         adapter.markAsUsed(fileId);
       }
     },
     onASTNode: (node, fileId, adapter) => {
-      // Astro API exports (GET, POST, PUT, DELETE, PATCH, etc.)
-      if (t.isExportNamedDeclaration(node)) {
-        if (t.isFunctionDeclaration(node.declaration) || t.isFunctionExpression(node.declaration)) {
-          const funcName = (node.declaration as any).id?.name;
-          if (funcName && ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].includes(funcName)) {
-            adapter.markAsUsed(fileId, funcName);
-          }
-        }
-      }
-
-      // Astro getStaticPaths
-      if (t.isExportNamedDeclaration(node)) {
-        if (t.isFunctionDeclaration(node.declaration) || t.isFunctionExpression(node.declaration)) {
-          const funcName = (node.declaration as any).id?.name;
-          if (funcName === 'getStaticPaths') {
+      // Astro API exports
+      if (t.isExportNamedDeclaration(node) && node.declaration) {
+        const decl = node.declaration;
+        if (t.isFunctionDeclaration(decl) && decl.id) {
+          const funcName = decl.id.name;
+          if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'getStaticPaths'].includes(funcName)) {
             adapter.markAsUsed(fileId, funcName);
           }
         }
@@ -66,7 +73,7 @@ export const AstroPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
       }
 
-      // Astro client-side directives (client:load, client:idle, etc.)
+      // Astro client-side directives
       if (t.isJSXAttribute(node)) {
         const attrName = (node.name as any).name;
         if (attrName && attrName.startsWith('client:')) {
@@ -74,20 +81,20 @@ export const AstroPlugin: AnalyzerPlugin = {
         }
       }
 
-      // Astro slots
-      if (t.isJSXElement(node) && t.isJSXIdentifier(node.openingElement.name)) {
-        const tagName = (node.openingElement.name as any).name;
-        if (tagName === 'slot') {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Astro.glob() for dynamic imports
+      // Astro.glob()
       if (t.isCallExpression(node) && t.isMemberExpression(node.callee)) {
         const obj = (node.callee as any).object;
         const prop = (node.callee as any).property;
         if (t.isIdentifier(obj) && obj.name === 'Astro' && t.isIdentifier(prop) && prop.name === 'glob') {
           adapter.markAsUsed(fileId);
+        }
+      }
+      
+      // Handle astro.config.mjs exports
+      const fileName = path.basename(fileId);
+      if (ASTRO_CONFIG_FILES.includes(fileName)) {
+        if (node.type === "ExportDefaultDeclaration") {
+          adapter.markAsUsed(fileId, "default");
         }
       }
     }

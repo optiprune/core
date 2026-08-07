@@ -16,8 +16,29 @@ export const VitestPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson('package.json');
-      const isTypeScript = !!(pkg?.devDependencies?.['typescript'] || await adapter.readFile('tsconfig.json'));
+      const hasVitestDep = pkg ? !!(pkg.dependencies?.['vitest'] || pkg.devDependencies?.['vitest']) : false;
       
+      const configFiles = ['vitest.config.ts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cjs'];
+      let hasConfigFile = false;
+      for (const file of configFiles) {
+        if (await adapter.readFile(file) !== null) {
+          hasConfigFile = true;
+          break;
+        }
+      }
+
+      if (hasConfigFile && !hasVitestDep) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Vitest configuration found but 'vitest' is not listed in package.json.",
+          evidence: { hasConfigFile }
+        });
+      }
+
+      const isTypeScript = !!(pkg?.devDependencies?.['typescript'] || await adapter.readFile('tsconfig.json'));
       if (isTypeScript) {
         // Vitest benötigt in TS-Projekten oft esbuild oder tsx für die Transformation.
         // Wir markieren diese als 'used', damit sie nicht als ungenutzte Abhängigkeiten geflaggt werden.

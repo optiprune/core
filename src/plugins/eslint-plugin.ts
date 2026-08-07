@@ -26,11 +26,46 @@ export const EslintPlugin: AnalyzerPlugin = {
       ".eslintrc"
     ];
     for (const file of configFiles) {
-      if (await adapter.readFile(file)) return true;
+      if (await adapter.readFile(file) !== null) return true;
     }
     return false;
   },
   lifecycle: {
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson("package.json");
+      const hasEslintDep = pkg ? !!(pkg.dependencies?.["eslint"] || pkg.devDependencies?.["eslint"]) : false;
+      
+      const configFiles = [
+        "eslint.config.js",
+        "eslint.config.mjs",
+        "eslint.config.cjs",
+        ".eslintrc.js",
+        ".eslintrc.cjs",
+        ".eslintrc.yaml",
+        ".eslintrc.yml",
+        ".eslintrc.json",
+        ".eslintrc"
+      ];
+
+      let hasConfigFile = false;
+      for (const file of configFiles) {
+        if (await adapter.readFile(file) !== null) {
+          hasConfigFile = true;
+          break;
+        }
+      }
+
+      if (hasConfigFile && !hasEslintDep) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "ESLint configuration found but 'eslint' is not listed in package.json.",
+          evidence: { hasConfigFile }
+        });
+      }
+    },
     onFileStart: (fileId, adapter) => {
       const configFiles = [
         "eslint.config.js",
