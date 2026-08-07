@@ -205,8 +205,37 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       // 1. Collect binary usages from scripts
       const scriptUsages = new Set<string>();
+      const scriptPackages = new Set<string>();
       const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve']);
       
+      const NODE_BUILTINS = new Set([
+        'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
+        'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 
+        'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 
+        'process', 'punycode', 'querystring', 'readline', 'repl', 'stream', 
+        'string_decoder', 'sys', 'timers', 'tls', 'trace_events', 'tty', 
+        'url', 'util', 'v8', 'vm', 'wasi', 'worker_threads', 'zlib'
+      ]);
+
+      const BINARY_TO_PACKAGE: Record<string, string> = { 
+        'tsc': 'typescript', 
+        'vitest': 'vitest', 
+        'jest': 'jest', 
+        'eslint': 'eslint', 
+        'prettier': 'prettier', 
+        'oxlint': 'oxlint', 
+        'oxfmt': 'oxfmt', 
+        'tsdown': 'tsdown', 
+        'vite': 'vite', 
+        'rollup': 'rollup', 
+        'webpack': 'webpack', 
+        'esbuild': 'esbuild',
+        'jscpd': 'jscpd',
+        'knip': 'knip',
+        'husky': 'husky',
+        'lint-staged': 'lint-staged'
+      };
+
       for (const script of Object.values(scripts) as string[]) {
         // Improved Regex-based binary extraction
         const commandRegex = /(?:^|[&&|;(|{}])\s*([@\w\-/]+)/g;
@@ -215,6 +244,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           const cmd = match[1];
           if (cmd && !shellCommands.has(cmd)) {
             scriptUsages.add(cmd);
+            scriptPackages.add(BINARY_TO_PACKAGE[cmd] || cmd);
           }
         }
 
@@ -223,15 +253,68 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           const cmd = match[1];
           if (cmd && !shellCommands.has(cmd) && !cmd.startsWith('.') && !cmd.startsWith('/') && !cmd.includes('/') && !cmd.endsWith('.ts') && !cmd.endsWith('.js')) {
             scriptUsages.add(cmd);
+            scriptPackages.add(BINARY_TO_PACKAGE[cmd] || cmd);
           }
+        }
+
+        // Special flag detection (e.g. vitest --coverage)
+        if (script.includes('vitest') && script.includes('--coverage')) {
+          scriptPackages.add('@vitest/coverage-v8');
+          scriptPackages.add('@vitest/coverage-c8');
         }
       }
 
-      // 1.5. Report Unlisted Binaries
-      const BINARY_TO_PACKAGE: Record<string, string> = { 'tsc': 'typescript', 'vitest': 'vitest', 'jest': 'jest', 'eslint': 'eslint', 'prettier': 'prettier', 'oxlint': 'oxlint', 'oxfmt': 'oxfmt', 'tsdown': 'tsdown', 'vite': 'vite', 'rollup': 'rollup', 'webpack': 'webpack', 'esbuild': 'esbuild' };
+      // 1.5. Audit Imports vs package.json (Missing Dependencies)
+      const usedNodeBuiltins = new Set<string>();
+      const allDeclaredDeps = new Set([...Object.keys(dependencies), ...Object.keys(devDependencies), ...Object.keys(pkg.peerDependencies || {})]);
+      
+      // Also include root dependencies if in a monorepo
+      if (context.options.monorepo && pkgName !== 'root') {
+        const rootManifest = manifestPaths.get('root');
+        if (rootManifest && fs.existsSync(rootManifest)) {
+          const rootPkg = JSON.parse(fs.readFileSync(rootManifest, 'utf-8'));
+          [...Object.keys(rootPkg.dependencies || {}), ...Object.keys(rootPkg.devDependencies || {}), ...Object.keys(rootPkg.peerDependencies || {})].forEach(d => allDeclaredDeps.add(d));
+        }
+      }
+
+      for (const imp of importedInThisPackage) {
+        const isNodeProtocol = imp.startsWith('node:');
+        const cleanImp = isNodeProtocol ? imp.slice(5) : imp;
+        const rootModule = cleanImp.split('/')[0] || '';
+
+        if (isNodeProtocol || NODE_BUILTINS.has(rootModule)) {
+          usedNodeBuiltins.add(imp);
+          continue;
+        }
+
+        if (!allDeclaredDeps.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':')) {
+          findings.push({
+            rule: 'missing-dependency',
+            severity: 'error',
+            confidence: 'high',
+            message: `Package '${imp}' is imported but not declared in package.json.`,
+            file: relativeManifest,
+            evidence: { package: imp, type: 'import' }
+          });
+        }
+      }
+
+      // 1.6. Check for missing @types/node if built-ins are used
+      if (usedNodeBuiltins.size > 0 && !allDeclaredDeps.has('@types/node')) {
+        findings.push({
+          rule: 'missing-dependency',
+          severity: 'warning',
+          confidence: 'high',
+          message: `Node.js built-in modules are used, but '@types/node' is missing from package.json.`,
+          file: relativeManifest,
+          evidence: { usedBuiltins: Array.from(usedNodeBuiltins), missingPackage: '@types/node' }
+        });
+      }
+
+      // 1.7. Report Unlisted Binaries
       for (const bin of scriptUsages) {
         const pkgName = BINARY_TO_PACKAGE[bin] || bin;
-        if (!dependencies[pkgName] && !devDependencies[pkgName] && !bin.startsWith('./') && !bin.startsWith('../')) {
+        if (!allDeclaredDeps.has(pkgName) && !bin.startsWith('./') && !bin.startsWith('../')) {
           // Check if it's a known global or common binary we should ignore
           const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget', 'git', 'sudo', 'chmod', 'chown', 'env', 'xargs'];
           if (!COMMON_GLOBALS.includes(bin)) {
@@ -250,7 +333,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       // 2. Audit Dependencies
       for (const dep of Object.keys(dependencies)) {
         // In monorepo, we check if it's used in this package OR if it's a workspace package used elsewhere
-        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep);
+        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep);
         if (!isUsed) {
           findings.push({
             rule: 'unused-dependency',
@@ -281,19 +364,19 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         // Refined Whitelist for config/tooling packages
         // We only whitelist very core tools that are almost always implicitly used
         const CORE_TOOLING = [
-          'optiprune', 'typescript', 'ts-node', 'tsx', 'babel', 'swc',
-          'eslint', 'prettier', 'husky', 'lint-staged',
-          'vitest', 'jest', 'cypress', 'playwright',
+          'optiprune', '@optiprune/cli', '@optiprune/core', 'typescript', 'ts-node', 'tsx', 'babel', 'swc',
+          'eslint', 'prettier', 'husky', 'lint-staged', 'commitlint',
+          'vitest', 'jest', 'cypress', 'playwright', 'semantic-release',
           '@types/node', '@types/react', '@types/react-dom', '@types/jest'
         ];
         
-        const isCoreTool = CORE_TOOLING.some(p => dep.includes(p));
+        const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
         
         // Heuristic: Check for common config files in root
         const commonConfigs = [
           '.eslintrc', '.prettierrc', 'vitest.config', 'jest.config', 'webpack.config', 'vite.config', 'rollup.config',
           'postcss.config', 'tailwind.config', 'tsconfig.json', 'babel.config', 'swc.config', 'lerna.json', 'turbo.json',
-          'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json'
+          'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky'
         ];
         
         const hasRelatedConfig = commonConfigs.some(cfg => {
@@ -302,9 +385,17 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return cfg.includes(depBase || '___never___');
         });
 
-        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
-        if (!isUsed) {
+        // Extra check for ESLint/Prettier plugins if the main tool is used
+        let isPluginUsed = false;
+        if (!isUsed && (dep.includes('eslint-plugin-') || dep.includes('prettier-plugin-'))) {
+          if (scriptPackages.has('eslint') || scriptPackages.has('prettier') || hasRelatedConfig) {
+            isPluginUsed = true;
+          }
+        }
+
+        if (!isUsed && !isPluginUsed) {
           findings.push({
             rule: 'unused-dev-dependency',
             severity: 'info', // devDeps are usually less critical
