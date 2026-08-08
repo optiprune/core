@@ -309,6 +309,7 @@ export interface PluginAdapter {
   markAsUsed(fileId: string, symbol?: string): void;
   markPackageAsUsed(packageName: string): void; // Added for Plugin Priority
   attachMetadata(node: any, key: string, value: any): void;
+  setMonorepo(monorepo: MonorepoGraph): void;
 }
 
 export interface PluginLifecycle {

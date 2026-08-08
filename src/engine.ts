@@ -10,6 +10,7 @@ export class PluginEngine {
   private findings: Finding[] = [];
 
   register(plugin: AnalyzerPlugin) {
+    console.log(`[Engine] Registering plugin: ${plugin.name}`);
     this.plugins.push(plugin);
   }
 
@@ -21,6 +22,7 @@ export class PluginEngine {
     try {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const pluginsDir = path.join(__dirname, "plugins");
+      console.log(`[Engine] Loading plugins from: ${pluginsDir}`);
       
       let files: string[] = [];
       try {
@@ -67,6 +69,7 @@ export class PluginEngine {
           plugin.enabled = true; // Enabled by default if no detect method
         }
         if (plugin.enabled) {
+          console.log(`[Engine] Plugin enabled: ${plugin.name}`);
           context.enabledPlugins?.add(plugin.name);
         }
       } catch (err) {
@@ -199,8 +202,12 @@ export class PluginEngine {
       attachMetadata: (node, key, value) => {
         (node as any).metadata = (node as any).metadata || {};
         (node as any).metadata[key] = value;
+      },
+      setMonorepo: (monorepo) => {
+        console.log(`[Engine] Setting monorepo topology with ${monorepo.packageMap.size} packages`);
+        context.options.monorepo = monorepo;
+        context.monorepo = monorepo;
       }
     };
   }
 }
-

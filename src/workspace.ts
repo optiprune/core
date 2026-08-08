@@ -29,7 +29,7 @@ export async function buildMonorepoTopology(rootPath: string): Promise<MonorepoG
     }
   }
 
-  // 2. Detect Yarn/NPM workspaces in package.json
+    // 2. Detect Yarn/NPM workspaces in package.json
   const rootPackageJsonPath = path.join(absoluteRoot, 'package.json');
   if (fs.existsSync(rootPackageJsonPath)) {
     const rootManifest = await readJsonFile<Record<string, any>>(rootPackageJsonPath);
@@ -42,16 +42,44 @@ export async function buildMonorepoTopology(rootPath: string): Promise<MonorepoG
     }
   }
 
+  // 3. Detect Bun workspaces from bun.lock (text version)
+  const bunLockPath = path.join(absoluteRoot, 'bun.lock');
+  if (fs.existsSync(bunLockPath)) {
+    try {
+      const lockContent = fs.readFileSync(bunLockPath, 'utf-8');
+      const cleanJson = lockContent.replace(/,(\s*[\]}])/g, '$1');
+      const lock = JSON.parse(cleanJson);
+      if (lock.workspaces && typeof lock.workspaces === 'object') {
+        for (const relPath of Object.keys(lock.workspaces)) {
+          if (relPath !== "") {
+            packageGlobs.push(relPath);
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }
+
   // Default to common patterns if nothing found
   if (packageGlobs.length === 0) {
     packageGlobs.push('packages/*', 'apps/*');
   }
 
   // 3. Find all package.json files matching the globs
-  const manifestFiles = await fg(
+  let manifestFiles = await fg(
     packageGlobs.map(g => path.posix.join(g, 'package.json')),
     { cwd: absoluteRoot, absolute: true, ignore: ['**/node_modules/**'] }
   );
+
+  // Auto-discovery: If no packages found via standard globs, search for any package.json
+  if (manifestFiles.length === 0) {
+    manifestFiles = await fg('**/package.json', {
+      cwd: absoluteRoot,
+      absolute: true,
+      ignore: ['**/node_modules/**', 'package.json']
+    });
+  }
 
   for (const manifestPath of manifestFiles) {
     const manifest = await readJsonFile<Record<string, any>>(manifestPath);

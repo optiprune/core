@@ -2,7 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const BUN_CONFIG_FILES = ["bunfig.toml", "bun.lockb"];
+const BUN_CONFIG_FILES = ["bunfig.toml", "bun.lockb", "bun.lock"];
 
 const NODE_BUILTINS = new Set([
   'assert', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
@@ -41,6 +41,62 @@ export const BunPlugin: AnalyzerPlugin = {
   },
   lifecycle: {
     onProjectInit: async (adapter) => {
+      const config = adapter.getConfig();
+      const rootDir = config.rootDir;
+
+      // 1. Detect Bun Workspaces from bun.lock (text version)
+      // If monorepo is already detected by core, we might skip or merge, 
+      // but here we force it if bun.lock exists and has workspaces.
+      const lockContent = await adapter.readFile("bun.lock");
+      if (lockContent) {
+        try {
+          // Bun's text lockfile (Bun 1.2+) is JSON-like but may contain trailing commas
+          const cleanJson = lockContent.replace(/,(\s*[\]}])/g, '$1');
+          const lock = JSON.parse(cleanJson);
+          if (lock.workspaces && typeof lock.workspaces === 'object') {
+            const packageMap = new Map();
+            const topologicalOrder: string[] = [];
+
+            for (const [relPath, wsMeta] of Object.entries(lock.workspaces)) {
+              if (relPath === "") continue; 
+              
+              const manifestPath = path.join(relPath, "package.json");
+              const manifest = await adapter.readJson(manifestPath);
+              if (manifest && manifest.name) {
+                const pkgName = manifest.name;
+                const location = path.join(rootDir, relPath);
+                const allDeps = new Set([
+                  ...Object.keys(manifest.dependencies || {}),
+                  ...Object.keys(manifest.devDependencies || {}),
+                  ...Object.keys(manifest.peerDependencies || {}),
+                ]);
+
+                packageMap.set(pkgName, {
+                  name: pkgName,
+                  location,
+                  relativePath: relPath,
+                  manifestPath: path.join(location, "package.json"),
+                  dependencies: new Set(),
+                  allDependencies: allDeps,
+                });
+                topologicalOrder.push(pkgName);
+              }
+            }
+
+            if (packageMap.size > 0) {
+              console.log(`[BunPlugin] Detected ${packageMap.size} workspaces from bun.lock`);
+              adapter.setMonorepo({
+                rootPath: rootDir,
+                packageMap,
+                topologicalOrder,
+              });
+            }
+          }
+        } catch (e) {
+          // Silent catch
+        }
+      }
+
       const pkg = await adapter.readJson("package.json");
       if (!pkg) return;
 
