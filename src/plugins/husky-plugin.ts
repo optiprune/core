@@ -1,5 +1,4 @@
 import { AnalyzerPlugin } from "../types.js";
-import path from "pathe";
 
 const HUSKY_HOOKS = [
   "pre-commit",
@@ -23,9 +22,8 @@ export const HuskyPlugin: AnalyzerPlugin = {
       return true;
     }
     
-    for (const hook of HUSKY_HOOKS) {
-      if ((await adapter.readFile(`.husky/${hook}`)) !== null) return true;
-    }
+    // Use the new folderExists API to detect the .husky directory directly
+    if (await adapter.folderExists(".husky")) return true;
     
     if ((await adapter.readFile(".huskyrc")) !== null) return true;
     if ((await adapter.readFile("husky.config.js")) !== null) return true;
@@ -37,13 +35,9 @@ export const HuskyPlugin: AnalyzerPlugin = {
       const pkg = await adapter.readJson("package.json");
       const hasHuskyDep = pkg ? !!(pkg.dependencies?.["husky"] || pkg.devDependencies?.["husky"]) : false;
       
-      let hasHuskyHooks = false;
-      for (const hook of HUSKY_HOOKS) {
-        if ((await adapter.readFile(`.husky/${hook}`)) !== null) {
-          hasHuskyHooks = true;
-          break;
-        }
-      }
+      // Use folderExists to check for the .husky directory instead of probing individual hook files
+      const hasHuskyDir = await adapter.folderExists(".husky");
+      const hasHuskyHooks = hasHuskyDir;
 
       // Mark husky as used so layer6 never flags it as unused or missing
       if (hasHuskyHooks || hasHuskyDep) {

@@ -170,6 +170,17 @@ export class PluginEngine {
           return null;
         }
       },
+      folderExists: async (folderName) => {
+        try {
+          const fullPath = path.isAbsolute(folderName)
+            ? folderName
+            : path.join(context.options.rootDir, folderName);
+          await fs.access(fullPath);
+          return true;
+        } catch {
+          return false;
+        }
+      },
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({
           rule: 'plugin-finding', // default fallback

@@ -125,6 +125,44 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
   const packageImportMap = new Map<string, Set<string>>();
   const globalImports = new Set<string>();
 
+  // ---------------------------------------------------------------------------
+  // Change 3: @types/node hardcode — if @types/node is installed anywhere in
+  // the project, ALL node:* prefixed imports and bare Node built-in names must
+  // never be reported as missing dependencies.  We resolve this once up-front
+  // so every per-package loop below can consult the flag cheaply.
+  // ---------------------------------------------------------------------------
+  let projectHasTypesNode = false;
+  {
+    const rootPkgPath = path.join(projectRoot, 'package.json');
+    if (fs.existsSync(rootPkgPath)) {
+      try {
+        const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
+        const allRootDeps = {
+          ...rootPkg.dependencies,
+          ...rootPkg.devDependencies,
+          ...rootPkg.peerDependencies,
+        };
+        if (allRootDeps['@types/node']) projectHasTypesNode = true;
+      } catch (_) {}
+    }
+    // Also check monorepo sub-packages
+    if (!projectHasTypesNode && context.options.monorepo) {
+      for (const pkg of context.options.monorepo.packageMap.values()) {
+        if (fs.existsSync(pkg.manifestPath)) {
+          try {
+            const subPkg = JSON.parse(fs.readFileSync(pkg.manifestPath, 'utf-8'));
+            const allSubDeps = {
+              ...subPkg.dependencies,
+              ...subPkg.devDependencies,
+              ...subPkg.peerDependencies,
+            };
+            if (allSubDeps['@types/node']) { projectHasTypesNode = true; break; }
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
   const NODE_BUILTINS = new Set([
     'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
     'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 
@@ -160,7 +198,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (!specifier) continue;
 
         const cleanSpec = specifier.startsWith('node:') ? specifier.slice(5) : specifier;
-        if (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec)) {
+        // Change 3: if @types/node is present, skip ALL node: imports — they are provided by that package
+        if (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec) || (projectHasTypesNode && specifier.startsWith('node:'))) {
           continue;
         }
 
@@ -298,6 +337,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
+        // Change 3: if @types/node is installed, node:* built-ins are provided — never flag them
+        if (projectHasTypesNode && (imp.startsWith('node:') || NODE_BUILTINS.has(cleanImp))) {
+          continue;
+        }
+
         if (!allDeclaredDeps.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':')) {
           findings.push({
             rule: 'missing-dependency',
@@ -341,6 +385,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       ];
 
       for (const dep of Object.keys(dependencies)) {
+        // Change 1: Plugin priority — if any plugin called markPackageAsUsed for this dep,
+        // it is unconditionally considered used.  This check runs first, before all other
+        // heuristics, so plugin decisions always win.
+        if (context.usedPackages?.has(dep)) continue;
+
         // --- IMPROVED HUSKY & TOOLING PROTECTION ---
         const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
                              context.usedExports?.has(`${relativeManifest}:devDependencies:${dep}`) ||
@@ -358,7 +407,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
-        const isUsed = isMarkedUsed || context.usedPackages?.has(dep) || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
         
         if (!isUsed) {
           findings.push({
@@ -377,8 +426,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
+        // Change 1: Plugin priority — plugin-marked packages are unconditionally used
+        if (context.usedPackages?.has(dep)) continue;
+
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
+          // Change 3: @types/node is always considered used when installed — it covers all node:* built-ins
+          if (dep === '@types/node') continue;
           if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
             continue; 
           }
@@ -401,7 +455,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
-        const isUsed = isMarkedUsed || context.usedPackages?.has(dep) || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
         let isPluginUsed = false;
         if (!isUsed && (dep.includes('eslint-plugin-') || dep.includes('prettier-plugin-'))) {
