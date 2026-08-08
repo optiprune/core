@@ -272,20 +272,33 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       };
 
       for (const script of Object.values(scripts) as string[]) {
-        const commandRegex = /(?:^|[&&|;(|{}])\s*([@\w\-/]+)/g;
-        let match;
-        while ((match = commandRegex.exec(script)) !== null) {
-          const cmd = match[1];
-          if (cmd && !shellCommands.has(cmd)) {
-            scriptUsages.add(cmd);
-            scriptPackages.add(BINARY_TO_PACKAGE[cmd] || cmd);
+        // Improved command detection: 
+        // 1. Split by shell operators (&&, ||, ;, |)
+        // 2. Extract the first word (the command)
+        // 3. Filter out flags, shell built-ins, and relative paths
+        const commands = script.split(/[&|;]/);
+        for (const fullCmd of commands) {
+          const tokens = fullCmd.trim().split(/\s+/);
+          const cmd = tokens[0]?.replace(/^["']|["']$/g, '');
+          
+          if (!cmd || cmd.startsWith('-') || shellCommands.has(cmd) || cmd.startsWith('.') || cmd.startsWith('/') || cmd.includes('/') || cmd.endsWith('.ts') || cmd.endsWith('.js')) {
+            continue;
           }
-        }
 
-        const execRegex = /(?:npx|pnpm|yarn|npm|bun)\s+(?:exec\s+|run\s+)?([@\w\-/.]+)/g;
-        while ((match = execRegex.exec(script)) !== null) {
-          const cmd = match[1];
-          if (cmd && !shellCommands.has(cmd) && !cmd.startsWith('.') && !cmd.startsWith('/') && !cmd.includes('/') && !cmd.endsWith('.ts') && !cmd.endsWith('.js')) {
+          // Handle package managers: npm run <script>, npx <pkg>
+          if (['npx', 'npm', 'pnpm', 'yarn', 'bun'].includes(cmd)) {
+            let pkgIndex = 1;
+            // Skip 'run' or 'exec' keywords
+            if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
+              pkgIndex++;
+            }
+            const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
+            // Skip if it's an internal script or another command/flag
+            if (pkg && !pkg.startsWith('-') && !scripts[pkg] && !shellCommands.has(pkg)) {
+              scriptUsages.add(pkg);
+              scriptPackages.add(BINARY_TO_PACKAGE[pkg] || pkg);
+            }
+          } else {
             scriptUsages.add(cmd);
             scriptPackages.add(BINARY_TO_PACKAGE[cmd] || cmd);
           }
