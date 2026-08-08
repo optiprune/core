@@ -182,7 +182,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     let ownerPackage = 'root';
     if (context.options.monorepo) {
       for (const [name, pkg] of context.options.monorepo.packageMap.entries()) {
-        if (module.id.startsWith(pkg.location + path.sep) || module.id === pkg.location) {
+        // Use POSIX separator '/' instead of path.sep to match pathe-normalized module.id
+        const locationPrefix = pkg.location.endsWith('/') ? pkg.location : pkg.location + '/';
+        if (module.id.startsWith(locationPrefix) || module.id === pkg.location) {
           ownerPackage = name;
           break;
         }
@@ -385,10 +387,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       ];
 
       for (const dep of Object.keys(dependencies)) {
-        // Change 1: Plugin priority — if any plugin called markPackageAsUsed for this dep,
-        // it is unconditionally considered used.  This check runs first, before all other
-        // heuristics, so plugin decisions always win.
+        // Change 1: Plugin priority
         if (context.usedPackages?.has(dep)) continue;
+
+        // Change 3: @types/node hardcode (also for dependencies)
+        if (dep === '@types/node') continue;
 
         // --- IMPROVED HUSKY & TOOLING PROTECTION ---
         const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
