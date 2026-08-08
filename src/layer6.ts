@@ -248,7 +248,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         'jscpd': 'jscpd',
         'knip': 'knip',
         'husky': 'husky',
-        'lint-staged': 'lint-staged'
+        'lint-staged': 'lint-staged',
+        'commitlint': '@commitlint/cli'
       };
 
       for (const script of Object.values(scripts) as string[]) {
@@ -292,7 +293,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       for (const imp of importedInThisPackage) {
         const cleanImp = imp.startsWith('node:') ? imp.slice(5) : imp;
-        if (NODE_BUILTINS.has(imp) || NODE_BUILTINS.has(cleanImp)) {
+        if (imp.startsWith('node:') || NODE_BUILTINS.has(imp) || NODE_BUILTINS.has(cleanImp)) {
           usedNodeBuiltins.add(imp);
           continue;
         }
@@ -348,14 +349,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
         
-        // Physical existence check for configs
+        // Physical existence check for configs or directories (e.g. .husky)
         const hasRelatedConfig = commonConfigs.some(cfg => {
-          const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '');
+          const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '').replace(/^eslint-plugin-/, '').replace(/^prettier-plugin-/, '');
           if (cfg.includes(depBase || '___never___')) {
-             return fs.existsSync(path.join(projectRoot, cfg));
+             return fs.existsSync(path.join(projectRoot, cfg)) || fs.existsSync(path.join(projectRoot, '.' + depBase));
           }
           return false;
-        });
+        }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
         const isUsed = isMarkedUsed || context.usedPackages?.has(dep) || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
         
@@ -391,14 +392,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
         
-        // Physical existence check for configs
+        // Physical existence check for configs or directories (e.g. .husky)
         const hasRelatedConfig = commonConfigs.some(cfg => {
-          const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '');
+          const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '').replace(/^eslint-plugin-/, '').replace(/^prettier-plugin-/, '');
           if (cfg.includes(depBase || '___never___')) {
-             return fs.existsSync(path.join(projectRoot, cfg));
+             return fs.existsSync(path.join(projectRoot, cfg)) || fs.existsSync(path.join(projectRoot, '.' + depBase));
           }
           return false;
-        });
+        }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
         const isUsed = isMarkedUsed || context.usedPackages?.has(dep) || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
