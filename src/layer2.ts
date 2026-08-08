@@ -35,6 +35,11 @@ function analyzeModuleFlow(module: ModuleRecord): Finding[] {
 
       for (const stmt of body) {
         if (terminalReached) {
+          // Hoisted declarations like function declarations are reachable even after a return
+          if (stmt.type === "FunctionDeclaration") {
+            continue;
+          }
+
           const stmtLoc = stmt.loc as Range | undefined;
           findings.push({
             rule: "unreachable-statement",
