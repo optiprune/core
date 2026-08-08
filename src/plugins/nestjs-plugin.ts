@@ -12,6 +12,7 @@ export const NestJsPlugin: AnalyzerPlugin = {
   detect: async (adapter) => {
     const pkg = await adapter.readJson('package.json');
     if (pkg && (pkg.dependencies?.['@nestjs/core'] || pkg.devDependencies?.['@nestjs/core'])) {
+      adapter.markPackageAsUsed('@nestjs/core');
       return true;
     }
     const nestCli = await adapter.readFile('nest-cli.json');

@@ -66,6 +66,9 @@ export class PluginEngine {
         } else {
           plugin.enabled = true; // Enabled by default if no detect method
         }
+        if (plugin.enabled) {
+          context.enabledPlugins?.add(plugin.name);
+        }
       } catch (err) {
         console.error(`[Plugin Engine] Error in detect phase for ${plugin.name}:`, err);
         plugin.enabled = false;
@@ -178,6 +181,9 @@ export class PluginEngine {
         if (symbol) {
           context.usedExports.add(`${fileId}:${symbol}`);
         }
+      },
+      markPackageAsUsed: (packageName) => {
+        context.usedPackages?.add(packageName);
       },
       attachMetadata: (node, key, value) => {
         (node as any).metadata = (node as any).metadata || {};

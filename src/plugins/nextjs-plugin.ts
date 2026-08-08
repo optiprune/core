@@ -14,6 +14,7 @@ export const NextjsPlugin: AnalyzerPlugin = {
   detect: async (adapter) => {
     const pkg = await adapter.readJson('package.json');
     if (pkg && (pkg.dependencies?.['next'] || pkg.devDependencies?.['next'])) {
+      adapter.markPackageAsUsed('next');
       return true;
     }
     for (const file of NEXT_CONFIG_FILES) {

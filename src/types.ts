@@ -288,6 +288,8 @@ export interface AnalysisContext {
   monorepo?: MonorepoGraph;
   semanticGraph?: any; // SemanticGraph instance
   symbolicContracts?: Map<string, any>;
+  usedPackages: Set<string>; // Added for Plugin Priority
+  enabledPlugins: Set<string>; // Added for Plugin Priority
 }
 
 export interface PluginAdapter {
@@ -303,6 +305,7 @@ export interface PluginAdapter {
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;
   markAsUsed(fileId: string, symbol?: string): void;
+  markPackageAsUsed(packageName: string): void; // Added for Plugin Priority
   attachMetadata(node: any, key: string, value: any): void;
 }
 

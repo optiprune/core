@@ -701,5 +701,7 @@ export function contextWithGraph(
     usedMembers: graph.usedMembers,
     candidateBranches: [],
     dynamicImportCandidates: Array.from(modules.values()).flatMap(m => m.dynamicImportCandidates || []),
+    usedPackages: new Set(),
+    enabledPlugins: new Set(),
   };
 }

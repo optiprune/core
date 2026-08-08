@@ -205,6 +205,31 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
+      
+      // Framework Protection: If a plugin is enabled, protect its core ecosystem
+      if (context.enabledPlugins?.has('nextjs-plugin')) {
+        scriptPackages.add('next');
+        scriptPackages.add('react');
+        scriptPackages.add('react-dom');
+      }
+      if (context.enabledPlugins?.has('nestjs-plugin')) {
+        scriptPackages.add('@nestjs/core');
+        scriptPackages.add('@nestjs/common');
+        scriptPackages.add('reflect-metadata');
+        scriptPackages.add('rxjs');
+      }
+      if (context.enabledPlugins?.has('react-plugin')) {
+        scriptPackages.add('react');
+        scriptPackages.add('react-dom');
+      }
+      if (context.enabledPlugins?.has('vuejs-plugin')) {
+        scriptPackages.add('vue');
+      }
+      if (context.enabledPlugins?.has('angular-plugin')) {
+        scriptPackages.add('@angular/core');
+        scriptPackages.add('@angular/common');
+      }
+
       const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve']);
 
       const BINARY_TO_PACKAGE: Record<string, string> = { 
@@ -316,10 +341,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       for (const dep of Object.keys(dependencies)) {
         // --- IMPROVED HUSKY & TOOLING PROTECTION ---
-        const isMarkedUsed = context.usedExports.has(`${relativeManifest}:dependencies:${dep}`) || 
-                             context.usedExports.has(`${relativeManifest}:devDependencies:${dep}`) ||
-                             context.usedExports.has(`package.json:dependencies:${dep}`) ||
-                             context.usedExports.has(`package.json:devDependencies:${dep}`);
+        const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
+                             context.usedExports?.has(`${relativeManifest}:devDependencies:${dep}`) ||
+                             context.usedExports?.has(`package.json:dependencies:${dep}`) ||
+                             context.usedExports?.has(`package.json:devDependencies:${dep}`);
 
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
         
@@ -332,11 +357,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         });
 
-        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || context.usedPackages?.has(dep) || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
         
         if (!isUsed) {
           findings.push({
-            rule: 'unused-dependency',
+            rule: dep,
             severity: 'warning',
             confidence: 'high',
             message: `Package '${dep}' is declared as a dependency in ${relativeManifest} but never imported or used in scripts.`,
@@ -359,10 +384,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
 
         // --- IMPROVED HUSKY & TOOLING PROTECTION ---
-        const isMarkedUsed = context.usedExports.has(`${relativeManifest}:dependencies:${dep}`) || 
-                             context.usedExports.has(`${relativeManifest}:devDependencies:${dep}`) ||
-                             context.usedExports.has(`package.json:dependencies:${dep}`) ||
-                             context.usedExports.has(`package.json:devDependencies:${dep}`);
+        const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
+                             context.usedExports?.has(`${relativeManifest}:devDependencies:${dep}`) ||
+                             context.usedExports?.has(`package.json:dependencies:${dep}`) ||
+                             context.usedExports?.has(`package.json:devDependencies:${dep}`);
 
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
         
@@ -375,7 +400,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         });
 
-        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || context.usedPackages?.has(dep) || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
         let isPluginUsed = false;
         if (!isUsed && (dep.includes('eslint-plugin-') || dep.includes('prettier-plugin-'))) {
@@ -386,7 +411,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         if (!isUsed && !isPluginUsed) {
           findings.push({
-            rule: 'unused-dev-dependency',
+            rule: dep,
             severity: 'info',
             confidence: 'medium',
             message: `DevDependency '${dep}' in ${relativeManifest} appears unused.`,
