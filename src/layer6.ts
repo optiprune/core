@@ -384,6 +384,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         // Change 3: @types/node hardcode (also for dependencies)
         if (dep === '@types/node') continue;
 
+        // --- @TYPES PROTECTION ---
+        if (dep.startsWith('@types/')) {
+          const basePkg = dep.slice(7).replace('__', '/');
+          if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
+            continue; 
+          }
+        }
+
         // --- IMPROVED HUSKY & TOOLING PROTECTION ---
         const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
                              context.usedExports?.has(`${relativeManifest}:devDependencies:${dep}`) ||
