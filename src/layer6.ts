@@ -131,37 +131,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
   // never be reported as missing dependencies.  We resolve this once up-front
   // so every per-package loop below can consult the flag cheaply.
   // ---------------------------------------------------------------------------
-  let projectHasTypesNode = false;
-  {
-    const rootPkgPath = path.join(projectRoot, 'package.json');
-    if (fs.existsSync(rootPkgPath)) {
-      try {
-        const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
-        const allRootDeps = {
-          ...rootPkg.dependencies,
-          ...rootPkg.devDependencies,
-          ...rootPkg.peerDependencies,
-        };
-        if (allRootDeps['@types/node']) projectHasTypesNode = true;
-      } catch (_) {}
-    }
-    // Also check monorepo sub-packages
-    if (!projectHasTypesNode && context.options.monorepo) {
-      for (const pkg of context.options.monorepo.packageMap.values()) {
-        if (fs.existsSync(pkg.manifestPath)) {
-          try {
-            const subPkg = JSON.parse(fs.readFileSync(pkg.manifestPath, 'utf-8'));
-            const allSubDeps = {
-              ...subPkg.dependencies,
-              ...subPkg.devDependencies,
-              ...subPkg.peerDependencies,
-            };
-            if (allSubDeps['@types/node']) { projectHasTypesNode = true; break; }
-          } catch (_) {}
-        }
-      }
-    }
-  }
+  // Change 3: @types/node hardcode — detect if @types/node is installed
+  // We check all modules in the project to see if @types/node exists in any node_modules
+  const projectHasTypesNode = Array.from(context.modules.keys()).some(f => {
+    const normalized = f.replace(/\\/g, '/');
+    return normalized.includes('node_modules/@types/node/') || 
+           normalized.endsWith('node_modules/@types/node') ||
+           normalized.includes('node_modules/@types/node/index.d.ts');
+  });
 
   const NODE_BUILTINS = new Set([
     'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
@@ -200,8 +177,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (!specifier) continue;
 
         const cleanSpec = specifier.startsWith('node:') ? specifier.slice(5) : specifier;
-        // Change 3: if @types/node is present, skip ALL node: imports — they are provided by that package
-        if (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec) || (projectHasTypesNode && specifier.startsWith('node:'))) {
+        // Change 3: if @types/node is present or it's a node: import, skip it
+        if (specifier.startsWith('node:')) continue;
+        if (projectHasTypesNode && (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec))) {
           continue;
         }
 
