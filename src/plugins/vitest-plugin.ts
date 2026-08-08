@@ -1,31 +1,64 @@
 import { AnalyzerPlugin } from "../types.js";
 
+const VITEST_CONFIG_FILES = [
+  'vitest.config.ts',
+  'vitest.config.js',
+  'vitest.config.mjs',
+  'vitest.config.cjs',
+  'vitest.config.mts',
+  'vitest.workspace.ts',
+  'vitest.workspace.js',
+  'vitest.workspace.json'
+];
+
 /**
  * Vitest Plugin: Erkennt Testdateien und stellt sicher, dass in TypeScript-Projekten
  * auch die notwendigen Transpiler (esbuild/tsx) als aktiv markiert werden.
  */
 export const VitestPlugin: AnalyzerPlugin = {
   name: "vitest-plugin",
-  version: "1.1.0",
+  version: "1.1.1",
+
   detect: async (adapter) => {
     const pkg = await adapter.readJson('package.json');
-    const hasVitest = !!(pkg?.devDependencies?.['vitest'] || pkg?.dependencies?.['vitest']);
-    const hasConfig = !!(await adapter.readFile('vitest.config.ts') || await adapter.readFile('vitest.config.js'));
-    return hasVitest || hasConfig;
+    
+    // Check direct dependencies
+    const hasVitestDep = !!(
+      pkg?.devDependencies?.['vitest'] || 
+      pkg?.dependencies?.['vitest']
+    );
+    if (hasVitestDep) return true;
+
+    // Check configuration files in parallel
+    const configChecks = await Promise.all(
+      VITEST_CONFIG_FILES.map(file => adapter.readFile(file))
+    );
+    
+    return configChecks.some(content => content !== null);
   },
+
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson('package.json');
-      const hasVitestDep = pkg ? !!(pkg.dependencies?.['vitest'] || pkg.devDependencies?.['vitest']) : false;
       
-      const configFiles = ['vitest.config.ts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cjs'];
-      let hasConfigFile = false;
-      for (const file of configFiles) {
-        if (await adapter.readFile(file) !== null) {
-          hasConfigFile = true;
-          break;
-        }
-      }
+      const allDeps = {
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies,
+        ...pkg?.optionalDependencies,
+      };
+
+      const hasVitestDep = !!allDeps['vitest'];
+
+      // Parallel check for config existence
+      const configChecks = await Promise.all(
+        VITEST_CONFIG_FILES.map(async file => ({
+          file,
+          exists: (await adapter.readFile(file)) !== null
+        }))
+      );
+
+      const hasConfigFile = configChecks.some(c => c.exists);
 
       if (hasConfigFile && !hasVitestDep) {
         adapter.emitFinding({
@@ -38,30 +71,27 @@ export const VitestPlugin: AnalyzerPlugin = {
         });
       }
 
-      const isTypeScript = !!(pkg?.devDependencies?.['typescript'] || await adapter.readFile('tsconfig.json'));
+      const isTypeScript = !!(
+        allDeps['typescript'] || 
+        (await adapter.readFile('tsconfig.json')) !== null
+      );
+
       if (isTypeScript) {
-        // Vitest benötigt in TS-Projekten oft esbuild oder tsx für die Transformation.
-        // Wir markieren diese als 'used', damit sie nicht als ungenutzte Abhängigkeiten geflaggt werden.
-        if (pkg?.devDependencies?.['esbuild']) adapter.markAsUsed('package.json', 'esbuild');
-        if (pkg?.devDependencies?.['tsx']) adapter.markAsUsed('package.json', 'tsx');
-        if (pkg?.devDependencies?.['@vitest/browser']) adapter.markAsUsed('package.json', '@vitest/browser');
+        // Mark common TS transpilers/utilities as used if present
+        if (allDeps['esbuild']) adapter.markAsUsed('package.json', 'esbuild');
+        if (allDeps['tsx']) adapter.markAsUsed('package.json', 'tsx');
+        if (allDeps['@vitest/browser']) adapter.markAsUsed('package.json', '@vitest/browser');
       }
     },
+
     onFileStart: (fileId, adapter) => {
-      // Markiert Testdateien, Konfigurationen und Test-Ordner als Einstiegspunkte
-      // Erkennt Dateien mit .test. oder .spec. Endungen
+      // 1. Match test files by pattern anywhere in the project (e.g., src/math.test.ts, utils.spec.tsx)
       const isTestFile = /\.(test|spec)\.[jt]sx?$/.test(fileId);
       
-      // Erkennt Dateien in typischen Test-Verzeichnissen (test, tests, __tests__)
-      const isInTestFolder = /[\\/](test|tests|__tests__)[\\/]/.test(fileId);
-      
-      // Erkennt Vitest-Konfigurationsdateien
-      const isConfigFile = fileId.includes('vitest.config.') || 
-                          fileId.includes('vitest.setup.') || 
-                          fileId.includes('vitest.workspace.');
-      
-      if (isTestFile || isInTestFolder || isConfigFile) {
-        // Markiert die Datei als erreichbar/aktiv, um "unreachable-file" Warnungen zu verhindern
+      // 2. Match Vitest config and setup files by file name at end of path
+      const isConfigFile = /[\\/]?vitest\.(config|setup|workspace)\.[a-z0-9]+$/i.test(fileId);
+
+      if (isTestFile || isConfigFile) {
         adapter.markAsUsed(fileId);
       }
     }
