@@ -17,6 +17,81 @@ export interface DependencyNode {
   dependencies: Set<string>;
 }
 
+/**
+ * Dynamically resolves a command token (e.g., "mocha" or "c8") to its providing npm package
+ * by inspecting `node_modules/.bin` and package `package.json` manifests.
+ */
+function resolveBinaryDependency(token: string, projectRoot: string): string | null {
+  // 1. Direct Binary Check: Check if `node_modules/.bin/<token>` exists
+  const binPath = path.join(projectRoot, 'node_modules', '.bin', token);
+  if (fs.existsSync(binPath)) {
+    try {
+      const realPath = fs.realpathSync(binPath);
+      // Extract package name from resolved path: node_modules/mocha/bin/mocha -> "mocha"
+      const match = realPath.match(/node_modules[/\\]((?:@[^/\\]+[/\\])?[^/\\]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    } catch {
+      // Fallback to manifest scanning if realpath fails
+    }
+  }
+
+  // 2. Manifest Check: Scan `package.json` files in `node_modules` for matching "bin" entries
+  const nodeModulesPath = path.join(projectRoot, 'node_modules');
+  if (fs.existsSync(nodeModulesPath)) {
+    try {
+      const packages = fs.readdirSync(nodeModulesPath);
+
+      for (const pkgName of packages) {
+        if (pkgName.startsWith('.')) continue; // Skip .bin, .cache, etc.
+
+        // Handle scoped packages (@types, @babel, etc.)
+        if (pkgName.startsWith('@')) {
+          const scopePath = path.join(nodeModulesPath, pkgName);
+          const scopedPkgs = fs.readdirSync(scopePath);
+          for (const scopedPkg of scopedPkgs) {
+            const fullScopeName = `${pkgName}/${scopedPkg}`;
+            const pkgJsonPath = path.join(scopePath, scopedPkg, 'package.json');
+            const resolved = checkPkgBin(pkgJsonPath, fullScopeName, token);
+            if (resolved) return resolved;
+          }
+          continue;
+        }
+
+        const pkgJsonPath = path.join(nodeModulesPath, pkgName, 'package.json');
+        const resolved = checkPkgBin(pkgJsonPath, pkgName, token);
+        if (resolved) return resolved;
+      }
+    } catch {
+      // Fall through if node_modules reading fails
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Helper to match a token against a package's "bin" field in package.json.
+ */
+function checkPkgBin(pkgJsonPath: string, pkgName: string, token: string): string | null {
+  if (!fs.existsSync(pkgJsonPath)) return null;
+  try {
+    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    if (!pkgJson.bin) return null;
+
+    if (typeof pkgJson.bin === 'string' && pkgName === token) {
+      return pkgName;
+    }
+    if (typeof pkgJson.bin === 'object' && pkgJson.bin[token]) {
+      return pkgName;
+    }
+  } catch {
+    // Ignore invalid JSON
+  }
+  return null;
+}
+
 export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsExportGraph> {
   const absolutePath = path.resolve(entryPointRelative);
 
@@ -78,7 +153,7 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
 
       for (const [pkgPath, meta] of Object.entries<any>(packages)) {
         if (!pkgPath) continue;
-        
+
         const cleanName = pkgPath.replace(/^node_modules\//, '');
         const deps = new Set<string>(
           Object.keys(meta.dependencies || {}).concat(Object.keys(meta.peerDependencies || {}))
@@ -100,7 +175,7 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
       for (const [pkgId, meta] of Object.entries<any>(snapshots)) {
         const nameMatch = pkgId.match(/^\/(@?[^@]+)/);
         const cleanName = (nameMatch ? nameMatch[1] : pkgId) as string;
-        
+
         const deps = new Set<string>(
           Object.keys(meta.dependencies || {}).concat(Object.keys(meta.peerDependencies || {}))
         );
@@ -120,38 +195,30 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
 export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]> {
   const findings: Finding[] = [];
   const projectRoot = context.options.rootDir;
-  
+
   const lockfileGraph = buildLockfileGraph(projectRoot);
   const packageImportMap = new Map<string, Set<string>>();
   const globalImports = new Set<string>();
 
-  // ---------------------------------------------------------------------------
-  // Change 3: @types/node hardcode — if @types/node is installed anywhere in
-  // the project, ALL node:* prefixed imports and bare Node built-in names must
-  // never be reported as missing dependencies.  We resolve this once up-front
-  // so every per-package loop below can consult the flag cheaply.
-  // ---------------------------------------------------------------------------
-  // Change 3: @types/node hardcode — detect if @types/node is installed
-  // We check all modules in the project to see if @types/node exists in any node_modules
   const projectHasTypesNode = Array.from(context.modules.keys()).some(f => {
     const normalized = f.replace(/\\/g, '/');
-    return normalized.includes('node_modules/@types/node/') || 
-           normalized.endsWith('node_modules/@types/node') ||
-           normalized.includes('node_modules/@types/node/index.d.ts');
+    return normalized.includes('node_modules/@types/node/') ||
+      normalized.endsWith('node_modules/@types/node') ||
+      normalized.includes('node_modules/@types/node/index.d.ts');
   });
 
   const NODE_BUILTINS = new Set([
-    'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
-    'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 
-    'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 
-    'process', 'punycode', 'querystring', 'readline', 'repl', 'stream', 
-    'string_decoder', 'sys', 'timers', 'tls', 'trace_events', 'tty', 
+    'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants',
+    'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2',
+    'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks',
+    'process', 'punycode', 'querystring', 'readline', 'repl', 'stream',
+    'string_decoder', 'sys', 'timers', 'tls', 'trace_events', 'tty',
     'url', 'util', 'v8', 'vm', 'wasi', 'worker_threads', 'zlib',
-    'node:assert', 'node:async_hooks', 'node:buffer', 'node:child_process', 'node:cluster', 'node:console', 
-    'node:crypto', 'node:dgram', 'node:dns', 'node:domain', 'node:events', 'node:fs', 'node:http', 
-    'node:https', 'node:inspector', 'node:module', 'node:net', 'node:os', 'node:path', 'node:process', 
-    'node:punycode', 'node:querystring', 'node:readline', 'node:repl', 'node:stream', 'node:string_decoder', 
-    'node:sys', 'node:timers', 'node:tls', 'node:trace_events', 'node:tty', 'node:url', 'node:util', 
+    'node:assert', 'node:async_hooks', 'node:buffer', 'node:child_process', 'node:cluster', 'node:console',
+    'node:crypto', 'node:dgram', 'node:dns', 'node:domain', 'node:events', 'node:fs', 'node:http',
+    'node:https', 'node:inspector', 'node:module', 'node:net', 'node:os', 'node:path', 'node:process',
+    'node:punycode', 'node:querystring', 'node:readline', 'node:repl', 'node:stream', 'node:string_decoder',
+    'node:sys', 'node:timers', 'node:tls', 'node:trace_events', 'node:tty', 'node:url', 'node:util',
     'node:v8', 'node:vm', 'node:wasi', 'node:worker_threads', 'node:zlib'
   ]);
 
@@ -159,7 +226,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     let ownerPackage = 'root';
     if (context.options.monorepo) {
       for (const [name, pkg] of context.options.monorepo.packageMap.entries()) {
-        // Use POSIX separator '/' instead of path.sep to match pathe-normalized module.id
         const locationPrefix = pkg.location.endsWith('/') ? pkg.location : pkg.location + '/';
         if (module.id.startsWith(locationPrefix) || module.id === pkg.location) {
           ownerPackage = name;
@@ -177,7 +243,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (!specifier) continue;
 
         const cleanSpec = specifier.startsWith('node:') ? specifier.slice(5) : specifier;
-        // Change 3: if @types/node is present or it's a node: import, skip it
         if (specifier.startsWith('node:')) continue;
         if (projectHasTypesNode && (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec))) {
           continue;
@@ -185,7 +250,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const parts = cleanSpec.split('/');
         const pkgName = cleanSpec.startsWith('@') ? `${parts[0] ?? ''}/${parts[1] ?? ''}` : (parts[0] ?? '');
-        
+
         if (pkgName && !NODE_BUILTINS.has(pkgName) && !NODE_BUILTINS.has(`node:${pkgName}`)) {
           pkgImports.add(pkgName);
           globalImports.add(pkgName);
@@ -219,13 +284,12 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const devDependencies = pkg.devDependencies || {};
       const scripts = pkg.scripts || {};
       const relativeManifest = path.posix.relative(projectRoot, manifestPath);
-      
+
       const importedInThisPackage = packageImportMap.get(pkgName) || new Set<string>();
 
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
-      
-      // Framework Protection: If a plugin is enabled, protect its core ecosystem
+
       if (context.enabledPlugins?.has('nextjs-plugin')) {
         scriptPackages.add('next');
         scriptPackages.add('react');
@@ -249,20 +313,25 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         scriptPackages.add('@angular/common');
       }
 
-      const shellCommands = new Set(['if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve']);
+      const shellCommands = new Set([
+        'if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 
+        'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 
+        'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 
+        'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve'
+      ]);
 
-      const BINARY_TO_PACKAGE: Record<string, string> = { 
-        'tsc': 'typescript', 
-        'vitest': 'vitest', 
-        'jest': 'jest', 
-        'eslint': 'eslint', 
-        'prettier': 'prettier', 
-        'oxlint': 'oxlint', 
-        'oxfmt': 'oxfmt', 
-        'tsdown': 'tsdown', 
-        'vite': 'vite', 
-        'rollup': 'rollup', 
-        'webpack': 'webpack', 
+      const STATIC_BINARY_FALLBACKS: Record<string, string> = {
+        'tsc': 'typescript',
+        'vitest': 'vitest',
+        'jest': 'jest',
+        'eslint': 'eslint',
+        'prettier': 'prettier',
+        'oxlint': 'oxlint',
+        'oxfmt': 'oxfmt',
+        'tsdown': 'tsdown',
+        'vite': 'vite',
+        'rollup': 'rollup',
+        'webpack': 'webpack',
         'esbuild': 'esbuild',
         'jscpd': 'jscpd',
         'knip': 'knip',
@@ -272,35 +341,52 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       };
 
       for (const script of Object.values(scripts) as string[]) {
-        // Improved command detection: 
-        // 1. Split by shell operators (&&, ||, ;, |)
-        // 2. Extract the first word (the command)
-        // 3. Filter out flags, shell built-ins, and relative paths
+        // Split command strings across shell operators (&&, ||, ;, |)
         const commands = script.split(/[&|;]/);
         for (const fullCmd of commands) {
           const tokens = fullCmd.trim().split(/\s+/);
-          const cmd = tokens[0]?.replace(/^["']|["']$/g, '');
           
-          if (!cmd || cmd.startsWith('-') || shellCommands.has(cmd) || cmd.startsWith('.') || cmd.startsWith('/') || cmd.includes('/') || cmd.endsWith('.ts') || cmd.endsWith('.js')) {
-            continue;
-          }
+          // Parse all tokens sequentially to detect wrapped commands (e.g. "c8 mocha", "cross-env FOO=bar mocha")
+          for (let i = 0; i < tokens.length; i++) {
+            const rawToken = tokens[i];
+            if (!rawToken) continue;
 
-          // Handle package managers: npm run <script>, npx <pkg>
-          if (['npx', 'npm', 'pnpm', 'yarn', 'bun'].includes(cmd)) {
-            let pkgIndex = 1;
-            // Skip 'run' or 'exec' keywords
-            if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
-              pkgIndex++;
+            const token = rawToken.replace(/^["']|["']$/g, '');
+
+            // Skip environment variables, flags, shell built-ins, and relative/absolute script files
+            if (
+              token.includes('=') ||
+              token.startsWith('-') ||
+              shellCommands.has(token) ||
+              token.startsWith('.') ||
+              token.startsWith('/') ||
+              token.endsWith('.ts') ||
+              token.endsWith('.js')
+            ) {
+              continue;
             }
-            const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
-            // Skip if it's an internal script or another command/flag
-            if (pkg && !pkg.startsWith('-') && !scripts[pkg] && !shellCommands.has(pkg)) {
-              scriptUsages.add(pkg);
-              scriptPackages.add(BINARY_TO_PACKAGE[pkg] || pkg);
+
+            // Handle package managers: npm run <script>, npx <pkg>
+            if (['npx', 'npm', 'pnpm', 'yarn', 'bun'].includes(token)) {
+              let pkgIndex = i + 1;
+              if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
+                pkgIndex++;
+              }
+              const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
+              if (pkg && !pkg.startsWith('-') && !scripts[pkg] && !shellCommands.has(pkg)) {
+                scriptUsages.add(pkg);
+                const resolved = resolveBinaryDependency(pkg, projectRoot) || STATIC_BINARY_FALLBACKS[pkg] || pkg;
+                scriptPackages.add(resolved);
+              }
+              break; // Token handled via package manager handler
             }
-          } else {
-            scriptUsages.add(cmd);
-            scriptPackages.add(BINARY_TO_PACKAGE[cmd] || cmd);
+
+            // Dynamic Check: Try resolving the token via physical node_modules bin files
+            const resolvedPackage = resolveBinaryDependency(token, projectRoot) || STATIC_BINARY_FALLBACKS[token];
+            if (resolvedPackage) {
+              scriptUsages.add(token);
+              scriptPackages.add(resolvedPackage);
+            }
           }
         }
 
@@ -311,14 +397,22 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       const usedNodeBuiltins = new Set<string>();
-      const allDeclaredDeps = new Set([...Object.keys(dependencies), ...Object.keys(devDependencies), ...Object.keys(pkg.peerDependencies || {})]);
-      
+      const allDeclaredDeps = new Set([
+        ...Object.keys(dependencies), 
+        ...Object.keys(devDependencies), 
+        ...Object.keys(pkg.peerDependencies || {})
+      ]);
+
       if (context.options.monorepo && pkgName !== 'root') {
         const rootManifest = manifestPaths.get('root');
         if (rootManifest && fs.existsSync(rootManifest)) {
           try {
             const rootPkg = JSON.parse(fs.readFileSync(rootManifest, 'utf-8'));
-            [...Object.keys(rootPkg.dependencies || {}), ...Object.keys(rootPkg.devDependencies || {}), ...Object.keys(rootPkg.peerDependencies || {})].forEach(d => allDeclaredDeps.add(d));
+            [
+              ...Object.keys(rootPkg.dependencies || {}), 
+              ...Object.keys(rootPkg.devDependencies || {}), 
+              ...Object.keys(rootPkg.peerDependencies || {})
+            ].forEach(d => allDeclaredDeps.add(d));
           } catch (e) {}
         }
       }
@@ -330,7 +424,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
-        // Change 3: if @types/node is installed, node:* built-ins are provided — never flag them
         if (projectHasTypesNode && (imp.startsWith('node:') || NODE_BUILTINS.has(cleanImp))) {
           continue;
         }
@@ -348,17 +441,17 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       for (const bin of scriptUsages) {
-        const pkgName = BINARY_TO_PACKAGE[bin] || bin;
-        if (!allDeclaredDeps.has(pkgName) && !bin.startsWith('./') && !bin.startsWith('../')) {
+        const mappedPkg = resolveBinaryDependency(bin, projectRoot) || STATIC_BINARY_FALLBACKS[bin] || bin;
+        if (!allDeclaredDeps.has(mappedPkg) && !bin.startsWith('./') && !bin.startsWith('../')) {
           const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget', 'git', 'sudo', 'chmod', 'chown', 'env', 'xargs'];
           if (!COMMON_GLOBALS.includes(bin)) {
             findings.push({
               rule: 'missing-dependency',
               severity: 'error',
               confidence: 'high',
-              message: `Binary '${bin}' is used in scripts but not declared in package.json.`,
+              message: `Binary/Command '${bin}' (from package '${mappedPkg}') is used in scripts but not declared in package.json.`,
               file: relativeManifest,
-              evidence: { package: bin, type: 'binary' }
+              evidence: { package: mappedPkg, type: 'binary' }
             });
           }
         }
@@ -378,29 +471,23 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       ];
 
       for (const dep of Object.keys(dependencies)) {
-        // Change 1: Plugin priority
         if (context.usedPackages?.has(dep)) continue;
-
-        // Change 3: @types/node hardcode (also for dependencies)
         if (dep === '@types/node') continue;
 
-        // --- @TYPES PROTECTION ---
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
           if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
-            continue; 
+            continue;
           }
         }
 
-        // --- IMPROVED HUSKY & TOOLING PROTECTION ---
-        const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
+        const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) ||
                              context.usedExports?.has(`${relativeManifest}:devDependencies:${dep}`) ||
                              context.usedExports?.has(`package.json:dependencies:${dep}`) ||
                              context.usedExports?.has(`package.json:devDependencies:${dep}`);
 
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
-        
-        // Physical existence check for configs or directories (e.g. .husky)
+
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '').replace(/^eslint-plugin-/, '').replace(/^prettier-plugin-/, '');
           if (cfg.includes(depBase || '___never___')) {
@@ -410,7 +497,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
         const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
-        
+
         if (!isUsed) {
           findings.push({
             rule: dep,
@@ -428,27 +515,23 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
-        // Change 1: Plugin priority — plugin-marked packages are unconditionally used
         if (context.usedPackages?.has(dep)) continue;
 
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
-          // Change 3: @types/node is always considered used when installed — it covers all node:* built-ins
           if (dep === '@types/node') continue;
           if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
-            continue; 
+            continue;
           }
         }
 
-        // --- IMPROVED HUSKY & TOOLING PROTECTION ---
-        const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) || 
+        const isMarkedUsed = context.usedExports?.has(`${relativeManifest}:dependencies:${dep}`) ||
                              context.usedExports?.has(`${relativeManifest}:devDependencies:${dep}`) ||
                              context.usedExports?.has(`package.json:dependencies:${dep}`) ||
                              context.usedExports?.has(`package.json:devDependencies:${dep}`);
 
         const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
-        
-        // Physical existence check for configs or directories (e.g. .husky)
+
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '').replace(/^eslint-plugin-/, '').replace(/^prettier-plugin-/, '');
           if (cfg.includes(depBase || '___never___')) {
