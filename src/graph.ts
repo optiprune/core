@@ -15,6 +15,8 @@ export interface GraphBuildResult {
   maybeReachable: Set<string>;
   hasReachableUnknownDynamicBoundary: boolean;
   usedExports: Set<string>;
+  /** Export usage inferred from a package.json public entry point is deliberately low confidence. */
+  usedExportConfidence: Map<string, import("./types.js").Confidence>;
   usedMembers: Set<string>;
 }
 
@@ -436,10 +438,32 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
   return usage;
 }
 
-export function buildUsedExports(modules: Map<string, ModuleRecord>, options: ResolvedOptions): { usedExports: Set<string>, usedMembers: Set<string> } {
+export function buildUsedExports(
+  modules: Map<string, ModuleRecord>,
+  options: ResolvedOptions,
+  publicApiEntryPoints: ReadonlySet<string> = new Set<string>(),
+): {
+  usedExports: Set<string>;
+  usedExportConfidence: Map<string, import("./types.js").Confidence>;
+  usedMembers: Set<string>;
+} {
   const usedExports = new Set<string>();
+  const usedExportConfidence = new Map<string, import("./types.js").Confidence>();
   const usedMembers = new Set<string>();
   const importUsage = buildImportUsage(modules);
+
+  // package.json's exports map is a declaration of externally reachable API.
+  // It cannot prove that a consumer currently imports a symbol, so retain each
+  // direct export with low confidence instead of reporting it as unused.
+  for (const moduleId of publicApiEntryPoints) {
+    const module = modules.get(moduleId);
+    if (!module) continue;
+    for (const exp of module.exports) {
+      const exportKey = `${moduleId}:${exp.exportedAs}`;
+      usedExports.add(exportKey);
+      usedExportConfidence.set(exportKey, "low");
+    }
+  }
   // 1. Initial pass: Mark exports used by non-re-export imports
   // and resolve explicit re-exports (export { x } from 'mod')
   const worklist: Array<{ moduleId: string, name: string }> = [];
@@ -500,7 +524,15 @@ export function buildUsedExports(modules: Map<string, ModuleRecord>, options: Re
 
             // If someone uses an export from 'module', and 'module' re-exports it from 'targetModule'
             const moduleUsage = importUsage.get(module.id);
-            if (!moduleUsage) continue;
+            const isPublicApiModule = publicApiEntryPoints.has(module.id);
+            if (!moduleUsage && !isPublicApiModule) continue;
+            const effectiveUsage: ImportUsage = moduleUsage ?? {
+              consumers: new Set<string>(),
+              names: new Set<string>(),
+              memberAccess: new Map<string, Set<string>>(),
+              wildcard: false,
+              reExportOnly: true,
+            };
 
             for (const exp of targetModule.exports) {
               const exportKey = `${targetId}:${exp.exportedAs}`;
@@ -509,18 +541,22 @@ export function buildUsedExports(modules: Map<string, ModuleRecord>, options: Re
               let isUsedViaReExport = false;
 
               if (edge.kind === 'export-all') {
+                // A package entry point that uses export * exposes every target
+                // export as part of its public API. This remains low-confidence
+                // because the declaration does not prove a concrete consumer.
+                const isPublicApiReExport = isPublicApiModule;
                 // PRECISION FIX: Only mark this specific export as used if it's actually requested from the barrel
-                const isRequested = moduleUsage.wildcard || moduleUsage.names.has(exp.exportedAs);
+                const isRequested = effectiveUsage.wildcard || effectiveUsage.names.has(exp.exportedAs);
                 
                 // Also check if it's a default export being requested via a name (not common for export *)
-                const isDefaultRequested = exp.isDefault && moduleUsage.names.has('default');
+                const isDefaultRequested = exp.isDefault && effectiveUsage.names.has('default');
 
-                if (isRequested || isDefaultRequested) {
+                if (isPublicApiReExport || isRequested || isDefaultRequested) {
                   isUsedViaReExport = true;
                 } else {
                   // DEEP ALIAS FIX for export *
                   // Check if any consumer of 'module' uses this name via wildcard or direct name
-                  if (moduleUsage.wildcard || moduleUsage.names.has(exp.exportedAs)) {
+                  if (effectiveUsage.wildcard || effectiveUsage.names.has(exp.exportedAs)) {
                     isUsedViaReExport = true;
                   }
                 }
@@ -554,10 +590,13 @@ export function buildUsedExports(modules: Map<string, ModuleRecord>, options: Re
 
               if (isUsedViaReExport) {
                 usedExports.add(exportKey);
+                if (isPublicApiModule || usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low") {
+                  usedExportConfidence.set(exportKey, "low");
+                }
                 changed = true;
 
                 // PROPAGATE MEMBER ACCESS THROUGH RE-EXPORTS
-                const accessedInModule = moduleUsage.memberAccess.get(edge.kind === 'export-all' ? exp.exportedAs : (module.exports.find(e => e.isReExport && e.name === exp.exportedAs)?.exportedAs || ""));
+                const accessedInModule = effectiveUsage.memberAccess.get(edge.kind === 'export-all' ? exp.exportedAs : (module.exports.find(e => e.isReExport && e.name === exp.exportedAs)?.exportedAs || ""));
                 if (accessedInModule) {
                   for (const m of accessedInModule) {
                     usedMembers.add(`${targetId}:${exp.exportedAs}:${m}`);
@@ -632,7 +671,7 @@ export function buildUsedExports(modules: Map<string, ModuleRecord>, options: Re
     }
   }
 
-  return { usedExports, usedMembers };
+  return { usedExports, usedExportConfidence, usedMembers };
 }
 
 /**
@@ -661,6 +700,7 @@ export function buildGraph(
   modules: Map<string, ModuleRecord>,
   entryPoints: Set<string>,
   options: ResolvedOptions,
+  publicApiEntryPoints: ReadonlySet<string> = new Set<string>(),
 ): GraphBuildResult {
   resolveDependencies(modules, options);
   const components = stronglyConnectedComponents(modules);
@@ -669,7 +709,7 @@ export function buildGraph(
   // Apply SCC reachability check
   calculateComponentReachability(components, reachability.reachable, reachability.maybeReachable);
   
-  const { usedExports, usedMembers } = buildUsedExports(modules, options);
+  const { usedExports, usedExportConfidence, usedMembers } = buildUsedExports(modules, options, publicApiEntryPoints);
 
   if (options.verbose) {
     console.error(`[Graph] Reachable files: ${reachability.reachable.size}`);
@@ -680,15 +720,16 @@ export function buildGraph(
     }
   }
 
-  return { components, ...reachability, usedExports, usedMembers };
+  return { components, ...reachability, usedExports, usedExportConfidence, usedMembers };
 }
 
 export function contextWithGraph(
   modules: Map<string, ModuleRecord>,
   entryPoints: Set<string>,
   options: ResolvedOptions,
+  publicApiEntryPoints: ReadonlySet<string> = new Set<string>(),
 ): AnalysisContext {
-  const graph = buildGraph(modules, entryPoints, options);
+  const graph = buildGraph(modules, entryPoints, options, publicApiEntryPoints);
   return {
     options,
     modules,
@@ -698,6 +739,7 @@ export function contextWithGraph(
     hasReachableUnknownDynamicBoundary: graph.hasReachableUnknownDynamicBoundary,
     components: graph.components,
     usedExports: graph.usedExports,
+    usedExportConfidence: graph.usedExportConfidence,
     usedMembers: graph.usedMembers,
     candidateBranches: [],
     dynamicImportCandidates: Array.from(modules.values()).flatMap(m => m.dynamicImportCandidates || []),

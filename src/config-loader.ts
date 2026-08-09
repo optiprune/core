@@ -43,8 +43,36 @@ export async function loadConfig(rootDir: string): Promise<Config> {
   for (const configPath of configPaths) {
     if (fs.existsSync(configPath)) {
       try {
-        const configUrl = pathToFileURL(configPath).href;
+        let loadPath = configPath;
+        // If the configuration file is TypeScript, bundle/transpile it into a temporary
+        // JavaScript ESM file so Node.js can import it without unknown file extension errors.
+        if (configPath.endsWith(".ts")) {
+          try {
+            const esbuild = await import("esbuild");
+            const code = fs.readFileSync(configPath, "utf-8");
+            const result = await esbuild.transform(code, {
+              loader: "ts",
+              format: "esm",
+              target: "node22",
+            });
+            const tempJsPath = path.join(rootDir, `.optiprune.config.${Date.now()}.mjs`);
+            fs.writeFileSync(tempJsPath, result.code, "utf-8");
+            loadPath = tempJsPath;
+          } catch (transpileError) {
+            console.warn(`[Config] Failed to transpile TypeScript config ${configPath}:`, transpileError);
+          }
+        }
+
+        const configUrl = pathToFileURL(loadPath).href;
         const module = await import(configUrl);
+
+        // Clean up temporary transpiled file if created
+        if (loadPath !== configPath && fs.existsSync(loadPath)) {
+          try {
+            fs.unlinkSync(loadPath);
+          } catch {}
+        }
+
         return module.default || module;
       } catch (e) {
         console.warn(`[Config] Failed to load config from ${configPath}:`, e);

@@ -258,6 +258,8 @@ export interface AnalysisReport {
       isWildcard: boolean;
       isTypeOnly?: boolean;
       isExternalContract?: boolean;
+      /** Present for exports retained because their file is exposed by package.json exports. */
+      usageConfidence?: Confidence;
     }>;
     edges: Array<{
       kind: EdgeKind;
@@ -282,6 +284,8 @@ export interface AnalysisContext {
   hasReachableUnknownDynamicBoundary: boolean;
   components: StronglyConnectedComponent[];
   usedExports: Set<string>;
+  /** Confidence for exports retained through a public package entry point. */
+  usedExportConfidence: Map<string, Confidence>;
   usedMembers: Set<string>; // Added for Member-Level Analysis
   candidateBranches: CandidateBranch[];
   dynamicImportCandidates: DynamicImportCandidate[];

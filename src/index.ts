@@ -23,6 +23,7 @@ import {
   DEFAULT_EXTENSIONS,
   DEFAULT_IGNORE,
   discoverPackageEntryPatterns,
+  discoverPackageExportEntryPatterns,
   discoverSourceFiles,
   expandEntryPatterns,
   ingestTsConfigPaths,
@@ -177,7 +178,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   saveCache(resolvedOptions.rootDir, newCache);
 
   let entryPoints = new Set<string>();
+  // Existing public-entry behavior for conventional/package roots.
   const publicEntryPoints = new Set<string>();
+  // Entries declared in package.json exports specifically describe public API.
+  const publicApiEntryPoints = new Set<string>();
 
   // 1. Explicit Entry Points
   if (entry.length > 0) {
@@ -192,16 +196,32 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // 2. Conventional Entry Points (Public)
   // Helper to add patterns relative to a base directory
   const addPatterns = async (baseDir: string, relativeToRoot: string = "", isRoot: boolean = false) => {
-    const rawEntries = await discoverPackageEntryPatterns(baseDir);
-    const entries = rawEntries.flatMap(e => {
-      if (e.startsWith('dist/')) {
-        const srcEntry = e.replace('dist/', 'src/').replace(/\.js$/, '.ts').replace(/\.jsx$/, '.tsx');
-        return [e, srcEntry];
+    const expandBuildEntryToSourceCandidates = (entries: string[]) => entries.flatMap(entry => {
+      if (entry.startsWith('dist/')) {
+        const srcEntry = entry.replace('dist/', 'src/').replace(/\.js$/, '.ts').replace(/\.jsx$/, '.tsx');
+        return [entry, srcEntry];
       }
-      return [e];
+      return [entry];
     });
 
-    for (const pattern of [...entries, ...conventionalEntryPatterns()]) {
+    const rawEntries = expandBuildEntryToSourceCandidates(await discoverPackageEntryPatterns(baseDir));
+    const publicExportEntries = expandBuildEntryToSourceCandidates(await discoverPackageExportEntryPatterns(baseDir));
+
+    // An exports map declares package entry points that external consumers may
+    // import. Analyze them as roots regardless of conventional-entry settings.
+    for (const entryPattern of publicExportEntries) {
+      const adjustedPattern = (relativeToRoot && !entryPattern.startsWith('/'))
+        ? path.posix.join(relativeToRoot, entryPattern)
+        : entryPattern;
+      for (const entryFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
+        const normalized = path.normalize(entryFile);
+        entryPoints.add(normalized);
+        publicEntryPoints.add(normalized);
+        publicApiEntryPoints.add(normalized);
+      }
+    }
+
+    for (const pattern of [...rawEntries, ...conventionalEntryPatterns()]) {
       const adjustedPattern = (relativeToRoot && !pattern.startsWith('/')) 
         ? path.posix.join(relativeToRoot, pattern) 
         : pattern;
@@ -245,7 +265,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     });
   }
 
-  const context = contextWithGraph(modules, entryPoints, resolvedOptions);
+  const context = contextWithGraph(modules, entryPoints, resolvedOptions, publicApiEntryPoints);
   (context as any).publicEntryPoints = publicEntryPoints;
   context.semanticGraph = semanticGraph;
   context.symbolicContracts = new Map();
@@ -365,6 +385,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           let confidence: import('./types.js').Confidence = "high";
           if (context.maybeReachable.has(module.id)) confidence = "medium";
           if (context.hasReachableUnknownDynamicBoundary) confidence = "low";
+          if (context.usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low") confidence = "low";
 
           if (context.hasReachableUnknownDynamicBoundary && isExportUsed) continue;
           
@@ -498,15 +519,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     modules: [...modules.values()].map((module) => ({
       path: relativeDisplayPath(rootDir, module.id),
       parseStatus: module.parseStatus,
-      exports: module.exports.map((e) => ({
-        name: e.name,
-        exportedAs: e.exportedAs,
-        isDefault: e.isDefault,
-        isReExport: e.isReExport,
-        isWildcard: e.isWildcard,
-        isTypeOnly: e.isTypeOnly ?? false,
-        isExternalContract: e.isExternalContract ?? false,
-      })),
+      exports: module.exports.map((e) => {
+        const confidence = context.usedExportConfidence.get(`${module.id}:${e.exportedAs}`);
+        return {
+          name: e.name,
+          exportedAs: e.exportedAs,
+          isDefault: e.isDefault,
+          isReExport: e.isReExport,
+          isWildcard: e.isWildcard,
+          isTypeOnly: e.isTypeOnly ?? false,
+          isExternalContract: e.isExternalContract ?? false,
+          ...(confidence !== undefined && { usageConfidence: confidence }),
+        };
+      }),
       edges: module.edges.map((edge) => ({
         kind: edge.kind,
         specifier: edge.rawSpecifier,

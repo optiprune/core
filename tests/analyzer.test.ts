@@ -94,4 +94,51 @@ describe("Optiprune Analyzer", () => {
     expect(noEntryPointsFinding).toBeDefined();
     expect(noEntryPointsFinding?.confidence).toBe("info");
   });
+
+  it("should mark package.json exports as used with low confidence and load TypeScript configs", async () => {
+    const testDir = path.join(fixturesDir, "public-api-and-config-test");
+    await fs.promises.mkdir(testDir, { recursive: true });
+
+    // 1. Create a package.json with an exports map pointing to src/api.ts
+    const pkgJson = {
+      name: "test-pkg",
+      version: "1.0.0",
+      type: "module",
+      exports: {
+        ".": "./src/api.ts"
+      }
+    };
+    await fs.promises.writeFile(path.join(testDir, "package.json"), JSON.stringify(pkgJson, null, 2));
+
+    // 2. Create src/api.ts with a public function
+    await fs.promises.mkdir(path.join(testDir, "src"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(testDir, "src", "api.ts"),
+      "export function publicFeature() { return 42; }\n"
+    );
+
+    // 3. Create optiprune.config.ts with defineConfig
+    await fs.promises.writeFile(
+      path.join(testDir, "optiprune.config.ts"),
+      "import { defineConfig } from '../../src/index.js';\nexport default defineConfig({ rootDir: '.', reportUnusedExports: true });\n"
+    );
+
+    const report = await analyze({
+      rootDir: testDir,
+      extensions: [".ts"],
+      reportUnusedExports: true,
+      includeConventionalEntries: false,
+    });
+
+    expect(report).toBeDefined();
+    // The public export should be retained with low confidence (not reported as unused)
+    const unusedExport = report.findings.find(f => f.rule === "unused-export");
+    expect(unusedExport).toBeUndefined();
+
+    const moduleRecord = report.modules.find(m => m.path.includes("api.ts"));
+    expect(moduleRecord).toBeDefined();
+    const exp = moduleRecord?.exports.find(e => e.exportedAs === "publicFeature");
+    expect(exp).toBeDefined();
+    expect(exp?.usageConfidence).toBe("low");
+  });
 });

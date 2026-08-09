@@ -319,12 +319,36 @@ export async function discoverPackageEntryPatterns(rootDir: string): Promise<str
       }
     }
     collectPackageExportStrings(packageJson.exports, entries);
-    return [...entries]
-      .filter((entry) => entry.startsWith(".") || entry.startsWith("src/") || entry.startsWith("lib/"))
-      .map((entry) => entry.replace(/^\.\//, ""));
+    return normalizePackageEntryPatterns(entries);
   } catch {
     return [];
   }
+}
+
+/**
+ * Returns only source entry patterns exposed by package.json's exports map.
+ * An exports map represents a package's public import surface, unlike legacy
+ * metadata such as main or types which can describe implementation details.
+ */
+export async function discoverPackageExportEntryPatterns(rootDir: string): Promise<string[]> {
+  const packageFile = join(rootDir, "package.json");
+  try {
+    const packageJson = await readJsonFile<Record<string, unknown>>(packageFile);
+    if (!packageJson || typeof packageJson !== "object" || Array.isArray(packageJson)) {
+      return [];
+    }
+    const entries = new Set<string>();
+    collectPackageExportStrings(packageJson.exports, entries);
+    return normalizePackageEntryPatterns(entries);
+  } catch {
+    return [];
+  }
+}
+
+function normalizePackageEntryPatterns(entries: Set<string>): string[] {
+  return [...entries]
+    .filter((entry) => entry.startsWith(".") || entry.startsWith("src/") || entry.startsWith("lib/"))
+    .map((entry) => entry.replace(/^\.\//, ""));
 }
 
 function collectPackageExportStrings(value: unknown, collected: Set<string>): void {
