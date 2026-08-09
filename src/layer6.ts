@@ -315,7 +315,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       const shellCommands = new Set([
         'if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 
-        'cp', 'mv', 'node', 'npm', 'pnpm', 'yarn', 'bun', 'run', 'exec', 'test', 'audit', 'install', 
+        'cp', 'mv', 'node', 'run', 'exec', 'test', 'audit', 'install', 
         'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 
         'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve'
       ]);
@@ -381,10 +381,30 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
             const token = rawToken.replace(/^["']|["']$/g, '');
 
-            // Skip environment variables, flags, shell built-ins, and relative/absolute script files
+            // 1. Skip environment variables and flags
+            if (token.includes('=') || token.startsWith('-')) continue;
+
+            // 2. Handle package managers: npm run <script>, npx <pkg>
+            if (['npx', 'npm', 'pnpm', 'yarn', 'bun'].includes(token)) {
+              let pkgIndex = i + 1;
+              if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
+                pkgIndex++;
+              }
+              const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
+              // Check if the argument is a script name first
+              if (pkg && !pkg.startsWith('-') && !scripts[pkg] && !shellCommands.has(pkg)) {
+                scriptUsages.add(pkg);
+                const resolved = resolveBinaryDependency(pkg, projectRoot) || STATIC_BINARY_FALLBACKS[pkg] || pkg;
+                scriptPackages.add(resolved);
+              }
+              break; // Token handled via package manager handler
+            }
+
+            // 3. Skip if it's an internal script reference (trap for "npm test" or direct script calls)
+            if (scripts[token]) continue;
+
+            // 4. Skip shell built-ins and relative/absolute script files
             if (
-              token.includes('=') ||
-              token.startsWith('-') ||
               shellCommands.has(token) ||
               token.startsWith('.') ||
               token.startsWith('/') ||
@@ -392,21 +412,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
               token.endsWith('.js')
             ) {
               continue;
-            }
-
-            // Handle package managers: npm run <script>, npx <pkg>
-            if (['npx', 'npm', 'pnpm', 'yarn', 'bun'].includes(token)) {
-              let pkgIndex = i + 1;
-              if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
-                pkgIndex++;
-              }
-              const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
-              if (pkg && !pkg.startsWith('-') && !scripts[pkg] && !shellCommands.has(pkg)) {
-                scriptUsages.add(pkg);
-                const resolved = resolveBinaryDependency(pkg, projectRoot) || STATIC_BINARY_FALLBACKS[pkg] || pkg;
-                scriptPackages.add(resolved);
-              }
-              break; // Token handled via package manager handler
             }
 
             // Dynamic Check: Try resolving the token via physical node_modules bin files
