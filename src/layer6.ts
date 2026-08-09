@@ -337,8 +337,36 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         'knip': 'knip',
         'husky': 'husky',
         'lint-staged': 'lint-staged',
-        'commitlint': '@commitlint/cli'
+        'commitlint': '@commitlint/cli',
+        'cross-env': 'cross-env',
+        'nyc': 'nyc',
+        'mocha': 'mocha',
+        'nodemon': 'nodemon',
+        'rimraf': 'rimraf',
+        'c8': 'c8',
+        'ts-node': 'ts-node',
+        'tsx': 'tsx'
       };
+
+      const allDeclaredDeps = new Set([
+        ...Object.keys(dependencies), 
+        ...Object.keys(devDependencies), 
+        ...Object.keys(pkg.peerDependencies || {})
+      ]);
+
+      if (context.options.monorepo && pkgName !== 'root') {
+        const rootManifest = manifestPaths.get('root');
+        if (rootManifest && fs.existsSync(rootManifest)) {
+          try {
+            const rootPkg = JSON.parse(fs.readFileSync(rootManifest, 'utf-8'));
+            [
+              ...Object.keys(rootPkg.dependencies || {}), 
+              ...Object.keys(rootPkg.devDependencies || {}), 
+              ...Object.keys(rootPkg.peerDependencies || {})
+            ].forEach(d => allDeclaredDeps.add(d));
+          } catch (e) {}
+        }
+      }
 
       for (const script of Object.values(scripts) as string[]) {
         // Split command strings across shell operators (&&, ||, ;, |)
@@ -382,7 +410,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             }
 
             // Dynamic Check: Try resolving the token via physical node_modules bin files
-            const resolvedPackage = resolveBinaryDependency(token, projectRoot) || STATIC_BINARY_FALLBACKS[token];
+            // Fallback to allDeclaredDeps if resolution fails (handles cases where binary name == package name)
+            const parts = token.split('/');
+            const pkgBase = token.startsWith('@') ? (parts.length >= 2 ? `${parts[0]}/${parts[1]}` : null) : parts[0];
+            const resolvedPackage = resolveBinaryDependency(token, projectRoot) || 
+                                    STATIC_BINARY_FALLBACKS[token] || 
+                                    (allDeclaredDeps.has(token) ? token : (pkgBase && allDeclaredDeps.has(pkgBase) ? pkgBase : null));
+            
             if (resolvedPackage) {
               scriptUsages.add(token);
               scriptPackages.add(resolvedPackage);
@@ -397,25 +431,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       const usedNodeBuiltins = new Set<string>();
-      const allDeclaredDeps = new Set([
-        ...Object.keys(dependencies), 
-        ...Object.keys(devDependencies), 
-        ...Object.keys(pkg.peerDependencies || {})
-      ]);
-
-      if (context.options.monorepo && pkgName !== 'root') {
-        const rootManifest = manifestPaths.get('root');
-        if (rootManifest && fs.existsSync(rootManifest)) {
-          try {
-            const rootPkg = JSON.parse(fs.readFileSync(rootManifest, 'utf-8'));
-            [
-              ...Object.keys(rootPkg.dependencies || {}), 
-              ...Object.keys(rootPkg.devDependencies || {}), 
-              ...Object.keys(rootPkg.peerDependencies || {})
-            ].forEach(d => allDeclaredDeps.add(d));
-          } catch (e) {}
-        }
-      }
 
       for (const imp of importedInThisPackage) {
         const cleanImp = imp.startsWith('node:') ? imp.slice(5) : imp;
@@ -467,7 +482,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const commonConfigs = [
         '.eslintrc', '.prettierrc', 'vitest.config', 'jest.config', 'webpack.config', 'vite.config', 'rollup.config',
         'postcss.config', 'tailwind.config', 'tsconfig.json', 'babel.config', 'swc.config', 'lerna.json', 'turbo.json',
-        'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky', 'knip.json'
+        'nx.json', '.env', 'svelte.config', 'vue.config', 'astro.config', 'package.json', '.husky', 'knip.json',
+        'next.config', 'nodemon.json', 'release-it', '.release-it', 'stylelint.config', 'postcss.config'
       ];
 
       for (const dep of Object.keys(dependencies)) {
@@ -543,9 +559,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
         let isPluginUsed = false;
-        if (!isUsed && (dep.includes('eslint-plugin-') || dep.includes('prettier-plugin-'))) {
-          if (scriptPackages.has('eslint') || scriptPackages.has('prettier') || hasRelatedConfig) {
-            isPluginUsed = true;
+        const pluginBases = ['eslint', 'prettier', 'babel', 'stylelint', 'postcss', 'remark', 'jest', 'vitest'];
+        if (!isUsed && pluginBases.some(base => dep.toLowerCase().includes(base.toLowerCase()))) {
+          if (pluginBases.some(base => scriptPackages.has(base) || scriptUsages.has(base) || hasRelatedConfig)) {
+             isPluginUsed = true;
           }
         }
 
