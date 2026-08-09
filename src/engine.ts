@@ -10,25 +10,17 @@ export class PluginEngine {
   private findings: Finding[] = [];
 
   register(plugin: AnalyzerPlugin) {
-    console.log(`[Engine] Registering plugin: ${plugin.name}`);
     this.plugins.push(plugin);
   }
-
-  /**
-   * Dynamically loads all plugins from the src/plugins directory.
-   * Handles errors gracefully to ensure the core analysis continues.
-   */
   async loadDynamicPlugins() {
     try {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const pluginsDir = path.join(__dirname, "plugins");
-      console.log(`[Engine] Loading plugins from: ${pluginsDir}`);
       
       let files: string[] = [];
       try {
         files = await fs.readdir(pluginsDir);
       } catch (e) {
-        // Directory might not exist or be inaccessible
         return;
       }
 
@@ -44,41 +36,29 @@ export class PluginEngine {
             if (plugin && typeof plugin === "object" && plugin.name && plugin.lifecycle) {
               this.register(plugin);
             }
-          } catch (err) {
-            console.warn(`[Plugin Engine] Failed to load plugin ${file}: ${err instanceof Error ? err.message : String(err)}`);
-          }
+          } catch (err) {}
         }
       }
-    } catch (err) {
-      console.warn(`[Plugin Engine] Error during dynamic plugin loading: ${err instanceof Error ? err.message : String(err)}`);
-    }
+    } catch (err) {}
   }
 
   async run(context: AnalysisContext): Promise<Finding[]> {
     const adapter = this.createAdapter(context);
-
-    // 0. Dynamic Loading
     await this.loadDynamicPlugins();
-
-    // 1. Detection Phase
     for (const plugin of this.plugins) {
       try {
         if (plugin.detect) {
           plugin.enabled = await plugin.detect(adapter);
         } else {
-          plugin.enabled = true; // Enabled by default if no detect method
+          plugin.enabled = true;
         }
         if (plugin.enabled) {
-          console.log(`[Engine] Plugin enabled: ${plugin.name}`);
           context.enabledPlugins?.add(plugin.name);
         }
       } catch (err) {
-        console.error(`[Plugin Engine] Error in detect phase for ${plugin.name}:`, err);
         plugin.enabled = false;
       }
     }
-
-    // 2. onProjectInit
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onProjectInit) {
         try {
@@ -88,12 +68,8 @@ export class PluginEngine {
         }
       }
     }
-
-    // 3. File-level processing
     for (const module of context.modules.values()) {
       if (!module.ast) continue;
-
-      // onFileStart
       for (const plugin of this.plugins) {
         if (plugin.enabled && plugin.lifecycle.onFileStart) {
           try {
@@ -103,9 +79,6 @@ export class PluginEngine {
           }
         }
       }
-
-      // onASTNode (Traversal)
-      // Use yuku-parser's walk instead of @babel/traverse
       try {
         yukuWalk(module.ast as any, (node: any) => {
           for (const plugin of this.plugins) {
@@ -113,7 +86,6 @@ export class PluginEngine {
               try {
                 plugin.lifecycle.onASTNode(node, module.id, adapter);
               } catch (err) {
-                // Suppress per-node errors to avoid flooding logs, but ensure isolation
               }
             }
           }
@@ -122,8 +94,6 @@ export class PluginEngine {
         console.error(`[Plugin Engine] Error during AST traversal for ${module.id}:`, err);
       }
     }
-
-    // 4. onAnalysisComplete
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onAnalysisComplete) {
         try {
@@ -145,7 +115,6 @@ export class PluginEngine {
         return module?.exports.find(e => e.name === name || e.exportedAs === name);
       },
       getType: (node) => {
-        // Simplified type inference
         if (t.isStringLiteral(node)) return 'string';
         if (t.isNumericLiteral(node)) return 'number';
         if (t.isBooleanLiteral(node)) return 'boolean';
@@ -186,8 +155,8 @@ export class PluginEngine {
       },
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({
-          rule: 'plugin-finding', // default fallback
-          ...finding,             // overrides 'rule' if finding.rule was provided
+          rule: 'plugin-finding',
+          ...finding,
         } as Finding);
       },
       markAsUsed: (fileId, symbol) => {
@@ -204,7 +173,6 @@ export class PluginEngine {
         (node as any).metadata[key] = value;
       },
       setMonorepo: (monorepo) => {
-        console.log(`[Engine] Setting monorepo topology with ${monorepo.packageMap.size} packages`);
         context.options.monorepo = monorepo;
         context.monorepo = monorepo;
       }
