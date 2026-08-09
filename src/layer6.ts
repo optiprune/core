@@ -29,7 +29,7 @@ function resolveBinaryDependency(token: string, projectRoot: string): string | n
       const realPath = fs.realpathSync(binPath);
       // Extract package name from resolved path: node_modules/mocha/bin/mocha -> "mocha"
       const match = realPath.match(/node_modules[/\\]((?:@[^/\\]+[/\\])?[^/\\]+)/);
-      if (match && match[1]) {
+      if (match && match[1] && match[1] !== '.bin') {
         return match[1];
       }
     } catch {
@@ -345,7 +345,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         'rimraf': 'rimraf',
         'c8': 'c8',
         'ts-node': 'ts-node',
-        'tsx': 'tsx'
+        'tsx': 'tsx',
+        'standard': 'standard',
+        'stylelint': 'stylelint',
+        'concurrently': 'concurrently',
+        'wait-on': 'wait-on'
       };
 
       const allDeclaredDeps = new Set([
@@ -418,9 +422,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             // Fallback to allDeclaredDeps if resolution fails (handles cases where binary name == package name)
             const parts = token.split('/');
             const pkgBase = token.startsWith('@') ? (parts.length >= 2 ? `${parts[0]}/${parts[1]}` : null) : parts[0];
-            const resolvedPackage = resolveBinaryDependency(token, projectRoot) || 
-                                    STATIC_BINARY_FALLBACKS[token] || 
-                                    (allDeclaredDeps.has(token) ? token : (pkgBase && allDeclaredDeps.has(pkgBase) ? pkgBase : null));
+            const resolved = resolveBinaryDependency(token, projectRoot);
+            const resolvedPackage = (resolved && resolved !== '.bin') ? resolved : 
+                                    (STATIC_BINARY_FALLBACKS[token] || 
+                                    (allDeclaredDeps.has(token) ? token : (pkgBase && allDeclaredDeps.has(pkgBase) ? pkgBase : null)));
             
             if (resolvedPackage) {
               scriptUsages.add(token);
@@ -461,7 +466,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       for (const bin of scriptUsages) {
-        const mappedPkg = resolveBinaryDependency(bin, projectRoot) || STATIC_BINARY_FALLBACKS[bin] || bin;
+        const resolved = resolveBinaryDependency(bin, projectRoot);
+        const mappedPkg = (resolved && resolved !== '.bin') ? resolved : (STATIC_BINARY_FALLBACKS[bin] || bin);
+        
         if (!allDeclaredDeps.has(mappedPkg) && !bin.startsWith('./') && !bin.startsWith('../')) {
           const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget', 'git', 'sudo', 'chmod', 'chown', 'env', 'xargs'];
           if (!COMMON_GLOBALS.includes(bin)) {
