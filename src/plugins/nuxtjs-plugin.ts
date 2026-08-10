@@ -2,150 +2,191 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "node:path";
 
-/**
- * Nuxt Plugin
- * Handles Nuxt-specific patterns: pages, layouts, middleware, composables, auto-imports, etc.
- */
+const NUXT_CONFIG_FILES = [
+  "nuxt.config.ts",
+  "nuxt.config.js",
+  "nuxt.config.mjs",
+  "nuxt.config.cjs",
+  "app.config.ts",
+  "app.config.js"
+];
+
+const NUXT_ECOSYSTEM_PACKAGES = [
+  "@pinia/nuxt",
+  "@nuxtjs/tailwindcss",
+  "@nuxtjs/i18n",
+  "@nuxt/content",
+  "@nuxt/image",
+  "@nuxt/ui",
+  "@nuxt/devtools",
+  "@vueuse/nuxt"
+];
+
+const NUXT_COMPOSABLES = new Set([
+  "useRouter", "useRoute", "useFetch", "useAsyncData", "useLazyFetch", "useLazyAsyncData",
+  "useHead", "useState", "useError", "useNuxtData", "useRequestHeaders", "useCookie", "useNuxtApp",
+  "useDirectives", "useAppConfig", "useRuntimeConfig", "useHydration", "useRequestEvent",
+  "useRequestURL", "useSeoMeta", "useServerHead", "useServerSeoMeta", "useContentHead",
+  "useContentSeoMeta", "useContentState", "useLocalePath", "useLocaleRoute", "useSwitchLocalePath",
+  "useBrowserLocale", "useCookieLocale", "useSetLocaleCookie", "useAsyncLocaleData",
+  "useI18n", "usePinia", "defineStore", "storeToRefs"
+]);
+
+const NUXT_DEFINES = new Set([
+  "definePageMeta", "defineRouteRules", "defineNuxtPlugin", "defineNuxtRouteMiddleware",
+  "defineNuxtComponent", "defineNuxtLink", "defineNuxtConfig", "defineEventHandler",
+  "defineAppConfig", "defineServerMiddleware", "defineServerApi", "defineServerRoute",
+  "defineRenderHandler", "defineNitroPlugin"
+]);
+
+const NITRO_UTILS = new Set([
+  "readBody", "readRawBody", "getQuery", "getRouterParams", "getRouterParam",
+  "createError", "sendRedirect", "setResponseStatus", "appendHeader", "setCookie", "deleteCookie"
+]);
+
 export const NuxtPlugin: AnalyzerPlugin = {
   name: "nuxt-plugin",
-  version: "1.0.1", // Incrementing version for the update
+  version: "1.2.0",
+
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
-      const hasDep = !!(pkg.dependencies?.["nuxt"] || pkg.devDependencies?.["nuxt"]);
+      const hasDep = !!(
+        pkg.dependencies?.["nuxt"] || 
+        pkg.devDependencies?.["nuxt"] ||
+        pkg.dependencies?.["nuxt3"] ||
+        pkg.devDependencies?.["nuxt3"]
+      );
       if (hasDep) return true;
     }
-    // Fallback: If we see nuxt.config.ts or nuxt.config.js, enable it
-    const nuxtConfigTs = await adapter.readFile("nuxt.config.ts");
-    const nuxtConfigJs = await adapter.readFile("nuxt.config.js");
-    return !!nuxtConfigTs || !!nuxtConfigJs;
+
+    for (const configFile of NUXT_CONFIG_FILES) {
+      if (await adapter.folderExists(configFile)) return true;
+    }
+
+    return false;
   },
+
   lifecycle: {
-    onFileStart: (fileId, adapter) => {
-      // Mark Nuxt conventional directories as entry points
-      const nuxtPatterns = [
-        "pages/", "layouts/", "middleware/", "composables/", "components/", "plugins/", "app.vue",
-        "server/api/", "server/routes/", "server/middleware/"
-      ];
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson("package.json");
+      const allDeps = {
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies
+      };
 
-      if (nuxtPatterns.some(pattern => fileId.includes(pattern))) {
-        adapter.markAsUsed(fileId);
-      }
+      if (allDeps["nuxt"] || allDeps["nuxt3"]) {
+        adapter.markPackageAsUsed("nuxt");
 
-      // Mark .vue files in these directories
-      if ((fileId.includes("pages/") || fileId.includes("layouts/") || fileId.includes("components/")) && fileId.endsWith(".vue")) {
-        adapter.markAsUsed(fileId);
-      }
-    },
-    onASTNode: (node, fileId, adapter) => {
-      // Nuxt composables (useRouter, useFetch, useAsyncData, etc.)
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
-        const composableName = node.callee.name;
-        const nuxtComposables = [
-          "useRouter", "useRoute", "useFetch", "useAsyncData", "useLazyFetch", "useLazyAsyncData",
-          "useHead", "useState", "useError", "useNuxtData", "useRequestHeaders", "useCookie",
-          "useDirectives", "useAppConfig", "useRuntimeConfig", "useHydration", "useRequestEvent",
-          "useRequestURL", "useSeoMeta", "useServerHead", "useServerSeoMeta", "useContentHead",
-          "useContentSeoMeta", "useContentState", "useLocalePath", "useLocaleRoute", "useSwitchLocalePath",
-          "useBrowserLocale", "useCookieLocale", "useSetLocaleCookie", "useAsyncLocaleData",
-          "useI18n", "useStrapiClient", "useStrapiUser", "useStrapiAuth", "useStrapiMedia"
-        ];
-        if (nuxtComposables.includes(composableName)) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Nuxt definePageMeta, defineRouteRules, defineNuxtPlugin, defineNuxtRouteMiddleware, defineNuxtComponent
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
-        const defineName = node.callee.name;
-        const nuxtDefines = [
-          "definePageMeta", "defineRouteRules", "defineNuxtPlugin", "defineNuxtRouteMiddleware",
-          "defineNuxtComponent", "defineNuxtLink", "defineNuxtConfig", "defineEventHandler",
-          "defineAppConfig", "defineServerMiddleware", "defineServerApi", "defineServerRoute"
-        ];
-        if (nuxtDefines.includes(defineName)) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Nuxt middleware definitions (export default function or arrow function)
-      if (fileId.includes("middleware/") && t.isExportDefaultDeclaration(node)) {
-        if (t.isFunctionDeclaration(node.declaration) || t.isFunctionExpression(node.declaration) || t.isArrowFunctionExpression(node.declaration)) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Nuxt plugin definitions (export default defineNuxtPlugin(...))
-      if (fileId.includes("plugins/") && t.isExportDefaultDeclaration(node)) {
-        if (t.isCallExpression(node.declaration) && t.isIdentifier(node.declaration.callee) && node.declaration.callee.name === "defineNuxtPlugin") {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Nuxt config file analysis (nuxt.config.ts/js)
-      if (fileId.includes("nuxt.config.") && t.isExportDefaultDeclaration(node)) {
-        if (t.isCallExpression(node.declaration) && t.isIdentifier(node.declaration.callee) && node.declaration.callee.name === "defineNuxtConfig") {
-          if (node.declaration.arguments.length > 0 && t.isObjectExpression(node.declaration.arguments[0])) {
-            const nuxtConfigObject = node.declaration.arguments[0];
-            for (const prop of nuxtConfigObject.properties) {
-              if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
-                const propName = prop.key.name;
-
-                // Handle `alias` in `resolve`
-                if (propName === "alias" && t.isObjectExpression(prop.value)) {
-                  prop.value.properties.forEach(aliasProp => {
-                    if (t.isObjectProperty(aliasProp) && t.isStringLiteral(aliasProp.value)) {
-                      adapter.markAsUsed(path.resolve(adapter.getConfig().rootDir, aliasProp.value.value));
-                    }
-                  });
-                }
-
-                // Handle `modules`
-                if (propName === "modules" && t.isArrayExpression(prop.value)) {
-                  prop.value.elements.forEach(moduleName => {
-                    if (t.isStringLiteral(moduleName)) {
-                      // Mark module as used, assuming it refers to a local path or a package
-                      adapter.markAsUsed(moduleName.value);
-                    }
-                  });
-                }
-
-                // Handle `components` directory auto-imports
-                if (propName === "components" && (t.isBooleanLiteral(prop.value) && prop.value.value === true || t.isObjectExpression(prop.value) || t.isArrayExpression(prop.value))) {
-                  // If components are enabled, mark the default components directory as used
-                  adapter.markAsUsed(path.resolve(adapter.getConfig().rootDir, "components"));
-                }
-
-                // Handle `plugins` directory auto-imports
-                if (propName === "plugins" && (t.isBooleanLiteral(prop.value) && prop.value.value === true || t.isObjectExpression(prop.value) || t.isArrayExpression(prop.value))) {
-                  // If plugins are enabled, mark the default plugins directory as used
-                  adapter.markAsUsed(path.resolve(adapter.getConfig().rootDir, "plugins"));
-                }
-
-                // Handle `buildModules` (Nuxt 2, but good to have)
-                if (propName === "buildModules" && t.isArrayExpression(prop.value)) {
-                  prop.value.elements.forEach(moduleName => {
-                    if (t.isStringLiteral(moduleName)) {
-                      adapter.markAsUsed(moduleName.value);
-                    }
-                  });
-                }
-              }
-            }
+        for (const ecoPkg of NUXT_ECOSYSTEM_PACKAGES) {
+          if (allDeps[ecoPkg]) {
+            adapter.markPackageAsUsed(ecoPkg);
           }
         }
       }
 
-      // Nuxt auto-imported composables (starting with \'use\') in composables/ directory
-      if (fileId.includes("composables/") && t.isIdentifier(node) && node.name.startsWith("use")) {
-        adapter.markAsUsed(fileId, node.name);
+      for (const configFile of NUXT_CONFIG_FILES) {
+        if (await adapter.folderExists(configFile)) {
+          adapter.markAsUsed(configFile);
+        }
       }
 
-      // Nuxt auto-imported components (e.g., <NuxtLink>, <ClientOnly>)
+      if (pkg?.scripts) {
+        for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
+          if (typeof scriptContent === "string" && (scriptContent.includes("nuxt") || scriptContent.includes("nuxi"))) {
+            adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+          }
+        }
+      }
+    },
+
+    onFileStart: (fileId, adapter) => {
+      const normalized = fileId.replace(/\\/g, "/");
+
+      // Mark Nuxt conventional directories as entry points (Supports Nuxt 3 & Nuxt 4 app/ directory structure)
+      const nuxtDirectoryPatterns = [
+        "/pages/", "/layouts/", "/middleware/", "/composables/", "/components/",
+        "/plugins/", "/server/api/", "/server/routes/", "/server/middleware/",
+        "/server/plugins/", "/server/utils/", "/utils/", "/app/pages/", "/app/layouts/",
+        "/app/components/", "/app/composables/"
+      ];
+
+      if (nuxtDirectoryPatterns.some(pattern => normalized.includes(pattern))) {
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("nuxt");
+      }
+
+      // Mark root entry components
+      const rootEntries = ["app.vue", "error.vue", "app/app.vue", "app/error.vue"];
+      if (rootEntries.some(entry => normalized.endsWith(entry))) {
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("nuxt");
+      }
+    },
+
+    onASTNode: (node, fileId, adapter) => {
+      const normalized = fileId.replace(/\\/g, "/");
+
+      // 1. Nuxt Composables & Nitro Helpers
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
+        const calleeName = node.callee.name;
+
+        if (NUXT_COMPOSABLES.has(calleeName) || NITRO_UTILS.has(calleeName) || NUXT_DEFINES.has(calleeName)) {
+          adapter.markAsUsed(fileId);
+          adapter.markPackageAsUsed("nuxt");
+        }
+      }
+
+      // 2. Nuxt plugin & middleware default export handlers
+      if ((normalized.includes("/plugins/") || normalized.includes("/middleware/")) && t.isExportDefaultDeclaration(node)) {
+        adapter.markAsUsed(fileId);
+      }
+
+      // 3. Detailed nuxt.config AST inspection
+      if (NUXT_CONFIG_FILES.some(cfg => normalized.endsWith(cfg)) && t.isExportDefaultDeclaration(node)) {
+        if (t.isCallExpression(node.declaration) && t.isIdentifier(node.declaration.callee) && node.declaration.callee.name === "defineNuxtConfig") {
+          const configArg = node.declaration.arguments[0];
+
+          if (t.isObjectExpression(configArg)) {
+            configArg.properties.forEach((prop: any) => {
+              if (t.isObjectProperty(prop)) {
+                const propName = prop.key?.name || prop.key?.value;
+
+                // Modules: ['@pinia/nuxt', './modules/my-module']
+                if ((propName === "modules" || propName === "buildModules" || propName === "extends") && t.isArrayExpression(prop.value)) {
+                  prop.value.elements.forEach((el: any) => {
+                    if (t.isStringLiteral(el)) {
+                      const modVal = el.value;
+                      if (modVal.startsWith(".") || modVal.startsWith("/")) {
+                        adapter.markAsUsed(modVal);
+                      } else {
+                        adapter.markPackageAsUsed(modVal);
+                      }
+                    }
+                  });
+                }
+
+                // Components / Plugins directory overrides
+                if ((propName === "components" || propName === "plugins") && (t.isBooleanLiteral(prop.value) || t.isObjectExpression(prop.value) || t.isArrayExpression(prop.value))) {
+                  adapter.markAsUsed(path.resolve(adapter.getConfig().rootDir, propName));
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // 4. Nuxt / Vue Built-in components (<NuxtPage>, <NuxtLayout>, <NuxtLink>, <ClientOnly>, etc.)
       if (t.isJSXElement(node) && t.isJSXIdentifier(node.openingElement.name)) {
         const componentName = node.openingElement.name.name;
-        if (componentName.startsWith("Nuxt") || componentName.startsWith("ClientOnly") || componentName.startsWith("ServerOnly")) {
+        if (
+          componentName.startsWith("Nuxt") ||
+          componentName.startsWith("ClientOnly") ||
+          componentName.startsWith("ServerOnly")
+        ) {
           adapter.markAsUsed(fileId, componentName);
+          adapter.markPackageAsUsed("nuxt");
         }
       }
     }

@@ -1,98 +1,224 @@
 import { AnalyzerPlugin } from "../types.js";
+import { t } from "../ast-utils.js";
+import path from "pathe";
 
 const VITEST_CONFIG_FILES = [
-  'vitest.config.ts',
-  'vitest.config.js',
-  'vitest.config.mjs',
-  'vitest.config.cjs',
-  'vitest.config.mts',
-  'vitest.workspace.ts',
-  'vitest.workspace.js',
-  'vitest.workspace.json'
+  "vitest.config.ts",
+  "vitest.config.js",
+  "vitest.config.mjs",
+  "vitest.config.cjs",
+  "vitest.config.mts",
+  "vitest.config.cts",
+  "vitest.workspace.ts",
+  "vitest.workspace.js",
+  "vitest.workspace.mjs",
+  "vitest.workspace.cjs",
+  "vitest.workspace.json",
+  "vite.config.ts",
+  "vite.config.js",
+  "vite.config.mjs",
+  "vite.config.cjs"
 ];
 
-/**
- * Vitest Plugin: Erkennt Testdateien und stellt sicher, dass in TypeScript-Projekten
- * auch die notwendigen Transpiler (esbuild/tsx) als aktiv markiert werden.
- */
+const VITEST_PACKAGES = [
+  "vitest",
+  "@vitest/coverage-v8",
+  "@vitest/coverage-istanbul",
+  "@vitest/ui",
+  "@vitest/browser",
+  "jsdom",
+  "happy-dom"
+];
+
 export const VitestPlugin: AnalyzerPlugin = {
   name: "vitest-plugin",
-  version: "1.1.1",
+  version: "1.0.0",
 
   detect: async (adapter) => {
-    const pkg = await adapter.readJson('package.json');
-    
-    // Check direct dependencies
-    const hasVitestDep = !!(
-      pkg?.devDependencies?.['vitest'] || 
-      pkg?.dependencies?.['vitest']
-    );
-    if (hasVitestDep) return true;
+    const pkg = await adapter.readJson("package.json");
+    if (pkg) {
+      const allDeps = {
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+        ...pkg.peerDependencies
+      };
+      if (VITEST_PACKAGES.some((pkgName) => pkgName in allDeps)) {
+        return true;
+      }
 
-    // Check configuration files in parallel
-    const configChecks = await Promise.all(
-      VITEST_CONFIG_FILES.map(file => adapter.readFile(file))
-    );
-    
-    return configChecks.some(content => content !== null);
+      if (pkg.scripts) {
+        const scriptValues = Object.values(pkg.scripts);
+        if (
+          scriptValues.some(
+            (s) => typeof s === "string" && (s.includes("vitest") || s === "vitest")
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+
+    for (const configFile of VITEST_CONFIG_FILES) {
+      if (await adapter.folderExists(configFile)) return true;
+    }
+
+    return await adapter.folderExists("__tests__");
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson('package.json');
-      
+      const pkg = await adapter.readJson("package.json");
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies,
-        ...pkg?.optionalDependencies,
+        ...pkg?.peerDependencies
       };
 
-      const hasVitestDep = !!allDeps['vitest'];
+      const hasVitestDep = VITEST_PACKAGES.some((p) => p in allDeps);
 
-      // Parallel check for config existence
-      const configChecks = await Promise.all(
-        VITEST_CONFIG_FILES.map(async file => ({
-          file,
-          exists: (await adapter.readFile(file)) !== null
-        }))
-      );
+      let hasConfigFile = false;
+      for (const configFile of VITEST_CONFIG_FILES) {
+        if (await adapter.folderExists(configFile)) {
+          hasConfigFile = true;
+          adapter.markAsUsed(configFile);
+        }
+      }
 
-      const hasConfigFile = configChecks.some(c => c.exists);
+      // 1. Protect installed Vitest ecosystem packages in package.json
+      if (hasVitestDep) {
+        for (const vitestPkg of VITEST_PACKAGES) {
+          if (allDeps[vitestPkg]) {
+            adapter.markPackageAsUsed(vitestPkg);
+          }
+        }
+      }
 
+      // 2. Track npm scripts invoking Vitest (e.g., "test": "vitest run")
+      if (pkg?.scripts) {
+        for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
+          if (
+            typeof scriptContent === "string" &&
+            (scriptContent.includes("vitest") || scriptContent === "vitest")
+          ) {
+            adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+            adapter.markPackageAsUsed("vitest");
+          }
+        }
+      }
+
+      // 3. Emit finding if Vitest configs exist but vitest is not listed
       if (hasConfigFile && !hasVitestDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Vitest configuration found but 'vitest' is not listed in package.json.",
+          message: "Vitest configuration found, but 'vitest' is not listed in package.json.",
           evidence: { hasConfigFile }
         });
-      }
-
-      const isTypeScript = !!(
-        allDeps['typescript'] || 
-        (await adapter.readFile('tsconfig.json')) !== null
-      );
-
-      if (isTypeScript) {
-        // Mark common TS transpilers/utilities as used if present
-        if (allDeps['esbuild']) adapter.markAsUsed('package.json', 'esbuild');
-        if (allDeps['tsx']) adapter.markAsUsed('package.json', 'tsx');
-        if (allDeps['@vitest/browser']) adapter.markAsUsed('package.json', '@vitest/browser');
       }
     },
 
     onFileStart: (fileId, adapter) => {
-      // 1. Match test files by pattern anywhere in the project (e.g., src/math.test.ts, utils.spec.tsx)
-      const isTestFile = /\.(test|spec)\.[jt]sx?$/.test(fileId);
-      
-      // 2. Match Vitest config and setup files by file name at end of path
-      const isConfigFile = /[\\/]?vitest\.(config|setup|workspace)\.[a-z0-9]+$/i.test(fileId);
+      const normalized = fileId.replace(/\\/g, "/");
+      const basename = path.basename(normalized);
 
-      if (isTestFile || isConfigFile) {
+      // 1. Protect configuration and workspace files
+      if (VITEST_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("vitest");
+      }
+
+      // 2. Protect test files and benchmarks
+      if (
+        normalized.includes(".test.") ||
+        normalized.includes(".spec.") ||
+        normalized.includes("/__tests__/") ||
+        normalized.includes(".bench.")
+      ) {
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("vitest");
+      }
+    },
+
+    onASTNode: (node, fileId, adapter) => {
+      const normalized = fileId.replace(/\\/g, "/");
+      const basename = path.basename(normalized);
+      const isConfigFile = VITEST_CONFIG_FILES.includes(basename);
+      const isTestFile =
+        normalized.includes(".test.") ||
+        normalized.includes(".spec.") ||
+        normalized.includes("/__tests__/");
+
+      // 1. Detect ESM imports for vitest in any file
+      if (t.isImportDeclaration(node)) {
+        const source = node.source.value;
+        if (source === "vitest" || source.startsWith("@vitest/")) {
+          adapter.markPackageAsUsed(source);
+          adapter.markAsUsed(fileId);
+        }
+      }
+
+      // 2. In Vitest configuration files
+      if (isConfigFile) {
+        if (t.isExportDefaultDeclaration(node)) {
+          adapter.markAsUsed(fileId, "default");
+          adapter.markPackageAsUsed("vitest");
+        }
+
+        // Detect defineConfig({ test: { environment: 'jsdom' | 'happy-dom', setupFiles: [...] } })
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key)) {
+          const keyName = node.key.name;
+
+          // Detect test environment (e.g., environment: 'jsdom')
+          if (keyName === "environment" && t.isStringLiteral(node.value)) {
+            const env = node.value.value;
+            if (env === "jsdom" || env === "happy-dom") {
+              adapter.markPackageAsUsed(env);
+            }
+          }
+
+          // Detect setupFiles: ['./vitest.setup.ts']
+          if (keyName === "setupFiles") {
+            if (t.isArrayExpression(node.value)) {
+              node.value.elements.forEach((el: any) => {
+                if (t.isStringLiteral(el)) {
+                  adapter.markAsUsed(el.value);
+                }
+              });
+            } else if (t.isStringLiteral(node.value)) {
+              adapter.markAsUsed(node.value.value);
+            }
+          }
+
+          // Detect coverage provider (e.g., provider: 'v8' | 'istanbul')
+          if (keyName === "provider" && t.isStringLiteral(node.value)) {
+            const provider = node.value.value;
+            if (provider === "v8") adapter.markPackageAsUsed("@vitest/coverage-v8");
+            if (provider === "istanbul") adapter.markPackageAsUsed("@vitest/coverage-istanbul");
+          }
+        }
+      }
+
+      // 3. In Test files: Protect Vitest globals (describe, it, test, expect, vi, beforeEach, etc.)
+      if (isTestFile) {
+        if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
+          const vitestGlobals = new Set([
+            "describe",
+            "it",
+            "test",
+            "expect",
+            "beforeEach",
+            "afterEach",
+            "beforeAll",
+            "afterAll",
+            "vi"
+          ]);
+
+          if (vitestGlobals.has(node.callee.name)) {
+            adapter.markPackageAsUsed("vitest");
+          }
+        }
       }
     }
   }

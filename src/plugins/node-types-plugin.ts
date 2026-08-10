@@ -1,73 +1,132 @@
 import { AnalyzerPlugin } from "../types.js";
+import { t } from "../ast-utils.js";
 
-/**
- * Node Built-in Plugin for OptiPrune
- * 
- * 1. Prevents flagging Node.js built-in modules (e.g., node:os, fs) as missing dependencies 
- *    if @types/node is present.
- * 2. Flags a missing devDependency if Node built-ins are used but @types/node is missing.
- */
+const NODE_BUILTINS = new Set([
+  "assert",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "domain",
+  "events",
+  "fs",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "module",
+  "net",
+  "os",
+  "path",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "repl",
+  "stream",
+  "string_decoder",
+  "sys",
+  "test",
+  "timers",
+  "tls",
+  "trace_events",
+  "tty",
+  "url",
+  "util",
+  "v8",
+  "vm",
+  "wasi",
+  "worker_threads",
+  "zlib"
+]);
+
+interface NodePluginState {
+  hasTypesNode: boolean;
+  usedBuiltins: Set<string>;
+}
+
 export const NodeBuiltinPlugin: AnalyzerPlugin = {
   name: "node-builtin-plugin",
-  version: "1.0.0",
-  detect: async (adapter) => {
-    // This plugin is always relevant for Node.js environments
-    return true;
-  },
+  version: "1.1.0",
+
+  detect: async () => true,
+
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson('package.json');
-      if (!pkg) return;
-      
+      const pkg = await adapter.readJson("package.json");
       const allDeps = {
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies
       };
-      
-      const hasTypesNode = !!allDeps['@types/node'];
-      
-      // Node.js built-in modules list
-      const nodeBuiltins = new Set([
-        'assert', 'buffer', 'child_process', 'cluster', 'console', 'constants', 
-        'crypto', 'dgram', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 
-        'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 
-        'process', 'punycode', 'querystring', 'readline', 'repl', 'stream', 
-        'string_decoder', 'sys', 'timers', 'tls', 'trace_events', 'tty', 
-        'url', 'util', 'v8', 'vm', 'worker_threads', 'zlib'
-      ]);
 
-      // Store state for use in other hooks
+      const hasTypesNode = "@types/node" in allDeps;
+
+      if (hasTypesNode) {
+        adapter.markPackageAsUsed("@types/node");
+      }
+
       (adapter as any).__nodePluginState = {
         hasTypesNode,
-        nodeBuiltins,
         usedBuiltins: new Set<string>()
-      };
+      } as NodePluginState;
     },
     onASTNode: (node: any, fileId, adapter) => {
-      const state = (adapter as any).__nodePluginState;
+      const state = (adapter as any).__nodePluginState as NodePluginState | undefined;
       if (!state) return;
 
-      // Check for imports/exports of Node.js built-ins
-      if (node.type === 'ImportDeclaration' || node.type === 'ExportNamedDeclaration' || node.type === 'ExportAllDeclaration') {
-        const specifier = node.source?.value;
-        if (!specifier) return;
+      let specifier: string | undefined;
 
-        const isNodeProtocol = specifier.startsWith('node:');
-        const cleanSpecifier = isNodeProtocol ? specifier.slice(5) : specifier;
-        const rootModule = cleanSpecifier.split('/')[0];
+      // 1. Static ESM imports / exports (import fs from 'fs', export * from 'node:path')
+      if (
+        t.isImportDeclaration(node) ||
+        t.isExportNamedDeclaration(node) ||
+        node.type === "ExportAllDeclaration"
+      ) {
+        specifier = node.source?.value;
+      }
 
-        if (isNodeProtocol || state.nodeBuiltins.has(rootModule)) {
-          // 1. Mark as used to prevent core "missing-dependency" errors when types are present
-          adapter.markAsUsed(fileId, specifier);
-          
-          // 2. Track for the missing types check
-          state.usedBuiltins.add(specifier);
+      // 2. CommonJS require('fs') and dynamic import('node:fs')
+      if (t.isCallExpression(node)) {
+        const isRequire =
+          t.isIdentifier(node.callee) && node.callee.name === "require";
+        const isImport = node.callee.type === "Import";
+
+        if (isRequire || isImport) {
+          const firstArg = node.arguments[0];
+          if (t.isStringLiteral(firstArg)) {
+            specifier = firstArg.value;
+          }
         }
       }
-    },
+
+      // Early exit if no valid specifier was found
+      if (!specifier) return;
+
+      // Clean prefix and extract base module name (e.g. "node:fs/promises" -> "fs")
+      const isNodeProtocol = specifier.startsWith("node:");
+      const cleanSpecifier = isNodeProtocol ? specifier.slice(5) : specifier;
+      const rootModule = cleanSpecifier.split("/")[0] ?? "";
+
+      if (isNodeProtocol || NODE_BUILTINS.has(rootModule)) {
+        adapter.markAsUsed(fileId);
+        state.usedBuiltins.add(specifier);
+
+        if (state.hasTypesNode) {
+          adapter.markPackageAsUsed("@types/node");
+        }
+      }
+    },  
+
     onAnalysisComplete: async (adapter) => {
-      const state = (adapter as any).__nodePluginState;
+      const state = (adapter as any).__nodePluginState as NodePluginState | undefined;
       if (!state || state.hasTypesNode) return;
 
       if (state.usedBuiltins.size > 0) {
@@ -76,10 +135,10 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
           severity: "warning",
           confidence: "high",
           file: "package.json",
-          message: `Node.js built-in module(s) [${Array.from(state.usedBuiltins).join(', ')}] are used, but '@types/node' is missing from package.json.`,
-          evidence: { 
+          message: `Node.js built-in module(s) [${Array.from(state.usedBuiltins).join(", ")}] are used, but '@types/node' is missing from package.json.`,
+          evidence: {
             usedBuiltins: Array.from(state.usedBuiltins),
-            missingPackage: '@types/node'
+            missingPackage: "@types/node"
           }
         });
       }

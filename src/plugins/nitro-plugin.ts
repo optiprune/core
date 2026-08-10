@@ -1,35 +1,79 @@
 import { AnalyzerPlugin } from "../types.js";
+import { t } from "../ast-utils.js";
 import path from "pathe";
 
-/**
- * Nitro Plugin: Schützt Dateien in server/api, server/routes und server/middleware.
- */
+const NITRO_CONFIG_FILES = [
+  "nitro.config.ts",
+  "nitro.config.js",
+  "nitro.config.mjs",
+  "nitro.config.cjs",
+  "nitro.config.json"
+];
+
+const NITRO_PACKAGES = ["nitropack", "h3"];
+
 export const NitroPlugin: AnalyzerPlugin = {
   name: "nitro-plugin",
-  version: "1.1.0",
+  version: "1.2.0",
+
   detect: async (adapter) => {
-    const pkg = await adapter.readJson('package.json');
-    if (pkg?.dependencies?.['nitropack'] || pkg?.devDependencies?.['nitropack']) {
-      return true;
+    const pkg = await adapter.readJson("package.json");
+    if (pkg) {
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (NITRO_PACKAGES.some((pkgName) => pkgName in allDeps)) {
+        return true;
+      }
     }
-    const nitroConfig = await adapter.readFile('nitro.config.ts') || await adapter.readFile('nitro.config.js');
-    return !!nitroConfig;
+
+    for (const configFile of NITRO_CONFIG_FILES) {
+      if (await adapter.folderExists(configFile)) return true;
+    }
+
+    return await adapter.folderExists("server");
   },
+
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson('package.json');
-      const hasNitro = pkg ? !!(pkg.dependencies?.['nitropack'] || pkg.devDependencies?.['nitropack']) : false;
-      
-      const nitroConfigFiles = ['nitro.config.ts', 'nitro.config.js'];
+      const pkg = await adapter.readJson("package.json");
+      const allDeps = {
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies
+      };
+
+      const hasNitroDep = NITRO_PACKAGES.some((p) => p in allDeps);
+
       let hasConfigFile = false;
-      for (const file of nitroConfigFiles) {
-        if ((await adapter.readFile(file)) !== null) {
+      for (const configFile of NITRO_CONFIG_FILES) {
+        if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
+          adapter.markAsUsed(configFile);
           break;
         }
       }
 
-      if (hasConfigFile && !hasNitro) {
+      // Safeguard nitropack and h3 packages in package.json
+      if (hasNitroDep) {
+        for (const nitroPkg of NITRO_PACKAGES) {
+          if (allDeps[nitroPkg]) {
+            adapter.markPackageAsUsed(nitroPkg);
+          }
+        }
+      }
+
+      // Track npm scripts invoking Nitro CLI
+      if (pkg?.scripts) {
+        for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
+          if (
+            typeof scriptContent === "string" &&
+            (scriptContent.includes("nitro ") || scriptContent.includes("nitropack"))
+          ) {
+            adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+          }
+        }
+      }
+
+      if (hasConfigFile && !hasNitroDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
@@ -40,26 +84,65 @@ export const NitroPlugin: AnalyzerPlugin = {
         });
       }
     },
+
     onFileStart: (fileId, adapter) => {
-      // Markiert Nitro-spezifische Server-Dateien als Einstiegspunkte
-      if (
-        fileId.includes('server/api/') || 
-        fileId.includes('server/routes/') || 
-        fileId.includes('server/middleware/')
-      ) {
+      const normalized = fileId.replace(/\\/g, "/");
+      const basename = path.basename(normalized);
+
+      // 1. Mark configuration files
+      if (NITRO_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("nitropack");
       }
-      const fileName = path.basename(fileId);
-      if (['nitro.config.ts', 'nitro.config.js'].includes(fileName)) {
+
+      // 2. Protect Nitro server file conventions & auto-imports
+      const nitroServerDirectories = [
+        "server/api/",
+        "server/routes/",
+        "server/middleware/",
+        "server/plugins/",
+        "server/utils/",
+        "server/tasks/",
+        "server/database/"
+      ];
+
+      if (nitroServerDirectories.some((dir) => normalized.includes(dir))) {
         adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("nitropack");
       }
     },
+
     onASTNode: (node, fileId, adapter) => {
-      // Handle nitro.config.ts exports
-      const fileName = path.basename(fileId);
-      if (['nitro.config.ts', 'nitro.config.js'].includes(fileName)) {
-        if (node.type === "ExportDefaultDeclaration") {
-          adapter.markAsUsed(fileId, "default");
+      const normalized = fileId.replace(/\\/g, "/");
+      const basename = path.basename(normalized);
+      const isConfigFile = NITRO_CONFIG_FILES.includes(basename);
+
+      // 1. Detect default exports in nitro.config.*
+      if (isConfigFile && t.isExportDefaultDeclaration(node)) {
+        adapter.markAsUsed(fileId, "default");
+        adapter.markPackageAsUsed("nitropack");
+      }
+
+      // 2. Detect default exports in server route / api handlers
+      if (normalized.includes("server/") && t.isExportDefaultDeclaration(node)) {
+        adapter.markAsUsed(fileId, "default");
+      }
+
+      // 3. Protect Nitro / H3 auto-imported event handlers (defineEventHandler, defineNitroPlugin, etc.)
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
+        const funcName = node.callee.name;
+        if (
+          [
+            "defineEventHandler",
+            "defineNitroPlugin",
+            "defineRenderHandler",
+            "defineTask",
+            "eventHandler",
+            "lazyEventHandler"
+          ].includes(funcName)
+        ) {
+          adapter.markAsUsed(fileId);
+          adapter.markPackageAsUsed("nitropack");
         }
       }
     }

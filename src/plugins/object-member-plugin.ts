@@ -1,90 +1,163 @@
-import { AnalyzerPlugin } from "../types.js";
+import { AnalyzerPlugin, PluginAdapter } from "../types.js";
+import { t } from "../ast-utils.js";
+
+interface MemberDef {
+  fileId: string;
+  members: Map<string, any>;
+  loc: any;
+}
 
 /**
- * Interner Speicher für das Tracking von Objekt-Eigenschaften.
- * Wir definieren ihn außerhalb des Plugin-Objekts, um TypeScript-Fehler zu vermeiden.
+ * State store scoped per plugin instance to prevent memory leaks across test/watch runs.
  */
-const state = {
-  definitions: new Map<string, { fileId: string, members: Map<string, any>, loc: any }>(),
-  usages: new Set<string>()
-};
+class MemberTrackerState {
+  definitions = new Map<string, MemberDef>();
+  usages = new Set<string>();
 
-/**
- * Object Member Plugin
- * Schließt die Lücke im Deep Member Tracking für exportierte Objekt-Literale.
- */
+  reset() {
+    this.definitions.clear();
+    this.usages.clear();
+  }
+}
+
+const state = new MemberTrackerState();
+
 export const ObjectMemberPlugin: AnalyzerPlugin = {
   name: "object-member-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   lifecycle: {
     /**
-     * Scannt den AST nach Definitionen und Nutzungen.
+     * Resets state before a new analysis run starts.
      */
-    onASTNode: (node: any, fileId: string) => {
-      // 1. Erfassen: Exportierte Objekt-Eigenschaften finden
-      if (node.type === "ExportNamedDeclaration" && node.declaration?.type === "VariableDeclaration") {
+    onProjectInit: async () => {
+      state.reset();
+    },
+
+    /**
+     * Scans AST nodes for exported object definitions and member usages.
+     */
+    onASTNode: (node: any, fileId: string, adapter?: PluginAdapter) => {
+      // 1. Erfassen: Named Exports -> export const config = { key: value }
+      if (
+        (t.isExportNamedDeclaration(node) || node.type === "ExportNamedDeclaration") &&
+        node.declaration?.type === "VariableDeclaration"
+      ) {
         for (const decl of node.declaration.declarations) {
-          if (decl.id.type === "Identifier" && decl.init?.type === "ObjectExpression") {
+          if (t.isIdentifier(decl.id) && t.isObjectExpression(decl.init)) {
             const objName = decl.id.name;
-            const members = new Map<string, any>();
-            
-            for (const prop of decl.init.properties) {
-              if (prop.type === "ObjectProperty" && prop.key.type === "Identifier") {
-                members.set(prop.key.name, prop.key.loc);
-              }
-            }
-            
+            const members = extractObjectMembers(decl.init);
+
             if (members.size > 0) {
-              state.definitions.set(objName, { 
-                fileId, 
-                members, 
-                loc: decl.id.loc || node.loc 
+              state.definitions.set(objName, {
+                fileId,
+                members,
+                loc: decl.id.loc || node.loc
               });
             }
           }
         }
       }
 
-      // 2. Tracking: Zugriff auf Eigenschaften registrieren (z.B. config.usedKey)
-      if (node.type === "MemberExpression" && node.property.type === "Identifier") {
-        if (node.object.type === "Identifier") {
+      // 2. Erfassen: Default Exports -> export default { key: value }
+      if (
+        (t.isExportDefaultDeclaration(node) || node.type === "ExportDefaultDeclaration") &&
+        t.isObjectExpression(node.declaration)
+      ) {
+        const members = extractObjectMembers(node.declaration);
+        if (members.size > 0) {
+          state.definitions.set("default", {
+            fileId,
+            members,
+            loc: node.loc
+          });
+        }
+      }
+
+      // 3. Tracking: Member Access -> obj.prop or obj?.prop
+      if (
+        node.type === "MemberExpression" ||
+        node.type === "OptionalMemberExpression"
+      ) {
+        // Direct Dot Access: obj.key
+        if (!node.computed && t.isIdentifier(node.property) && t.isIdentifier(node.object)) {
           state.usages.add(`${node.object.name}.${node.property.name}`);
+        }
+        // Bracket Access with String Literal: obj["key"]
+        else if (node.computed && t.isStringLiteral(node.property) && t.isIdentifier(node.object)) {
+          state.usages.add(`${node.object.name}.${node.property.value}`);
+        }
+      }
+
+      // 4. Tracking: Destructuring Access -> const { usedKey } = config
+      if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && t.isIdentifier(node.init)) {
+        const objName = node.init.name;
+        for (const prop of node.id.properties) {
+          if (prop.type === "Property" || prop.type === "ObjectProperty") {
+            const keyName = prop.key?.name || prop.key?.value;
+            if (keyName) {
+              state.usages.add(`${objName}.${keyName}`);
+            }
+          }
         }
       }
     },
 
     /**
-     * Nach der Analyse: Abgleich der gefundenen Nutzungen mit den Definitionen.
+     * Cross-references registered member usages against exported definitions.
      */
-    onAnalysisComplete: async (adapter: any) => {
+    onAnalysisComplete: async (adapter: PluginAdapter) => {
       for (const [objName, def] of state.definitions.entries()) {
         for (const [memberName, memberLoc] of def.members.entries()) {
           const usageKey = `${objName}.${memberName}`;
-          
+
           if (!state.usages.has(usageKey)) {
-            // Wir nutzen 'as any', um das 'rule' Feld trotz Omit-Einschränkung zu setzen
             adapter.emitFinding({
               rule: "unused-member",
               severity: "warning",
               confidence: "high",
               message: `Property '${memberName}' in exported object '${objName}' is never referenced.`,
               file: def.fileId,
-              location: memberLoc || def.loc,
-              evidence: { 
-                exportName: objName, 
-                memberName: memberName 
+              evidence: {
+                exportName: objName,
+                memberName: memberName,
+                location: memberLoc || def.loc
               }
-            } as any);
+            });
           }
         }
       }
-      
-      // State für den nächsten Durchlauf leeren
-      state.definitions.clear();
-      state.usages.clear();
+
+      // Clear state after execution
+      state.reset();
     }
   }
 };
+
+/**
+ * Extracts property names and locations from both ESTree (`Property`) and Babel (`ObjectProperty`/`ObjectMethod`) nodes.
+ */
+function extractObjectMembers(objectExpr: any): Map<string, any> {
+  const members = new Map<string, any>();
+
+  if (!objectExpr?.properties) return members;
+
+  for (const prop of objectExpr.properties) {
+    // Standard property: key: value or shorthand { key }
+    if (
+      prop.type === "Property" ||
+      prop.type === "ObjectProperty" ||
+      prop.type === "ObjectMethod" ||
+      prop.type === "ClassMethod"
+    ) {
+      const keyName = prop.key?.name || prop.key?.value;
+      if (keyName && !prop.computed) {
+        members.set(keyName, prop.key?.loc || prop.loc);
+      }
+    }
+  }
+
+  return members;
+}
 
 export default ObjectMemberPlugin;

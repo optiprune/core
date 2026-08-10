@@ -1,59 +1,132 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import path from "pathe";
+
+const BABEL_CONFIG_FILES = [
+  "babel.config.js",
+  "babel.config.cjs",
+  "babel.config.mjs",
+  "babel.config.ts",
+  "babel.config.json",
+  ".babelrc",
+  ".babelrc.js",
+  ".babelrc.cjs",
+  ".babelrc.mjs",
+  ".babelrc.ts",
+  ".babelrc.json"
+];
+
+const CORE_BABEL_PACKAGES = [
+  "@babel/core",
+  "@babel/cli",
+  "@babel/runtime",
+  "@babel/register",
+  "@babel/standalone"
+];
 
 /**
- * Babel Plugin
- * Handles Babel-specific patterns: babel.config.js, .babelrc, CLI usage, and preset/plugin references
- * This plugin detects Babel packages used via configuration files and build scripts
+ * Resolves Babel preset shorthands to actual npm package names.
+ * e.g., "@babel/env" -> "@babel/preset-env", "react" -> "babel-preset-react"
  */
+function resolveBabelPreset(raw: string): string {
+  if (raw.startsWith("@babel/preset-") || raw.startsWith("babel-preset-")) return raw;
+  if (raw.startsWith("@babel/")) {
+    return `@babel/preset-${raw.slice(7)}`;
+  }
+  if (raw.startsWith("@")) {
+    const parts = raw.split("/");
+    const scope = parts[0];
+    const name = parts[1];
+    if (!scope) return raw;
+    if (!name) return `${scope}/babel-preset`;
+    if (name.startsWith("babel-preset-")) return raw;
+    return `${scope}/babel-preset-${name}`;
+  }
+  return `babel-preset-${raw}`;
+}
+
+/**
+ * Resolves Babel plugin shorthands to actual npm package names.
+ * e.g., "@babel/transform-runtime" -> "@babel/plugin-transform-runtime", "styled-components" -> "babel-plugin-styled-components"
+ */
+function resolveBabelPlugin(raw: string): string {
+  if (raw.startsWith("@babel/plugin-") || raw.startsWith("babel-plugin-")) return raw;
+  if (raw.startsWith("@babel/")) {
+    return `@babel/plugin-${raw.slice(7)}`;
+  }
+  if (raw.startsWith("@")) {
+    const parts = raw.split("/");
+    const scope = parts[0];
+    const name = parts[1];
+    if (!scope) return raw;
+    if (!name) return `${scope}/babel-plugin`;
+    if (name.startsWith("babel-plugin-")) return raw;
+    return `${scope}/babel-plugin-${name}`;
+  }
+  return `babel-plugin-${raw}`;
+}
+
 export const BabelPlugin: AnalyzerPlugin = {
   name: "babel-plugin",
-  version: "1.0.0",
+  version: "1.2.0",
+
   detect: async (adapter) => {
-    const pkg = await adapter.readJson('package.json');
+    const pkg = await adapter.readJson("package.json");
     if (pkg) {
-      const hasDep = !!(
-        pkg.dependencies?.['@babel/core'] ||
-        pkg.dependencies?.['@babel/cli'] ||
-        pkg.devDependencies?.['@babel/core'] ||
-        pkg.devDependencies?.['@babel/cli']
-      );
-      if (hasDep) return true;
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (CORE_BABEL_PACKAGES.some((p) => p in allDeps) || pkg.babel) {
+        return true;
+      }
     }
 
-    // Fallback: Check for Babel config files
-    const babelConfig = await adapter.readFile('babel.config.js') ||
-                       await adapter.readFile('babel.config.cjs') ||
-                       await adapter.readFile('.babelrc') ||
-                       await adapter.readFile('.babelrc.js') ||
-                       await adapter.readFile('.babelrc.cjs');
-    return !!babelConfig;
+    for (const file of BABEL_CONFIG_FILES) {
+      if (await adapter.folderExists(file)) return true;
+    }
+
+    return false;
   },
+
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson('package.json');
-      const hasBabelDep = pkg ? !!(
-        pkg.dependencies?.['@babel/core'] ||
-        pkg.dependencies?.['@babel/cli'] ||
-        pkg.devDependencies?.['@babel/core'] ||
-        pkg.devDependencies?.['@babel/cli']
-      ) : false;
+      const pkg = await adapter.readJson("package.json");
+      const allDeps = {
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies
+      };
 
-      const babelConfigFiles = [
-        'babel.config.js',
-        'babel.config.cjs',
-        'babel.config.mjs',
-        '.babelrc',
-        '.babelrc.js',
-        '.babelrc.cjs',
-        '.babelrc.json'
-      ];
+      const hasBabelDep = CORE_BABEL_PACKAGES.some((p) => p in allDeps);
 
       let hasConfigFile = false;
-      for (const file of babelConfigFiles) {
-        if (await adapter.readFile(file) !== null) {
+      for (const file of BABEL_CONFIG_FILES) {
+        if (await adapter.folderExists(file)) {
           hasConfigFile = true;
+          adapter.markAsUsed(file);
           break;
+        }
+      }
+
+      if (pkg?.babel) {
+        hasConfigFile = true;
+      }
+
+      // Mark core installed Babel packages
+      if (hasBabelDep) {
+        for (const pkgName of CORE_BABEL_PACKAGES) {
+          if (allDeps[pkgName]) {
+            adapter.markPackageAsUsed(pkgName);
+          }
+        }
+      }
+
+      // Mark package.json scripts that execute babel CLI
+      if (pkg?.scripts) {
+        for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
+          if (typeof scriptContent === "string" && scriptContent.includes("babel ")) {
+            adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+            adapter.markPackageAsUsed("@babel/cli");
+            adapter.markPackageAsUsed("@babel/core");
+          }
         }
       }
 
@@ -68,61 +141,108 @@ export const BabelPlugin: AnalyzerPlugin = {
         });
       }
     },
-    onFileStart: (fileId, adapter) => {
-      // Mark Babel config files as entry points
-      const babelConfigFiles = [
-        'babel.config.js',
-        'babel.config.cjs',
-        'babel.config.mjs',
-        '.babelrc',
-        '.babelrc.js',
-        '.babelrc.cjs',
-        '.babelrc.json'
-      ];
 
-      if (babelConfigFiles.some(pattern => fileId.endsWith(pattern))) {
+    onFileStart: (fileId, adapter) => {
+      const normalized = fileId.replace(/\\/g, "/");
+      const fileName = path.basename(normalized);
+
+      if (BABEL_CONFIG_FILES.includes(fileName)) {
         adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("@babel/core");
       }
     },
+
     onASTNode: (node, fileId, adapter) => {
-      // Detect Babel preset/plugin usage in config files
-      if (fileId.includes('babel.config') || fileId.includes('.babelrc')) {
-        // Mark @babel/preset-* and @babel/plugin-* as used
-        if (t.isStringLiteral(node)) {
-          const value = node.value;
-          if (value.includes('@babel/preset-') || value.includes('@babel/plugin-')) {
-            adapter.markAsUsed(fileId);
-            // Babel plugins/presets always imply @babel/core is needed
-            adapter.markAsUsed('@babel/core');
-          }
+      const normalized = fileId.replace(/\\/g, "/");
+      const fileName = path.basename(normalized);
+      const isConfigFile = BABEL_CONFIG_FILES.includes(fileName);
+
+      // 1. Analyze Babel Configuration Files
+      if (isConfigFile) {
+        if (t.isExportDefaultDeclaration(node)) {
+          adapter.markAsUsed(fileId, "default");
         }
 
-        // Detect preset/plugin object references
-        if (t.isObjectProperty(node) || t.isObjectMethod(node)) {
-          const key = (node as any).key;
-          if (t.isIdentifier(key) && ['presets', 'plugins'].includes(key.name)) {
-            adapter.markAsUsed(fileId);
+        if (t.isObjectProperty(node) || node.type === "Property") {
+          const keyName = (node.key as any)?.name || (node.key as any)?.value;
+
+          // Handle "presets": [...]
+          if (keyName === "presets" && t.isArrayExpression(node.value)) {
+            node.value.elements.forEach((el: any) => {
+              let presetName: string | null = null;
+              if (t.isStringLiteral(el) || (el.type === "Literal" && typeof el.value === "string")) {
+                presetName = el.value;
+              } else if (t.isArrayExpression(el) && el.elements[0]) {
+                const first = el.elements[0];
+                if (t.isStringLiteral(first) || (first.type === "Literal" && typeof first.value === "string")) {
+                  presetName = first.value;
+                }
+              }
+
+              if (presetName && !presetName.startsWith(".")) {
+                adapter.markPackageAsUsed(resolveBabelPreset(presetName));
+                adapter.markPackageAsUsed("@babel/core");
+              }
+            });
+          }
+
+          // Handle "plugins": [...]
+          if (keyName === "plugins" && t.isArrayExpression(node.value)) {
+            node.value.elements.forEach((el: any) => {
+              let pluginName: string | null = null;
+              if (t.isStringLiteral(el) || (el.type === "Literal" && typeof el.value === "string")) {
+                pluginName = el.value;
+              } else if (t.isArrayExpression(el) && el.elements[0]) {
+                const first = el.elements[0];
+                if (t.isStringLiteral(first) || (first.type === "Literal" && typeof first.value === "string")) {
+                  pluginName = first.value;
+                }
+              }
+
+              if (pluginName && !pluginName.startsWith(".")) {
+                adapter.markPackageAsUsed(resolveBabelPlugin(pluginName));
+                adapter.markPackageAsUsed("@babel/core");
+              }
+            });
           }
         }
       }
 
-      // Detect Babel API usage in source files
+      // 2. Detect Imports from @babel/* packages
+      if (t.isImportDeclaration(node)) {
+        const source = node.source.value;
+        if (source.startsWith("@babel/")) {
+          adapter.markPackageAsUsed(source);
+          adapter.markAsUsed(fileId);
+        }
+      }
+
+      // 3. Detect require('@babel/*')
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+        const arg = node.arguments[0];
+        if (t.isStringLiteral(arg) && arg.value.startsWith("@babel/")) {
+          adapter.markPackageAsUsed(arg.value);
+          adapter.markAsUsed(fileId);
+        }
+      }
+
+      // 4. Detect @babel/core API usage (transformFileSync, transformSync, parseSync, etc.)
       if (t.isCallExpression(node)) {
-        // @babel/core API: transformFileSync, transformSync, parseSync, etc.
         if (t.isMemberExpression(node.callee)) {
           const obj = (node.callee as any).object;
           const prop = (node.callee as any).property;
           if (t.isIdentifier(obj) && t.isIdentifier(prop)) {
             const babelMethods = [
-              'transformFileSync',
-              'transformSync',
-              'parseSync',
-              'transformFile',
-              'transform',
-              'parse'
+              "transformFileSync",
+              "transformSync",
+              "parseSync",
+              "transformFile",
+              "transform",
+              "parse"
             ];
             if (babelMethods.includes(prop.name)) {
               adapter.markAsUsed(fileId);
+              adapter.markPackageAsUsed("@babel/core");
             }
           }
         }
@@ -130,63 +250,29 @@ export const BabelPlugin: AnalyzerPlugin = {
         // Direct Babel function calls
         if (t.isIdentifier(node.callee)) {
           const funcName = node.callee.name;
-          if (['transformFileSync', 'transformSync', 'parseSync', 'transform', 'parse'].includes(funcName)) {
+          if (["transformFileSync", "transformSync", "parseSync", "transform", "parse"].includes(funcName)) {
             adapter.markAsUsed(fileId);
+            adapter.markPackageAsUsed("@babel/core");
           }
         }
       }
 
-      // Detect @babel/traverse usage
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
-        if (node.callee.name === 'traverse') {
-          adapter.markAsUsed(fileId);
-        }
+      // 5. Detect @babel/traverse usage
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "traverse") {
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("@babel/traverse");
       }
 
-      // Detect @babel/types usage (t.isXxx, t.createXxx patterns)
+      // 6. Detect @babel/types usage (t.isXxx, t.createXxx patterns)
       if (t.isMemberExpression(node)) {
         const obj = (node as any).object;
         const prop = (node as any).property;
-        if (t.isIdentifier(obj) && obj.name === 't' && t.isIdentifier(prop)) {
-          const typeMethods = ['is', 'create', 'clone', 'removeProperties', 'removePropertiesDeep'];
-          if (typeMethods.some(method => prop.name.startsWith(method))) {
+        if (t.isIdentifier(obj) && obj.name === "t" && t.isIdentifier(prop)) {
+          const typeMethods = ["is", "create", "clone", "removeProperties", "removePropertiesDeep"];
+          if (typeMethods.some((method) => prop.name.startsWith(method))) {
             adapter.markAsUsed(fileId);
+            adapter.markPackageAsUsed("@babel/types");
           }
-        }
-      }
-
-      // Detect @babel/helper-* usage
-      if (t.isImportDeclaration(node)) {
-        const source = node.source.value;
-        if (source.includes('@babel/helper-')) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Detect @babel/plugin-proposal-* and @babel/plugin-transform-* usage
-      if (t.isImportDeclaration(node)) {
-        const source = node.source.value;
-        if (source.includes('@babel/plugin-')) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Detect @babel/preset-* usage
-      if (t.isImportDeclaration(node)) {
-        const source = node.source.value;
-        if (source.includes('@babel/preset-')) {
-          adapter.markAsUsed(fileId);
-          adapter.markAsUsed('@babel/core');
-        }
-      }
-
-      // Detect @babel/runtime or @babel/helpers usage
-      if (t.isImportDeclaration(node)) {
-        const source = node.source.value;
-        if (source.includes('@babel/runtime') || source.includes('@babel/helpers')) {
-          adapter.markAsUsed(fileId);
-          // Runtime/helpers usually mean we are using compiled code that needs @babel/core or @babel/runtime
-          adapter.markAsUsed('@babel/runtime');
         }
       }
     }

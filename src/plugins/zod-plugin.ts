@@ -1,31 +1,65 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 
+/** Unwinds chained call expressions to find the root identifier (e.g., z.object().strict()) */
+function getRootIdentifierName(node: any): string | null {
+  let curr = node;
+  while (curr) {
+    if (t.isCallExpression(curr)) {
+      curr = curr.callee;
+    } else if (t.isMemberExpression(curr)) {
+      curr = curr.object;
+    } else if (t.isIdentifier(curr)) {
+      return curr.name;
+    } else {
+      break;
+    }
+  }
+  return null;
+}
+
 export const ZodPlugin: AnalyzerPlugin = {
   name: "zod-plugin",
   version: "2.0.0",
+
   detect: async (adapter) => {
-    const pkg = await adapter.readJson('package.json');
-    return !!(pkg?.dependencies?.['zod'] || pkg?.devDependencies?.['zod']);
+    const pkg = await adapter.readJson("package.json");
+    const allDeps = {
+      ...pkg?.dependencies,
+      ...pkg?.devDependencies,
+      ...pkg?.peerDependencies
+    };
+    return "zod" in allDeps;
   },
+
   lifecycle: {
-    onASTNode: (node, fileId, adapter) => {
-      // Pattern: const User = z.object(...)
-      if (t.isVariableDeclarator(node) && t.isIdentifier(node.id)) {
-        const init = node.init;
-        const isZod = t.isCallExpression(init) && 
-          ((t.isMemberExpression(init.callee) && t.isIdentifier(init.callee.object) && (init.callee.object.name === 'z' || init.callee.object.name === 'zod')) ||
-           (t.isIdentifier(init.callee) && init.callee.name === 'z'));
-        if (isZod) {
-          adapter.markAsUsed(fileId, node.id.name);
-          adapter.attachMetadata(node, 'isExternalContract', true);
-        }
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson("package.json");
+      const allDeps = {
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies
+      };
+
+      if ("zod" in allDeps) {
+        adapter.markPackageAsUsed("zod");
+      }
+    },
+
+    onASTNode: (node: any, fileId, adapter) => {
+      // 1. Mark Zod imports
+      if (t.isImportDeclaration(node) && node.source.value === "zod") {
+        adapter.markPackageAsUsed("zod");
+        adapter.markAsUsed(fileId);
       }
 
-      // Dynamic property access: controller[method]()
-      if (t.isMemberExpression(node) && node.computed) {
-        if (t.isStringLiteral(node.property)) {
-          adapter.markAsUsed(fileId, node.property.value);
+      // 2. Pattern: const User = z.object(...).passthrough()
+      if (t.isVariableDeclarator(node) && t.isIdentifier(node.id) && node.init) {
+        const rootName = getRootIdentifierName(node.init);
+        if (rootName === "z" || rootName === "zod") {
+          adapter.markAsUsed(fileId, node.id.name);
+          adapter.attachMetadata(node, "isExternalContract", true);
+          adapter.markPackageAsUsed("zod");
         }
       }
     }

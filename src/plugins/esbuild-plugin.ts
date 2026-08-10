@@ -1,14 +1,9 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 
-/**
- * ESBuild Plugin
- * Handles ESBuild-specific patterns: esbuild.config.js, CLI usage, and build script references
- * This plugin detects esbuild packages used via configuration files and build scripts
- */
 export const ESBuildPlugin: AnalyzerPlugin = {
   name: "esbuild-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
   detect: async (adapter) => {
     const pkg = await adapter.readJson('package.json');
     if (pkg) {
@@ -16,15 +11,36 @@ export const ESBuildPlugin: AnalyzerPlugin = {
       if (hasDep) return true;
     }
 
-    // Fallback: Check for esbuild config files
-    const esbuildConfig = await adapter.readFile('esbuild.config.js') ||
-                         await adapter.readFile('esbuild.config.mjs') ||
-                         await adapter.readFile('esbuild.config.ts');
-    return !!esbuildConfig;
+    // Use folderExists (which supports file paths)
+    const configFiles = ['esbuild.config.js', 'esbuild.config.mjs', 'esbuild.config.ts', 'esbuild.config.cjs'];
+    for (const configPath of configFiles) {
+      if (await adapter.folderExists(configPath)) {
+        return true;
+      }
+    }
+
+    return false;
   },
   lifecycle: {
+    onProjectInit: async (adapter) => {
+      const pkg = await adapter.readJson("package.json");
+      if (pkg?.scripts) {
+        for (const [name, script] of Object.entries(pkg.scripts)) {
+          if (typeof script === "string" && script.includes("esbuild")) {
+            adapter.markAsUsed("package.json", `scripts:${name}`);
+
+            // Extract entry point files passed directly via CLI: e.g. "esbuild src/index.ts --bundle"
+            const tokens = script.split(/\s+/);
+            for (const token of tokens) {
+              if (token.endsWith(".js") || token.endsWith(".ts") || token.endsWith(".jsx") || token.endsWith(".tsx")) {
+                adapter.markAsUsed(token);
+              }
+            }
+          }
+        }
+      }
+    },
     onFileStart: (fileId, adapter) => {
-      // Mark esbuild config files as entry points
       const esbuildConfigFiles = [
         'esbuild.config.js',
         'esbuild.config.mjs',
@@ -36,15 +52,15 @@ export const ESBuildPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
       }
 
-      // Mark build script files that use esbuild
       if (fileId.endsWith('build.js') || fileId.endsWith('build.ts') || fileId.endsWith('build.mjs')) {
         adapter.markAsUsed(fileId);
       }
     },
     onASTNode: (node, fileId, adapter) => {
-      // Detect esbuild API usage: build(), buildSync(), transform(), transformSync()
+      // 1. Detect esbuild API calls: build(), buildSync(), context(), transform(), etc.
       if (t.isCallExpression(node)) {
-        // esbuild.build(), esbuild.buildSync(), etc.
+        let isEsbuildCall = false;
+
         if (t.isMemberExpression(node.callee)) {
           const obj = (node.callee as any).object;
           const prop = (node.callee as any).property;
@@ -52,6 +68,7 @@ export const ESBuildPlugin: AnalyzerPlugin = {
             const esbuildMethods = [
               'build',
               'buildSync',
+              'context', // esbuild v0.16+ watch/rebuild API
               'transform',
               'transformSync',
               'serve',
@@ -60,71 +77,52 @@ export const ESBuildPlugin: AnalyzerPlugin = {
               'initialize'
             ];
             if (esbuildMethods.includes(prop.name)) {
+              isEsbuildCall = true;
               adapter.markAsUsed(fileId);
             }
           }
         }
 
-        // Direct esbuild function calls
-        if (t.isIdentifier(node.callee)) {
-          const funcName = node.callee.name;
-          if (['build', 'buildSync', 'transform', 'transformSync', 'serve'].includes(funcName)) {
-            adapter.markAsUsed(fileId);
+        // 2. Extract referenced entryPoints inside build({ entryPoints: [...] })
+        if (isEsbuildCall && node.arguments.length > 0) {
+          const configArg = node.arguments[0];
+          if (t.isObjectExpression(configArg)) {
+            configArg.properties.forEach((prop: any) => {
+              const keyName = prop.key?.name || prop.key?.value;
+              if (keyName === 'entryPoints') {
+                const val = prop.value;
+                // Single string or identifier
+                if (t.isStringLiteral(val)) {
+                  adapter.markAsUsed(val.value);
+                } 
+                // Array of strings: entryPoints: ['src/index.ts', 'src/cli.ts']
+                else if (t.isArrayExpression(val)) {
+                  val.elements.forEach((el: any) => {
+                    if (t.isStringLiteral(el)) {
+                      adapter.markAsUsed(el.value);
+                    }
+                  });
+                }
+              }
+            });
           }
         }
       }
 
-      // Detect esbuild import statements
+      // 3. Detect esbuild import statements
       if (t.isImportDeclaration(node)) {
-        const source = node.source.value;
-        if (source === 'esbuild') {
+        if (node.source.value === 'esbuild') {
           adapter.markAsUsed(fileId);
         }
       }
 
-      // Detect esbuild require statements
+      // 4. Detect require('esbuild')
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
         if (node.callee.name === 'require') {
           const arg = node.arguments[0];
           if (t.isStringLiteral(arg) && arg.value === 'esbuild') {
             adapter.markAsUsed(fileId);
           }
-        }
-      }
-
-      // Detect esbuild plugin definitions
-      if (t.isObjectProperty(node)) {
-        const key = (node as any).key;
-        if (t.isIdentifier(key) && ['plugins', 'loader', 'format', 'target'].includes(key.name)) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Detect esbuild configuration object
-      if (t.isObjectExpression(node)) {
-        const properties = (node as any).properties;
-        const esbuildConfigKeys = ['entryPoints', 'outfile', 'outdir', 'bundle', 'minify', 'sourcemap', 'target', 'format', 'loader', 'plugins', 'external', 'define', 'inject', 'banner', 'footer', 'globalName', 'assetNames', 'chunkNames', 'entryNames'];
-        
-        const hasEsbuildConfig = properties?.some((prop: any) => {
-          const key = prop.key?.name;
-          return esbuildConfigKeys.includes(key);
-        });
-
-        if (hasEsbuildConfig) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-
-      // Detect esbuild plugin object pattern
-      if (t.isObjectExpression(node)) {
-        const properties = (node as any).properties;
-        const hasPluginPattern = properties?.some((prop: any) => {
-          const key = prop.key?.name;
-          return ['setup', 'name'].includes(key);
-        });
-
-        if (hasPluginPattern) {
-          adapter.markAsUsed(fileId);
         }
       }
     }

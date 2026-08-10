@@ -13,28 +13,25 @@ const NODE_BUILTINS = new Set([
   'url', 'util', 'v8', 'vm', 'worker_threads', 'zlib'
 ]);
 
-/**
- * Enhanced BunPlugin for OptiPrune
- * 
- * 1. Resolves and marks Bun scripts (e.g. `bun test/...`, `bun run ...`) as used.
- * 2. Whitelists Node.js built-ins and local relative/absolute paths so they are never flagged as missing external packages.
- * 3. Handles Bun globals and imports correctly.
- */
+// Bun built-in modules (e.g. bun:sqlite, bun:ffi)
+const BUN_BUILTINS = new Set([
+  'bun', 'bun:sqlite', 'bun:ffi', 'bun:jsc', 'bun:wrap', 'bun:test'
+]);
+
 export const BunPlugin: AnalyzerPlugin = {
   name: "bun-plugin",
-  version: "1.1.0",
+  version: "1.2.0",
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    if (pkg && (pkg.dependencies?.["bun-types"] || pkg.devDependencies?.["bun-types"])) {
+    if (pkg && (pkg.dependencies?.["bun-types"] || pkg.devDependencies?.["bun-types"] || pkg.dependencies?.["bun"] || pkg.devDependencies?.["bun"])) {
       return true;
     }
     for (const file of BUN_CONFIG_FILES) {
-      if ((await adapter.readFile(file)) !== null) return true;
+      if (await adapter.folderExists(file)) return true;
     }
-    // Also detect if scripts use "bun"
     if (pkg?.scripts) {
       for (const script of Object.values(pkg.scripts) as string[]) {
-        if (script.includes("bun ")) return true;
+        if (typeof script === "string" && script.includes("bun")) return true;
       }
     }
     return false;
@@ -44,15 +41,16 @@ export const BunPlugin: AnalyzerPlugin = {
       const config = adapter.getConfig();
       const rootDir = config.rootDir;
 
-      // 1. Detect Bun Workspaces from bun.lock (text version)
-      // If monorepo is already detected by core, we might skip or merge, 
-      // but here we force it if bun.lock exists and has workspaces.
+      // 1. Detect Bun Workspaces from bun.lock
       const lockContent = await adapter.readFile("bun.lock");
       if (lockContent) {
         try {
-          // Bun's text lockfile (Bun 1.2+) is JSON-like but may contain trailing commas
-          const cleanJson = lockContent.replace(/,(\s*[\]}])/g, '$1');
+          // Robust clean-up for Bun's text lockfile trailing commas before parsing
+          const cleanJson = lockContent
+            .replace(/,\s*([\]}])/g, '$1')
+            .replace(/\/\/.*/g, ''); // remove single line comments
           const lock = JSON.parse(cleanJson);
+          
           if (lock.workspaces && typeof lock.workspaces === 'object') {
             const packageMap = new Map();
             const topologicalOrder: string[] = [];
@@ -84,7 +82,6 @@ export const BunPlugin: AnalyzerPlugin = {
             }
 
             if (packageMap.size > 0) {
-              console.log(`[BunPlugin] Detected ${packageMap.size} workspaces from bun.lock`);
               adapter.setMonorepo({
                 rootPath: rootDir,
                 packageMap,
@@ -92,23 +89,28 @@ export const BunPlugin: AnalyzerPlugin = {
               });
             }
           }
-        } catch (e) {
-          // Silent catch
+        } catch {
+          // Ignore invalid lockfile parse errors gracefully
         }
       }
 
       const pkg = await adapter.readJson("package.json");
       if (!pkg) return;
 
-      // Extract binaries and files referenced in scripts (e.g., "bun test/integration/release.ts")
+      // 2. Parse package.json scripts for script file targets
       if (pkg.scripts) {
-        for (const script of Object.values(pkg.scripts) as string[]) {
-          // Match paths or arguments in scripts, e.g. test/integration/release.ts, build, test, etc.
+        for (const [name, script] of Object.entries(pkg.scripts)) {
+          if (typeof script !== "string") continue;
+          
+          if (script.includes("bun")) {
+            adapter.markAsUsed("package.json", `scripts:${name}`);
+          }
+
           const tokens = script.split(/\s+/);
           for (const token of tokens) {
-            // Clean quotes or flags
-            const clean = token.replace(/^["']|["ですので']$/g, '');
-            if (clean.includes('/') || clean.endsWith('.ts') || clean.endsWith('.js')) {
+            // Clean quotes (Fixed regex typo)
+            const clean = token.replace(/^["']|["']$/g, '');
+            if (clean.includes('/') || clean.endsWith('.ts') || clean.endsWith('.js') || clean.endsWith('.jsx') || clean.endsWith('.tsx') || clean.endsWith('.html')) {
               adapter.markAsUsed(clean);
             }
           }
@@ -117,20 +119,29 @@ export const BunPlugin: AnalyzerPlugin = {
     },
     onFileStart: (fileId, adapter) => {
       const basename = path.basename(fileId);
+      
+      // Mark Bun config files
       if (BUN_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
       }
-      if (basename === "index.ts" || basename === "main.ts" || basename === "server.ts") {
+      
+      // Bun default entrypoints
+      if (['index.ts', 'main.ts', 'server.ts', 'index.js', 'index.html'].includes(basename)) {
+        adapter.markAsUsed(fileId);
+      }
+
+      // Bun native test runner file patterns (*.test.ts, *.spec.ts, *_test.ts, __tests__/*)
+      const normalized = fileId.replace(/\\/g, "/");
+      if (
+        normalized.includes("/__tests__/") ||
+        /\.(test|spec)\.[jt]sx?$/.test(normalized) ||
+        /_test\.[jt]sx?$/.test(normalized)
+      ) {
         adapter.markAsUsed(fileId);
       }
     },
     onASTNode: (node, fileId, adapter) => {
-      // 1. Detect Bun global usage
-      if (t.isIdentifier(node) && node.name === "Bun") {
-        adapter.markAsUsed(fileId);
-      }
-
-      // 2. Detect Bun.serve, Bun.file, etc.
+      // 1. Detect Bun global usage: Bun.serve, Bun.file, Bun.password, etc.
       if (t.isCallExpression(node) && t.isMemberExpression(node.callee)) {
         const obj = node.callee.object;
         if (t.isIdentifier(obj) && obj.name === "Bun") {
@@ -138,11 +149,15 @@ export const BunPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 3. Detect imports from "bun" or node built-ins
-      if (t.isImportDeclaration(node) || t.isExportNamedDeclaration(node) || (node as any).type === 'ExportAllDeclaration') {
+      // 2. Detect imports from "bun", "bun:*", or Node built-ins
+      if (
+        t.isImportDeclaration(node) || 
+        t.isExportNamedDeclaration(node) || 
+        (node as any).type === 'ExportAllDeclaration'
+      ) {
         const specifier = (node as any).source?.value;
         if (specifier) {
-          if (specifier === "bun" || specifier.startsWith("node:")) {
+          if (BUN_BUILTINS.has(specifier) || specifier.startsWith("bun:") || specifier.startsWith("node:")) {
             adapter.markAsUsed(fileId, specifier);
           } else {
             const root = specifier.split("/")[0];
@@ -153,7 +168,7 @@ export const BunPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 4. Prevent flagging local paths (like perf/bench, test/integration/release) as missing external packages
+      // 3. Mark relative dynamic imports
       if (node.type === "CallExpression" && node.callee?.type === "Import") {
         const arg = node.arguments?.[0];
         if (arg?.type === "StringLiteral" || arg?.type === "Literal") {
