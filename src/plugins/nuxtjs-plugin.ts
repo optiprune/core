@@ -1,6 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
-import path from "node:path";
+import path from "pathe";
 
 const NUXT_CONFIG_FILES = [
   "nuxt.config.ts",

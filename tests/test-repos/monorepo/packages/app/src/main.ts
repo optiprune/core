@@ -1,1 +1,2 @@
-import { Button } from "ui";\nconsole.log(Button());
+import { Button } from "ui";
+console.log(Button());
