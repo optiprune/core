@@ -1,4 +1,122 @@
 import { parse as yukuParse, langFromPath, sourceTypeFromPath } from "yuku-parser";
+
+// ---------------------------------------------------------------------------
+// SFC / Framework pre-processor
+// ---------------------------------------------------------------------------
+// .vue, .svelte, .astro and .angular component files contain HTML-like template
+// syntax that yuku-parser (a JS/TS-only parser) cannot handle.  Before handing
+// source text to the parser we extract only the JavaScript/TypeScript portion
+// (the <script> / <script setup> block) and pad the preceding lines with empty
+// lines so that byte-offset → line/column mapping stays accurate.
+
+export interface SfcExtractResult {
+  /** The extracted JS/TS source that can be fed to yuku-parser. */
+  scriptContent: string;
+  /** The language hint to use ("ts" | "tsx" | "jsx" | "js"). */
+  lang: "ts" | "tsx" | "jsx" | "js";
+  /** True when a <script setup> block was found (Vue / Svelte 5 runes). */
+  isSetup: boolean;
+  /** True when the file had a <script> block at all. */
+  hasScript: boolean;
+}
+
+/**
+ * Detects whether a file path belongs to a Single-File Component format that
+ * requires pre-processing before JS/TS parsing.
+ */
+export function isSfcPath(filePath: string): boolean {
+  return (
+    filePath.endsWith(".vue") ||
+    filePath.endsWith(".svelte") ||
+    filePath.endsWith(".astro")
+  );
+}
+
+/**
+ * Extracts the `<script>` / `<script setup>` block from a SFC source string.
+ *
+ * Strategy:
+ *  1. Find the first `<script` tag (optionally with `setup` and `lang` attrs).
+ *  2. Collect everything up to the matching `</script>` close tag.
+ *  3. Pad the lines *before* the script block with empty lines so that
+ *     line numbers reported by the parser still correspond to the original file.
+ *
+ * Returns an `SfcExtractResult` with `hasScript = false` when no script block
+ * is present (template-only components are valid and produce zero edges).
+ */
+export function extractSfcScript(source: string, filePath: string): SfcExtractResult {
+  // Regex: <script(\s+[^>]*)?>  …content…  </script>
+  // We use a non-greedy match and allow attributes in any order.
+  const scriptTagRe = /<script(\b[^>]*)?>([\s\S]*?)<\/script>/gi;
+
+  let bestMatch: RegExpExecArray | null = null;
+  let isSetup = false;
+  let langAttr: string | undefined;
+
+  let m: RegExpExecArray | null;
+  // eslint-disable-next-line no-cond-assign
+  while ((m = scriptTagRe.exec(source)) !== null) {
+    const attrs = m[1] ?? "";
+    const thisIsSetup = /\bsetup\b/i.test(attrs);
+    // Prefer <script setup> over a plain <script> block
+    if (!bestMatch || thisIsSetup) {
+      bestMatch = m;
+      isSetup = thisIsSetup;
+      const langMatch = /\blang=["']([^"']+)["']/i.exec(attrs);
+      langAttr = langMatch?.[1];
+    }
+  }
+
+  if (!bestMatch) {
+    return { scriptContent: "", lang: "js", isSetup: false, hasScript: false };
+  }
+
+  const scriptBody = bestMatch[2] ?? "";
+  const matchStart = bestMatch.index;
+
+  // Count how many newlines appear before the opening <script> tag so we can
+  // pad the extracted content with the same number of leading empty lines.
+  const precedingText = source.slice(0, matchStart);
+  const precedingLines = precedingText.split("\n").length - 1; // number of \n chars
+
+  // Also count lines consumed by the opening <script ...> tag itself
+  const openTagText = bestMatch[0].slice(0, bestMatch[0].indexOf(">") + 1);
+  const openTagLines = openTagText.split("\n").length - 1;
+
+  const padding = "\n".repeat(precedingLines + openTagLines);
+  const scriptContent = padding + scriptBody;
+
+  // Determine the language to use for the parser
+  let lang: "ts" | "tsx" | "jsx" | "js" = "js";
+  if (langAttr) {
+    const l = langAttr.toLowerCase();
+    if (l === "ts" || l === "typescript") lang = "ts";
+    else if (l === "tsx") lang = "tsx";
+    else if (l === "jsx") lang = "jsx";
+  } else {
+    // Default heuristics per framework
+    if (filePath.endsWith(".vue")) lang = "ts";   // Vue 3 defaults to TS-compatible
+    else if (filePath.endsWith(".svelte")) lang = "ts";
+    else if (filePath.endsWith(".astro")) lang = "ts";
+  }
+
+  return { scriptContent, lang, isSetup, hasScript: true };
+}
+
+/**
+ * Resolves the yuku-parser `lang` for any supported file extension, including
+ * SFC formats.  For SFC files the caller is expected to have already extracted
+ * the script block and should pass the `lang` from `SfcExtractResult` instead.
+ */
+export function resolveParserLang(filePath: string): "ts" | "tsx" | "jsx" | "js" | "dts" {
+  const fromYuku = langFromPath(filePath);
+  if (fromYuku) return fromYuku as "ts" | "tsx" | "jsx" | "js" | "dts";
+  // Fallback for framework extensions not known to yuku-parser
+  if (filePath.endsWith(".vue")) return "ts";
+  if (filePath.endsWith(".svelte")) return "ts";
+  if (filePath.endsWith(".astro")) return "ts";
+  return "tsx"; // safe catch-all
+}
 import type {
   DependencyEdge,
   ExportRecord,
@@ -910,13 +1028,54 @@ export function parseModule(sourceText: string, file: string): ModuleRecord {
       sourceText = sourceText.replace(/\\n/g, '\n');
     } */
 
+    // -----------------------------------------------------------------------
+    // SFC pre-processing for .vue / .svelte / .astro files
+    // -----------------------------------------------------------------------
+    // These formats embed HTML template syntax that yuku-parser cannot handle.
+    // We extract only the <script> block and parse that instead.  The original
+    // sourceText is kept for byte-offset calculations so that reported
+    // locations still point into the real file.
+    let textToParse = sourceText;
+    let parserLang: "ts" | "tsx" | "jsx" | "js" | "dts";
+
+    if (isSfcPath(file)) {
+      const extracted = extractSfcScript(sourceText, file);
+      if (!extracted.hasScript) {
+        // Template-only component: no JS to analyse → return an empty module.
+        // We still provide a minimal AST stub so that engine.ts lifecycle hooks
+        // (which guard on `module.ast`) are still invoked for this file.
+        const emptyAst = { type: "File", program: { type: "Program", body: [], sourceType: "module" }, comments: [] } as unknown as AstNode;
+        return {
+          id: file,
+          relativePath: file,
+          parseStatus: "parsed",
+          parseDiagnostics: [],
+          ast: emptyAst,
+          sourceText,
+          exports: [],
+          edges: [],
+          hasUnknownDynamicBoundary: false,
+          hasParseError: false,
+          hasUnresolvedCommonJsExports: false,
+          scannedDirectories: [],
+          dynamicImportCandidates: [],
+        };
+      }
+      textToParse = extracted.scriptContent;
+      parserLang = extracted.lang;
+    } else {
+      parserLang = resolveParserLang(file);
+    }
+
     // Use yuku-parser instead of @babel/parser.
     // yuku-parser infers the best language variant from the file extension;
     // fall back to tsx (covers JS/TS/JSX/TSX) when the extension is unknown.
-    const lang = langFromPath(file) ?? "tsx";
+    const lang = parserLang;
     const sourceType = sourceTypeFromPath(file) ?? "module";
+    // For offset→position mapping we always use the *original* source so that
+    // locations reported to callers correspond to the real file.
     setYukuSource(sourceText);
-    const result = yukuParse(sourceText, { lang, sourceType, semanticErrors: false, attachComments: true });
+    const result = yukuParse(textToParse, { lang, sourceType, semanticErrors: false, attachComments: true });
     // Map yuku-parser diagnostics to the shape extractAstModule expects
     const parserErrors = result.diagnostics
       .filter((d) => d.severity === "error")

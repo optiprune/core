@@ -1,15 +1,34 @@
 import { parse as yukuParse, langFromPath, sourceTypeFromPath } from "yuku-parser";
 import { print as yukuPrint } from "yuku-codegen";
 import {walk as yukuWalk} from "yuku-ast";
+import { isSfcPath, extractSfcScript } from "./parser.js";
 /**
  * Instruments code for concolic execution using yuku-parser and yuku-codegen.
  * It injects tracing hooks around conditional branches and function calls.
+ *
+ * For SFC files (.vue, .svelte, .astro) only the <script> block is instrumented;
+ * the surrounding template/markup is left untouched.
  */
 export function instrumentCode(code: string, filename: string): string | null {
   try {
-    const lang = langFromPath(filename) ?? "tsx";
+    // SFC pre-processing: extract the <script> block before parsing
+    let codeToParse = code;
+    let lang: "ts" | "tsx" | "jsx" | "js" | "dts";
+
+    if (isSfcPath(filename)) {
+      const extracted = extractSfcScript(code, filename);
+      if (!extracted.hasScript) {
+        // Template-only SFC: nothing to instrument
+        return code;
+      }
+      codeToParse = extracted.scriptContent;
+      lang = extracted.lang;
+    } else {
+      lang = langFromPath(filename) ?? "tsx";
+    }
+
     const sourceType = sourceTypeFromPath(filename) ?? "module";
-    const result = yukuParse(code, { lang, sourceType });
+    const result = yukuParse(codeToParse, { lang, sourceType });
     const ast = result.program;
     const coverageVariable = "__coverage__";
 
@@ -132,7 +151,26 @@ export function instrumentCode(code: string, filename: string): string | null {
     });
 
     const output = yukuPrint(ast);
-    return output.code;
+    const instrumentedScript = output.code;
+
+    // For SFC files: splice the instrumented script back into the original source
+    // so that the template/style sections are preserved.
+    if (isSfcPath(filename)) {
+      // Find the exact <script...>...</script> region in the original source and
+      // replace it with the instrumented version.
+      const scriptTagRe = /<script(\b[^>]*)?>([\s\S]*?)<\/script>/i;
+      const m = scriptTagRe.exec(code);
+      if (m && m.index !== undefined) {
+        const before = code.slice(0, m.index);
+        const after = code.slice(m.index + m[0].length);
+        const attrs = m[1] ?? "";
+        return `${before}<script${attrs}>${instrumentedScript}</script>${after}`;
+      }
+      // Fallback: return just the instrumented script (should not happen)
+      return instrumentedScript;
+    }
+
+    return instrumentedScript;
   } catch (err) {
     console.error(`[Instrumentation] Failed to instrument ${filename}:`, err);
     return null;

@@ -14,6 +14,10 @@ const SOURCE_EXTENSION_ALIASES = new Map<string, string[]>([
   [".jsx", [".tsx", ".jsx"]],
   [".mjs", [".mts", ".mjs", ".ts", ".js"]],
   [".cjs", [".cts", ".cjs", ".ts", ".js"]],
+  // Framework SFC aliases: bare specifiers without extension resolve to SFC files
+  [".vue", [".vue"]],
+  [".svelte", [".svelte"]],
+  [".astro", [".astro"]],
 ]);
 
 export const DEFAULT_EXTENSIONS = [
@@ -25,6 +29,10 @@ export const DEFAULT_EXTENSIONS = [
   ".jsx",
   ".mjs",
   ".cjs",
+  // Framework Single-File Component formats
+  ".vue",
+  ".svelte",
+  ".astro",
 ];
 
 export const DEFAULT_IGNORE = [
@@ -179,7 +187,7 @@ export function resolveLocalSpecifier(
   sourceFilePath: string,
   rawSpecifier: string,
   knownFiles: Set<string> | Map<string, unknown>,
-  extensions: string[] = [".ts", ".tsx", ".js", ".jsx", ".json"]
+  extensions: string[] = [".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".astro", ".json"]
 ): string | undefined {
   const cleaned = removeQueryAndHash(rawSpecifier);
   if (!isLikelyLocalSpecifier(cleaned)) {

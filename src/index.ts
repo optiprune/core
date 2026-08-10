@@ -521,9 +521,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       parseStatus: module.parseStatus,
       exports: module.exports.map((e) => {
         const confidence = context.usedExportConfidence.get(`${module.id}:${e.exportedAs}`);
+        const isUsed = context.usedExports.has(`${module.id}:${e.exportedAs}`) || confidence !== undefined;
         return {
           name: e.name,
           exportedAs: e.exportedAs,
+          isUsed,
           isDefault: e.isDefault,
           isReExport: e.isReExport,
           isWildcard: e.isWildcard,

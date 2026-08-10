@@ -247,12 +247,13 @@ export interface AnalysisReport {
   entryPoints: string[];
   summary: AnalysisSummary;
   findings: Finding[];
-  modules: Array<{
+    modules: Array<{
     path: string;
     parseStatus: ParseStatus;
     exports: Array<{
       name: string;
       exportedAs: string;
+      isUsed: boolean;
       isDefault: boolean;
       isReExport: boolean;
       isWildcard: boolean;
