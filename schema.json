@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/optiprune/core/main/schema.json",
+  "title": "OptiPrune User Configuration",
+  "description": "Configuration schema for optiprune.json and optiprune.jsonc files.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL to the JSON schema for validation and autocompletion."
+    },
+    "rootDir": {
+      "type": "string",
+      "default": ".",
+      "description": "The root directory of the project source code relative to the workspace."
+    },
+    "entry": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Array of entry-point files. Files listed here and their dependency chains will be protected from unused symbol pruning."
+    },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [".ts", ".tsx", ".js", ".jsx"],
+      "description": "File extensions OptiPrune will process during analysis."
+    },
+    "ignore": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Glob patterns or path segments to exclude from analysis (e.g., test files, build outputs)."
+    },
+    "externalContracts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "List of public symbols or interfaces exported for external consumers to prevent OptiPrune from flagging them as unused."
+    },
+    "reportUnusedExports": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, flags exported symbols that are never imported elsewhere in the project."
+    },
+    "includeConventionalEntries": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically recognizes framework conventions (e.g., index.ts, main.js, App.tsx) as entry points."
+    },
+    "failOn": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "info", "none"],
+      "default": "high",
+      "description": "Minimum finding severity level that causes the execution process to exit with a non-zero code."
+    },
+    "verbose": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enables detailed step-by-step diagnostic logging during execution."
+    },
+    "json": {
+      "type": "boolean",
+      "default": false,
+      "description": "Outputs analysis findings in raw JSON format to stdout."
+    },
+    "rules": {
+      "type": "object",
+      "description": "Map of rule names to their severity level overrides.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["error", "warning", "off"]
+      }
+    },
+    "layers": {
+      "type": "object",
+      "description": "Advanced engine layer settings for execution and solver layers.",
+      "additionalProperties": false,
+      "properties": {
+        "smtTimeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10000,
+          "description": "Maximum time limit in milliseconds allocated to the SMT solver per proof attempt."
+        },
+        "isolateMemoryLimitMb": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 128,
+          "description": "Maximum V8 isolate heap memory limit in Megabytes allocated per worker thread."
+        },
+        "enableConcolicProof": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enables concolic execution engine for deep reachability and dead-path proofs."
+        },
+        "skip3": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skips Execution Layer 3 pass during analysis."
+        },
+        "skip4": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skips Execution Layer 4 pass during analysis."
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
