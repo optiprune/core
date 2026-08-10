@@ -343,3 +343,24 @@ export const CONFIDENCE_RANK: Record<FailOn, number> = {
 export function defineConfig(config: Config): Config {
   return config;
 }
+
+export interface OptiPruneUserConfig {
+  rootDir?: string;
+  entry?: string[];
+  extensions?: string[];
+  ignore?: string[];
+  externalContracts?: string[];
+  reportUnusedExports?: boolean;
+  includeConventionalEntries?: boolean;
+  failOn?: "high" | "medium" | "low" | "info" | "none";
+  layers?: {
+    smtTimeoutMs?: number;
+    isolateMemoryLimitMb?: number;
+    enableConcolicProof?: boolean;
+    skip3?: boolean;
+    skip4?: boolean;
+  };
+  rules?: Record<string, "error" | "warning" | "off">;
+  verbose?: boolean;
+  json?: boolean;
+}

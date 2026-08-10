@@ -12,6 +12,7 @@ export class PluginEngine {
   register(plugin: AnalyzerPlugin) {
     this.plugins.push(plugin);
   }
+
   async loadDynamicPlugins() {
     try {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -42,9 +43,22 @@ export class PluginEngine {
     } catch (err) {}
   }
 
+  private isIgnored(fileId: string, ignorePatterns: string[]): boolean {
+    if (!ignorePatterns || ignorePatterns.length === 0) return false;
+    const normalized = fileId.replace(/\\/g, "/");
+    return ignorePatterns.some((pattern) => {
+      const cleanPattern = pattern.replace(/\\/g, "/");
+      if (cleanPattern.startsWith("*")) {
+        return normalized.endsWith(cleanPattern.slice(1));
+      }
+      return normalized.includes(cleanPattern);
+    });
+  }
+
   async run(context: AnalysisContext): Promise<Finding[]> {
     const adapter = this.createAdapter(context);
     await this.loadDynamicPlugins();
+
     for (const plugin of this.plugins) {
       try {
         if (plugin.detect) {
@@ -59,6 +73,7 @@ export class PluginEngine {
         plugin.enabled = false;
       }
     }
+
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onProjectInit) {
         try {
@@ -68,8 +83,15 @@ export class PluginEngine {
         }
       }
     }
+
     for (const module of context.modules.values()) {
+      // Check ignore list resolved from options (including plugin config updates)
+      if (this.isIgnored(module.id, context.options.ignore)) {
+        continue;
+      }
+
       if (!module.ast) continue;
+
       for (const plugin of this.plugins) {
         if (plugin.enabled && plugin.lifecycle.onFileStart) {
           try {
@@ -79,14 +101,14 @@ export class PluginEngine {
           }
         }
       }
+
       try {
         yukuWalk(module.ast as any, (node: any) => {
           for (const plugin of this.plugins) {
             if (plugin.enabled && plugin.lifecycle.onASTNode) {
               try {
                 plugin.lifecycle.onASTNode(node, module.id, adapter);
-              } catch (err) {
-              }
+              } catch (err) {}
             }
           }
         });
@@ -94,6 +116,7 @@ export class PluginEngine {
         console.error(`[Plugin Engine] Error during AST traversal for ${module.id}:`, err);
       }
     }
+
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onAnalysisComplete) {
         try {
@@ -155,8 +178,10 @@ export class PluginEngine {
       },
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({
-          rule: 'plugin-finding',
           ...finding,
+          rule: finding.rule ?? 'plugin-finding',
+          confidence: finding.confidence ?? 'high',
+          severity: finding.severity ?? 'warning',
         } as Finding);
       },
       markAsUsed: (fileId, symbol) => {

@@ -1,42 +1,13 @@
-import { AnalyzerPlugin, PluginAdapter } from "../types.js";
+import { AnalyzerPlugin, PluginAdapter, OptiPruneUserConfig } from "../types.js";
 
 const CONFIG_FILES = ["optiprune.json", "optiprune.jsonc"];
-
-/**
- * Interface representing the structure of optiprune.json / optiprune.jsonc
- */
-export interface OptiPruneUserConfig {
-  rootDir?: string;
-  entry?: string[];
-  extensions?: string[];
-  ignore?: string[];
-  externalContracts?: string[];
-  reportUnusedExports?: boolean;
-  includeConventionalEntries?: boolean;
-  failOn?: "high" | "medium" | "low" | "info" | "none";
-  layers?: {
-    smtTimeoutMs?: number;
-    isolateMemoryLimitMb?: number;
-    enableConcolicProof?: boolean;
-    skip3?: boolean;
-    skip4?: boolean;
-  };
-  rules?: Record<string, "error" | "warning" | "off">;
-  verbose?: boolean;
-  json?: boolean;
-}
-
 /**
  * Utility to strip comments (// and /* ... *\/) and trailing commas from JSONC content
- * before passing it to standard JSON.parse().
  */
 function parseJsonc<T = any>(jsoncContent: string): T {
   const cleanJson = jsoncContent
-    // Remove single-line comments: // ...
     .replace(/\/\/.*/g, "")
-    // Remove multi-line comments: /* ... */
     .replace(/\/\*[\s\S]*?\*\//g, "")
-    // Remove trailing commas before closing braces/brackets
     .replace(/,(\s*[\]}])/g, "$1");
 
   return JSON.parse(cleanJson);
@@ -46,9 +17,6 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
   name: "custom-config-plugin",
   version: "1.0.0",
 
-  /**
-   * Detects if optiprune.json or optiprune.jsonc exists in the project root.
-   */
   detect: async (adapter) => {
     for (const configFile of CONFIG_FILES) {
       if (await adapter.folderExists(configFile)) {
@@ -56,24 +24,16 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
       }
     }
 
-    // Also check if package.json contains an "optiprune" property
     const pkg = await adapter.readJson("package.json");
-    if (pkg?.optiprune) {
-      return true;
-    }
-
-    return false;
+    return Boolean(pkg?.optiprune);
   },
 
   lifecycle: {
-    /**
-     * Reads, parses, and applies the custom config settings during project initialization.
-     */
     onProjectInit: async (adapter: PluginAdapter) => {
       let config: OptiPruneUserConfig | null = null;
       let activeConfigFile: string | null = null;
 
-      // 1. Try reading optiprune.json or optiprune.jsonc
+      // 1. Read optiprune.json or optiprune.jsonc
       for (const file of CONFIG_FILES) {
         const rawContent = await adapter.readFile(file);
         if (rawContent !== null) {
@@ -84,15 +44,15 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
             break;
           } catch (error: any) {
             adapter.emitFinding({
-            rule: "invalid-config",
-            severity: "error",
-            confidence: "high",
-            file,
-            message: `Failed to parse ${file}: ${error.message}`,
-            evidence: {
+              rule: "invalid-config",
+              severity: "error",
+              confidence: "high",
+              file,
+              message: `Failed to parse ${file}: ${error.message}`,
+              evidence: {
                 rawError: error.message,
-                configFile: file
-            }
+                configFile: file,
+              },
             });
             return;
           }
@@ -111,7 +71,53 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
 
       if (!config) return;
 
-      // 3. Process and apply `entry` points
+      // 3. Update active runtime context options
+      const options = adapter.getConfig();
+
+      if (config.rootDir) options.rootDir = config.rootDir;
+      if (config.failOn) options.failOn = config.failOn;
+      if (typeof config.reportUnusedExports === "boolean") {
+        options.reportUnusedExports = config.reportUnusedExports;
+      }
+      if (typeof config.includeConventionalEntries === "boolean") {
+        options.includeConventionalEntries = config.includeConventionalEntries;
+      }
+      if (typeof config.verbose === "boolean") options.verbose = config.verbose;
+      if (typeof config.json === "boolean") options.json = config.json;
+
+      if (Array.isArray(config.entry)) {
+        options.entry = Array.from(new Set([...options.entry, ...config.entry]));
+      }
+
+      if (Array.isArray(config.extensions)) {
+        options.extensions = config.extensions;
+      }
+
+      if (Array.isArray(config.ignore)) {
+        options.ignore = Array.from(new Set([...options.ignore, ...config.ignore]));
+      }
+
+      if (Array.isArray(config.externalContracts)) {
+        options.externalContracts = Array.from(
+          new Set([...options.externalContracts, ...config.externalContracts])
+        );
+      }
+
+      if (config.layers && typeof config.layers === "object") {
+        options.layers = {
+          ...options.layers,
+          ...config.layers,
+        };
+      }
+
+      if (config.rules && typeof config.rules === "object") {
+        options.rules = {
+          ...options.rules,
+          ...config.rules,
+        };
+      }
+
+      // 4. Process entry points & external contracts
       if (Array.isArray(config.entry)) {
         for (const entryPath of config.entry) {
           if (typeof entryPath === "string") {
@@ -120,21 +126,18 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 4. Process and protect `externalContracts`
-      if (Array.isArray(config.externalContracts)) {
+      if (Array.isArray(config.externalContracts) && activeConfigFile) {
         for (const contractSymbol of config.externalContracts) {
-          if (typeof contractSymbol === "string" && activeConfigFile) {
-            // Mark symbol globally as used so Layer 6 propagation ignores unused warnings
+          if (typeof contractSymbol === "string") {
             adapter.markAsUsed(activeConfigFile, contractSymbol);
           }
         }
       }
 
-      // 5. Apply rule severity overrides (if custom rule config exists)
+      // 5. Attach metadata for rules and engine layers
       if (config.rules && typeof config.rules === "object") {
         for (const [ruleName, severity] of Object.entries(config.rules)) {
           if (["error", "warning", "off"].includes(severity)) {
-            // Attach rule configuration state
             adapter.attachMetadata(
               { type: "ConfigOverride" },
               `rule:${ruleName}`,
@@ -144,7 +147,6 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 6. Attach advanced engine layer settings as metadata for OptiPrune execution layers
       if (config.layers && typeof config.layers === "object") {
         adapter.attachMetadata(
           { type: "EngineLayers" },
@@ -154,13 +156,8 @@ export const CustomConfigPlugin: AnalyzerPlugin = {
       }
     },
 
-    /**
-     * Inspects every file against user-defined ignore patterns and extensions.
-     */
     onFileStart: (fileId: string, adapter: PluginAdapter) => {
       const normalized = fileId.replace(/\\/g, "/");
-
-      // Automatically safeguard configuration file instances
       if (CONFIG_FILES.some((cfg) => normalized.endsWith(cfg))) {
         adapter.markAsUsed(fileId);
       }

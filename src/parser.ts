@@ -31,7 +31,20 @@ export function isSfcPath(filePath: string): boolean {
     filePath.endsWith(".astro")
   );
 }
-
+/**
+ * Utility to check if a file path matches any user-configured ignore pattern.
+ */
+export function isIgnored(filePath: string, ignorePatterns: string[] = []): boolean {
+  if (!ignorePatterns || ignorePatterns.length === 0) return false;
+  const normalized = filePath.replace(/\\/g, "/");
+  return ignorePatterns.some((pattern) => {
+    const cleanPattern = pattern.replace(/\\/g, "/");
+    if (cleanPattern.startsWith("*")) {
+      return normalized.endsWith(cleanPattern.slice(1));
+    }
+    return normalized.includes(cleanPattern);
+  });
+}
 /**
  * Extracts the `<script>` / `<script setup>` block from a SFC source string.
  *
@@ -1020,30 +1033,46 @@ function fallbackModule(sourceText: string, file: string, reason: unknown): Modu
   };
 }
 
-export function parseModule(sourceText: string, file: string): ModuleRecord {
-  try {
-    // RESILIENCE FIX: Handle literal \n sequences often found in generated tests or copy-pastes
-    // This ensures the parser doesn't choke on "Invalid Unicode escape sequence"
-    /* if (sourceText.includes('\\n')) {
-      sourceText = sourceText.replace(/\\n/g, '\n');
-    } */
+export function parseModule(
+  sourceText: string, 
+  file: string, 
+  ignorePatterns: string[] = []
+): ModuleRecord {
+  // 0. Skip parsing immediately if the file matches user ignore patterns
+  if (isIgnored(file, ignorePatterns)) {
+    const emptyAst = {
+      type: "File",
+      program: { type: "Program", body: [], sourceType: "module" },
+      comments: [],
+    } as unknown as AstNode;
 
+    return {
+      id: file,
+      relativePath: file,
+      parseStatus: "parsed",
+      parseDiagnostics: [],
+      ast: emptyAst,
+      sourceText,
+      exports: [],
+      edges: [],
+      hasUnknownDynamicBoundary: false,
+      hasParseError: false,
+      hasUnresolvedCommonJsExports: false,
+      scannedDirectories: [],
+      dynamicImportCandidates: [],
+    };
+  }
+
+  try {
     // -----------------------------------------------------------------------
     // SFC pre-processing for .vue / .svelte / .astro files
     // -----------------------------------------------------------------------
-    // These formats embed HTML template syntax that yuku-parser cannot handle.
-    // We extract only the <script> block and parse that instead.  The original
-    // sourceText is kept for byte-offset calculations so that reported
-    // locations still point into the real file.
     let textToParse = sourceText;
     let parserLang: "ts" | "tsx" | "jsx" | "js" | "dts";
 
     if (isSfcPath(file)) {
       const extracted = extractSfcScript(sourceText, file);
       if (!extracted.hasScript) {
-        // Template-only component: no JS to analyse → return an empty module.
-        // We still provide a minimal AST stub so that engine.ts lifecycle hooks
-        // (which guard on `module.ast`) are still invoked for this file.
         const emptyAst = { type: "File", program: { type: "Program", body: [], sourceType: "module" }, comments: [] } as unknown as AstNode;
         return {
           id: file,
@@ -1067,16 +1096,11 @@ export function parseModule(sourceText: string, file: string): ModuleRecord {
       parserLang = resolveParserLang(file);
     }
 
-    // Use yuku-parser instead of @babel/parser.
-    // yuku-parser infers the best language variant from the file extension;
-    // fall back to tsx (covers JS/TS/JSX/TSX) when the extension is unknown.
     const lang = parserLang;
     const sourceType = sourceTypeFromPath(file) ?? "module";
-    // For offset→position mapping we always use the *original* source so that
-    // locations reported to callers correspond to the real file.
     setYukuSource(sourceText);
     const result = yukuParse(textToParse, { lang, sourceType, semanticErrors: false, attachComments: true });
-    // Map yuku-parser diagnostics to the shape extractAstModule expects
+
     const parserErrors = result.diagnostics
       .filter((d) => d.severity === "error")
       .map((d) => ({
@@ -1087,13 +1111,11 @@ export function parseModule(sourceText: string, file: string): ModuleRecord {
         })() : undefined,
       }));
     
-    // Yuku returns errors in diagnostics. If there are errors, trigger fallback for tests that expect "Parse failed"
     if (result.diagnostics?.some(d => d.severity === 'error')) {
       const firstError = result.diagnostics[0]?.message ?? "Unknown parse error";
       return fallbackModule(sourceText, file, new Error("Parse failed: " + firstError));
     }
 
-    // Wrap in a "File" node to match what Layer 5/7 might expect from Babel
     const ast = {
       type: "File",
       program: result.program,

@@ -73,7 +73,13 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
     baseUrl,
   } as ResolvedOptions;
 }
-
+export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["failOn"]): boolean {
+  if (failOn === "none") {
+    return false;
+  }
+  const failThreshold = CONFIDENCE_RANK[failOn];
+  return report.findings.some((f) => CONFIDENCE_RANK[f.confidence] >= failThreshold);
+}
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
   
@@ -102,12 +108,25 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     // console.error(`[Monorepo] Discovery failed: ${e}`);
   }
 
-  const { rootDir, extensions, ignore, entry, includeConventionalEntries } = resolvedOptions;
-  const compiledIgnorePatterns = compileGlobs(ignore);
+  const { rootDir } = resolvedOptions;
 
   if (!(await rootLooksValid(rootDir))) {
     throw new Error(`Root directory does not exist: ${rootDir}`);
   }
+
+  // ── RUN PLUGIN ENGINE INIT BEFORE FILE DISCOVERY ───────────────────────────
+  // Initialize early context and run PluginEngine so CustomConfigPlugin can populate
+  // resolvedOptions.ignore / entry / failOn BEFORE discoverSourceFiles is called.
+  const initialModules = new Map<string, ModuleRecord>();
+  const initialEntryPoints = new Set<string>();
+  const earlyContext = contextWithGraph(initialModules, initialEntryPoints, resolvedOptions, new Set());
+
+  const pluginEngine = new PluginEngine();
+  const pluginFindings = await pluginEngine.run(earlyContext);
+
+  // Re-read configuration options after plugin initialization
+  const { extensions, ignore, entry, includeConventionalEntries } = resolvedOptions;
+  const compiledIgnorePatterns = compileGlobs(ignore);
 
   const allSourceFiles = await discoverSourceFiles(rootDir, extensions, compiledIgnorePatterns);
   const modules = new Map<string, ModuleRecord>();
@@ -270,11 +289,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   context.semanticGraph = semanticGraph;
   context.symbolicContracts = new Map();
 
-  // Gated Layer 2: Plugin-based Instruction Engine (Hardening)
-  const pluginEngine = new PluginEngine();
-  const pluginFindings = await pluginEngine.run(context);
-  
-  // --- PATCH: RE-CALCULATE REACHABILITY ---
+  // Re-run file start hooks for all parsed modules
+  for (const module of modules.values()) {
+    if (!module.ast) continue;
+    for (const plugin of (pluginEngine as any).plugins) {
+      if (plugin.enabled && plugin.lifecycle.onFileStart) {
+        try {
+          await plugin.lifecycle.onFileStart(module.id, (pluginEngine as any).createAdapter(context));
+        } catch (err) {}
+      }
+    }
+  }
+
+  // --- RE-CALCULATE REACHABILITY ---
   const newReachability = calculateReachability(modules, context.reachable);
   for (const r of newReachability.reachable) context.reachable.add(r);
   for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
@@ -402,7 +429,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             const usage = importUsage.get(moduleId);
             if (!usage || !usage.reExportOnly) return false;
             
-            // If this module is only a re-exporter (Barrel), check if its consumers are public
             return Array.from(usage.consumers).some(c => checkPublicReachability(c));
           };
 
@@ -444,9 +470,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
               evidence: { exportName: exp.exportedAs },
             });
           } else if (isEffectivelyUsed && exp.members && exp.members.length > 0) {
-            // Check for unused members
             for (const member of exp.members) {
-              // We check both the internal name and the exported name
               const memberKey = `${module.id}:${exp.exportedAs}:${member.name}`;
               const internalKey = `${module.id}:${exp.name}:${member.name}`;
               if (!context.usedMembers.has(memberKey) && !context.usedMembers.has(internalKey)) {
@@ -563,14 +587,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   return report;
-}
-
-export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["failOn"]): boolean {
-  if (failOn === "none") {
-    return false;
-  }
-  const failThreshold = CONFIDENCE_RANK[failOn];
-  return report.findings.some((f) => CONFIDENCE_RANK[f.confidence] >= failThreshold);
 }
 
 /**
