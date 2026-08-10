@@ -59,13 +59,35 @@ export class PluginEngine {
     const adapter = this.createAdapter(context);
     await this.loadDynamicPlugins();
 
+    // ── Plugin detection with config-driven overrides ──────────────────────
+    //
+    // `context.options.plugins` is a Record<pluginName, boolean> that can
+    // force-enable or force-disable individual plugins regardless of what
+    // their own `detect()` hook returns.
+    //
+    // Priority:
+    //   1. If `plugins[name] === false`  → always disabled
+    //   2. If `plugins[name] === true`   → always enabled
+    //   3. Otherwise                     → run detect() as usual
+    //
+    const pluginOverrides: Record<string, boolean> = context.options.plugins ?? {};
+
     for (const plugin of this.plugins) {
       try {
-        if (plugin.detect) {
+        const override = pluginOverrides[plugin.name];
+
+        if (override === false) {
+          // Explicitly disabled by config – skip detection entirely.
+          plugin.enabled = false;
+        } else if (override === true) {
+          // Explicitly enabled by config – skip detection entirely.
+          plugin.enabled = true;
+        } else if (plugin.detect) {
           plugin.enabled = await plugin.detect(adapter);
         } else {
           plugin.enabled = true;
         }
+
         if (plugin.enabled) {
           context.enabledPlugins?.add(plugin.name);
         }
@@ -130,7 +152,7 @@ export class PluginEngine {
     return this.findings;
   }
 
-  private createAdapter(context: AnalysisContext): PluginAdapter {
+  createAdapter(context: AnalysisContext): PluginAdapter {
     return {
       getAst: (fileId) => context.modules.get(fileId)?.ast,
       getSymbol: (name, fileId) => {

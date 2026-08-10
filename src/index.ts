@@ -51,10 +51,16 @@ import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 
 async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions> {
   const rootDir = normalizeAbsolute(options.rootDir ?? process.cwd());
-  const userConfig = await loadConfig(rootDir);
-  
+
+  // Load config from optiprune.json / optiprune.jsonc / optiprune.config.{ts,js,mjs}
+  // / package.json#optiprune – in that priority order.
+  const fileConfig = await loadConfig(rootDir);
+
+  // CLI / programmatic options always win over file config.
+  // We spread fileConfig first, then options so that explicit CLI flags
+  // override whatever was read from the config file.
   const merged = mergeConfig(DEFAULT_CONFIG, {
-    ...userConfig,
+    ...fileConfig,
     ...options,
     rootDir,
   } as import('./types.js').Config);
@@ -63,12 +69,23 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
   if (options.skip3 !== undefined) merged.layers.skip3 = options.skip3;
   if (options.skip4 !== undefined) merged.layers.skip4 = options.skip4;
 
+  // Sync the legacy `json` boolean with the `output` field so both are
+  // always consistent regardless of which one the caller set.
+  if (options.output) {
+    merged.output = options.output;
+    merged.json = options.output === "json";
+  } else if (typeof options.json === "boolean") {
+    merged.json = options.json;
+    merged.output = options.json ? "json" : "terminal";
+  }
+
   const { paths: pathAliases, baseUrl } = await ingestTsConfigPaths(rootDir);
 
   return {
     ...merged,
     entry: merged.entry?.map((entry) => normalizeAbsolute(path.resolve(rootDir, entry))) ?? [],
-    ignore: [...DEFAULT_IGNORE, ...(merged.ignore ?? [])],
+    // DEFAULT_IGNORE is already baked into mergeConfig; avoid doubling it.
+    ignore: merged.ignore,
     pathAliases,
     baseUrl,
   } as ResolvedOptions;

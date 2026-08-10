@@ -275,6 +275,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     }
   }
 
+  // Build a Set of dependencies the user explicitly wants to ignore so we
+  // never emit unused-dependency / unused-dev-dependency findings for them.
+  const ignoreDeps = new Set<string>(context.options.ignoreDependencies ?? []);
+
   for (const [pkgName, manifestPath] of manifestPaths.entries()) {
     if (fs.existsSync(manifestPath)) {
       const pkg = await readJsonFile<Record<string, any>>(manifestPath);
@@ -526,6 +530,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
 
+        // Skip packages the user has explicitly asked to ignore.
+        if (ignoreDeps.has(dep)) continue;
+
         if (!isUsed) {
           findings.push({
             rule: dep,
@@ -577,6 +584,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
              isPluginUsed = true;
           }
         }
+
+        // Skip packages the user has explicitly asked to ignore.
+        if (ignoreDeps.has(dep)) continue;
 
         if (!isUsed && !isPluginUsed) {
           findings.push({

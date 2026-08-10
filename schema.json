@@ -28,7 +28,7 @@
         "type": "string"
       },
       "default": [".ts", ".tsx", ".js", ".jsx"],
-      "description": "File extensions OptiPrune will process during analysis."
+      "description": "File extensions OptiPrune will process during analysis. Replaces the default list when provided."
     },
     "ignore": {
       "type": "array",
@@ -36,7 +36,18 @@
         "type": "string"
       },
       "default": [],
-      "description": "Glob patterns or path segments to exclude from analysis (e.g., test files, build outputs)."
+      "description": "Glob patterns or path segments to exclude from analysis. Use this to ignore entire folders (e.g., '**/tests/**'), specific files (e.g., '**/*.spec.ts'), or build artifacts. These patterns are appended to the built-in defaults like node_modules and dist.",
+      "examples": [
+        ["**/tests/**", "**/__mocks__/**", "**/*.test.ts"]
+      ]
+    },
+    "ignoreDependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "npm package names that OptiPrune should never flag as unused, regardless of whether they appear in import statements. Useful for packages used via global injection or peer dependencies."
     },
     "externalContracts": {
       "type": "array",
@@ -67,10 +78,22 @@
       "default": false,
       "description": "Enables detailed step-by-step diagnostic logging during execution."
     },
+    "fix": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, automatically applies fixes for certain findings (e.g., removing 'export' keyword from unused exports)."
+    },
+    "output": {
+      "type": "string",
+      "enum": ["terminal", "json", "sarif"],
+      "default": "terminal",
+      "description": "Output format for analysis results. 'terminal' produces human-readable coloured output; 'json' emits machine-readable JSON to stdout; 'sarif' emits SARIF 2.1 JSON for IDE and CI integrations."
+    },
     "json": {
       "type": "boolean",
       "default": false,
-      "description": "Outputs analysis findings in raw JSON format to stdout."
+      "deprecated": true,
+      "description": "Deprecated. Use 'output: \"json\"' instead. When true, outputs analysis findings in raw JSON format to stdout."
     },
     "rules": {
       "type": "object",
@@ -79,6 +102,19 @@
         "type": "string",
         "enum": ["error", "warning", "off"]
       }
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Explicit enable/disable overrides for individual plugins. Use the plugin's name string as the key. Setting a value to false disables the plugin even if its auto-detection would enable it; setting it to true forces it on regardless of detection.",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "examples": [
+        {
+          "nextjs-plugin": true,
+          "nestjs-plugin": false
+        }
+      ]
     },
     "layers": {
       "type": "object",
@@ -105,12 +141,12 @@
         "skip3": {
           "type": "boolean",
           "default": false,
-          "description": "Skips Execution Layer 3 pass during analysis."
+          "description": "Skips Execution Layer 3 (SMT/Z3 solver) pass during analysis."
         },
         "skip4": {
           "type": "boolean",
           "default": false,
-          "description": "Skips Execution Layer 4 pass during analysis."
+          "description": "Skips Execution Layer 4 (node:vm sandbox) pass during analysis."
         }
       }
     }

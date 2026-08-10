@@ -11,6 +11,9 @@ export type EdgeKind =
   | "dynamic-pattern"
   | "unknown-dynamic";
 
+/** Output format for analysis results. */
+export type OutputFormat = "terminal" | "json" | "sarif";
+
 export interface Position {
   line: number;
   column: number;
@@ -165,7 +168,10 @@ export interface AnalyzerOptions {
   schemaEnums?: Record<string, string[]>;
   externalContracts?: string[]; // Added for Layer 5: list of externally consumed symbol names
   failOn?: FailOn;
+  /** @deprecated Use `output` instead. When true, equivalent to output: "json". */
   json?: boolean;
+  /** Output format: "terminal" (default), "json", or "sarif". */
+  output?: OutputFormat;
   includeConventionalEntries?: boolean;
   skip3?: boolean;
   skip4?: boolean;
@@ -177,26 +183,56 @@ export interface AnalyzerOptions {
 
 export type RuleSeverity = "error" | "warning" | "off";
 
+/**
+ * Plugin enable/disable configuration.
+ * Keys are plugin names (as returned by `AnalyzerPlugin.name`).
+ * Setting a value to `false` prevents the plugin from running even if its
+ * `detect()` hook would return `true`.
+ * Setting a value to `true` forces the plugin to run even if `detect()`
+ * returns `false`.
+ */
+export type PluginsConfig = Record<string, boolean>;
+
 export interface Config {
   rootDir?: string;
   entry?: string[];
   extensions?: string[];
   ignore?: string[];
+  /**
+   * Dependencies (npm package names) that OptiPrune should never flag as
+   * unused, regardless of whether they appear in import statements.
+   */
+  ignoreDependencies?: string[];
   externalContracts?: string[];
   reportUnusedExports?: boolean;
   includeConventionalEntries?: boolean;
   failOn?: FailOn;
+  /** @deprecated Use `output` instead. */
   json?: boolean;
+  /**
+   * Output format for analysis results.
+   * - `"terminal"` – human-readable coloured output (default)
+   * - `"json"`     – machine-readable JSON to stdout
+   * - `"sarif"`    – SARIF 2.1 JSON for IDE / CI integrations
+   */
+  output?: OutputFormat;
   verbose?: boolean;
   fix?: boolean;
   layers?: {
     smtTimeoutMs?: number;
     isolateMemoryLimitMb?: number;
     enableConcolicProof?: boolean;
+    /** Skip Layer 3 (SMT / Z3 solver pass). */
     skip3?: boolean;
+    /** Skip Layer 4 (node:vm sandbox pass). */
     skip4?: boolean;
   };
   rules?: Record<string, RuleSeverity>;
+  /**
+   * Explicit plugin enable/disable overrides.
+   * Use the plugin's `name` string as the key.
+   */
+  plugins?: PluginsConfig;
 }
 
 export interface ResolvedOptions {
@@ -204,10 +240,15 @@ export interface ResolvedOptions {
   entry: string[];
   extensions: string[];
   ignore: string[];
+  /** npm package names that are always treated as used. */
+  ignoreDependencies: string[];
   reportUnusedExports: boolean;
   schemaEnums: Record<string, string[]>;
   failOn: FailOn;
+  /** @deprecated Derived from `output`. True when output === "json". */
   json: boolean;
+  /** Resolved output format. */
+  output: OutputFormat;
   includeConventionalEntries: boolean;
   monorepo?: MonorepoGraph;
   pathAliases: Map<string, string[]>;
@@ -225,6 +266,8 @@ export interface ResolvedOptions {
     skip4: boolean;
   };
   rules: Record<string, RuleSeverity>;
+  /** Resolved plugin overrides. */
+  plugins: PluginsConfig;
 }
 
 export interface AnalysisSummary {
@@ -349,6 +392,7 @@ export interface OptiPruneUserConfig {
   entry?: string[];
   extensions?: string[];
   ignore?: string[];
+  ignoreDependencies?: string[];
   externalContracts?: string[];
   reportUnusedExports?: boolean;
   includeConventionalEntries?: boolean;
@@ -361,6 +405,9 @@ export interface OptiPruneUserConfig {
     skip4?: boolean;
   };
   rules?: Record<string, "error" | "warning" | "off">;
+  plugins?: PluginsConfig;
   verbose?: boolean;
+  /** @deprecated Use `output` instead. */
   json?: boolean;
+  output?: OutputFormat;
 }
