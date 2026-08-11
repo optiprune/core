@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import path from "node:path";
+import path from "pathe";
 import crypto from "node:crypto";
 import type { ModuleRecord, Finding } from "./types.js";
 

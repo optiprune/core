@@ -6,6 +6,14 @@ import path from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isIgnored } from "./fs-utils.js";
 
+// ── Verbose debug helper ────────────────────────────────────────────────────
+// All engine-level debug messages go to stderr so they never pollute JSON /
+// SARIF output on stdout.  They are only emitted when `options.verbose` is
+// true (same convention used by graph.ts).
+function dbg(verbose: boolean | undefined, msg: string): void {
+  if (verbose) console.error(msg);
+}
+
 export class PluginEngine {
   private plugins: AnalyzerPlugin[] = [];
   private findings: Finding[] = [];
@@ -44,9 +52,22 @@ export class PluginEngine {
     } catch (err) {}
   }
 
-  async run(context: AnalysisContext): Promise<Finding[]> {
+  async run(context: AnalysisContext, runOptions: { skipDetection?: boolean } = {}): Promise<Finding[]> {
+    const verbose = context.options?.verbose;
     const adapter = this.createAdapter(context);
-    await this.loadDynamicPlugins();
+    
+    if (!runOptions.skipDetection) {
+      this.findings = [];
+      await this.loadDynamicPlugins();
+
+      // ── Engine Debug: registered plugins ───────────────────────────────────
+      if (verbose) {
+        dbg(verbose, `[Plugin Engine] ── Registered plugins (${this.plugins.length}) ──`);
+        for (const plugin of this.plugins) {
+          dbg(verbose, `  • ${plugin.name}@${plugin.version}`);
+        }
+      }
+    }
 
     // ── Plugin detection with config-driven overrides ──────────────────────
     //
@@ -59,35 +80,52 @@ export class PluginEngine {
     //   2. If `plugins[name] === true`   → always enabled
     //   3. Otherwise                     → run detect() as usual
     //
-    const pluginOverrides: Record<string, boolean> = context.options.plugins ?? {};
+    if (!runOptions.skipDetection) {
+      const pluginOverrides: Record<string, boolean> = context.options?.plugins ?? {};
 
-    for (const plugin of this.plugins) {
-      try {
-        const override = pluginOverrides[plugin.name];
+      for (const plugin of this.plugins) {
+        try {
+          const override = pluginOverrides[plugin.name];
 
-        if (override === false) {
-          // Explicitly disabled by config – skip detection entirely.
+          if (override === false) {
+            // Explicitly disabled by config – skip detection entirely.
+            plugin.enabled = false;
+            dbg(verbose, `[Plugin Engine] ${plugin.name}: DISABLED (config override)`);
+          } else if (override === true) {
+            // Explicitly enabled by config – skip detection entirely.
+            plugin.enabled = true;
+            dbg(verbose, `[Plugin Engine] ${plugin.name}: ENABLED (config override)`);
+          } else if (plugin.detect) {
+            plugin.enabled = await plugin.detect(adapter);
+            dbg(verbose, `[Plugin Engine] ${plugin.name}: ${plugin.enabled ? "ENABLED" : "DISABLED"} (detect())`);
+          } else {
+            plugin.enabled = true;
+            dbg(verbose, `[Plugin Engine] ${plugin.name}: ENABLED (no detect hook)`);
+          }
+
+          if (plugin.enabled) {
+            context.enabledPlugins?.add(plugin.name);
+          }
+        } catch (err) {
           plugin.enabled = false;
-        } else if (override === true) {
-          // Explicitly enabled by config – skip detection entirely.
-          plugin.enabled = true;
-        } else if (plugin.detect) {
-          plugin.enabled = await plugin.detect(adapter);
-        } else {
-          plugin.enabled = true;
+          dbg(verbose, `[Plugin Engine] ${plugin.name}: DISABLED (detect() threw: ${err})`);
         }
+      }
 
-        if (plugin.enabled) {
-          context.enabledPlugins?.add(plugin.name);
-        }
-      } catch (err) {
-        plugin.enabled = false;
+      // ── Engine Debug: enabled plugins summary ──────────────────────────────
+      if (verbose) {
+        const enabled = this.plugins.filter(p => p.enabled).map(p => p.name);
+        const disabled = this.plugins.filter(p => !p.enabled).map(p => p.name);
+        dbg(verbose, `[Plugin Engine] ── Detection complete ──`);
+        dbg(verbose, `  Enabled  (${enabled.length}): ${enabled.join(", ") || "(none)"}`);
+        dbg(verbose, `  Disabled (${disabled.length}): ${disabled.join(", ") || "(none)"}`);
       }
     }
 
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onProjectInit) {
         try {
+          dbg(verbose, `[Plugin Engine] Running onProjectInit for ${plugin.name}`);
           await plugin.lifecycle.onProjectInit(adapter);
         } catch (err) {
           console.error(`[Plugin Engine] Error in onProjectInit for ${plugin.name}:`, err);
@@ -97,7 +135,7 @@ export class PluginEngine {
 
     for (const module of context.modules.values()) {
       // Check ignore list resolved from options (including plugin config updates)
-      if (isIgnored(module.id, context.options.ignore, context.options.rootDir)) {
+      if (isIgnored(module.id, context.options?.ignore, context.options?.rootDir)) {
         continue;
       }
 
@@ -131,11 +169,20 @@ export class PluginEngine {
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onAnalysisComplete) {
         try {
+          dbg(verbose, `[Plugin Engine] Running onAnalysisComplete for ${plugin.name}`);
           await plugin.lifecycle.onAnalysisComplete(adapter);
         } catch (err) {
           console.error(`[Plugin Engine] Error in onAnalysisComplete for ${plugin.name}:`, err);
         }
       }
+    }
+
+    // ── Engine Debug: final reachability marks ─────────────────────────────
+    if (verbose) {
+      dbg(verbose, `[Plugin Engine] ── Post-run state ──`);
+      dbg(verbose, `  context.reachable size    : ${context.reachable?.size ?? 0}`);
+      dbg(verbose, `  context.usedPackages size : ${context.usedPackages?.size ?? 0}`);
+      dbg(verbose, `  context.enabledPlugins    : ${[...(context.enabledPlugins ?? [])].join(", ") || "(none)"}`);
     }
 
     return this.findings;

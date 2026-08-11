@@ -306,25 +306,27 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   context.semanticGraph = semanticGraph;
   context.symbolicContracts = new Map();
 
-  // Re-run file start hooks for all parsed modules
-  for (const module of modules.values()) {
-    if (!module.ast) continue;
-    for (const plugin of (pluginEngine as any).plugins) {
-      if (plugin.enabled && plugin.lifecycle.onFileStart) {
-        try {
-          await plugin.lifecycle.onFileStart(module.id, (pluginEngine as any).createAdapter(context));
-        } catch (err) {}
-      }
-    }
-  }
+  // ── PLUGIN LIFECYCLE SYNC ────────────────────────────────────────────────
+  // 1. Transfer marks from earlyContext (onProjectInit effects) to the final context
+  for (const r of earlyContext.reachable) context.reachable.add(r);
+  for (const p of earlyContext.usedPackages) context.usedPackages.add(p);
+  for (const e of earlyContext.usedExports) context.usedExports.add(e);
+  for (const pl of earlyContext.enabledPlugins) context.enabledPlugins.add(pl);
+
+  // 2. Run full plugin execution (File Hooks + AST Nodes + Analysis Complete)
+  // We skip detection as it was already handled in earlyContext.
+  const finalPluginFindings = await pluginEngine.run(context, { skipDetection: true });
+  
+  // 3. Combine findings from both runs (init-time + execution-time)
+  findings.push(...pluginFindings);
+  findings.push(...finalPluginFindings);
 
   // --- RE-CALCULATE REACHABILITY ---
+  // Ensure that plugin marks (reachable files) are propagated through the graph
   const newReachability = calculateReachability(modules, context.reachable);
   for (const r of newReachability.reachable) context.reachable.add(r);
   for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
   calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
-
-  findings.push(...pluginFindings);
 
   // Headless Living Graph Engine: Initial Ingestion
   for (const module of modules.values()) {
