@@ -471,20 +471,26 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
     // Compatibility: Map Yuku attached comments to leadingComments/trailingComments
     const yukuNode = node as any;
 
-    // Track local variable types from annotations
+    // Track local variable and function-parameter types from annotations.
+    // Member analysis uses this map to associate `value.userId` with the
+    // exported type of `value`, including when the value is a local parameter.
+    const recordTypeAnnotation = (identifier: any) => {
+      if (!identifier || identifier.type !== "Identifier") return;
+      const annotation = identifier.typeAnnotation;
+      if (annotation?.type !== "TSTypeAnnotation" || annotation.typeAnnotation?.type !== "TSTypeReference") return;
+      const typeName = nodeIdentifierName(annotation.typeAnnotation.typeName);
+      if (typeName) localTypeMap[identifier.name] = typeName;
+    };
+
     if (node.type === "VariableDeclarator") {
-      const id = yukuNode.id as any;
-      if (id && id.type === "Identifier") {
-        const ta = id.typeAnnotation;
-        if (ta && ta.type === "TSTypeAnnotation" && ta.typeAnnotation?.type === "TSTypeReference") {
-          const typeName = nodeIdentifierName(ta.typeAnnotation.typeName);
-          if (typeName) {
-            localTypeMap[id.name] = typeName;
-          }
-        }
-      }
+      recordTypeAnnotation(yukuNode.id);
     }
 
+    if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") {
+      for (const parameter of yukuNode.params ?? []) {
+        recordTypeAnnotation(parameter);
+      }
+    }
 
     if (Array.isArray(yukuNode.comments)) {
       yukuNode.leadingComments = yukuNode.comments

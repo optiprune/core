@@ -368,16 +368,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     await analyzeLayer5(context);
   }
   
-  // Gated Layer 6: Dependency & Boundary Engine. Contract revocation is a
-  // Layer 6 responsibility, so it must also run for framework-declared
-  // contracts in single-package projects (for example, NestJS decorators).
-  const hasProtectedContracts = Array.from(modules.values()).some((module) =>
-    module.exports.some((exp) => exp.isExternalContract),
-  );
-  if (hasMonorepo || allSourceFiles.some((file) => file.endsWith(".d.ts")) || hasProtectedContracts) {
-    const layer6Findings = await analyzeLayer6(context);
-    findings.push(...layer6Findings);
-  }
+  // Layer 6: Dependency & Boundary Engine.
+  // Dependency auditing must not depend on monorepo, declaration-file, or
+  // framework-contract detection: every workspace has a package manifest that
+  // may declare packages which are no longer imported or used by scripts.
+  // Contract revocation remains a no-op when the project contains no protected
+  // exports, so running the layer unconditionally is safe.
+  const layer6Findings = await analyzeLayer6(context);
+  findings.push(...layer6Findings);
 
   // Layer 2: Control Flow Graph (CFG)
   const layer2Findings = analyzeLayer2(context);

@@ -95,6 +95,36 @@ describe("Optiprune Analyzer", () => {
     expect(noEntryPointsFinding?.confidence).toBe("info");
   });
 
+  it("should audit unused dependencies without monorepo, declaration files, or protected contracts", async () => {
+    const testDir = path.join(fixturesDir, "dependency-audit-no-dts-test");
+    await fs.promises.rm(testDir, { recursive: true, force: true });
+    await fs.promises.mkdir(testDir, { recursive: true });
+
+    await fs.promises.writeFile(
+      path.join(testDir, "package.json"),
+      JSON.stringify({ name: "dependency-audit-no-dts-test", dependencies: { "unused-pkg": "1.0.0" } }),
+    );
+    await fs.promises.writeFile(path.join(testDir, "entry.ts"), "console.log('entry');\n");
+
+    try {
+      const report = await analyze({
+        rootDir: testDir,
+        entry: ["entry.ts"],
+        extensions: [".ts"],
+        includeConventionalEntries: false,
+        reportUnusedExports: false,
+      });
+
+      const unusedDependency = report.findings.find(
+        (finding) => finding.evidence?.package === "unused-pkg" && finding.evidence?.type === "dependency",
+      );
+      expect(unusedDependency).toBeDefined();
+      expect(unusedDependency?.message).toContain("never imported or used in scripts");
+    } finally {
+      await fs.promises.rm(testDir, { recursive: true, force: true });
+    }
+  });
+
   it("should mark package.json exports as used with low confidence and load TypeScript configs", async () => {
     const testDir = path.join(fixturesDir, "public-api-and-config-test");
     await fs.promises.mkdir(testDir, { recursive: true });

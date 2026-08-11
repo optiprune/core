@@ -360,6 +360,24 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
   for (const module of modules.values()) {
     // Member Access Tracking within the module
     const localMemberAccess = new Map<string, Set<string>>();
+    // Keep type-derived accesses separate from direct identifier accesses. The
+    // former can safely be associated with an export in this same module.
+    const localTypeMemberAccess = new Map<string, Set<string>>();
+    const resolveScopedTypeName = (objectName: string, stack: any[]): string | undefined => {
+      // `localTypeMap` is module-wide and can be overwritten when distinct
+      // functions reuse a parameter name. Resolve the nearest matching
+      // function parameter from the AST stack first to retain lexical scope.
+      for (let index = stack.length - 1; index >= 0; index -= 1) {
+        const scope = stack[index] as any;
+        if (!scope || !["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(scope.type)) continue;
+        for (const parameter of scope.params ?? []) {
+          if (parameter?.type !== "Identifier" || parameter.name !== objectName) continue;
+          const typeName = parameter.typeAnnotation?.typeAnnotation?.typeName;
+          if (typeName?.type === "Identifier") return typeName.name;
+        }
+      }
+      return module.localTypeMap?.[objectName];
+    };
     if (module.ast) {
       walkAst(module.ast, (node: any, stack: any[]) => {
         // 1. Track Member Expressions (e.g., Status.Active, user.id)
@@ -371,17 +389,41 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             if (!localMemberAccess.has(objectName)) localMemberAccess.set(objectName, new Set());
             localMemberAccess.get(objectName)!.add(propertyName);
 
-            // Track type-aware access (user.id where user is of type User)
-            const typeName = module.localTypeMap?.[objectName];
+            // Track type-aware access (user.id where user is of type User).
+            // Preserve a separate map so same-module type usage can later be
+            // linked to that module's exported type without overmatching a
+            // value identifier that happens to share the type's name.
+            const typeName = resolveScopedTypeName(objectName, stack);
             if (typeName) {
               if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
               localMemberAccess.get(typeName)!.add(propertyName);
+              if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+              localTypeMemberAccess.get(typeName)!.add(propertyName);
             }
           }
         }
         
 
       });
+    }
+
+    // Add a self-usage record for locally typed property accesses. This lets
+    // an exported type declared in this module retain only the members that
+    // local code actually reads. The final propagation pass still requires the
+    // export itself to be used before accepting this member usage.
+    if (localTypeMemberAccess.size > 0) {
+      const current = usage.get(module.id) ?? {
+        consumers: new Set<string>(),
+        names: new Set<string>(),
+        memberAccess: new Map<string, Set<string>>(),
+        wildcard: false,
+        reExportOnly: true,
+      };
+      for (const [typeName, members] of localTypeMemberAccess) {
+        if (!current.memberAccess.has(typeName)) current.memberAccess.set(typeName, new Set());
+        for (const member of members) current.memberAccess.get(typeName)!.add(member);
+      }
+      usage.set(module.id, current);
     }
 
     for (const edge of module.edges) {
@@ -667,6 +709,31 @@ export function buildUsedExports(
             }
           }
         }
+      }
+    }
+  }
+
+  // 4. Local type-member propagation. The import pass above already handles
+  // imported types. This final pass also covers access through a parameter or
+  // variable whose type is exported from the same module.
+  for (const [moduleId, usage] of importUsage) {
+    const module = modules.get(moduleId);
+    if (!module) continue;
+
+    for (const exp of module.exports) {
+      const exportKey = `${moduleId}:${exp.exportedAs}`;
+      if (!usedExports.has(exportKey)) continue;
+
+      const accessedMembers = new Set<string>();
+      for (const key of [exp.name, exp.exportedAs]) {
+        for (const member of usage.memberAccess.get(key) ?? []) {
+          accessedMembers.add(member);
+        }
+      }
+
+      for (const member of accessedMembers) {
+        usedMembers.add(`${moduleId}:${exp.exportedAs}:${member}`);
+        usedMembers.add(`${moduleId}:${exp.name}:${member}`);
       }
     }
   }

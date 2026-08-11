@@ -29,5 +29,16 @@ describe("TypeScript Local Reference Tracking (Fix 3)", () => {
     const unusedInterfaceFinding = report.findings.find(f => f.file.includes("lib.ts") && f.evidence.exportName === "UnusedInterface");
     expect(unusedInterfaceFinding).toBeDefined();
     expect(unusedInterfaceFinding?.rule).toBe("unused-export");
+
+    // 4. Member usage in the defining module should be tracked precisely.
+    const usedMemberFinding = report.findings.find(
+      (finding) => finding.rule === "unused-member" && finding.evidence.exportName === "PartiallyUsedInterface" && finding.evidence.memberName === "used",
+    );
+    expect(usedMemberFinding).toBeUndefined();
+
+    const unusedMemberFinding = report.findings.find(
+      (finding) => finding.rule === "unused-member" && finding.evidence.exportName === "PartiallyUsedInterface" && finding.evidence.memberName === "unused",
+    );
+    expect(unusedMemberFinding).toBeDefined();
   });
 });
