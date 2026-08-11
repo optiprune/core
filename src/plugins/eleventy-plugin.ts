@@ -15,13 +15,23 @@ const ELEVENTY_CONFIG_FILES = [
 const ELEVENTY_DIRECTORIES = [
   "_includes",
   "_layouts",
-  "_data",
-  "_site"
+  "_data"
 ];
+
+const ELEVENTY_TEMPLATE_EXTENSIONS = new Set([
+  ".njk",
+  ".liquid",
+  ".hbs",
+  ".mustache",
+  ".pug",
+  ".ejs",
+  ".haml",
+  ".11ty.js"
+]);
 
 export const EleventyPlugin: AnalyzerPlugin = {
   name: "eleventy-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
     // 1. Check package.json dependencies
@@ -50,10 +60,7 @@ export const EleventyPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("eleventy ") ||
-                s === "eleventy" ||
-                s.includes("11ty ") ||
-                s === "11ty")
+              (s.includes("eleventy") || s.includes("11ty"))
           )
         ) {
           return true;
@@ -66,7 +73,7 @@ export const EleventyPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    // 3. Check for standard 11ty template directories
+    // 3. Check for standard 11ty directories
     for (const dir of ELEVENTY_DIRECTORIES) {
       if (await adapter.folderExists(dir)) return true;
     }
@@ -90,7 +97,7 @@ export const EleventyPlugin: AnalyzerPlugin = {
           p.startsWith("eleventy-plugin-")
       );
 
-      // 1. Safeguard installed Eleventy core & plugins in package.json
+      // Protect installed Eleventy core & ecosystem packages
       if (has11ty) {
         for (const depName of Object.keys(allDeps)) {
           if (
@@ -103,7 +110,7 @@ export const EleventyPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 2. Protect standalone configuration files
+      // Protect configuration files
       let hasConfigFile = false;
       for (const configFile of ELEVENTY_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
@@ -112,14 +119,14 @@ export const EleventyPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 3. Protect standard template & data directories
+      // Protect template & data directories
       for (const dir of ELEVENTY_DIRECTORIES) {
         if (await adapter.folderExists(dir)) {
           adapter.markAsUsed(dir);
         }
       }
 
-      // 4. Track npm scripts invoking Eleventy CLI (eleventy or 11ty)
+      // Track scripts
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
@@ -132,7 +139,7 @@ export const EleventyPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 5. Report missing dependency if configuration exists without @11ty/eleventy package
+      // Report missing dependency error
       if (hasConfigFile && !has11ty) {
         adapter.emitFinding({
           rule: "missing-dependency",
@@ -150,21 +157,30 @@ export const EleventyPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
-      // Protect Eleventy configuration files
+      // 1. Config Files
       if (ELEVENTY_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@11ty/eleventy");
       }
 
-      // Protect files inside _includes, _layouts, _data
-      if (
-        ELEVENTY_DIRECTORIES.some(
-          (dir) =>
-            normalized.includes(`/${dir}/`) || normalized.startsWith(`${dir}/`)
-        )
-      ) {
+      // 2. Convention folders (_includes, _layouts, _data) or 11tydata JS/TS files
+      const isEleventyDir = ELEVENTY_DIRECTORIES.some(
+        (dir) => normalized.includes(`/${dir}/`) || normalized.startsWith(`${dir}/`)
+      );
+      const is11tyDataFile = normalized.includes(".11tydata.");
+
+      if (isEleventyDir || is11tyDataFile) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@11ty/eleventy");
+      }
+
+      // 3. Eleventy template files (.njk, .liquid, .11ty.js, etc.)
+      for (const ext of ELEVENTY_TEMPLATE_EXTENSIONS) {
+        if (normalized.endsWith(ext)) {
+          adapter.markAsUsed(fileId);
+          adapter.markPackageAsUsed("@11ty/eleventy");
+          break;
+        }
       }
     },
 
@@ -172,44 +188,40 @@ export const EleventyPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
       const isConfigFile = ELEVENTY_CONFIG_FILES.includes(basename);
+      const isDataOrTemplateScript =
+        normalized.includes("_data/") || normalized.includes(".11tydata.");
 
-      // 1. Detect ESM imports for @11ty/* or eleventy-plugin-*
-      if (t.isImportDeclaration(node)) {
+      // 1. Mark all non-relative imports inside Eleventy Config files as used packages
+      if (isConfigFile && t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source.startsWith("@11ty/") ||
-          source.startsWith("eleventy-plugin-")
-        ) {
+        if (!source.startsWith(".") && !source.startsWith("/")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
       }
 
-      // 2. Detect CJS require('@11ty/*')
+      // 2. Mark all non-relative require() calls inside Eleventy Config files as used packages
       if (
+        isConfigFile &&
         t.isCallExpression(node) &&
         t.isIdentifier(node.callee) &&
         node.callee.name === "require"
       ) {
         const arg = node.arguments[0];
-        if (
-          t.isStringLiteral(arg) &&
-          (arg.value.startsWith("@11ty/") ||
-            arg.value.startsWith("eleventy-plugin-"))
-        ) {
+        if (t.isStringLiteral(arg) && !arg.value.startsWith(".") && !arg.value.startsWith("/")) {
           adapter.markPackageAsUsed(arg.value);
           adapter.markAsUsed(fileId);
         }
       }
 
-      // 3. In .eleventy.js / eleventy.config.js configuration files
-      if (isConfigFile) {
+      // 3. Mark Default Exports in Config or Data files as used
+      if (isConfigFile || isDataOrTemplateScript) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
           adapter.markPackageAsUsed("@11ty/eleventy");
         }
 
-        // CommonJS module.exports = function(eleventyConfig) { ... }
+        // CJS module.exports = ...
         if (
           node?.type === "AssignmentExpression" &&
           node.left?.type === "MemberExpression" &&
@@ -219,14 +231,17 @@ export const EleventyPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("@11ty/eleventy");
         }
+      }
 
-        // Detect addPlugin calls: eleventyConfig.addPlugin(eleventyNavigation)
-        if (t.isCallExpression(node) && t.isMemberExpression(node.callee)) {
-          const prop = node.callee.property;
-          if (t.isIdentifier(prop) && prop.name === "addPlugin") {
-            adapter.markAsUsed(fileId);
-            adapter.markPackageAsUsed("@11ty/eleventy");
-          }
+      // 4. Detect eleventyConfig.addPlugin / addFilter / addTransform calls
+      if (isConfigFile && t.isCallExpression(node) && t.isMemberExpression(node.callee)) {
+        const prop = node.callee.property;
+        if (
+          t.isIdentifier(prop) &&
+          (prop.name.startsWith("add") || prop.name.startsWith("set"))
+        ) {
+          adapter.markAsUsed(fileId);
+          adapter.markPackageAsUsed("@11ty/eleventy");
         }
       }
     }

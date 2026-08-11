@@ -26,7 +26,8 @@ export async function analyzeLayer4(context: AnalysisContext): Promise<Finding[]
         quickJS,
         branch.instrumentedCode,
         branch.seedInput,
-        context.options.layers.smtTimeoutMs
+        context.options.layers.smtTimeoutMs,
+        context.options.layers.isolateMemoryLimitMb
       );
 
       if (result.pathReached) {
@@ -711,15 +712,24 @@ async function verifyPathInWasmSandbox(
   quickJS: any,
   instrumentedCode: string,
   seedInput: Record<string, any>,
-  timeoutMs = 50
+  timeoutMs = 50,
+  memoryLimitMb = 16
 ): Promise<ConcolicVerificationResult> {
   const startTime = performance.now();
   const runtime = quickJS.newRuntime();
   const context = runtime.newContext();
   
   try {
-    runtime.setMemoryLimit(16 * 1024 * 1024);
+    runtime.setMemoryLimit(memoryLimitMb * 1024 * 1024);
     
+    // Install interrupt handler for timeout enforcement
+    if (timeoutMs > 0) {
+      const deadline = Date.now() + timeoutMs;
+      runtime.setInterruptHandler(() => {
+        return Date.now() > deadline;
+      });
+    }
+
     const setupScript = `
       globalThis.__PROVE_REACHED__ = false;
       globalThis.__coverage__ = {

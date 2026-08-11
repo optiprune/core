@@ -31,7 +31,7 @@ export const CypressPlugin: AnalyzerPlugin = {
       ...pkg.peerDependencies
     };
 
-    return CYPRESS_PACKAGE_NAME in allDeps;
+    return CYPRESS_PACKAGE_NAME in allDeps || "@nx/cypress" in allDeps;
   },
 
   lifecycle: {
@@ -50,12 +50,30 @@ export const CypressPlugin: AnalyzerPlugin = {
       }
 
       if (pkg) {
-        if (
+        const hasCypressDep = 
           pkg.dependencies?.[CYPRESS_PACKAGE_NAME] ||
           pkg.devDependencies?.[CYPRESS_PACKAGE_NAME] ||
-          pkg.peerDependencies?.[CYPRESS_PACKAGE_NAME]
-        ) {
-          adapter.markPackageAsUsed(CYPRESS_PACKAGE_NAME);
+          pkg.peerDependencies?.[CYPRESS_PACKAGE_NAME] ||
+          pkg.dependencies?.["@nx/cypress"] ||
+          pkg.devDependencies?.["@nx/cypress"];
+
+        if (hasCypressDep) {
+          if (pkg.dependencies?.[CYPRESS_PACKAGE_NAME] || pkg.devDependencies?.[CYPRESS_PACKAGE_NAME]) {
+            adapter.markPackageAsUsed(CYPRESS_PACKAGE_NAME);
+          }
+          if (pkg.dependencies?.["@nx/cypress"] || pkg.devDependencies?.["@nx/cypress"]) {
+            adapter.markPackageAsUsed("@nx/cypress");
+          }
+        }
+
+        // If config exists but no dependency, mark as missing
+        const hasConfigFile = CYPRESS_CONFIG_FILES.some(async f => await adapter.folderExists(f)) || await adapter.folderExists("cypress");
+        if (hasConfigFile && !hasCypressDep) {
+          if (await adapter.folderExists("nx.json")) {
+            adapter.markPackageAsUsed("@nx/cypress");
+          } else {
+            adapter.markPackageAsUsed("cypress");
+          }
         }
 
         if (pkg.scripts) {

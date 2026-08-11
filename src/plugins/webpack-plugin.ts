@@ -38,6 +38,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
         Object.keys(allDeps).some(
           (dep) =>
             dep === "webpack" ||
+            dep === "@nx/webpack" ||
             dep.startsWith("webpack-") ||
             dep.endsWith("-loader")
         )
@@ -77,7 +78,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
 
       const hasWebpack = Object.keys(allDeps).some(
         (p) =>
-          p === "webpack" || p.startsWith("webpack-") || p.endsWith("-loader")
+          p === "webpack" || p === "@nx/webpack" || p.startsWith("webpack-") || p.endsWith("-loader")
       );
 
       // 1. Safeguard installed Webpack ecosystem packages and loaders in package.json
@@ -117,15 +118,11 @@ export const WebpackPlugin: AnalyzerPlugin = {
 
       // 4. Report missing dependency if configuration exists without Webpack package
       if (hasConfigFile && !hasWebpack) {
-        adapter.emitFinding({
-          rule: "missing-dependency",
-          severity: "error",
-          confidence: "high",
-          file: "package.json",
-          message:
-            "Webpack configuration found, but 'webpack' or 'webpack-cli' is not listed in package.json.",
-          evidence: { hasConfigFile }
-        });
+        if (await adapter.folderExists("nx.json")) {
+          adapter.markPackageAsUsed("@nx/webpack");
+        } else {
+          adapter.markPackageAsUsed("webpack");
+        }
       }
     },
 

@@ -10,7 +10,6 @@ export type EdgeKind =
   | "dynamic-literal"
   | "dynamic-pattern"
   | "unknown-dynamic";
-
 /** Output format for analysis results. */
 export type OutputFormat = "terminal" | "json" | "sarif";
 
@@ -150,6 +149,7 @@ export interface Finding {
     | "missing-dependency"
     | "unused-dependency"
     | "unused-dev-dependency"
+    | "non-existent-dependency"
     | (string & {});
   severity: Severity;
   confidence: Confidence;

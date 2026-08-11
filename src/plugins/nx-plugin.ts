@@ -66,11 +66,17 @@ export const NxPlugin: AnalyzerPlugin = {
 
       const hasNxDep = NX_PACKAGES.some((p) => p in allDeps);
 
+      let hasNxConfig = false;
       // 1. Protect nx.json and workspace.json
       for (const configFile of NX_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
+          hasNxConfig = true;
           adapter.markAsUsed(configFile);
         }
+      }
+
+      if (hasNxConfig && !hasNxDep) {
+        adapter.markPackageAsUsed("nx");
       }
 
       // 2. Protect installed Nx packages

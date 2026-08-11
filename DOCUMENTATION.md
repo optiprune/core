@@ -97,5 +97,3 @@ Although the API is "headless," `@optiprune/core/reporters` provides helper func
 - **Terminal**: `formatTerminal(report)` generates a colored, human-readable summary.
 
 - **SARIF**: `formatSarif(report)` generates a JSON structure following the *Static Analysis Results Interchange Format*, ideal for GitHub Actions Code Scanning.
-
-> **Note:** The Headless API does not perform automatic code fixes. It is strictly for identifying optimization potential through static analysis.

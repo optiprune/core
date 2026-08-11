@@ -19,14 +19,24 @@ const MOCHA_ECOSYSTEM_PACKAGES = [
   "sinon",
   "sinon-chai",
   "chai-as-promised",
-  "supertest",
-  "ts-node",
-  "tsx"
+  "supertest"
 ];
+
+/**
+ * Normalizes package names from import/require specs (handles scoped packages)
+ */
+function extractPackageName(specifier: string): string | null {
+  if (!specifier || specifier.startsWith(".") || specifier.startsWith("/")) return null;
+  if (specifier.startsWith("@")) {
+    const parts = specifier.split("/");
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : specifier;
+  }
+  return specifier.split("/")[0] || null;
+}
 
 export const MochaPlugin: AnalyzerPlugin = {
   name: "mocha-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
@@ -36,7 +46,8 @@ export const MochaPlugin: AnalyzerPlugin = {
         ...pkg.devDependencies,
         ...pkg.peerDependencies
       };
-      if (MOCHA_ECOSYSTEM_PACKAGES.some((pkgName) => pkgName in allDeps) || pkg.mocha) {
+
+      if ("mocha" in allDeps || pkg.mocha) {
         return true;
       }
 
@@ -68,18 +79,14 @@ export const MochaPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      const hasMochaDep = MOCHA_ECOSYSTEM_PACKAGES.some((p) => p in allDeps);
+      const hasMochaDep = "mocha" in allDeps;
 
-      // 1. Protect installed Mocha ecosystem packages in package.json
+      // 1. Protect core Mocha package if present
       if (hasMochaDep) {
-        for (const mochaPkg of MOCHA_ECOSYSTEM_PACKAGES) {
-          if (allDeps[mochaPkg]) {
-            adapter.markPackageAsUsed(mochaPkg);
-          }
-        }
+        adapter.markPackageAsUsed("mocha");
       }
 
-      // 2. Protect standalone config files or package.json mocha block
+      // 2. Protect standalone config files and package.json mocha config block
       let hasConfigFile = false;
       for (const configFile of MOCHA_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
@@ -92,15 +99,29 @@ export const MochaPlugin: AnalyzerPlugin = {
         hasConfigFile = true;
         adapter.markAsUsed("package.json", "mocha");
 
-        // Protect require modules defined in package.json mocha block
         if (Array.isArray(pkg.mocha.require)) {
           pkg.mocha.require.forEach((reqPkg: string) => {
             if (typeof reqPkg === "string") {
-              if (reqPkg.startsWith(".") || reqPkg.startsWith("/")) {
-                adapter.markAsUsed(reqPkg);
+              const pkgName = extractPackageName(reqPkg);
+              if (pkgName) {
+                adapter.markPackageAsUsed(pkgName);
               } else {
-                adapter.markPackageAsUsed(reqPkg);
+                adapter.markAsUsed(reqPkg);
               }
+            }
+          });
+        }
+      }
+
+      // Read .mocharc.json directly if present
+      if (await adapter.folderExists(".mocharc.json")) {
+        const mochaJson = await adapter.readJson(".mocharc.json");
+        if (mochaJson?.require) {
+          const reqs = Array.isArray(mochaJson.require) ? mochaJson.require : [mochaJson.require];
+          reqs.forEach((reqPkg: string) => {
+            if (typeof reqPkg === "string") {
+              const pkgName = extractPackageName(reqPkg);
+              if (pkgName) adapter.markPackageAsUsed(pkgName);
             }
           });
         }
@@ -164,20 +185,43 @@ export const MochaPlugin: AnalyzerPlugin = {
         normalized.includes("/test/") ||
         normalized.includes("/tests/");
 
-      // 1. Detect ESM imports for Mocha, Chai, Sinon, Supertest
+      // 1. Detect ESM imports for Mocha ecosystem packages
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
+        const pkgName = extractPackageName(source);
         if (
-          MOCHA_ECOSYSTEM_PACKAGES.includes(source) ||
-          source.startsWith("chai-") ||
-          source.startsWith("sinon-")
+          pkgName &&
+          (MOCHA_ECOSYSTEM_PACKAGES.includes(pkgName) ||
+            pkgName.startsWith("chai-") ||
+            pkgName.startsWith("sinon-"))
         ) {
-          adapter.markPackageAsUsed(source);
+          adapter.markPackageAsUsed(pkgName);
           adapter.markAsUsed(fileId);
         }
       }
 
-      // 2. In Mocha configuration files (.mocharc.js / .mocharc.cjs)
+      // 2. Detect CJS require(...) calls for Mocha ecosystem packages
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
+        const arg = node.arguments[0];
+        if (t.isStringLiteral(arg)) {
+          const pkgName = extractPackageName(arg.value);
+          if (
+            pkgName &&
+            (MOCHA_ECOSYSTEM_PACKAGES.includes(pkgName) ||
+              pkgName.startsWith("chai-") ||
+              pkgName.startsWith("sinon-"))
+          ) {
+            adapter.markPackageAsUsed(pkgName);
+            adapter.markAsUsed(fileId);
+          }
+        }
+      }
+
+      // 3. In JS/TS configuration files (.mocharc.js / .mocharc.cjs)
       if (isConfigFile) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -186,42 +230,40 @@ export const MochaPlugin: AnalyzerPlugin = {
 
         // CJS module.exports = { ... }
         if (
-          node?.type === "AssignmentExpression" &&
-          (node as any).left?.type === "MemberExpression" &&
-          (node as any).left?.object?.name === "module" &&
-          (node as any).left?.property?.name === "exports"
+          t.isAssignmentExpression(node) &&
+          t.isMemberExpression(node.left) &&
+          t.isIdentifier(node.left.object) &&
+          node.left.object.name === "module" &&
+          t.isIdentifier(node.left.property) &&
+          node.left.property.name === "exports"
         ) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("mocha");
         }
 
-        // Detect require: ['ts-node/register', 'chai/register-expect']
+        // Detect require: ['ts-node/register', '@babel/register']
         if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "require") {
-          if (t.isArrayExpression(node.value)) {
-            node.value.elements.forEach((el: any) => {
-              if (t.isStringLiteral(el)) {
-                const reqVal = el.value;
-                if (reqVal.startsWith(".") || reqVal.startsWith("/")) {
-                  adapter.markAsUsed(reqVal);
-                } else {
-                  const pkgName = reqVal.split("/")[0];
-                  if (pkgName) adapter.markPackageAsUsed(pkgName);
-                }
+          const processReq = (el: any) => {
+            if (t.isStringLiteral(el)) {
+              const reqVal = el.value;
+              const pkgName = extractPackageName(reqVal);
+              if (pkgName) {
+                adapter.markPackageAsUsed(pkgName);
+              } else {
+                adapter.markAsUsed(reqVal);
               }
-            });
-          } else if (t.isStringLiteral(node.value)) {
-            const reqVal = node.value.value;
-            if (reqVal.startsWith(".") || reqVal.startsWith("/")) {
-              adapter.markAsUsed(reqVal);
-            } else {
-              const pkgName = reqVal.split("/")[0];
-              if (pkgName) adapter.markPackageAsUsed(pkgName);
             }
+          };
+
+          if (t.isArrayExpression(node.value)) {
+            node.value.elements.forEach(processReq);
+          } else {
+            processReq(node.value);
           }
         }
       }
 
-      // 3. In Test files: Detect Mocha global hooks and assertions
+      // 4. In Test files: Detect Mocha global hooks
       if (isTestFile) {
         if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
           const mochaGlobals = new Set([

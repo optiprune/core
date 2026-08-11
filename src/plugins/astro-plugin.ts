@@ -24,26 +24,6 @@ const ASTRO_DB_FILES = [
   "db/seed.js"
 ];
 
-const ASTRO_INTEGRATIONS = [
-  "@astrojs/starlight",
-  "@astrojs/markdoc",
-  "@astrojs/db",
-  "astro-og-canvas",
-  "@astrojs/tailwind",
-  "@astrojs/react",
-  "@astrojs/vue",
-  "@astrojs/svelte",
-  "@astrojs/solid-js",
-  "@astrojs/preact",
-  "@astrojs/mdx",
-  "@astrojs/node",
-  "@astrojs/cloudflare",
-  "@astrojs/vercel",
-  "@astrojs/netlify",
-  "@astrojs/sitemap",
-  "@astrojs/check"
-];
-
 const ASTRO_API_EXPORTS = new Set([
   "GET",
   "POST",
@@ -58,13 +38,23 @@ const ASTRO_API_EXPORTS = new Set([
 ]);
 
 /**
+ * Normalizes package names from subpath imports (e.g., "@astrojs/starlight/components" -> "@astrojs/starlight")
+ */
+function extractPackageName(specifier: string): string | null {
+  if (!specifier || specifier.startsWith(".") || specifier.startsWith("/")) return null;
+  if (specifier.startsWith("@")) {
+    const parts = specifier.split("/");
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : specifier;
+  }
+  return specifier.split("/")[0] || null;
+}
+
+/**
  * Normalizes and extracts package dependencies from Starlight or Markdoc customCss options
  */
 function markCssDependency(cssEntry: string, adapter: any): void {
   if (!cssEntry.startsWith(".") && !cssEntry.startsWith("/")) {
-    const pkgName = cssEntry.startsWith("@")
-      ? cssEntry.split("/").slice(0, 2).join("/")
-      : cssEntry.split("/")[0];
+    const pkgName = extractPackageName(cssEntry);
     if (pkgName) {
       adapter.markPackageAsUsed(pkgName);
     }
@@ -75,7 +65,7 @@ function markCssDependency(cssEntry: string, adapter: any): void {
 
 export const AstroPlugin: AnalyzerPlugin = {
   name: "astro-plugin",
-  version: "1.4.0",
+  version: "1.5.0",
 
   detect: async (adapter) => {
     // 1. Check for dedicated Astro, Markdoc, Starlight, or DB folders/files
@@ -127,11 +117,7 @@ export const AstroPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      const hasAstroDep =
-        !!allDeps["astro"] ||
-        !!allDeps["@astrojs/starlight"] ||
-        !!allDeps["@astrojs/markdoc"] ||
-        !!allDeps["@astrojs/db"];
+      const hasAstroDep = !!allDeps["astro"];
 
       let hasConfigFile = false;
       for (const file of ASTRO_CONFIG_FILES) {
@@ -140,6 +126,11 @@ export const AstroPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(file);
           break;
         }
+      }
+
+      // Protect core astro package if installed
+      if (hasAstroDep) {
+        adapter.markPackageAsUsed("astro");
       }
 
       // Protect Markdoc config file if present
@@ -161,26 +152,10 @@ export const AstroPlugin: AnalyzerPlugin = {
       // Protect Starlight docs & i18n content directories if present
       if (await adapter.folderExists("src/content/docs")) {
         adapter.markAsUsed("src/content/docs");
+        adapter.markPackageAsUsed("@astrojs/starlight");
       }
       if (await adapter.folderExists("src/content/i18n")) {
         adapter.markAsUsed("src/content/i18n");
-      }
-
-      if (hasAstroDep) {
-        adapter.markPackageAsUsed("astro");
-
-        // Protect installed @astrojs/* integrations, Markdoc, DB, OG Canvas, and starlight-* packages
-        for (const depName of Object.keys(allDeps)) {
-          if (
-            ASTRO_INTEGRATIONS.includes(depName) ||
-            depName.startsWith("@astrojs/") ||
-            depName.startsWith("starlight-") ||
-            depName.startsWith("@expressive-code/") ||
-            depName === "astro-og-canvas"
-          ) {
-            adapter.markPackageAsUsed(depName);
-          }
-        }
       }
 
       // Check npm scripts invoking astro or astro db CLI
@@ -193,6 +168,7 @@ export const AstroPlugin: AnalyzerPlugin = {
               scriptContent.includes("astro db"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+            adapter.markPackageAsUsed("astro");
           }
         }
       }
@@ -278,30 +254,51 @@ export const AstroPlugin: AnalyzerPlugin = {
     onASTNode: (node, fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const fileName = path.basename(normalized);
+      const isConfigFile = ASTRO_CONFIG_FILES.includes(fileName);
 
-      // 1. Detect Astro, Markdoc, DB, and OG Canvas module imports
+      // 1. Detect Astro, Markdoc, DB, OG Canvas, and integration module imports
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source.startsWith("astro:") ||
-          source.startsWith("@astrojs/") ||
-          source.startsWith("starlight-") ||
-          source === "astro-og-canvas" ||
-          source === "@astrojs/markdoc" ||
-          source === "@astrojs/db"
-        ) {
-          adapter.markPackageAsUsed("astro");
-          if (
-            source.startsWith("@astrojs/") ||
-            source.startsWith("starlight-") ||
-            source === "astro-og-canvas"
-          ) {
-            adapter.markPackageAsUsed(source);
+        if (source) {
+          if (source.startsWith("astro:")) {
+            adapter.markPackageAsUsed("astro");
+            adapter.markAsUsed(fileId);
+          } else {
+            const pkgName = extractPackageName(source);
+            if (
+              pkgName &&
+              (pkgName.startsWith("@astrojs/") ||
+                pkgName.startsWith("starlight-") ||
+                pkgName.startsWith("@expressive-code/") ||
+                pkgName === "astro-og-canvas" ||
+                pkgName === "astro")
+            ) {
+              adapter.markPackageAsUsed(pkgName);
+              adapter.markPackageAsUsed("astro");
+              adapter.markAsUsed(fileId);
+            }
           }
         }
       }
 
-      // 2. Detect Astro API route exports (GET, POST, getStaticPaths, prerender)
+      // 2. Detect CJS require(...) calls in Astro/Markdoc config files
+      if (
+        isConfigFile &&
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
+        const arg = node.arguments[0];
+        if (t.isStringLiteral(arg)) {
+          const pkgName = extractPackageName(arg.value);
+          if (pkgName) {
+            adapter.markPackageAsUsed(pkgName);
+            adapter.markAsUsed(fileId);
+          }
+        }
+      }
+
+      // 3. Detect Astro API route exports (GET, POST, getStaticPaths, prerender)
       if (t.isExportNamedDeclaration(node) && node.declaration) {
         const decl = node.declaration;
 
@@ -320,7 +317,7 @@ export const AstroPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 3. Detect Astro DB exports (export default defineDb({ ... })) in db/config.ts or db/seed.ts
+      // 4. Detect Astro DB exports (export default defineDb({ ... })) in db/config.ts or db/seed.ts
       if (ASTRO_DB_FILES.includes(normalized) || normalized.startsWith("db/")) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -328,7 +325,7 @@ export const AstroPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 4. Detect markdoc.config.* default export
+      // 5. Detect markdoc.config.* default export
       if (MARKDOC_CONFIG_FILES.includes(fileName)) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -336,13 +333,13 @@ export const AstroPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 5. Detect Astro global usages (Astro.props, Astro.redirect, Astro.glob)
+      // 6. Detect Astro global usages (Astro.props, Astro.redirect, Astro.glob)
       if (t.isIdentifier(node) && node.name === "Astro") {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("astro");
       }
 
-      // 6. Detect Astro client directives in JSX (client:load, client:visible, client:only)
+      // 7. Detect Astro client directives in JSX (client:load, client:visible, client:only)
       if (t.isJSXAttribute(node)) {
         const attrName = (node.name as any)?.name;
         if (attrName && attrName.startsWith("client:")) {
@@ -350,8 +347,8 @@ export const AstroPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 7. Handle astro.config.* exports & Starlight config options
-      if (ASTRO_CONFIG_FILES.includes(fileName)) {
+      // 8. Handle astro.config.* exports & Starlight config options
+      if (isConfigFile) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
         }

@@ -16,6 +16,7 @@ const JEST_CONFIG_FILES = [
 
 const JEST_PACKAGES = [
   "jest",
+  "@nx/jest",
   "ts-jest",
   "@swc/jest",
   "babel-jest",
@@ -92,14 +93,11 @@ export const JestPlugin: AnalyzerPlugin = {
       }
 
       if (hasConfigFile && !hasJestDep) {
-        adapter.emitFinding({
-          rule: "missing-dependency",
-          severity: "error",
-          confidence: "high",
-          file: "package.json",
-          message: "Jest configuration found but 'jest' is not listed in package.json.",
-          evidence: { hasConfigFile }
-        });
+        if (await adapter.folderExists("nx.json")) {
+          adapter.markPackageAsUsed("@nx/jest");
+        } else {
+          adapter.markPackageAsUsed("jest");
+        }
       }
     },
 

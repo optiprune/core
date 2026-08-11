@@ -4,6 +4,7 @@ import { t } from "./ast-utils.js";
 import fs from "node:fs/promises";
 import path from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isIgnored } from "./fs-utils.js";
 
 export class PluginEngine {
   private plugins: AnalyzerPlugin[] = [];
@@ -41,18 +42,6 @@ export class PluginEngine {
         }
       }
     } catch (err) {}
-  }
-
-  private isIgnored(fileId: string, ignorePatterns: string[]): boolean {
-    if (!ignorePatterns || ignorePatterns.length === 0) return false;
-    const normalized = fileId.replace(/\\/g, "/");
-    return ignorePatterns.some((pattern) => {
-      const cleanPattern = pattern.replace(/\\/g, "/");
-      if (cleanPattern.startsWith("*")) {
-        return normalized.endsWith(cleanPattern.slice(1));
-      }
-      return normalized.includes(cleanPattern);
-    });
   }
 
   async run(context: AnalysisContext): Promise<Finding[]> {
@@ -108,7 +97,7 @@ export class PluginEngine {
 
     for (const module of context.modules.values()) {
       // Check ignore list resolved from options (including plugin config updates)
-      if (this.isIgnored(module.id, context.options.ignore)) {
+      if (isIgnored(module.id, context.options.ignore, context.options.rootDir)) {
         continue;
       }
 
@@ -207,9 +196,9 @@ export class PluginEngine {
         } as Finding);
       },
       markAsUsed: (fileId, symbol) => {
-        context.reachable.add(fileId);
+        context.reachable?.add(fileId);
         if (symbol) {
-          context.usedExports.add(`${fileId}:${symbol}`);
+          context.usedExports?.add(`${fileId}:${symbol}`);
         }
       },
       markPackageAsUsed: (packageName) => {

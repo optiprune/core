@@ -64,6 +64,13 @@ async function analyzeModuleLogic(module: ModuleRecord, z3: any, context: Analys
       const body = node.body;
       if (body.type === "BlockStatement") {
         const solver = new z3.Solver();
+        
+        // Apply SMT timeout from configuration
+        const timeout = context.options.layers.smtTimeoutMs;
+        if (timeout > 0) {
+          solver.set("timeout", timeout);
+        }
+
         const pathFindings = await analyzeFunctionPaths(body, z3, solver, module, context);
         findings.push(...pathFindings);
       }

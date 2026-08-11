@@ -2,9 +2,6 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-/**
- * Recognized Expressive Code configuration files
- */
 const EXPRESSIVE_CODE_CONFIG_FILES = [
   "ec.config.mjs",
   "ec.config.js",
@@ -15,20 +12,6 @@ const EXPRESSIVE_CODE_CONFIG_FILES = [
   "expressive-code.config.ts"
 ];
 
-const EXPRESSIVE_CODE_PACKAGES = [
-  "expressive-code",
-  "@expressive-code/core",
-  "@expressive-code/plugin-frames",
-  "@expressive-code/plugin-text-markers",
-  "@expressive-code/plugin-collapsible-sections",
-  "@expressive-code/plugin-line-numbers",
-  "astro-expressive-code",
-  "remark-expressive-code"
-];
-
-/**
- * Helper to check if a package belongs to the Expressive Code ecosystem
- */
 function isExpressiveCodePackage(source: string): boolean {
   return (
     source === "expressive-code" ||
@@ -39,26 +22,42 @@ function isExpressiveCodePackage(source: string): boolean {
 }
 
 /**
- * Helper to process Expressive Code config objects and extract plugins/themes
+ * Extracts plugins and themes passed as package name string literals inside AST objects
  */
-function processExpressiveCodeConfig(config: Record<string, any>, adapter: any): void {
-  if (!config || typeof config !== "object") return;
+function extractConfigProperties(objectExpr: any, adapter: any): void {
+  if (!t.isObjectExpression(objectExpr)) return;
 
-  // Process plugins array
-  if (Array.isArray(config.plugins)) {
-    for (const plugin of config.plugins) {
-      if (typeof plugin === "string" && !plugin.startsWith(".") && !plugin.startsWith("/")) {
-        adapter.markPackageAsUsed(plugin);
+  for (const prop of objectExpr.properties) {
+    if (!t.isObjectProperty(prop)) continue;
+    const keyName = prop.key?.name || prop.key?.value;
+
+    // 1. Process plugins: [ 'expressive-code-plugin-foo' ]
+    if (keyName === "plugins" && t.isArrayExpression(prop.value)) {
+      for (const el of prop.value.elements) {
+        if (t.isStringLiteral(el) && !el.value.startsWith(".") && !el.value.startsWith("/")) {
+          adapter.markPackageAsUsed(el.value);
+        }
       }
     }
-  }
 
-  // Process themes array or string
-  if (config.themes) {
-    const themesList = Array.isArray(config.themes) ? config.themes : [config.themes];
-    for (const theme of themesList) {
-      if (typeof theme === "string" && !theme.startsWith(".") && !theme.startsWith("/")) {
-        adapter.markPackageAsUsed(theme);
+    // 2. Process themes: 'dracula' | ['dracula', 'nord']
+    if (keyName === "themes") {
+      if (
+        t.isStringLiteral(prop.value) &&
+        !prop.value.value.startsWith(".") &&
+        !prop.value.value.startsWith("/")
+      ) {
+        adapter.markPackageAsUsed(prop.value.value);
+      } else if (t.isArrayExpression(prop.value)) {
+        for (const el of prop.value.elements) {
+          if (
+            t.isStringLiteral(el) &&
+            !el.value.startsWith(".") &&
+            !el.value.startsWith("/")
+          ) {
+            adapter.markPackageAsUsed(el.value);
+          }
+        }
       }
     }
   }
@@ -66,7 +65,7 @@ function processExpressiveCodeConfig(config: Record<string, any>, adapter: any):
 
 export const ExpressiveCodePlugin: AnalyzerPlugin = {
   name: "expressive-code-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
     // 1. Check for dedicated Expressive Code config files
@@ -103,7 +102,6 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
       }
 
       if (pkg) {
-        // 2. Protect all @expressive-code/*, expressive-code, astro-expressive-code, and remark-expressive-code packages
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
@@ -122,7 +120,6 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
-      // Protect configuration files
       if (EXPRESSIVE_CODE_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
       }
@@ -131,16 +128,41 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
     onASTNode: (node: any, fileId: string, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
+      const isConfigFile = EXPRESSIVE_CODE_CONFIG_FILES.includes(basename);
 
-      // 1. Inspect JS/TS config files (ec.config.mjs, expressive-code.config.ts, etc.)
-      if (
-        basename.startsWith("ec.config.") ||
-        basename.startsWith("expressive-code.config.")
-      ) {
-        if (t.isExportDefaultDeclaration(node)) {
-          adapter.markAsUsed(fileId, "default");
+      // 1. Process non-relative imports / requires inside config files
+      if (isConfigFile) {
+        if (t.isImportDeclaration(node)) {
+          const source = node.source.value;
+          if (source && !source.startsWith(".") && !source.startsWith("/")) {
+            adapter.markPackageAsUsed(source);
+            adapter.markAsUsed(fileId);
+          }
         }
 
+        if (
+          t.isCallExpression(node) &&
+          t.isIdentifier(node.callee) &&
+          node.callee.name === "require"
+        ) {
+          const arg = node.arguments[0];
+          if (t.isStringLiteral(arg) && !arg.value.startsWith(".") && !arg.value.startsWith("/")) {
+            adapter.markPackageAsUsed(arg.value);
+            adapter.markAsUsed(fileId);
+          }
+        }
+
+        // Export default defineEcConfig({ ... })
+        if (t.isExportDefaultDeclaration(node)) {
+          adapter.markAsUsed(fileId, "default");
+          if (t.isCallExpression(node.declaration) && node.declaration.arguments[0]) {
+            extractConfigProperties(node.declaration.arguments[0], adapter);
+          } else if (t.isObjectExpression(node.declaration)) {
+            extractConfigProperties(node.declaration, adapter);
+          }
+        }
+
+        // CJS module.exports = { ... }
         if (
           t.isAssignmentExpression(node) &&
           t.isMemberExpression(node.left) &&
@@ -150,26 +172,29 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
           node.left.property.name === "exports"
         ) {
           adapter.markAsUsed(fileId);
+          extractConfigProperties(node.right, adapter);
         }
       }
 
-      // 2. Detect astroExpressiveCode({ ... }) calls inside astro.config.* or remarkExpressiveCode({ ... })
+      // 2. Detect astroExpressiveCode({ ... }) / remarkExpressiveCode({ ... }) calls
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
         const calleeName = node.callee.name;
 
         if (calleeName === "astroExpressiveCode") {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("astro-expressive-code");
+          if (node.arguments[0]) extractConfigProperties(node.arguments[0], adapter);
         } else if (calleeName === "remarkExpressiveCode") {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("remark-expressive-code");
+          if (node.arguments[0]) extractConfigProperties(node.arguments[0], adapter);
         }
       }
 
-      // 3. Retain imports from expressive-code or @expressive-code/*
+      // 3. Retain Expressive Code package imports across any file
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (isExpressiveCodePackage(source)) {
+        if (source && isExpressiveCodePackage(source)) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }

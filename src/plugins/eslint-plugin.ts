@@ -69,7 +69,8 @@ export const EslintPlugin: AnalyzerPlugin = {
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
-      if (pkg.dependencies?.["eslint"] || pkg.devDependencies?.["eslint"] || pkg.eslintConfig) {
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (allDeps["eslint"] || allDeps["@nx/eslint"] || pkg.eslintConfig) {
         return true;
       }
     }
@@ -82,7 +83,7 @@ export const EslintPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
-      const hasEslintDep = pkg ? !!(pkg.dependencies?.["eslint"] || pkg.devDependencies?.["eslint"]) : false;
+      const hasEslintDep = pkg ? !!(pkg.dependencies?.["eslint"] || pkg.devDependencies?.["eslint"] || pkg.dependencies?.["@nx/eslint"] || pkg.devDependencies?.["@nx/eslint"]) : false;
 
       let hasConfigFile = false;
       for (const file of ESLINT_CONFIG_FILES) {
@@ -107,14 +108,11 @@ export const EslintPlugin: AnalyzerPlugin = {
       }
 
       if (hasConfigFile && !hasEslintDep) {
-        adapter.emitFinding({
-          rule: "missing-dependency",
-          severity: "error",
-          confidence: "high",
-          file: "package.json",
-          message: "ESLint configuration found but 'eslint' is not listed in package.json.",
-          evidence: { hasConfigFile }
-        });
+        if (await adapter.folderExists("nx.json")) {
+          adapter.markPackageAsUsed("@nx/eslint");
+        } else {
+          adapter.markPackageAsUsed("eslint");
+        }
       }
     },
 
@@ -133,17 +131,17 @@ export const EslintPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      const isConfigFile = ESLINT_CONFIG_FILES.some((f) => fileId.endsWith(f));
-      if (!isConfigFile) return;
+      const normalized = fileId.replace(/\\/g, "/");
+      const matchedConfig = ESLINT_CONFIG_FILES.find((f) => normalized.endsWith(f));
+      
+      if (!matchedConfig) return;
 
-      // 1. Detect ESLint imports (Flat Config v9+ style imports)
+      const isLegacyConfig = matchedConfig.startsWith(".eslintrc");
+
+      // 1. Detect ESM Imports (Flat Config v9+ and TypeScript configs)
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source.includes("eslint") ||
-          source.startsWith("@typescript-eslint/") ||
-          source.startsWith("@stylistic/")
-        ) {
+        if (!source.startsWith(".") && !source.startsWith("/")) {
           adapter.markPackageAsUsed(source);
           adapter.markPackageAsUsed("eslint");
         }
@@ -154,24 +152,46 @@ export const EslintPlugin: AnalyzerPlugin = {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg)) {
           const val = arg.value;
-          if (val.includes("eslint") || val.startsWith("@typescript-eslint/")) {
+          if (!val.startsWith(".") && !val.startsWith("/")) {
             adapter.markPackageAsUsed(val);
             adapter.markPackageAsUsed("eslint");
           }
         }
       }
 
-      // 3. Resolve Legacy Shorthands in strings (.eslintrc)
-      if (t.isStringLiteral(node)) {
+      // 3. Resolve Legacy Shorthands in strings ONLY for .eslintrc* files
+      if (isLegacyConfig && t.isStringLiteral(node)) {
         const val = node.value;
 
-        if (val.includes("eslint-plugin-") || val.startsWith("@")) {
-          const pkgName = resolvePluginPackage(val);
-          if (pkgName) adapter.markPackageAsUsed(pkgName);
-          adapter.markPackageAsUsed("eslint");
-        } else if (val.includes("eslint-config-") || val.startsWith("plugin:")) {
+        // Skip path references, globs, or non-package strings
+        if (
+          val.startsWith(".") ||
+          val.startsWith("/") ||
+          val.includes("*") ||
+          val === "error" ||
+          val === "warn" ||
+          val === "off"
+        ) {
+          return;
+        }
+
+        if (val.startsWith("plugin:")) {
           const pkgName = resolveConfigPackage(val);
           if (pkgName) adapter.markPackageAsUsed(pkgName);
+          adapter.markPackageAsUsed("eslint");
+        } else if (val.includes("eslint-config-")) {
+          adapter.markPackageAsUsed(val);
+          adapter.markPackageAsUsed("eslint");
+        } else if (val.includes("eslint-plugin-")) {
+          adapter.markPackageAsUsed(val);
+          adapter.markPackageAsUsed("eslint");
+        } else {
+          // Attempt resolving bare shorthands (e.g. "airbnb", "react", "@typescript-eslint")
+          const pluginPkg = resolvePluginPackage(val);
+          const configPkg = resolveConfigPackage(val);
+          
+          if (pluginPkg) adapter.markPackageAsUsed(pluginPkg);
+          if (configPkg) adapter.markPackageAsUsed(configPkg);
           adapter.markPackageAsUsed("eslint");
         }
       }

@@ -50,9 +50,49 @@ const ANGULAR_FUNCTIONAL_SIGNALS = new Set([
   "inject"
 ]);
 
+/**
+ * Normalizes scoped package specifiers (e.g. "@angular/core/rxjs-interop" -> "@angular/core")
+ */
+function extractAngularPackageName(specifier: string): string | null {
+  if (!specifier || !specifier.startsWith("@angular/")) return null;
+  const parts = specifier.split("/");
+  return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : specifier;
+}
+
+/**
+ * Inspects @Component decorator metadata objects to extract external templates & styles
+ */
+function extractComponentMetadata(metadataObj: any, adapter: any): void {
+  if (!t.isObjectExpression(metadataObj)) return;
+
+  for (const prop of metadataObj.properties) {
+    if (!t.isObjectProperty(prop)) continue;
+    const keyName = prop.key?.name || prop.key?.value;
+
+    // templateUrl: './app.component.html'
+    if (keyName === "templateUrl" && t.isStringLiteral(prop.value)) {
+      adapter.markAsUsed(prop.value.value);
+    }
+
+    // styleUrl: './app.component.scss'
+    if (keyName === "styleUrl" && t.isStringLiteral(prop.value)) {
+      adapter.markAsUsed(prop.value.value);
+    }
+
+    // styleUrls: ['./app.component.scss', './theme.css']
+    if (keyName === "styleUrls" && t.isArrayExpression(prop.value)) {
+      for (const el of prop.value.elements) {
+        if (t.isStringLiteral(el)) {
+          adapter.markAsUsed(el.value);
+        }
+      }
+    }
+  }
+}
+
 export const AngularPlugin: AnalyzerPlugin = {
   name: "angular-plugin",
-  version: "1.2.0",
+  version: "1.3.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
@@ -79,7 +119,7 @@ export const AngularPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      const hasAngularDep = ANGULAR_PACKAGES.some((p) => p in allDeps);
+      const hasCoreDep = "@angular/core" in allDeps;
 
       let hasConfigFile = false;
       for (const configFile of ANGULAR_CONFIG_FILES) {
@@ -90,13 +130,9 @@ export const AngularPlugin: AnalyzerPlugin = {
         }
       }
 
-      // Mark installed @angular/* packages as used
-      if (hasAngularDep) {
-        for (const ngPkg of ANGULAR_PACKAGES) {
-          if (allDeps[ngPkg]) {
-            adapter.markPackageAsUsed(ngPkg);
-          }
-        }
+      // Safeguard core framework package if present
+      if (hasCoreDep) {
+        adapter.markPackageAsUsed("@angular/core");
       }
 
       // Track npm scripts invoking Angular CLI (e.g. "build": "ng build")
@@ -112,7 +148,7 @@ export const AngularPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasConfigFile && !hasAngularDep) {
+      if (hasConfigFile && !hasCoreDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
@@ -170,30 +206,36 @@ export const AngularPlugin: AnalyzerPlugin = {
         (node as any).decorators ||
         (node as any).modifiers?.filter((m: any) => m?.type === "Decorator");
 
-      const getDecoratorName = (dec: any): string | null => {
+      const getDecoratorInfo = (dec: any): { name: string | null; arg: any } => {
         const expr = dec?.expression;
-        const callee = t.isCallExpression(expr) ? expr.callee : expr;
-        if (t.isIdentifier(callee)) return callee.name;
+        const isCall = t.isCallExpression(expr);
+        const callee = isCall ? expr.callee : expr;
+        const arg = isCall ? expr.arguments[0] : null;
+
+        if (t.isIdentifier(callee)) return { name: callee.name, arg };
         if (t.isMemberExpression(callee) && t.isIdentifier(callee.property)) {
-          return callee.property.name;
+          return { name: callee.property.name, arg };
         }
-        return null;
+        return { name: null, arg: null };
       };
 
       // 1. Angular Class Decorators (@Component, @Directive, @Injectable, @NgModule, @Pipe)
       if ((t.isClassDeclaration(node) || t.isClassExpression(node)) && decorators) {
-        const hasAngularDecorator = decorators.some((dec: any) => {
-          const name = getDecoratorName(dec);
-          return name && ANGULAR_CLASS_DECORATORS.has(name);
-        });
+        for (const dec of decorators) {
+          const { name, arg } = getDecoratorInfo(dec);
+          if (name && ANGULAR_CLASS_DECORATORS.has(name)) {
+            const className = (node as any).id?.name;
+            if (className) {
+              adapter.markAsUsed(fileId, className);
+            }
+            adapter.markAsUsed(fileId);
+            adapter.markPackageAsUsed("@angular/core");
 
-        if (hasAngularDecorator) {
-          const className = (node as any).id?.name;
-          if (className) {
-            adapter.markAsUsed(fileId, className);
+            // Extract external template & style assets for @Component
+            if (name === "Component" && arg) {
+              extractComponentMetadata(arg, adapter);
+            }
           }
-          adapter.markAsUsed(fileId);
-          adapter.markPackageAsUsed("@angular/core");
         }
       }
 
@@ -205,7 +247,7 @@ export const AngularPlugin: AnalyzerPlugin = {
         decorators
       ) {
         const isAngularMember = decorators.some((dec: any) => {
-          const name = getDecoratorName(dec);
+          const { name } = getDecoratorInfo(dec);
           return name && ANGULAR_MEMBER_DECORATORS.has(name);
         });
 
@@ -236,11 +278,12 @@ export const AngularPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 4. Protect @angular/* imports
+      // 4. Protect @angular/* imports with subpath normalization
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (source.startsWith("@angular/")) {
-          adapter.markPackageAsUsed(source);
+        const pkgName = extractAngularPackageName(source);
+        if (pkgName) {
+          adapter.markPackageAsUsed(pkgName);
           adapter.markAsUsed(fileId);
         }
       }

@@ -13,6 +13,7 @@ const VITE_CONFIG_FILES = [
 
 const VITE_CORE_PACKAGES = [
   "vite",
+  "@nx/vite",
   "@vitejs/plugin-vue",
   "@vitejs/plugin-vue-jsx",
   "@vitejs/plugin-react",
@@ -53,14 +54,23 @@ export const VitePlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      const hasViteDep = VITE_CORE_PACKAGES.some((p) => p in allDeps);
-
+            const hasViteDep = VITE_CORE_PACKAGES.some((p) => p in allDeps);
       let hasConfigFile = false;
       for (const configFile of VITE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
           break;
+        }
+      }
+
+      // If we have a config but no core package, mark the core package as missing
+      if (hasConfigFile && !hasViteDep) {
+        // If it's an Nx workspace (nx.json exists), suggest @nx/vite, otherwise vite
+        if (await adapter.folderExists("nx.json")) {
+          adapter.markPackageAsUsed("@nx/vite"); // This will trigger missing-dependency if not in package.json
+        } else {
+          adapter.markPackageAsUsed("vite");
         }
       }
 

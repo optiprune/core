@@ -78,14 +78,37 @@ function escapeRegex(value: string): string {
   return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
 }
 
+/**
+ * Converts a glob pattern to a Regular Expression.
+ * 
+ * Improvements:
+ * 1. If a pattern doesn't contain a slash, it's treated as a name match (matches anywhere).
+ * 2. Handles ** correctly for recursive directory matching.
+ * 3. Normalizes trailing slashes to match both files and directories.
+ */
 export function globToRegExp(pattern: string): RegExp {
+  let p = pattern.replace(/\\/g, "/");
+  
+  // Standard glob behavior: 
+  // 1. If it contains no slash (other than a trailing one), it matches anywhere.
+  // 2. A trailing slash means it must be a directory.
+  const hasInternalSlash = p.replace(/\/$/, "").includes("/");
+  const isNameOnly = !hasInternalSlash;
+
   let source = "^";
-  const normalized = pattern.replace(/\\/g, "/");
-  for (let index = 0; index < normalized.length; index += 1) {
-    const char = normalized[index];
-    const next = normalized[index + 1];
+  
+  if (isNameOnly) {
+    source += "(?:.*/)?";
+  }
+
+  const cleanPattern = p.replace(/\/$/, "");
+  
+  for (let index = 0; index < cleanPattern.length; index += 1) {
+    const char = cleanPattern[index];
+    const next = cleanPattern[index + 1];
+    
     if (char === "*" && next === "*") {
-      const after = normalized[index + 2];
+      const after = cleanPattern[index + 2];
       if (after === "/") {
         source += "(?:.*/)?";
         index += 2;
@@ -101,7 +124,10 @@ export function globToRegExp(pattern: string): RegExp {
       source += escapeRegex(char ?? "");
     }
   }
-  source += "$";
+  
+  // Match the file/directory itself OR anything inside it if it's a directory
+  source += "(?:/.*)?$";
+  
   return new RegExp(source);
 }
 
@@ -109,9 +135,41 @@ export function compileGlobs(patterns: string[]): RegExp[] {
   return patterns.map(globToRegExp);
 }
 
-export function matchesAnyGlob(relativePath: string, compiledPatterns: RegExp[]): boolean {
-  const normalized = toPosix(relativePath).replace(/^\.\//, "");
+/**
+ * Checks if a path matches any of the compiled glob patterns.
+ * Automatically handles absolute paths by making them relative to root if possible.
+ */
+export function matchesAnyGlob(
+  filePath: string, 
+  compiledPatterns: RegExp[], 
+  rootDir?: string
+): boolean {
+  let target = toPosix(filePath);
+  
+  if (rootDir) {
+    const normalizedRoot = normalizeAbsolute(rootDir);
+    if (target.startsWith(normalizedRoot)) {
+      target = patheRelative(normalizedRoot, target);
+    }
+  }
+  
+  // Strip leading ./ for clean matching
+  const normalized = toPosix(target).replace(/^\.\//, "");
+  
   return compiledPatterns.some((pattern) => pattern.test(normalized));
+}
+
+/**
+ * Unified ignore check used across the codebase.
+ */
+export function isIgnored(
+  filePath: string, 
+  ignorePatterns: string[] = [], 
+  rootDir?: string
+): boolean {
+  if (!ignorePatterns || ignorePatterns.length === 0) return false;
+  const compiled = compileGlobs(ignorePatterns);
+  return matchesAnyGlob(filePath, compiled, rootDir);
 }
 
 export async function fileExists(candidate: string): Promise<boolean> {

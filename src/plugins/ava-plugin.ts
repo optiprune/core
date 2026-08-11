@@ -12,14 +12,24 @@ const AVA_CONFIG_FILES = [
 const AVA_ECOSYSTEM_PACKAGES = [
   "ava",
   "@ava/typescript",
-  "@ava/babel",
-  "ts-node",
-  "tsx"
+  "@ava/babel"
 ];
+
+/**
+ * Normalizes package names from import/require specs (handles scoped packages)
+ */
+function extractPackageName(specifier: string): string | null {
+  if (!specifier || specifier.startsWith(".") || specifier.startsWith("/")) return null;
+  if (specifier.startsWith("@")) {
+    const parts = specifier.split("/");
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : specifier;
+  }
+  return specifier.split("/")[0] || null;
+}
 
 export const AvaPlugin: AnalyzerPlugin = {
   name: "ava-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
@@ -29,7 +39,7 @@ export const AvaPlugin: AnalyzerPlugin = {
         ...pkg.devDependencies,
         ...pkg.peerDependencies
       };
-      if (AVA_ECOSYSTEM_PACKAGES.some((pkgName) => pkgName in allDeps) || pkg.ava) {
+      if ("ava" in allDeps || pkg.ava) {
         return true;
       }
 
@@ -61,15 +71,11 @@ export const AvaPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      const hasAvaDep = AVA_ECOSYSTEM_PACKAGES.some((p) => p in allDeps);
+      const hasAvaDep = "ava" in allDeps;
 
-      // 1. Safeguard installed Ava ecosystem packages in package.json
+      // 1. Protect core ava package if installed
       if (hasAvaDep) {
-        for (const avaPkg of AVA_ECOSYSTEM_PACKAGES) {
-          if (allDeps[avaPkg]) {
-            adapter.markPackageAsUsed(avaPkg);
-          }
-        }
+        adapter.markPackageAsUsed("ava");
       }
 
       // 2. Protect standalone config files or package.json ava block
@@ -89,14 +95,19 @@ export const AvaPlugin: AnalyzerPlugin = {
         if (Array.isArray(pkg.ava.require)) {
           pkg.ava.require.forEach((reqPkg: string) => {
             if (typeof reqPkg === "string") {
-              if (reqPkg.startsWith(".") || reqPkg.startsWith("/")) {
-                adapter.markAsUsed(reqPkg);
+              const pkgName = extractPackageName(reqPkg);
+              if (pkgName) {
+                adapter.markPackageAsUsed(pkgName);
               } else {
-                const pkgName = reqPkg.split("/")[0];
-                if (pkgName) adapter.markPackageAsUsed(pkgName);
+                adapter.markAsUsed(reqPkg);
               }
             }
           });
+        }
+
+        // Protect @ava/typescript if typescript key exists in package.json ava block
+        if (pkg.ava.typescript && "@ava/typescript" in allDeps) {
+          adapter.markPackageAsUsed("@ava/typescript");
         }
       }
 
@@ -156,13 +167,30 @@ export const AvaPlugin: AnalyzerPlugin = {
       // 1. Detect ESM imports for Ava and extensions (import test from 'ava')
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (source === "ava" || source.startsWith("@ava/")) {
-          adapter.markPackageAsUsed(source);
+        const pkgName = extractPackageName(source);
+        if (pkgName && (pkgName === "ava" || pkgName.startsWith("@ava/"))) {
+          adapter.markPackageAsUsed(pkgName);
           adapter.markAsUsed(fileId);
         }
       }
 
-      // 2. In Ava configuration files (ava.config.js / ava.config.ts)
+      // 2. Detect CJS require(...) calls for Ava
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
+        const arg = node.arguments[0];
+        if (t.isStringLiteral(arg)) {
+          const pkgName = extractPackageName(arg.value);
+          if (pkgName && (pkgName === "ava" || pkgName.startsWith("@ava/"))) {
+            adapter.markPackageAsUsed(pkgName);
+            adapter.markAsUsed(fileId);
+          }
+        }
+      }
+
+      // 3. In Ava configuration files (ava.config.js / ava.config.ts)
       if (isConfigFile) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -171,10 +199,12 @@ export const AvaPlugin: AnalyzerPlugin = {
 
         // CJS module.exports = { ... }
         if (
-          node?.type === "AssignmentExpression" &&
-          (node as any).left?.type === "MemberExpression" &&
-          (node as any).left?.object?.name === "module" &&
-          (node as any).left?.property?.name === "exports"
+          t.isAssignmentExpression(node) &&
+          t.isMemberExpression(node.left) &&
+          t.isIdentifier(node.left.object) &&
+          node.left.object.name === "module" &&
+          t.isIdentifier(node.left.property) &&
+          node.left.property.name === "exports"
         ) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("ava");
@@ -185,26 +215,22 @@ export const AvaPlugin: AnalyzerPlugin = {
           const keyName = node.key.name;
 
           if (keyName === "require") {
-            if (t.isArrayExpression(node.value)) {
-              node.value.elements.forEach((el: any) => {
-                if (t.isStringLiteral(el)) {
-                  const reqVal = el.value;
-                  if (reqVal.startsWith(".") || reqVal.startsWith("/")) {
-                    adapter.markAsUsed(reqVal);
-                  } else {
-                    const pkgName = reqVal.split("/")[0];
-                    if (pkgName) adapter.markPackageAsUsed(pkgName);
-                  }
+            const processReq = (el: any) => {
+              if (t.isStringLiteral(el)) {
+                const reqVal = el.value;
+                const pkgName = extractPackageName(reqVal);
+                if (pkgName) {
+                  adapter.markPackageAsUsed(pkgName);
+                } else {
+                  adapter.markAsUsed(reqVal);
                 }
-              });
-            } else if (t.isStringLiteral(node.value)) {
-              const reqVal = node.value.value;
-              if (reqVal.startsWith(".") || reqVal.startsWith("/")) {
-                adapter.markAsUsed(reqVal);
-              } else {
-                const pkgName = reqVal.split("/")[0];
-                if (pkgName) adapter.markPackageAsUsed(pkgName);
               }
+            };
+
+            if (t.isArrayExpression(node.value)) {
+              node.value.elements.forEach(processReq);
+            } else if (t.isStringLiteral(node.value)) {
+              processReq(node.value);
             }
           }
 
