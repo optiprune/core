@@ -153,9 +153,10 @@ export const VueJsPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
-      // 1. Vue SFC files (.vue) are active entry points
+      // 1. We no longer mark all .vue files as used by default.
+      // They are protected via AST analysis in onASTNode if they are imported,
+      // or via template tag extraction in the parser.
       if (normalized.endsWith(".vue")) {
-        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vue");
       }
 

@@ -118,10 +118,27 @@ export const VitePlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("vite");
       }
 
-      // 2. Mark default entry points for Vite apps
+      // 2. Mark default entry points for Vite apps and discover their scripts
       if (basename === "index.html") {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vite");
+
+        // Extract script tags from index.html to find the real entry points
+        adapter.readFile(fileId).then((content) => {
+          if (content) {
+            const scriptRe = /<script\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/gi;
+            let m;
+            while ((m = scriptRe.exec(content)) !== null) {
+              const src = m[1];
+              if (src && !src.startsWith("http") && !src.startsWith("//")) {
+                // Resolve relative to index.html's directory
+                const dir = path.dirname(fileId);
+                const resolved = path.resolve(dir, src);
+                adapter.markAsUsed(resolved);
+              }
+            }
+          }
+        }).catch(() => {});
       }
 
       const standardEntries = [

@@ -125,7 +125,9 @@ export class PluginEngine {
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onProjectInit) {
         try {
-          dbg(verbose, `[Plugin Engine] Running onProjectInit for ${plugin.name}`);
+          if (!runOptions.skipDetection) {
+            dbg(verbose, `[Plugin Engine] Running onProjectInit for ${plugin.name}`);
+          }
           await plugin.lifecycle.onProjectInit(adapter);
         } catch (err) {
           console.error(`[Plugin Engine] Error in onProjectInit for ${plugin.name}:`, err);
@@ -169,7 +171,9 @@ export class PluginEngine {
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onAnalysisComplete) {
         try {
-          dbg(verbose, `[Plugin Engine] Running onAnalysisComplete for ${plugin.name}`);
+          if (!runOptions.skipDetection) {
+            dbg(verbose, `[Plugin Engine] Running onAnalysisComplete for ${plugin.name}`);
+          }
           await plugin.lifecycle.onAnalysisComplete(adapter);
         } catch (err) {
           console.error(`[Plugin Engine] Error in onAnalysisComplete for ${plugin.name}:`, err);

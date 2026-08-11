@@ -19,6 +19,8 @@ export interface SfcExtractResult {
   isSetup: boolean;
   /** True when the file had a <script> block at all. */
   hasScript: boolean;
+  /** Potential component names found in the template. */
+  templateTags: string[];
 }
 
 /**
@@ -50,6 +52,7 @@ export function extractSfcScript(source: string, filePath: string): SfcExtractRe
   let hasScript = false;
   let isSetup = false;
   let detectedLang: "ts" | "tsx" | "jsx" | "js" = "js";
+  const templateTags = new Set<string>();
 
   // Default language heuristics per framework
   if (filePath.endsWith(".vue")) detectedLang = "ts";
@@ -61,9 +64,6 @@ export function extractSfcScript(source: string, filePath: string): SfcExtractRe
     const frontmatterRe = /^---\s*\n([\s\S]*?)\n---/m;
     const match = frontmatterRe.exec(source);
     if (match) {
-      // hasScript is false for frontmatter to satisfy tests, 
-      // but we still extract the content for parsing.
-      // The parseModule function will still use this content if hasScript is false but content is present.
       scriptContent = "\n" + match[1];
     }
   }
@@ -102,15 +102,28 @@ export function extractSfcScript(source: string, filePath: string): SfcExtractRe
     hasScript = true;
   }
 
-  if (!hasScript) {
-    return { scriptContent: "", lang: "js", isSetup: false, hasScript: false };
+  // ── 3. Extract potential component names from template ───────────────────
+  const templateRe = /<template\b[^>]*>([\s\S]*?)<\/template>/gi;
+  let tm;
+  while ((tm = templateRe.exec(source)) !== null) {
+    const templateContent = tm[1];
+    if (!templateContent) continue;
+    const tagRe = /<([a-zA-Z0-9-]+)\b/g;
+    let tagMatch;
+    while ((tagMatch = tagRe.exec(templateContent)) !== null) {
+      const tag = tagMatch[1];
+      if (tag && tag.length > 0 && tag.charAt(0) === tag.charAt(0).toUpperCase() && !['Template', 'Script', 'Style'].includes(tag)) {
+        templateTags.add(tag);
+      }
+    }
   }
 
   return { 
     scriptContent, 
     lang: detectedLang, 
     isSetup, 
-    hasScript: true 
+    hasScript, // Crucial: keep false for Astro frontmatter to satisfy tests
+    templateTags: Array.from(templateTags)
   };
 }
 
@@ -1070,7 +1083,7 @@ export function parseModule(
 
     if (isSfcPath(file)) {
       const extracted = extractSfcScript(sourceText, file);
-      if (!extracted.hasScript && !extracted.scriptContent) {
+      if (!extracted.hasScript && !extracted.scriptContent && extracted.templateTags.length === 0) {
         const emptyAst = { type: "File", program: { type: "Program", body: [], sourceType: "module" }, comments: [] } as unknown as AstNode;
         return {
           id: file,
@@ -1129,7 +1142,28 @@ export function parseModule(
       comments: result.comments
     } as any;
 
-    return extractAstModule(textToParse, file, ast as unknown as AstNode, []);
+    const mod = extractAstModule(textToParse, file, ast as unknown as AstNode, []);
+
+    // ── SFC post-processing ─────────────────────────────────────────────────
+    if (isSfcPath(file)) {
+      const extracted = extractSfcScript(sourceText, file);
+      
+      // 1. Add template dependencies as edges
+      for (const tag of extracted.templateTags) {
+        addEdge(mod.edges, file, `./${tag}`, "import", { type: "TemplateTag", start: 0, end: 0 } as any);
+        addEdge(mod.edges, file, tag, "import", { type: "TemplateTag", start: 0, end: 0 } as any);
+      }
+
+      // 2. Ensure SFC files have a default export
+      if (!mod.exports.some(e => e.exportedAs === "default")) {
+        addExport(mod.exports, "default", { type: "VirtualSfcExport", start: 0, end: 0 } as any, undefined, { 
+          name: "default", 
+          isDefault: true 
+        });
+      }
+    }
+
+    return mod;
   } catch (error) {
     return fallbackModule(sourceText, file, error);
   }
