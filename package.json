@@ -1,6 +1,6 @@
 {
   "name": "@optiprune/core",
-  "version": "1.11.2",
+  "version": "1.11.3",
   "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
   "type": "module",
   "main": "./dist/index.js",
@@ -89,8 +89,9 @@
     "vitest": "^3.2.4"
   },
   "engines": {
-    "node": "^22.18.0 || >=24.11.0"
+    "node": "^22.15.1 || >=24.11.0"
   },
+  "packageManager": "npm@10.9.2",
   "directories": {
     "doc": "docs",
     "test": "tests"
