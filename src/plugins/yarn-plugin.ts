@@ -118,22 +118,15 @@ export const YarnPlugin: AnalyzerPlugin = {
         }
 
         if (workspaceGlobs.length > 0) {
-          if (typeof (adapter as any).setWorkspaceGlobs === "function") {
-            (adapter as any).setWorkspaceGlobs(workspaceGlobs);
-          }
-          if (typeof (adapter as any).setRepoType === "function") {
-            (adapter as any).setRepoType("monorepo");
-          }
+          adapter.setWorkspaceGlobs(workspaceGlobs);
+          adapter.setRepoType("monorepo");
 
           workspaceGlobs.forEach((globPath) => {
             adapter.markAsUsed(globPath);
           });
         }
-      } else if (
-        hasYarnConfig &&
-        typeof (adapter as any).setRepoType === "function"
-      ) {
-        (adapter as any).setRepoType("repo");
+      } else if (hasYarnConfig) {
+        adapter.setRepoType("single-package");
       }
     },
 

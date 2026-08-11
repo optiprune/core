@@ -9,11 +9,14 @@ import type { WorkspacePackage, MonorepoGraph } from './types.js';
  * Resolves all sub-packages in a Monorepo workspace.
  * Uses POSIX-style path logic for internal calculations to support Windows.
  */
-export async function buildMonorepoTopology(rootPath: string): Promise<MonorepoGraph> {
+export async function buildMonorepoTopology(
+  rootPath: string,
+  pluginWorkspaceGlobs: string[] = [],
+): Promise<MonorepoGraph> {
   const absoluteRoot = normalizeAbsolute(rootPath);
   const packageMap = new Map<string, WorkspacePackage>();
   
-  const packageGlobs: string[] = [];
+  const packageGlobs: string[] = [...pluginWorkspaceGlobs];
 
   // 1. Detect pnpm-workspace.yaml
   const pnpmWorkspacePath = path.join(absoluteRoot, 'pnpm-workspace.yaml');
@@ -61,14 +64,16 @@ export async function buildMonorepoTopology(rootPath: string): Promise<MonorepoG
     }
   }
 
+  const uniquePackageGlobs = Array.from(new Set(packageGlobs.filter((glob) => typeof glob === "string" && glob.trim().length > 0)));
+
   // Default to common patterns if nothing found
-  if (packageGlobs.length === 0) {
+  if (uniquePackageGlobs.length === 0) {
     packageGlobs.push('packages/*', 'apps/*');
   }
 
   // 3. Find all package.json files matching the globs
   let manifestFiles = await fg(
-    packageGlobs.map(g => path.posix.join(g, 'package.json')),
+    (uniquePackageGlobs.length > 0 ? uniquePackageGlobs : packageGlobs).map(g => path.posix.join(g, 'package.json')),
     { cwd: absoluteRoot, absolute: true, ignore: ['**/node_modules/**'] }
   );
 

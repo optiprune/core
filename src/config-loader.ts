@@ -40,6 +40,11 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   externalContracts: [],
   verbose: false,
   fix: false,
+  workspaceGlobs: [],
+  projectPatterns: [],
+  unreachableFileIgnorePatterns: [],
+  protectedExportPatterns: [],
+  frameworks: [],
   pathAliases: new Map<string, string[]>(),
   layers: {
     smtTimeoutMs: 100,

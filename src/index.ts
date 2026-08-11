@@ -28,6 +28,7 @@ import {
   expandEntryPatterns,
   ingestTsConfigPaths,
   normalizeAbsolute,
+  matchesAnyGlob,
   readJsonFile,
   relativeDisplayPath,
   rootLooksValid,
@@ -116,16 +117,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const newCache = { version: "1.0", entries: {} as any };
   
   // Phase 1: Core Graph & AST (Instant)
-  
-  // Discover Monorepo Topology
-  let hasMonorepo = false;
-  try {
-    resolvedOptions.monorepo = await buildMonorepoTopology(resolvedOptions.rootDir);
-    hasMonorepo = !!resolvedOptions.monorepo;
-  } catch (e) {
-    // console.error(`[Monorepo] Discovery failed: ${e}`);
-  }
-
   const { rootDir } = resolvedOptions;
 
   if (!(await rootLooksValid(rootDir))) {
@@ -142,11 +133,39 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
 
+  // Package-manager and framework plugins can contribute workspace patterns
+  // during their early configuration pass. Build topology only after those
+  // declarations have been applied so no workspace metadata is discarded.
+  let hasMonorepo = false;
+  try {
+    resolvedOptions.monorepo = await buildMonorepoTopology(
+      resolvedOptions.rootDir,
+      resolvedOptions.workspaceGlobs,
+    );
+    hasMonorepo = resolvedOptions.monorepo.packageMap.size > 0;
+  } catch (e) {
+    // Ignore malformed package-manager configuration and continue analysis.
+  }
+
   // Re-read configuration options after plugin initialization
   const { extensions, ignore, entry, includeConventionalEntries } = resolvedOptions;
   const compiledIgnorePatterns = compileGlobs(ignore);
 
-  const allSourceFiles = await discoverSourceFiles(rootDir, extensions, compiledIgnorePatterns);
+  const discoveredSourceFiles = await discoverSourceFiles(rootDir, extensions, compiledIgnorePatterns);
+  const projectPatterns = resolvedOptions.projectPatterns ?? [];
+  const includedProjectPatterns = projectPatterns.filter((pattern) => !pattern.startsWith("!"));
+  const excludedProjectPatterns = projectPatterns
+    .filter((pattern) => pattern.startsWith("!"))
+    .map((pattern) => pattern.slice(1));
+  const compiledIncludedProjectPatterns = compileGlobs(includedProjectPatterns);
+  const compiledExcludedProjectPatterns = compileGlobs(excludedProjectPatterns);
+  const allSourceFiles = projectPatterns.length === 0
+    ? discoveredSourceFiles
+    : discoveredSourceFiles.filter((file) => {
+        const included = includedProjectPatterns.length === 0
+          || matchesAnyGlob(file, compiledIncludedProjectPatterns, rootDir);
+        return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
+      });
   const modules = new Map<string, ModuleRecord>();
   const semanticGraph = new SemanticGraph();
   const topologyManager = new TopologyManager(semanticGraph);
@@ -349,8 +368,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     await analyzeLayer5(context);
   }
   
-  // Gated Layer 6: Dependency & Boundary Engine
-  if (hasMonorepo || allSourceFiles.some(f => f.endsWith('.d.ts'))) {
+  // Gated Layer 6: Dependency & Boundary Engine. Contract revocation is a
+  // Layer 6 responsibility, so it must also run for framework-declared
+  // contracts in single-package projects (for example, NestJS decorators).
+  const hasProtectedContracts = Array.from(modules.values()).some((module) =>
+    module.exports.some((exp) => exp.isExternalContract),
+  );
+  if (hasMonorepo || allSourceFiles.some((file) => file.endsWith(".d.ts")) || hasProtectedContracts) {
     const layer6Findings = await analyzeLayer6(context);
     findings.push(...layer6Findings);
   }
@@ -420,10 +444,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   // Final Reporting Phase: Unused Exports & Unreachable Files
+  const protectedExportPatterns = compileGlobs(resolvedOptions.protectedExportPatterns ?? []);
   if (resolvedOptions.reportUnusedExports) {
     const importUsage = buildImportUsage(modules);
     for (const module of modules.values()) {
-      if (context.reachable.has(module.id) || context.maybeReachable.has(module.id)) {
+      if (
+        (context.reachable.has(module.id) || context.maybeReachable.has(module.id)) &&
+        !matchesAnyGlob(module.id, protectedExportPatterns, rootDir)
+      ) {
         for (const exp of module.exports) {
           if (exp.isExternalContract) continue;
 
@@ -511,8 +539,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
 
+  const unreachableFileIgnorePatterns = compileGlobs(resolvedOptions.unreachableFileIgnorePatterns ?? []);
   for (const module of modules.values()) {
-    if (!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) {
+    if (
+      !context.reachable.has(module.id) &&
+      !context.maybeReachable.has(module.id) &&
+      !matchesAnyGlob(module.id, unreachableFileIgnorePatterns, rootDir)
+    ) {
       const fileComponent = context.components.find((c) => c.modules.includes(module.id));
       const isIsolatedComponent = fileComponent && !fileComponent.isReachable && !fileComponent.isMaybeReachable;
       findings.push({
@@ -594,7 +627,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Support automated fixes
   if (resolvedOptions.fix) {
-    await runFixes(report, resolvedOptions.rootDir, resolvedOptions.fix);
+    const fixedCount = await runFixes(report, resolvedOptions.rootDir, resolvedOptions.fix);
+    if (resolvedOptions.verbose || (typeof resolvedOptions.fix === 'object' && resolvedOptions.fix.dryRun)) {
+      console.error(`[Fixer] Applied ${fixedCount} fixes.`);
+    }
   }
 
   // Support external cache-to path

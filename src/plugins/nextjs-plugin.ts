@@ -66,20 +66,55 @@ const NEXT_ECOSYSTEM_PACKAGES = [
   "@mdx-js/loader"
 ];
 
+const NEXT_ROUTE_EVIDENCE_FILES = [
+  "app/page.tsx", "app/page.jsx", "app/layout.tsx", "app/layout.jsx",
+  "src/app/page.tsx", "src/app/page.jsx", "src/app/layout.tsx", "src/app/layout.jsx",
+  "pages/_app.tsx", "pages/_app.jsx", "pages/_document.tsx", "pages/_document.jsx",
+  "src/pages/_app.tsx", "src/pages/_app.jsx", "src/pages/_document.tsx", "src/pages/_document.jsx",
+];
+
+async function hasNextRouteEvidence(adapter: import("../types.js").PluginAdapter): Promise<boolean> {
+  for (const file of NEXT_ROUTE_EVIDENCE_FILES) {
+    if (await adapter.folderExists(file)) return true;
+  }
+  return (await adapter.folderExists("pages/api")) || (await adapter.folderExists("src/pages/api"));
+}
+
+function hasNextScript(pkg: any): boolean {
+  return Object.values(pkg?.scripts ?? {}).some(
+    (script) => typeof script === "string" && /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?next(?:\s|$)/.test(script),
+  );
+}
+
+function isNextRouteLocation(normalized: string, filename: string): boolean {
+  const inAppRouter = normalized.startsWith("app/") || normalized.includes("/app/");
+  if (inAppRouter && NEXT_SPECIAL_FILES.has(filename)) return true;
+
+  const isPagesSpecial =
+    normalized.includes("/pages/api/") ||
+    normalized.startsWith("pages/api/") ||
+    /(?:^|\/)pages\/(?:_app|_document)\.[jt]sx?$/.test(normalized);
+  if (isPagesSpecial) return true;
+
+  return ["instrumentation.ts", "instrumentation.js", "sitemap.ts", "sitemap.js", "robots.ts", "robots.js"].includes(filename)
+    && !normalized.includes("/");
+}
+
 export const NextjsPlugin: AnalyzerPlugin = {
   name: "nextjs-plugin",
   version: "1.4.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    if (pkg && (pkg.dependencies?.["next"] || pkg.devDependencies?.["next"])) {
-      adapter.markPackageAsUsed("next");
-      return true;
-    }
-    for (const file of NEXT_CONFIG_FILES) {
-      if (await adapter.folderExists(file)) return true;
-    }
-    return false;
+    const hasNextDependency = Boolean(pkg?.dependencies?.["next"] || pkg?.devDependencies?.["next"] || pkg?.peerDependencies?.["next"]);
+    const hasConfig = (await Promise.all(NEXT_CONFIG_FILES.map((file) => adapter.folderExists(file)))).some(Boolean);
+
+    // A next dependency alone is not ownership proof: libraries and tooling can
+    // depend on Next without being a Next application. Config or route/runtime
+    // evidence must corroborate the package declaration.
+    if (hasConfig) return true;
+    if (!hasNextDependency) return false;
+    return hasNextScript(pkg) || await hasNextRouteEvidence(adapter);
   },
 
   lifecycle: {
@@ -92,6 +127,7 @@ export const NextjsPlugin: AnalyzerPlugin = {
       };
 
       const hasNext = !!allDeps["next"];
+      adapter.declareFramework("nextjs");
 
       let hasConfigFile = false;
       for (const file of NEXT_CONFIG_FILES) {
@@ -149,8 +185,8 @@ export const NextjsPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const filename = path.basename(normalized);
 
-      // 1. Mark Next.js specific convention files (page.tsx, layout.tsx, page.mdx, etc.)
-      if (NEXT_SPECIAL_FILES.has(filename)) {
+      // 1. Mark Next.js convention files only in a verified App/Pages Router location.
+      if (isNextRouteLocation(normalized, filename)) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("next");
         if (filename.endsWith(".mdx") || filename.endsWith(".md")) {

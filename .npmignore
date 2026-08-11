@@ -6,13 +6,13 @@ tsconfig.json
 
 # Exclude documentation source (if using VitePress in a subfolder)
 docs/
-
+*.patch
 # Exclude development configs
 .github/
 .vscode/
 .optiprune/
 .nvmrc
-
+*.rej
 # Exclude logs and temp files
 *.log
 *.zip

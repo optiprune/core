@@ -80,11 +80,12 @@ export const PreconstructPlugin: AnalyzerPlugin = {
 
         // Process monorepo package globs: packages: ["packages/*"]
         if (Array.isArray(preconstructConfig.packages)) {
-          if (typeof (adapter as any).setWorkspaceGlobs === "function") {
-            (adapter as any).setWorkspaceGlobs(preconstructConfig.packages);
-          }
-          if (typeof (adapter as any).setRepoType === "function") {
-            (adapter as any).setRepoType("monorepo");
+          const workspaceGlobs = preconstructConfig.packages.filter(
+            (globPath: unknown): globPath is string => typeof globPath === "string",
+          );
+          if (workspaceGlobs.length > 0) {
+            adapter.setWorkspaceGlobs(workspaceGlobs);
+            adapter.setRepoType("monorepo");
           }
 
           preconstructConfig.packages.forEach((globPath: unknown) => {
@@ -98,16 +99,17 @@ export const PreconstructPlugin: AnalyzerPlugin = {
         if (Array.isArray(preconstructConfig.entrypoints)) {
           preconstructConfig.entrypoints.forEach((entry: unknown) => {
             if (typeof entry === "string") {
+              adapter.addEntryPatterns([entry]);
+              adapter.addProtectedExportPatterns([entry]);
+              // Keep the config-derived path visibly retained in addition to using it as an entry.
               adapter.markAsUsed(entry);
-              // Normalize entries like "extra/*" by marking the directory root
-              const cleanEntry = entry.replace(/\/\*$/, "");
-              adapter.markAsUsed(cleanEntry);
             }
           });
         } else if (typeof preconstructConfig.entrypoints === "string") {
           const entry = preconstructConfig.entrypoints;
+          adapter.addEntryPatterns([entry]);
+          adapter.addProtectedExportPatterns([entry]);
           adapter.markAsUsed(entry);
-          adapter.markAsUsed(entry.replace(/\/\*$/, ""));
         }
       }
 

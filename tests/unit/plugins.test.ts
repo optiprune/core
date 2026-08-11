@@ -70,6 +70,8 @@ describe('Plugin Adapter & Framework Plugins', () => {
     const rootDir = '/tmp/next-test';
     await fs.mkdir(rootDir, { recursive: true });
     await fs.writeFile(path.join(rootDir, 'package.json'), JSON.stringify({ dependencies: { 'next': '13.0.0' } }));
+    await fs.mkdir(path.join(rootDir, 'app'), { recursive: true });
+    await fs.writeFile(path.join(rootDir, 'app/page.tsx'), 'export default function Page() {}');
 
     const modules = new Map<string, ModuleRecord>();
     const filePath = path.join(rootDir, 'app/page.tsx');
@@ -99,6 +101,8 @@ describe('Plugin Adapter & Framework Plugins', () => {
     const rootDir = '/tmp/nuxt-test';
     await fs.mkdir(rootDir, { recursive: true });
     await fs.writeFile(path.join(rootDir, 'package.json'), JSON.stringify({ dependencies: { 'nuxt': '3.0.0' } }));
+    await fs.mkdir(path.join(rootDir, 'pages'), { recursive: true });
+    await fs.writeFile(path.join(rootDir, 'pages/index.vue'), '<template><div>Nuxt page</div></template>');
 
     const modules = new Map<string, ModuleRecord>();
     const filePath = path.join(rootDir, 'pages/index.vue');
@@ -122,7 +126,7 @@ describe('Plugin Adapter & Framework Plugins', () => {
     await fs.rm(rootDir, { recursive: true, force: true });
   });
 
-  it('should only enable plugins when framework is detected in package.json', async () => {
+  it('should not enable a framework from package metadata alone', async () => {
     // Create a temporary package.json
     const fs = await import('node:fs/promises');
     const path = await import('pathe');
@@ -150,7 +154,7 @@ describe('Plugin Adapter & Framework Plugins', () => {
     await engine.run(context);
 
     expect(ReactPlugin.enabled).toBe(false);
-    expect(NextjsPlugin.enabled).toBe(true);
+    expect(NextjsPlugin.enabled).toBe(false);
 
     // Cleanup
     await fs.rm(rootDir, { recursive: true, force: true });

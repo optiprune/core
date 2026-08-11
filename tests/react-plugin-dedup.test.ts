@@ -26,7 +26,7 @@ describe("React plugin project findings", () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it("emits the missing React dependency finding once across both analysis passes", async () => {
+  it("does not infer React ownership from JSX compiler settings alone", async () => {
     const report = await analyze({
       rootDir: testDir,
       entry: ["index.tsx"],
@@ -40,6 +40,6 @@ describe("React plugin project findings", () => {
           "JSX support is enabled in tsconfig/jsconfig, but 'react' is not listed in package.json dependencies.",
     );
 
-    expect(jsxDependencyFindings).toHaveLength(1);
+    expect(jsxDependencyFindings).toHaveLength(0);
   });
 });

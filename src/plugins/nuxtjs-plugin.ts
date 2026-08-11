@@ -44,27 +44,40 @@ const NITRO_UTILS = new Set([
   "createError", "sendRedirect", "setResponseStatus", "appendHeader", "setCookie", "deleteCookie"
 ]);
 
+async function hasNuxtRuntimeEvidence(adapter: import("../types.js").PluginAdapter): Promise<boolean> {
+  return (await adapter.folderExists("app.vue")) ||
+    (await adapter.folderExists("pages")) ||
+    (await adapter.folderExists("server/api")) ||
+    (await adapter.folderExists("server/routes"));
+}
+
+function hasNuxtScript(pkg: any): boolean {
+  return Object.values(pkg?.scripts ?? {}).some(
+    (script) => typeof script === "string" && /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?(?:nuxt|nuxi)(?:\s|$)/.test(script),
+  );
+}
+
 export const NuxtPlugin: AnalyzerPlugin = {
   name: "nuxt-plugin",
   version: "1.2.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      const hasDep = !!(
-        pkg.dependencies?.["nuxt"] || 
-        pkg.devDependencies?.["nuxt"] ||
-        pkg.dependencies?.["nuxt3"] ||
-        pkg.devDependencies?.["nuxt3"]
-      );
-      if (hasDep) return true;
-    }
+    const hasNuxtDependency = Boolean(
+      pkg?.dependencies?.["nuxt"] ||
+      pkg?.devDependencies?.["nuxt"] ||
+      pkg?.peerDependencies?.["nuxt"] ||
+      pkg?.dependencies?.["nuxt3"] ||
+      pkg?.devDependencies?.["nuxt3"] ||
+      pkg?.peerDependencies?.["nuxt3"],
+    );
+    const hasNuxtConfig = (await Promise.all(
+      NUXT_CONFIG_FILES.filter((file) => file.startsWith("nuxt.config")).map((file) => adapter.folderExists(file)),
+    )).some(Boolean);
 
-    for (const configFile of NUXT_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
-    }
-
-    return false;
+    if (hasNuxtConfig) return true;
+    if (!hasNuxtDependency) return false;
+    return hasNuxtScript(pkg) || await hasNuxtRuntimeEvidence(adapter);
   },
 
   lifecycle: {
@@ -75,6 +88,7 @@ export const NuxtPlugin: AnalyzerPlugin = {
         ...pkg?.devDependencies,
         ...pkg?.peerDependencies
       };
+      adapter.declareFramework("nuxt");
 
       if (allDeps["nuxt"] || allDeps["nuxt3"]) {
         adapter.markPackageAsUsed("nuxt");

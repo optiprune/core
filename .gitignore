@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm-store/
-
+*.patch
 # Build output
 dist/
 lib/
@@ -14,7 +14,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-
+*.rej
 # OS files
 .DS_Store
 Thumbs.db

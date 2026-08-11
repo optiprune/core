@@ -101,56 +101,42 @@ export const ExpoPlugin: AnalyzerPlugin = {
   version: "1.1.0",
 
   detect: async (adapter) => {
-    // 1. Check for explicit Expo configuration files
-    for (const configFile of EXPO_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
-    }
+    const pkg = await adapter.readJson("package.json");
+    const allDeps = {
+      ...pkg?.dependencies,
+      ...pkg?.devDependencies,
+      ...pkg?.peerDependencies,
+    };
+    const hasExpoDependency = Object.keys(allDeps).some(
+      (dep) => dep === "expo" || dep.startsWith("expo-") || dep.startsWith("@expo/"),
+    );
+    const hasExpoScript = Object.values(pkg?.scripts ?? {}).some(
+      (script) => typeof script === "string" && /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?(?:expo|eas)(?:\s|$)/.test(script),
+    );
 
-    // 2. Check app.json specifically for the `expo` object key
+    // An inline Expo block and an app.json with an `expo` object are
+    // self-identifying. Shared app.config.* names require corroboration.
+    if (pkg?.expo && typeof pkg.expo === "object") return true;
     if (await adapter.folderExists("app.json")) {
       const appJson = await adapter.readJson("app.json");
       if (isExpoAppJson(appJson)) return true;
     }
 
-    // 3. Check package.json for expo dependency, config block, or CLI scripts
-    const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      if (pkg.expo) return true;
+    const dedicatedConfig = (await Promise.all(
+      EXPO_CONFIG_FILES.filter((file) => !file.startsWith("app.config")).map((file) => adapter.folderExists(file)),
+    )).some(Boolean);
+    const sharedAppConfig = (await Promise.all(
+      EXPO_CONFIG_FILES.filter((file) => file.startsWith("app.config")).map((file) => adapter.folderExists(file)),
+    )).some(Boolean);
 
-      const allDeps = {
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies
-      };
-
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "expo" || dep.startsWith("expo-") || dep.startsWith("@expo/")
-        )
-      ) {
-        return true;
-      }
-
-      if (pkg.scripts) {
-        const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bexpo\b/.test(s) || /\beas\b/.test(s))
-          )
-        ) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    if (dedicatedConfig) return true;
+    return hasExpoScript || (hasExpoDependency && sharedAppConfig);
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
+      adapter.declareFramework("expo");
 
       // 1. Protect dedicated Expo configuration files
       for (const configFile of EXPO_CONFIG_FILES) {

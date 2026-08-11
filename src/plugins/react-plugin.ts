@@ -37,12 +37,8 @@ export const ReactPlugin: AnalyzerPlugin = {
       }
     }
 
-    const tsconfig = await adapter.readJson("tsconfig.json");
-    if (tsconfig?.compilerOptions?.jsx) return true;
-
-    const jsconfig = await adapter.readJson("jsconfig.json");
-    if (jsconfig?.compilerOptions?.jsx) return true;
-
+    // JSX/TSX only expresses syntax support. It is shared by React, Next.js,
+    // Preact, Solid, and custom JSX runtimes, so it is not framework evidence.
     return false;
   },
 
@@ -59,6 +55,7 @@ export const ReactPlugin: AnalyzerPlugin = {
 
       // Safeguard installed React ecosystem packages in package.json
       if (hasReactDep) {
+        adapter.declareFramework("react");
         for (const reactPkg of REACT_PACKAGES) {
           if (allDeps[reactPkg]) {
             adapter.markPackageAsUsed(reactPkg);
@@ -96,6 +93,7 @@ export const ReactPlugin: AnalyzerPlugin = {
     onASTNode: (node: any, fileId, adapter) => {
       // 1. React Server Component / Action Directives ('use client', 'use server')
       if (
+        !adapter.hasFramework("nextjs") &&
         node?.type === "ExpressionStatement" &&
         t.isStringLiteral(node.expression) &&
         ["use client", "use server"].includes(node.expression.value)
@@ -129,6 +127,7 @@ export const ReactPlugin: AnalyzerPlugin = {
 
       // 3. Exported Function Components: export function MyComponent() {}
       if (
+        !adapter.hasFramework("nextjs") &&
         t.isFunctionDeclaration(targetNode) &&
         targetNode.id &&
         /^[A-Z]/.test(targetNode.id.name)
@@ -141,6 +140,7 @@ export const ReactPlugin: AnalyzerPlugin = {
 
       // 4. Exported Variable Components & HOC Wrappers: const Button = React.memo(...)
       if (
+        !adapter.hasFramework("nextjs") &&
         t.isVariableDeclaration(targetNode) &&
         Array.isArray(targetNode.declarations)
       ) {
@@ -182,6 +182,7 @@ export const ReactPlugin: AnalyzerPlugin = {
 
       // 5. Hooks: useFoo() call expressions or custom hook declarations
       if (
+        !adapter.hasFramework("nextjs") &&
         t.isCallExpression(node) &&
         t.isIdentifier(node.callee) &&
         node.callee.name.startsWith("use") &&
@@ -192,7 +193,7 @@ export const ReactPlugin: AnalyzerPlugin = {
       }
 
       // 6. JSX Components (<MyComponent />, <Form.Item />)
-      if (t.isJSXElement(node) && node.openingElement) {
+      if (!adapter.hasFramework("nextjs") && t.isJSXElement(node) && node.openingElement) {
         const elementName = node.openingElement.name;
 
         // Standard Identifier: <Button />

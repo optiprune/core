@@ -6,9 +6,7 @@ const VUE_CONFIG_FILES = [
   "vue.config.js",
   "vue.config.ts",
   "vue.config.cjs",
-  "vue.config.mjs",
-  "nuxt.config.js",
-  "nuxt.config.ts"
+  "vue.config.mjs"
 ];
 
 const VUE_PACKAGES = [
@@ -116,7 +114,8 @@ export const VueJsPlugin: AnalyzerPlugin = {
       }
 
       // Safeguard installed Vue ecosystem packages in package.json
-      if (hasVueDep) {
+      if (hasVueDep && !adapter.hasFramework("nuxt")) {
+        adapter.declareFramework("vue");
         for (const vuePkg of VUE_PACKAGES) {
           if (allDeps[vuePkg]) {
             adapter.markPackageAsUsed(vuePkg);
@@ -129,8 +128,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("vue-cli-service") ||
-              scriptContent.includes("nuxt "))
+            (              scriptContent.includes("vue-cli-service"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
           }

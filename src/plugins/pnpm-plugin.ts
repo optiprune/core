@@ -49,9 +49,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
 
-      const hasPnpmConfig =
-        (await adapter.folderExists("pnpm-workspace.yaml")) ||
-        (await adapter.folderExists("pnpm-lock.yaml"));
+      let hasDeclaredWorkspaces = false;
 
       // 1. Protect standalone configuration files & lockfiles
       for (const configFile of PNPM_CONFIG_FILES) {
@@ -89,12 +87,11 @@ export const PnpmPlugin: AnalyzerPlugin = {
             if (trimmed.startsWith("-")) {
               let globPath = trimmed.replace(/^-/, "").trim();
               globPath = globPath.replace(/^['"]|['"]$/g, "");
-              if (globPath) {
-                if (typeof (adapter as any).setWorkspaceGlobs === "function") {
-                  (adapter as any).setWorkspaceGlobs([globPath]);
+                if (globPath) {
+                  hasDeclaredWorkspaces = true;
+                  adapter.setWorkspaceGlobs([globPath]);
+                  adapter.markAsUsed(globPath);
                 }
-                adapter.markAsUsed(globPath);
-              }
             } else if (trimmed && !trimmed.startsWith("#")) {
               capturingPackages = false;
             }
@@ -102,9 +99,9 @@ export const PnpmPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 4. Mark monorepo flag if active
-      if (hasPnpmConfig && typeof (adapter as any).setRepoType === "function") {
-        (adapter as any).setRepoType("monorepo");
+      // 4. Classify as a monorepo only when an actual workspace declaration was parsed.
+      if (hasDeclaredWorkspaces) {
+        adapter.setRepoType("monorepo");
       }
     },
 

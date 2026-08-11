@@ -29,7 +29,7 @@ export class PluginEngine {
       
       let files: string[] = [];
       try {
-        files = await fs.readdir(pluginsDir);
+        files = (await fs.readdir(pluginsDir)).sort((left, right) => left.localeCompare(right));
       } catch (e) {
         return;
       }
@@ -267,7 +267,55 @@ export class PluginEngine {
       setMonorepo: (monorepo) => {
         context.options.monorepo = monorepo;
         context.monorepo = monorepo;
-      }
+      },
+      addEntryPatterns: (patterns) => {
+        const normalized = patterns
+          .filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0)
+          .map((pattern) => path.isAbsolute(pattern) ? pattern : path.resolve(context.options.rootDir, pattern));
+        context.options.entry = Array.from(new Set([...context.options.entry, ...normalized]));
+      },
+      addIgnorePatterns: (patterns) => {
+        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
+        context.options.ignore = Array.from(new Set([...context.options.ignore, ...validPatterns]));
+      },
+      addProjectPatterns: (patterns) => {
+        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
+        context.options.projectPatterns = Array.from(new Set([...(context.options.projectPatterns ?? []), ...validPatterns]));
+      },
+      addUnreachableFileIgnorePatterns: (patterns) => {
+        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
+        context.options.unreachableFileIgnorePatterns = Array.from(new Set([
+          ...(context.options.unreachableFileIgnorePatterns ?? []),
+          ...validPatterns,
+        ]));
+      },
+      addIgnoredDependencies: (names) => {
+        const validNames = names.filter((name): name is string => typeof name === "string" && name.trim().length > 0);
+        context.options.ignoreDependencies = Array.from(new Set([...context.options.ignoreDependencies, ...validNames]));
+      },
+      addProtectedExportPatterns: (patterns) => {
+        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
+        context.options.protectedExportPatterns = Array.from(new Set([
+          ...(context.options.protectedExportPatterns ?? []),
+          ...validPatterns,
+        ]));
+      },
+      addExternalContracts: (names) => {
+        const validNames = names.filter((name): name is string => typeof name === "string" && name.trim().length > 0);
+        context.options.externalContracts = Array.from(new Set([...context.options.externalContracts, ...validNames]));
+      },
+      setWorkspaceGlobs: (patterns) => {
+        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
+        context.options.workspaceGlobs = Array.from(new Set([...(context.options.workspaceGlobs ?? []), ...validPatterns]));
+      },
+      setRepoType: (type) => {
+        context.options.repositoryType = type;
+      },
+      declareFramework: (name) => {
+        if (typeof name !== "string" || name.trim().length === 0) return;
+        context.options.frameworks = Array.from(new Set([...(context.options.frameworks ?? []), name]));
+      },
+      hasFramework: (name) => context.options.frameworks?.includes(name) ?? false
     };
   }
 }

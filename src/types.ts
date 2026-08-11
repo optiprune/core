@@ -288,6 +288,12 @@ export interface ResolvedOptions {
   rules: Record<string, RuleSeverity>;
   /** Resolved plugin overrides. */
   plugins: PluginsConfig;
+  workspaceGlobs: string[];
+  projectPatterns: string[];
+  unreachableFileIgnorePatterns: string[];
+  protectedExportPatterns: string[];
+  repositoryType?: "single-package" | "workspace" | "monorepo";
+  frameworks: string[];
 }
 
 export interface AnalysisSummary {
@@ -378,6 +384,28 @@ export interface PluginAdapter {
   markPackageAsUsed(packageName: string): void; // Added for Plugin Priority
   attachMetadata(node: any, key: string, value: any): void;
   setMonorepo(monorepo: MonorepoGraph): void;
+  /** Add entry-point patterns discovered in a framework configuration. */
+  addEntryPatterns(patterns: string[]): void;
+  /** Add ignore patterns discovered in a framework configuration. */
+  addIgnorePatterns(patterns: string[]): void;
+  /** Add project-file patterns that define the framework's analysis scope. */
+  addProjectPatterns(patterns: string[]): void;
+  /** Exclude files from unreachable-file reports without removing them from analysis. */
+  addUnreachableFileIgnorePatterns(patterns: string[]): void;
+  /** Exclude dependencies that a framework configuration declares as externally managed. */
+  addIgnoredDependencies(names: string[]): void;
+  /** Exclude all exports in matching files from unused-export reports. */
+  addProtectedExportPatterns(patterns: string[]): void;
+  /** Protect externally consumed export names discovered in a configuration. */
+  addExternalContracts(names: string[]): void;
+  /** Register package/workspace globs supplied by package-manager or tooling configuration. */
+  setWorkspaceGlobs(patterns: string[]): void;
+  /** Persist the repository classification inferred by a plugin. */
+  setRepoType(type: "single-package" | "workspace" | "monorepo"): void;
+  /** Declare a verified framework for overlap-aware plugin behavior. */
+  declareFramework(name: string): void;
+  /** Check whether a verified framework has been declared. */
+  hasFramework(name: string): boolean;
 }
 
 export interface PluginLifecycle {
