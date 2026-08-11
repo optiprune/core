@@ -48,6 +48,7 @@ const pkg = (await readJsonFile(path.join(__dirname, "..", "package.json"))) as 
 const VERSION = pkg?.version ?? "1.8.2";
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
+import { applyFixes as runFixes } from "./fixer.js";
 
 async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions> {
   const rootDir = normalizeAbsolute(options.rootDir ?? process.cwd());
@@ -592,8 +593,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   };
 
   // Support automated fixes
-  if ((options as any).fix) {
-    await applyFixes(report);
+  if (resolvedOptions.fix) {
+    await runFixes(report, resolvedOptions.rootDir, resolvedOptions.fix);
   }
 
   // Support external cache-to path
@@ -616,53 +617,7 @@ export { exportCache, importCache } from './cache.js';
 /**
  * Headless API: Automated Fixes
  */
-export async function applyFixes(report: AnalysisReport): Promise<number> {
-  let fixedCount = 0;
-  // Group findings by file to minimize FS operations
-  const findingsByFile = new Map<string, Finding[]>();
-  for (const finding of report.findings) {
-    if (finding.rule === "unused-export" && finding.location) {
-      const list = findingsByFile.get(finding.file) || [];
-      list.push(finding);
-      findingsByFile.set(finding.file, list);
-    }
-  }
-
-  for (const [file, findings] of findingsByFile.entries()) {
-    try {
-      if (!fs.existsSync(file)) continue;
-      let content = fs.readFileSync(file, "utf-8");
-      
-      // Sort findings in reverse order of their location to avoid offset issues
-      const sortedFindings = [...findings].sort((a, b) => {
-        return (b.location?.start.line ?? 0) - (a.location?.start.line ?? 0);
-      });
-
-      let lines = content.split("\n");
-      for (const finding of sortedFindings) {
-        const exportName = finding.evidence.exportName as string;
-        // Simple regex to remove 'export const name = ...' or 'export function name...'
-        const lineIdx = finding.location!.start.line - 1;
-        const line = lines[lineIdx];
-        
-        if (line && line.includes(`export `) && line.includes(exportName)) {
-          if (line.trim().startsWith(`export const ${exportName}`) || 
-              line.trim().startsWith(`export function ${exportName}`) ||
-              line.trim().startsWith(`export let ${exportName}`) ||
-              line.trim().startsWith(`export var ${exportName}`)) {
-            lines[lineIdx] = line.replace("export ", "");
-            fixedCount++;
-          }
-        }
-      }
-      
-      fs.writeFileSync(file, lines.join("\n"));
-    } catch (e) {
-      console.error(`[Fix Engine] Failed to apply fixes to ${file}:`, e);
-    }
-  }
-  return fixedCount;
-}
+export { applyFixes } from "./fixer.js";
 
 // Fix für CLI-Imports
 export { exportCache as exportCacheAlias, importCache as importCacheAlias } from './cache.js';

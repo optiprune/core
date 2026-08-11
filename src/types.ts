@@ -176,7 +176,7 @@ export interface AnalyzerOptions {
   skip3?: boolean;
   skip4?: boolean;
   verbose?: boolean;
-  fix?: boolean;
+  fix?: boolean | FixConfig;
   cacheFrom?: string;
   cacheTo?: string;
 }
@@ -192,6 +192,26 @@ export type RuleSeverity = "error" | "warning" | "off";
  * returns `false`.
  */
 export type PluginsConfig = Record<string, boolean>;
+
+export interface FixConfig {
+  /**
+   * Minimum confidence level to apply a fix.
+   * - 'high': Only fix findings with high confidence.
+   * - 'medium+': Fix findings with medium or high confidence.
+   * - 'low+': Fix findings with low, medium, or high confidence.
+   * - 'all': Fix all findings regardless of confidence.
+   */
+  confidence?: 'high' | 'medium+' | 'low+' | 'all';
+  /**
+   * List of rules to fix. If not provided, all fixable rules are applied.
+   * Example: ['unused-export', 'unreachable-file', 'unused-dependency']
+   */
+  rules?: string[];
+  /**
+   * Whether to dry-run the fixes (log what would be fixed without changing files).
+   */
+  dryRun?: boolean;
+}
 
 export interface Config {
   rootDir?: string;
@@ -217,7 +237,7 @@ export interface Config {
    */
   output?: OutputFormat;
   verbose?: boolean;
-  fix?: boolean;
+  fix?: boolean | FixConfig;
   layers?: {
     smtTimeoutMs?: number;
     isolateMemoryLimitMb?: number;
@@ -255,7 +275,7 @@ export interface ResolvedOptions {
   baseUrl?: string;
   externalContracts: string[];
   verbose: boolean;
-  fix: boolean;
+  fix: boolean | FixConfig;
   cacheFrom?: string;
   cacheTo?: string;
   layers: {

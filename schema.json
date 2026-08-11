@@ -79,9 +79,39 @@
       "description": "Enables detailed step-by-step diagnostic logging during execution."
     },
     "fix": {
-      "type": "boolean",
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "When true, automatically applies fixes for all high-confidence findings."
+        },
+        {
+          "type": "object",
+          "description": "Granular fix configuration.",
+          "properties": {
+            "confidence": {
+              "type": "string",
+              "enum": ["high", "medium+", "low+", "all"],
+              "default": "high",
+              "description": "Minimum confidence level to apply a fix."
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of rules or categories (exports, files, dependencies) to fix."
+            },
+            "dryRun": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, logs fixes without modifying files."
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
       "default": false,
-      "description": "When true, automatically applies fixes for certain findings (e.g., removing 'export' keyword from unused exports)."
+      "description": "Configures automated dead-code removal."
     },
     "output": {
       "type": "string",
@@ -146,7 +176,7 @@
         "skip4": {
           "type": "boolean",
           "default": false,
-          "description": "Skips Execution Layer 4 (node:vm sandbox) pass during analysis."
+          "description": "Skips Execution Layer 4 (WASM sandbox) pass during analysis."
         }
       }
     }

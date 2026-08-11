@@ -322,6 +322,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
       reportUnusedExports: userConfig.reportUnusedExports,
     }),
     ...(userConfig.verbose !== undefined && { verbose: userConfig.verbose }),
-    ...(userConfig.fix !== undefined && { fix: userConfig.fix }),
+    fix: userConfig.fix !== undefined ? userConfig.fix : base.fix,
   } as ResolvedOptions;
 }
