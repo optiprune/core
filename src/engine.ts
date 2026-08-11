@@ -53,6 +53,11 @@ export class PluginEngine {
   }
 
   async run(context: AnalysisContext, runOptions: { skipDetection?: boolean } = {}): Promise<Finding[]> {
+    // Each pass owns its findings. The analyzer calls the engine twice: once for
+    // early project configuration and once after source discovery. Keeping a
+    // shared array makes the second pass re-return findings from the first pass.
+    this.findings = [];
+
     const verbose = context.options?.verbose;
     const adapter = this.createAdapter(context);
     
@@ -123,7 +128,7 @@ export class PluginEngine {
     }
 
     for (const plugin of this.plugins) {
-      if (plugin.enabled && plugin.lifecycle.onProjectInit) {
+      if (plugin.enabled && plugin.lifecycle.onProjectInit && !runOptions.skipDetection) {
         try {
           if (!runOptions.skipDetection) {
             dbg(verbose, `[Plugin Engine] Running onProjectInit for ${plugin.name}`);
