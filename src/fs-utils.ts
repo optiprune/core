@@ -371,6 +371,24 @@ export function expandEntryPatterns(
 
   return [...matches].sort((left, right) => left.localeCompare(right));
 }
+export async function discoverPackageBinEntryPatterns(rootDir: string): Promise<string[]> {
+  const packageFile = join(rootDir, "package.json");
+  try {
+    const packageJson = await readJsonFile<Record<string, unknown>>(packageFile);
+    if (!packageJson || typeof packageJson !== "object" || Array.isArray(packageJson)) return [];
+    const entries = new Set<string>();
+    if (typeof packageJson.bin === "string") entries.add(packageJson.bin);
+    else if (packageJson.bin && typeof packageJson.bin === "object" && !Array.isArray(packageJson.bin)) {
+      for (const target of Object.values(packageJson.bin as Record<string, unknown>)) {
+        if (typeof target === "string") entries.add(target);
+      }
+    }
+    return normalizePackageEntryPatterns(entries);
+  } catch {
+    return [];
+  }
+}
+
 export async function discoverPackageEntryPatterns(rootDir: string): Promise<string[]> {
   const packageFile = join(rootDir, "package.json");
   try {
@@ -382,6 +400,13 @@ export async function discoverPackageEntryPatterns(rootDir: string): Promise<str
     for (const field of ["main", "module", "browser", "types", "typings"]) {
       if (typeof packageJson[field] === "string") {
         entries.add(packageJson[field] as string);
+      }
+    }
+    if (typeof packageJson.bin === "string") {
+      entries.add(packageJson.bin);
+    } else if (packageJson.bin && typeof packageJson.bin === "object" && !Array.isArray(packageJson.bin)) {
+      for (const target of Object.values(packageJson.bin as Record<string, unknown>)) {
+        if (typeof target === "string") entries.add(target);
       }
     }
     collectPackageExportStrings(packageJson.exports, entries);

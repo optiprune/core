@@ -252,9 +252,12 @@ export class PluginEngine {
         } as Finding);
       },
       markAsUsed: (fileId, symbol) => {
-        context.reachable?.add(fileId);
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        context.reachable?.add(absolutePath);
         if (symbol) {
-          context.usedExports?.add(`${fileId}:${symbol}`);
+          context.usedExports?.add(`${absolutePath}:${symbol}`);
         }
       },
       markPackageAsUsed: (packageName) => {

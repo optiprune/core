@@ -302,10 +302,19 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
   };
 
   // ── plugins ──────────────────────────────────────────────────────────────
-  const plugins = {
-    ...base.plugins,
-    ...(userConfig.plugins ?? {}),
-  };
+  let plugins = { ...base.plugins };
+  if (userConfig.plugins) {
+    if (Array.isArray(userConfig.plugins)) {
+      // Support array of plugin names for simple enabling
+      for (const pluginName of userConfig.plugins) {
+        if (typeof pluginName === "string") {
+          plugins[pluginName] = true;
+        }
+      }
+    } else if (typeof userConfig.plugins === "object") {
+      plugins = { ...plugins, ...userConfig.plugins };
+    }
+  }
 
   return {
     ...base,

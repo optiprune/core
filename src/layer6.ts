@@ -199,6 +199,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
   const lockfileGraph = buildLockfileGraph(projectRoot);
   const packageImportMap = new Map<string, Set<string>>();
   const globalImports = new Set<string>();
+  const workspacePackageNames = new Set<string>(context.options.monorepo?.packageMap.keys() ?? []);
 
   const projectHasTypesNode = Array.from(context.modules.keys()).some(f => {
     const normalized = f.replace(/\\/g, '/');
@@ -321,7 +322,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         'if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 
         'cp', 'mv', 'node', 'run', 'exec', 'test', 'audit', 'install', 
         'add', 'remove', 'outdated', 'update', 'publish', 'login', 'logout', 'link', 'unlink', 
-        'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve'
+        'whoami', 'config', 'info', 'init', 'help', 'version', 'build', 'start', 'stop', 'restart', 'dev', 'serve', 'query'
       ]);
 
       const STATIC_BINARY_FALLBACKS: Record<string, string> = {
@@ -457,7 +458,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
-        if (!allDeclaredDeps.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':')) {
+        if (!allDeclaredDeps.has(imp) && !workspacePackageNames.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':')) {
           findings.push({
             rule: 'missing-dependency',
             severity: 'error',

@@ -23,6 +23,7 @@ import {
   DEFAULT_EXTENSIONS,
   DEFAULT_IGNORE,
   discoverPackageEntryPatterns,
+  discoverPackageBinEntryPatterns,
   discoverPackageExportEntryPatterns,
   discoverSourceFiles,
   expandEntryPatterns,
@@ -261,7 +262,17 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     });
 
     const rawEntries = expandBuildEntryToSourceCandidates(await discoverPackageEntryPatterns(baseDir));
+    const binEntries = expandBuildEntryToSourceCandidates(await discoverPackageBinEntryPatterns(baseDir));
     const publicExportEntries = expandBuildEntryToSourceCandidates(await discoverPackageExportEntryPatterns(baseDir));
+
+    for (const binPattern of binEntries) {
+      const adjustedPattern = (relativeToRoot && !binPattern.startsWith('/'))
+        ? path.posix.join(relativeToRoot, binPattern)
+        : binPattern;
+      for (const binFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
+        entryPoints.add(path.normalize(binFile));
+      }
+    }
 
     // An exports map declares package entry points that external consumers may
     // import. Analyze them as roots regardless of conventional-entry settings.
