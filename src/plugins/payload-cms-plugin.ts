@@ -2,169 +2,124 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const PAYLOAD_CONFIG_FILES = [
+const PAYLOAD_CONFIG_BASENAMES = [
   "payload.config.ts",
+  "payload.config.tsx",
   "payload.config.js",
   "payload.config.mjs",
   "payload.config.cjs",
-  "src/payload.config.ts",
-  "src/payload.config.js"
+  "payload.config.mts",
+  "payload.config.cts",
 ];
+const PAYLOAD_PACKAGE = "payload";
 
-const PAYLOAD_CORE_PACKAGES = [
-  "payload",
-  "@payloadcms/next",
-  "@payloadcms/db-postgres",
-  "@payloadcms/db-mongodb",
-  "@payloadcms/db-sqlite",
-  "@payloadcms/db-vercel-postgres",
-  "@payloadcms/richtext-slate",
-  "@payloadcms/richtext-lexical",
-  "@payloadcms/bundler-webpack",
-  "@payloadcms/bundler-vite",
-  "@payloadcms/plugin-cloud",
-  "@payloadcms/plugin-seo",
-  "@payloadcms/plugin-nested-docs",
-  "@payloadcms/plugin-redirects",
-  "@payloadcms/plugin-form-builder",
-  "@payloadcms/plugin-search"
-];
+function normalize(fileId: string): string {
+  return fileId.replace(/\\/g, "/");
+}
 
+function isPayloadPackage(packageName: string): boolean {
+  return packageName === PAYLOAD_PACKAGE || packageName.startsWith("@payloadcms/");
+}
+
+function declaredPayloadPackages(packageJson: any): string[] {
+  const dependencies = {
+    ...packageJson?.dependencies,
+    ...packageJson?.devDependencies,
+    ...packageJson?.peerDependencies,
+  } as Record<string, unknown>;
+  return Object.keys(dependencies).filter(isPayloadPackage);
+}
+
+function isPayloadConfigFile(fileId: string): boolean {
+  return PAYLOAD_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)));
+}
+
+function isPayloadScript(script: string): boolean {
+  return /(?:^|[\s&|;])payload(?:\s|$)/.test(script)
+    || /\bnpx\s+(?:--yes\s+)?payload\b/.test(script)
+    || /\bpnpm\s+(?:exec\s+)?payload\b/.test(script)
+    || /\byarn\s+(?:dlx\s+)?payload\b/.test(script);
+}
+
+/**
+ * Payload's runtime begins from a config file, which is discovered by its CLI
+ * from the project root, TypeScript root/out directories, and deployment output.
+ * A configuration therefore proves use of the core package, but optional adapters
+ * and plugins are retained only when their own import/config reference is observed.
+ */
 export const PayloadCMSPlugin: AnalyzerPlugin = {
   name: "payload-cms-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
-    // 1. Check for payload.config files
-    for (const configFile of PAYLOAD_CONFIG_FILES) {
+    const packageJson = await adapter.readJson("package.json");
+    if (declaredPayloadPackages(packageJson).length > 0) return true;
+
+    for (const configFile of PAYLOAD_CONFIG_BASENAMES) {
       if (await adapter.folderExists(configFile)) return true;
     }
+    if ((await adapter.findFiles(PAYLOAD_CONFIG_BASENAMES)).length > 0) return true;
 
-    // 2. Check package.json dependencies for payload / @payloadcms packages
-    const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      const allDeps = {
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies
-      };
-
-      if (Object.keys(allDeps).some((dep) => dep === "payload" || dep.startsWith("@payloadcms/"))) {
-        return true;
-      }
-
-      if (pkg.scripts) {
-        const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("payload ") || s === "payload")
-          )
-        ) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isPayloadScript(script));
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson("package.json");
+      const packageJson = await adapter.readJson("package.json");
+      const packages = declaredPayloadPackages(packageJson);
+      const configFiles = await adapter.findFiles(PAYLOAD_CONFIG_BASENAMES);
+      const hasCorePackage = packages.includes(PAYLOAD_PACKAGE);
+      let hasScriptInvocation = false;
 
-      // 1. Mark payload configuration files as used
-      for (const configFile of PAYLOAD_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
-        }
+      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+
+      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
+        if (typeof script !== "string" || !isPayloadScript(script)) continue;
+        hasScriptInvocation = true;
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      // 2. Protect Payload dependencies
-      if (pkg) {
-        const allDeps = {
-          ...pkg.dependencies,
-          ...pkg.devDependencies,
-          ...pkg.peerDependencies
-        };
+      // The Payload config is the required runtime input of the core `payload`
+      // package. Do not mark every optional @payloadcms package merely because it
+      // is declared; imports below identify those optional runtime integrations.
+      if ((configFiles.length > 0 || hasScriptInvocation) && hasCorePackage) {
+        adapter.markPackageAsUsed(PAYLOAD_PACKAGE);
+      }
 
-        for (const depName of Object.keys(allDeps)) {
-          if (depName === "payload" || depName.startsWith("@payloadcms/")) {
-            // A manifest entry alone is not evidence that this package is used.
-            // Usage is marked by the config, script, import, or file hooks below.
-          }
-        }
-
-        // 3. Mark package.json scripts executing payload CLI commands
-        if (pkg.scripts) {
-          for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              (scriptContent.includes("payload ") || scriptContent === "payload")
-            ) {
-              adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-            }
-          }
-        }
+      if ((configFiles.length > 0 || hasScriptInvocation) && !hasCorePackage) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Payload configuration or command found, but 'payload' is not listed in package.json.",
+          evidence: { configFiles, hasScriptInvocation },
+        });
       }
     },
 
     onFileStart: (fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
-      const basename = path.basename(normalized);
+      if (isPayloadConfigFile(fileId)) adapter.markAsUsed(fileId);
+    },
 
-      // Protect explicit payload config file
-      if (PAYLOAD_CONFIG_FILES.some((cfg) => normalized.endsWith(cfg))) {
+    onASTNode: (node, fileId, adapter) => {
+      // Optional adapters, rich-text packages, plugins, and the Next integration
+      // are commonly imported only by Payload config or generated route modules.
+      if (t.isImportDeclaration(node) && isPayloadPackage(node.source.value)) {
+        adapter.markPackageAsUsed(node.source.value);
         adapter.markAsUsed(fileId);
       }
 
-      // Protect typical Payload CMS architecture conventions (collections, globals, blocks, hooks, access control)
-      if (
-        normalized.includes("/collections/") ||
-        normalized.includes("/globals/") ||
-        normalized.includes("/blocks/") ||
-        normalized.includes("/hooks/") ||
-        normalized.includes("/access/") ||
-        normalized.includes("/endpoints/") ||
-        normalized.includes("/fields/") ||
-        normalized.includes("/payload/")
-      ) {
-        adapter.markAsUsed(fileId);
-      }
+      if (!isPayloadConfigFile(fileId)) return;
+      if (t.isExportDefaultDeclaration(node)) adapter.markAsUsed(fileId, "default");
 
-      // Payload 3.0 Next.js App Router admin integration route: /app/(payload)/...
-      if (normalized.includes("/(payload)/")) {
+      // `buildConfig()` may be wrapped or aliased, so retaining the config module
+      // itself is safer than inferring optional package use from callee names alone.
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "buildConfig") {
         adapter.markAsUsed(fileId);
       }
     },
-
-    onASTNode: (node: any, fileId: string, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
-
-      // AST inspection inside payload.config.ts / .js
-      if (PAYLOAD_CONFIG_FILES.some((cfg) => normalized.endsWith(cfg))) {
-        // Handle export default buildConfig({...})
-        if (t.isExportDefaultDeclaration(node)) {
-          adapter.markAsUsed(fileId, "default");
-        }
-
-        // Track plugin dependencies or adapter imports passed inside buildConfig()
-        if (t.isCallExpression(node)) {
-          if (
-            t.isIdentifier(node.callee) &&
-            (node.callee.name === "postgresAdapter" ||
-              node.callee.name === "mongooseAdapter" ||
-              node.callee.name === "sqliteAdapter" ||
-              node.callee.name === "slateEditor" ||
-              node.callee.name === "lexicalEditor" ||
-              node.callee.name === "webpackBundler" ||
-              node.callee.name === "viteBundler")
-          ) {
-            adapter.markAsUsed(fileId);
-          }
-        }
-      }
-    }
-  }
+  },
 };
 
 export default PayloadCMSPlugin;

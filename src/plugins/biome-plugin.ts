@@ -1,86 +1,140 @@
 import { AnalyzerPlugin } from "../types.js";
+import { loadStaticPluginConfig, stringArray, stringRecord } from "../plugin-config.js";
+import path from "pathe";
 
-const BIOME_CONFIG_FILES = ["biome.json", "biome.jsonc"];
-const BIOME_PACKAGES = ["@biomejs/biome"];
+const BIOME_CONFIG_BASENAMES = ["biome.json", "biome.jsonc", ".biome.json", ".biome.jsonc"];
+const BIOME_PACKAGE = "@biomejs/biome";
 
+function normalize(fileId: string): string {
+  return fileId.replace(/\\/g, "/");
+}
+
+function directoryOf(fileId: string): string {
+  const normalized = normalize(fileId);
+  const index = normalized.lastIndexOf("/");
+  return index === -1 ? "" : normalized.slice(0, index);
+}
+
+function isBiomeScript(script: string): boolean {
+  return /(?:^|[\s&|;])biome(?:\s|$)/.test(script)
+    || /\bnpx\s+(?:--yes\s+)?@biomejs\/biome\b/.test(script)
+    || /\bpnpm\s+(?:exec\s+)?biome\b/.test(script)
+    || /\byarn\s+(?:dlx\s+)?biome\b/.test(script);
+}
+
+function hasBiomeDependency(packageJson: any): boolean {
+  return [
+    packageJson?.dependencies,
+    packageJson?.devDependencies,
+    packageJson?.peerDependencies,
+  ].some((section) => !!section?.[BIOME_PACKAGE]);
+}
+
+function resolveRelativeConfigPath(configFile: string, referencedPath: string): string | undefined {
+  if (!referencedPath || referencedPath.startsWith("@") || referencedPath === "//") return undefined;
+  const directory = directoryOf(configFile);
+  const candidate = path.normalize(path.join(directory || ".", referencedPath)).replace(/\\/g, "/");
+  if (!candidate.startsWith("..")) return candidate;
+  return undefined;
+}
+
+/**
+ * Biome resolves a configuration from the current directory upward and supports
+ * nested config files. Configuration is therefore legitimate evidence that the
+ * locally declared Biome package is used, while a config without the package is
+ * a precise missing-dependency signal rather than an unused-dependency exception.
+ */
 export const BiomePlugin: AnalyzerPlugin = {
   name: "biome-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
-    const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-      if (BIOME_PACKAGES.some((pkgName) => pkgName in allDeps)) {
-        return true;
-      }
+    const packageJson = await adapter.readJson("package.json");
+    if (hasBiomeDependency(packageJson)) return true;
+
+    if (await adapter.folderExists("biome.json") || await adapter.folderExists("biome.jsonc")
+      || await adapter.folderExists(".biome.json") || await adapter.folderExists(".biome.jsonc")) {
+      return true;
     }
 
-    for (const configFile of BIOME_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) {
-        return true;
-      }
-    }
-
-    return false;
+    return (await adapter.findFiles(BIOME_CONFIG_BASENAMES)).length > 0;
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson("package.json");
-      const allDeps = {
-        ...pkg?.dependencies,
-        ...pkg?.devDependencies,
-        ...pkg?.peerDependencies,
-      };
+      const packageJson = await adapter.readJson("package.json");
+      const configFiles = await adapter.findFiles(BIOME_CONFIG_BASENAMES);
+      const hasConfig = configFiles.length > 0;
+      const dependencyDeclared = hasBiomeDependency(packageJson);
+      let hasScriptInvocation = false;
 
-      const hasBiomeDep = BIOME_PACKAGES.some((p) => p in allDeps);
-
-      let hasConfigFile = false;
-      for (const configFile of BIOME_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
-          hasConfigFile = true;
-          adapter.markAsUsed(configFile);
-          break;
-        }
+      // Every discovered config is an executable tool input, including nested
+      // monorepo configs that ordinary source scanning would leave unreachable.
+      for (const configFile of configFiles) {
+        adapter.markAsUsed(configFile);
       }
 
-      // Mark @biomejs/biome package as used if installed
-      // Package manifest presence alone is not usage evidence;
-      // config, script, import, and file hooks provide the usage marks.
-
-      // Mark package.json scripts that execute biome (e.g., "lint": "biome check ./src")
-      if (pkg?.scripts) {
-        for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("biome ") || scriptContent.includes("biome"))
-          ) {
-            adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-          }
-        }
+      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
+        if (typeof script !== "string" || !isBiomeScript(script)) continue;
+        hasScriptInvocation = true;
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      // Report missing dependency finding if config exists but package is missing
-      if (hasConfigFile && !hasBiomeDep) {
+      if ((hasConfig || hasScriptInvocation) && dependencyDeclared) {
+        adapter.markPackageAsUsed(BIOME_PACKAGE);
+      }
+
+      if ((hasConfig || hasScriptInvocation) && !dependencyDeclared) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Biome configuration found but '@biomejs/biome' is not listed in package.json.",
-          evidence: { hasConfigFile },
+          message: "Biome configuration or command found, but '@biomejs/biome' is not listed in package.json.",
+          evidence: { configFiles, hasScriptInvocation },
         });
+      }
+
+      // Static JSON configs let us preserve the referenced local config and Grit
+      // plugin files. Dynamic execution is deliberately avoided by the loader.
+      for (const configFile of configFiles) {
+        const loaded = await loadStaticPluginConfig(adapter, [configFile]);
+        if (!loaded) continue;
+
+        for (const extension of stringArray(loaded.config.extends)) {
+          const resolved = resolveRelativeConfigPath(configFile, extension);
+          if (resolved) adapter.markAsUsed(resolved);
+        }
+
+        for (const plugin of stringArray(loaded.config.plugins)) {
+          const resolved = resolveRelativeConfigPath(configFile, plugin);
+          if (resolved) adapter.markAsUsed(resolved);
+        }
+
+        for (const plugin of Array.isArray(loaded.config.plugins) ? loaded.config.plugins : []) {
+          const descriptor = stringRecord(plugin);
+          const pluginPath = typeof descriptor.path === "string" ? descriptor.path : undefined;
+          if (!pluginPath) continue;
+          const resolved = resolveRelativeConfigPath(configFile, pluginPath);
+          if (resolved) adapter.markAsUsed(resolved);
+        }
+
+        // Biome's `files.includes` paths are relative to the config file. They
+        // describe tool scope, not runtime entry points, so register them as
+        // project patterns rather than incorrectly making every matching file public.
+        const files = stringRecord(loaded.config.files);
+        const includes = stringArray(files.includes)
+          .map((pattern) => {
+            const directory = directoryOf(configFile);
+            return directory ? `${directory}/${pattern}` : pattern;
+          });
+        if (includes.length > 0) adapter.addProjectPatterns(includes);
       }
     },
 
     onFileStart: (fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
-
-      // Mark biome configuration files as used
-      if (BIOME_CONFIG_FILES.some((cfg) => normalized.endsWith(cfg))) {
+      if (BIOME_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)))) {
         adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed("@biomejs/biome");
       }
     },
   },

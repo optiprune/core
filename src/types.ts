@@ -379,6 +379,8 @@ export interface PluginAdapter {
   readJson(filename: string): Promise<any | null>;
   /** Check whether a directory (or file) exists relative to the project root. Useful for detecting tool directories like .husky, .git, etc. */
   folderExists(folderName: string): Promise<boolean>;
+  /** Find project files by exact basename while excluding dependency and build output directories. */
+  findFiles(fileNames: string[]): Promise<string[]>;
   
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;

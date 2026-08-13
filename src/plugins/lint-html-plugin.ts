@@ -2,7 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const LINTHTML_CONFIG_FILES = [
+const LINTHTML_CONFIG_BASENAMES = [
   ".linthtmlrc",
   ".linthtmlrc.json",
   ".linthtmlrc.yaml",
@@ -11,125 +11,115 @@ const LINTHTML_CONFIG_FILES = [
   "linthtml.config.cjs",
   "linthtml.config.mjs",
   "linthtml.config.ts",
-  ".linthtmlignore"
+  "linthtml.config.mts",
+  "linthtml.config.cts",
+  ".linthtmlignore",
 ];
+const LINTHTML_PACKAGES = ["@linthtml/linthtml", "linthtml"];
 
-const LINTHTML_PACKAGE_NAME = "@linthtml/linthtml";
-const LINTHTML_ALT_PACKAGE_NAME = "linthtml";
+function normalize(fileId: string): string {
+  return fileId.replace(/\\/g, "/");
+}
 
+function isLintHtmlScript(script: string): boolean {
+  return /(?:^|[\s&|;])linthtml(?:\s|$)/.test(script)
+    || /\bnpx\s+(?:--yes\s+)?@linthtml\/linthtml\b/.test(script)
+    || /\bpnpm\s+(?:exec\s+)?linthtml\b/.test(script)
+    || /\byarn\s+(?:dlx\s+)?linthtml\b/.test(script);
+}
+
+function declaredLintHtmlPackages(packageJson: any): string[] {
+  const dependencies = {
+    ...packageJson?.dependencies,
+    ...packageJson?.devDependencies,
+    ...packageJson?.peerDependencies,
+  } as Record<string, unknown>;
+  return LINTHTML_PACKAGES.filter((packageName) => packageName in dependencies);
+}
+
+function isLintHtmlConfig(fileId: string): boolean {
+  return LINTHTML_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)));
+}
+
+/**
+ * LintHTML can be configured in standalone files or in package.json. Neither
+ * pathway requires a normal source import, so it must explicitly carry package
+ * usage evidence into the dependency analysis.
+ */
 export const LintHtmlPlugin: AnalyzerPlugin = {
   name: "linthtml-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
-    // 1. Check for dedicated LintHTML config files or ignore files
-    for (const configFile of LINTHTML_CONFIG_FILES) {
+    const packageJson = await adapter.readJson("package.json");
+    if (packageJson?.linthtml || declaredLintHtmlPackages(packageJson).length > 0) return true;
+
+    for (const configFile of LINTHTML_CONFIG_BASENAMES) {
       if (await adapter.folderExists(configFile)) return true;
     }
+    if ((await adapter.findFiles(LINTHTML_CONFIG_BASENAMES)).length > 0) return true;
 
-    // 2. Check package.json for "linthtml" dependency, config block, or scripts
-    const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      if (pkg.linthtml) return true;
-
-      const allDeps = {
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies
-      };
-
-      if (allDeps[LINTHTML_PACKAGE_NAME] || allDeps[LINTHTML_ALT_PACKAGE_NAME]) {
-        return true;
-      }
-
-      if (pkg.scripts) {
-        const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && /\blinthtml\b/.test(s)
-          )
-        ) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isLintHtmlScript(script));
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson("package.json");
+      const packageJson = await adapter.readJson("package.json");
+      const packages = declaredLintHtmlPackages(packageJson);
+      const configFiles = await adapter.findFiles(LINTHTML_CONFIG_BASENAMES);
+      const hasInlineConfig = !!packageJson?.linthtml;
+      let hasScriptInvocation = false;
 
-      // 1. Protect dedicated LintHTML configuration & ignore files
-      for (const configFile of LINTHTML_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
-        }
+      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      if (hasInlineConfig) adapter.markAsUsed("package.json", "linthtml");
+
+      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
+        if (typeof script !== "string" || !isLintHtmlScript(script)) continue;
+        hasScriptInvocation = true;
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      if (pkg) {
-        // 2. Protect LintHTML package dependencies
-        const allDeps = {
-          ...pkg.dependencies,
-          ...pkg.devDependencies,
-          ...pkg.peerDependencies
-        };
+      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && packages.length > 0) {
+        for (const packageName of packages) adapter.markPackageAsUsed(packageName);
+      }
 
-        // A declared dependency is not usage evidence by itself.
-        // A declared dependency is not usage evidence by itself.
-
-        // 3. Mark inline linthtml field in package.json as used
-        if (pkg.linthtml) {
-          adapter.markAsUsed("package.json", "linthtml");
-        }
-
-        // 4. Mark scripts invoking linthtml CLI as used
-        if (pkg.scripts) {
-          for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\blinthtml\b/.test(scriptContent)
-            ) {
-              adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-            }
-          }
-        }
+      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && packages.length === 0) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "LintHTML configuration or command found, but '@linthtml/linthtml' is not listed in package.json.",
+          evidence: { configFiles, hasInlineConfig, hasScriptInvocation },
+        });
       }
     },
 
     onFileStart: (fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
-      const basename = path.basename(normalized);
+      if (isLintHtmlConfig(fileId)) adapter.markAsUsed(fileId);
+    },
 
-      if (LINTHTML_CONFIG_FILES.includes(basename)) {
+    onASTNode: (node, fileId, adapter) => {
+      if (t.isImportDeclaration(node) && LINTHTML_PACKAGES.includes(node.source.value)) {
+        adapter.markPackageAsUsed(node.source.value);
+        adapter.markAsUsed(fileId);
+      }
+
+      const normalized = normalize(fileId);
+      if (!isLintHtmlConfig(normalized)) return;
+      if (t.isExportDefaultDeclaration(node)) adapter.markAsUsed(fileId, "default");
+      if (
+        t.isAssignmentExpression(node)
+        && t.isMemberExpression(node.left)
+        && t.isIdentifier(node.left.object)
+        && node.left.object.name === "module"
+        && t.isIdentifier(node.left.property)
+        && node.left.property.name === "exports"
+      ) {
         adapter.markAsUsed(fileId);
       }
     },
-
-    onASTNode: (node: any, fileId: string, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
-      const basename = path.basename(normalized);
-
-      // Handle JS/TS configuration files (e.g. linthtml.config.js, linthtml.config.ts)
-      if (basename.startsWith("linthtml.config.")) {
-        if (t.isExportDefaultDeclaration(node)) {
-          adapter.markAsUsed(fileId, "default");
-        }
-
-        if (
-          t.isAssignmentExpression(node) &&
-          t.isMemberExpression(node.left) &&
-          t.isIdentifier(node.left.object) &&
-          node.left.object.name === "module" &&
-          t.isIdentifier(node.left.property) &&
-          node.left.property.name === "exports"
-        ) {
-          adapter.markAsUsed(fileId);
-        }
-      }
-    }
-  }
+  },
 };
 
 export default LintHtmlPlugin;

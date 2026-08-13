@@ -1,154 +1,101 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
-import path from "pathe";
 
-/**
- * Recognized Changesets configuration files
- */
+const CHANGESET_DIRECTORY = ".changeset";
 const CHANGESET_CONFIG_FILE = ".changeset/config.json";
-
 const CHANGESETS_CLI_PACKAGE = "@changesets/cli";
 
-/**
- * Helper to process Changesets config.json properties and extract changelog generators or plugins
- */
-function processChangesetsConfig(config: Record<string, any>, adapter: any): void {
-  if (!config || typeof config !== "object") return;
-
-  // Process changelog generator module (e.g. "changelog": "@changesets/changelog-github" or ["@changesets/changelog-github", { "repo": "..." }])
-  if (config.changelog) {
-    let changelogPkg: string | null = null;
-
-    if (typeof config.changelog === "string") {
-      changelogPkg = config.changelog;
-    } else if (Array.isArray(config.changelog) && typeof config.changelog[0] === "string") {
-      changelogPkg = config.changelog[0];
-    }
-
-    if (changelogPkg && !changelogPkg.startsWith(".") && !changelogPkg.startsWith("/")) {
-      adapter.markPackageAsUsed(changelogPkg);
-    }
-  }
-
-  // Process ignore packages array (e.g. "ignore": ["@scope/internal-pkg"])
-  if (Array.isArray(config.ignore)) {
-    for (const ignoredPkg of config.ignore) {
-      if (typeof ignoredPkg === "string") {
-        adapter.markPackageAsUsed(ignoredPkg);
-      }
-    }
-  }
+function hasChangesetsCli(packageJson: any): boolean {
+  return [packageJson?.dependencies, packageJson?.devDependencies, packageJson?.peerDependencies]
+    .some((section) => !!section?.[CHANGESETS_CLI_PACKAGE]);
 }
 
+function isChangesetScript(script: string): boolean {
+  return /(?:^|[\s&|;])changeset(?:\s|$)/.test(script)
+    || /\bnpx\s+(?:--yes\s+)?changeset\b/.test(script)
+    || /\bpnpm\s+(?:exec\s+)?changeset\b/.test(script)
+    || /\byarn\s+(?:dlx\s+)?changeset\b/.test(script);
+}
+
+function changelogPackage(config: Record<string, any>): string | undefined {
+  const value = config.changelog;
+  const candidate = typeof value === "string" ? value : Array.isArray(value) ? value[0] : undefined;
+  return typeof candidate === "string" && !candidate.startsWith(".") && !candidate.startsWith("/")
+    ? candidate
+    : undefined;
+}
+
+/**
+ * Changesets uses `.changeset/config.json` plus markdown files as release inputs.
+ * The config's `ignore`, `fixed`, and `linked` fields name workspace packages, not
+ * package-manager dependencies; only the CLI and explicitly configured changelog
+ * module may be retained as external packages.
+ */
 export const ChangesetsPlugin: AnalyzerPlugin = {
   name: "changesets-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
-    // 1. Check for .changeset directory or config file
-    if (await adapter.folderExists(".changeset")) return true;
+    const packageJson = await adapter.readJson("package.json");
+    if (hasChangesetsCli(packageJson)) return true;
+    if (await adapter.folderExists(CHANGESET_DIRECTORY)) return true;
 
-    // 2. Check package.json for @changesets/* dependencies or CLI scripts
-    const pkg = await adapter.readJson("package.json");
-    if (pkg) {
-      const allDeps = {
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies
-      };
-
-      if (Object.keys(allDeps).some((dep) => dep.startsWith("@changesets/"))) {
-        return true;
-      }
-
-      if (pkg.scripts) {
-        const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bchangeset\b/.test(s) || s.includes("changeset status"))
-          )
-        ) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isChangesetScript(script));
   },
 
   lifecycle: {
     onProjectInit: async (adapter) => {
-      const pkg = await adapter.readJson("package.json");
+      const packageJson = await adapter.readJson("package.json");
+      const hasDirectory = await adapter.folderExists(CHANGESET_DIRECTORY);
+      const hasConfig = await adapter.folderExists(CHANGESET_CONFIG_FILE);
+      const cliDeclared = hasChangesetsCli(packageJson);
+      let hasScriptInvocation = false;
 
-      // 1. Protect .changeset directory and README/config files
-      if (await adapter.folderExists(".changeset")) {
-        adapter.markAsUsed(".changeset");
+      if (hasDirectory) adapter.markAsUsed(CHANGESET_DIRECTORY);
+      if (hasConfig) adapter.markAsUsed(CHANGESET_CONFIG_FILE);
+
+      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
+        if (typeof script !== "string" || !isChangesetScript(script)) continue;
+        hasScriptInvocation = true;
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      if (await adapter.folderExists(CHANGESET_CONFIG_FILE)) {
-        adapter.markAsUsed(CHANGESET_CONFIG_FILE);
+      if ((hasDirectory || hasConfig || hasScriptInvocation) && cliDeclared) {
+        adapter.markPackageAsUsed(CHANGESETS_CLI_PACKAGE);
       }
 
-      if (pkg) {
-        // 2. Protect all @changesets/* packages in package.json
-        const allDeps = {
-          ...pkg.dependencies,
-          ...pkg.devDependencies,
-          ...pkg.peerDependencies
-        };
-
-        for (const depName of Object.keys(allDeps)) {
-          if (depName.startsWith("@changesets/")) {
-            // A manifest entry alone is not evidence that this package is used.
-            // Usage is marked by the config, script, import, or file hooks below.
-          }
-        }
-
-        // 3. Mark scripts executing changeset CLI as used
-        if (pkg.scripts) {
-          for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              (/\bchangeset\b/.test(scriptContent) || scriptContent.includes("changeset status"))
-            ) {
-              adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-            }
-          }
-        }
+      if ((hasDirectory || hasConfig || hasScriptInvocation) && !cliDeclared) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: "Changesets configuration or command found, but '@changesets/cli' is not listed in package.json.",
+          evidence: { hasDirectory, hasConfig, hasScriptInvocation },
+        });
       }
 
-      // 4. Parse .changeset/config.json if present
-      if (await adapter.folderExists(CHANGESET_CONFIG_FILE)) {
-        const configData = await adapter.readJson(CHANGESET_CONFIG_FILE);
-        if (configData) {
-          processChangesetsConfig(configData, adapter);
-        }
-      }
+      if (!hasConfig) return;
+      const config = await adapter.readJson(CHANGESET_CONFIG_FILE);
+      if (!config || typeof config !== "object") return;
+
+      const configuredChangelog = changelogPackage(config);
+      if (configuredChangelog) adapter.markPackageAsUsed(configuredChangelog);
     },
 
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
-
-      // Protect all files in .changeset directory (.changeset/config.json, .changeset/README.md, .changeset/*.md)
       if (normalized.includes("/.changeset/") || normalized.startsWith(".changeset/")) {
         adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed(CHANGESETS_CLI_PACKAGE);
       }
     },
 
-    onASTNode: (node: any, fileId: string, adapter) => {
-      // Retain imports from @changesets/* in JavaScript / TypeScript files
-      if (t.isImportDeclaration(node)) {
-        const source = node.source.value;
-        if (source.startsWith("@changesets/")) {
-          adapter.markPackageAsUsed(source);
-          adapter.markAsUsed(fileId);
-        }
-      }
-    }
-  }
+    onASTNode: (node, fileId, adapter) => {
+      if (!t.isImportDeclaration(node) || !node.source.value.startsWith("@changesets/")) return;
+      adapter.markPackageAsUsed(node.source.value);
+      adapter.markAsUsed(fileId);
+    },
+  },
 };
 
 export default ChangesetsPlugin;

@@ -198,6 +198,37 @@ export class PluginEngine {
   }
 
   createAdapter(context: AnalysisContext): PluginAdapter {
+    let projectFiles: Promise<string[]> | undefined;
+    const discoverProjectFiles = async (): Promise<string[]> => {
+      if (!projectFiles) {
+        projectFiles = (async () => {
+          const ignoredDirectories = new Set([
+            ".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".svelte-kit",
+          ]);
+          const files: string[] = [];
+          const visit = async (directory: string): Promise<void> => {
+            let entries;
+            try {
+              entries = await fs.readdir(directory, { withFileTypes: true });
+            } catch {
+              return;
+            }
+            for (const entry of entries) {
+              if (entry.isDirectory()) {
+                if (!ignoredDirectories.has(entry.name)) await visit(path.join(directory, entry.name));
+                continue;
+              }
+              if (entry.isFile()) {
+                files.push(path.relative(context.options.rootDir, path.join(directory, entry.name)).replace(/\\/g, "/"));
+              }
+            }
+          };
+          await visit(context.options.rootDir);
+          return files.sort((left, right) => left.localeCompare(right));
+        })();
+      }
+      return projectFiles;
+    };
     return {
       getAst: (fileId) => context.modules.get(fileId)?.ast,
       getSymbol: (name, fileId) => {
@@ -242,6 +273,10 @@ export class PluginEngine {
         } catch {
           return false;
         }
+      },
+      findFiles: async (fileNames) => {
+        const names = new Set(fileNames);
+        return (await discoverProjectFiles()).filter((file) => names.has(path.basename(file)));
       },
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({
