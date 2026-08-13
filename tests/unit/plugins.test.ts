@@ -59,7 +59,7 @@ describe('Plugin Adapter & Framework Plugins', () => {
     await engine.run(context);
 
     expect(context.reachable.has(filePath)).toBe(false);
-    expect(context.usedExports.has(`${filePath}:MyComponent`)).toBe(true);
+    expect(context.usedExports.has(`${filePath}:MyComponent`)).toBe(false);
 
     await fs.rm(rootDir, { recursive: true, force: true });
   });

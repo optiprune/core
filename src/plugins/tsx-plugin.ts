@@ -5,7 +5,7 @@ const TSX_PACKAGES = [
   "tsx",
   "esbuild-register",
   "@esbuild-kit/cjs-loader",
-  "@esbuild-kit/esm-loader"
+  "@esbuild-kit/esm-loader",
 ];
 
 export const TsxPlugin: AnalyzerPlugin = {
@@ -18,7 +18,7 @@ export const TsxPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (TSX_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -28,7 +28,7 @@ export const TsxPlugin: AnalyzerPlugin = {
         return Object.values(pkg.scripts).some(
           (script) =>
             typeof script === "string" &&
-            (script.includes("tsx") || script.includes("esbuild-register"))
+            (script.includes("tsx") || script.includes("esbuild-register")),
         );
       }
     }
@@ -42,7 +42,7 @@ export const TsxPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTsxDep = TSX_PACKAGES.some((p) => p in allDeps);
@@ -82,7 +82,7 @@ export const TsxPlugin: AnalyzerPlugin = {
               .filter((t) => t.trim().length > 0);
 
             const tsxIndex = tokens.findIndex(
-              (t) => t === "tsx" || t.endsWith("/tsx") || t.endsWith("\\tsx")
+              (t) => t === "tsx" || t.endsWith("/tsx") || t.endsWith("\\tsx"),
             );
 
             if (tsxIndex !== -1) {
@@ -107,7 +107,7 @@ export const TsxPlugin: AnalyzerPlugin = {
                       "--import",
                       "-c",
                       "--tsconfig",
-                      "--env-file"
+                      "--env-file",
                     ].includes(token)
                   ) {
                     argIdx += 2;
@@ -144,7 +144,7 @@ export const TsxPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Scripts in package.json invoke 'tsx', but 'tsx' is not listed in dependencies or devDependencies.",
-          evidence: { isTsxUsedInScripts }
+          evidence: { isTsxUsedInScripts },
         });
       }
     },
@@ -152,22 +152,27 @@ export const TsxPlugin: AnalyzerPlugin = {
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
 
-      // Mark files that contain tsx or esbuild loader references
+      // A .tsx filename identifies syntax, not reachability.
+      // The core graph determines whether the file is reachable.
       if (
         normalized.includes("tsx") ||
         normalized.includes("esbuild-register")
       ) {
-        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("tsx");
       }
     },
 
     onASTNode: (node, fileId, adapter) => {
       // Detect ESM imports or CJS require for tsx / esbuild-register
-      if (node.type === "ImportDeclaration" && typeof node.source.value === "string") {
-        if (node.source.value.startsWith("tsx") || node.source.value.startsWith("esbuild-register")) {
+      if (
+        node.type === "ImportDeclaration" &&
+        typeof node.source.value === "string"
+      ) {
+        if (
+          node.source.value.startsWith("tsx") ||
+          node.source.value.startsWith("esbuild-register")
+        ) {
           adapter.markPackageAsUsed(node.source.value);
-          adapter.markAsUsed(fileId);
         }
       }
 
@@ -179,14 +184,14 @@ export const TsxPlugin: AnalyzerPlugin = {
         if (
           arg?.type === "Literal" &&
           typeof arg.value === "string" &&
-          (arg.value.startsWith("tsx") || arg.value.startsWith("esbuild-register"))
+          (arg.value.startsWith("tsx") ||
+            arg.value.startsWith("esbuild-register"))
         ) {
           adapter.markPackageAsUsed(arg.value);
-          adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TsxPlugin;
