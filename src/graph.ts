@@ -671,7 +671,10 @@ export function buildUsedExports(
         const topLevelRefs = localDeps[""] || [];
         for (const refName of topLevelRefs) {
           const internalExport = module.exports.find(e => e.name === refName);
-          if (internalExport) {
+          if (internalExport?.isTypeOnly) {
+            // Preserve pure type exports referenced by a used public signature.
+            // Runtime value exports referenced only inside another export remain
+            // eligible for unused-export reporting.
             const internalKey = `${module.id}:${internalExport.exportedAs}`;
             if (!usedExports.has(internalKey)) {
               usedExports.add(internalKey);
@@ -692,9 +695,11 @@ export function buildUsedExports(
             if (!current || visited.has(current)) continue;
             visited.add(current);
             
-            // If this local symbol is also an export (e.g. an Interface used as a type)
+            // If this local symbol is also a pure type export (e.g. an
+            // interface used in a public signature), preserve its usage.
+            // Runtime value exports remain independently reportable.
             const internalExport = module.exports.find(e => e.name === current);
-            if (internalExport) {
+            if (internalExport?.isTypeOnly) {
               const internalKey = `${module.id}:${internalExport.exportedAs}`;
               if (!usedExports.has(internalKey)) {
                 usedExports.add(internalKey);
