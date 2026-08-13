@@ -71,13 +71,8 @@ export const NetlifyPlugin: AnalyzerPlugin = {
       }
 
       // Mark all installed @netlify/* packages as used in package.json
-      if (hasNetlifyDep) {
-        for (const netlifyPkg of NETLIFY_PACKAGES) {
-          if (allDeps[netlifyPkg]) {
-            adapter.markPackageAsUsed(netlifyPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts that execute netlify CLI (e.g. "dev": "netlify dev")
       if (pkg?.scripts) {

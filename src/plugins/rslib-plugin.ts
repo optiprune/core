@@ -60,13 +60,8 @@ export const RslibPlugin: AnalyzerPlugin = {
       const hasRslibDep = RSLIB_PACKAGES.some((p) => p in allDeps);
 
       // 1. Safeguard installed @rslib/* packages in package.json
-      if (hasRslibDep) {
-        for (const rslibPkg of RSLIB_PACKAGES) {
-          if (allDeps[rslibPkg]) {
-            adapter.markPackageAsUsed(rslibPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 2. Protect standalone config files
       let hasConfigFile = false;

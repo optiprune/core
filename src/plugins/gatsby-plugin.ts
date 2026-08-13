@@ -95,7 +95,8 @@ export const GatsbyPlugin: AnalyzerPlugin = {
       if (hasGatsby) {
         for (const depName of Object.keys(allDeps)) {
           if (depName === "gatsby" || depName.startsWith("gatsby-")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

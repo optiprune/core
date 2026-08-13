@@ -133,7 +133,8 @@ export const CapacitorPlugin: AnalyzerPlugin = {
 
         for (const depName of Object.keys(allDeps)) {
           if (depName.startsWith("@capacitor/") || depName.startsWith("capacitor-")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

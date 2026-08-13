@@ -90,15 +90,8 @@ export const NuxtPlugin: AnalyzerPlugin = {
       };
       adapter.declareFramework("nuxt");
 
-      if (allDeps["nuxt"] || allDeps["nuxt3"]) {
-        adapter.markPackageAsUsed("nuxt");
-
-        for (const ecoPkg of NUXT_ECOSYSTEM_PACKAGES) {
-          if (allDeps[ecoPkg]) {
-            adapter.markPackageAsUsed(ecoPkg);
-          }
-        }
-      }
+      // A Nuxt dependency declaration alone is not usage evidence. Config,
+      // scripts, route files, and Nuxt-specific AST constructs are handled below.
 
       for (const configFile of NUXT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {

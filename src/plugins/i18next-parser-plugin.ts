@@ -80,9 +80,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       if (hasParserDep) {
         adapter.markPackageAsUsed("i18next-parser");
       }
-      if ("i18next" in allDeps) {
-        adapter.markPackageAsUsed("i18next");
-      }
+      // The parser package is marked only when its config, script, or import is observed.
 
       // 2. Protect standalone configuration files
       let hasConfigFile = false;

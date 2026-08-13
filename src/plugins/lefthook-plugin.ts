@@ -61,13 +61,8 @@ export const LefthookPlugin: AnalyzerPlugin = {
       }
 
       // Mark installed Lefthook packages as used in package.json
-      if (hasLefthookDep) {
-        for (const lefthookPkg of LEFTHOOK_PACKAGES) {
-          if (allDeps[lefthookPkg]) {
-            adapter.markPackageAsUsed(lefthookPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Lefthook CLI (e.g. "prepare": "lefthook install")
       if (pkg?.scripts) {

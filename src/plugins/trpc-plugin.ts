@@ -47,11 +47,7 @@ export const TrpcPlugin: AnalyzerPlugin = {
       };
 
       // Protect all installed @trpc/* packages in package.json
-      for (const trpcPkg of TRPC_PACKAGES) {
-        if (allDeps[trpcPkg]) {
-          adapter.markPackageAsUsed(trpcPkg);
-        }
-      }
+      // Do not treat a manifest entry as usage evidence.
     },
 
     onFileStart: (fileId, adapter) => {

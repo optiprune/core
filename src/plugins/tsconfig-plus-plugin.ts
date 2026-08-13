@@ -85,11 +85,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
       const hasTs = "typescript" in allDeps;
 
       // 1. Safeguard core TypeScript packages in package.json
-      for (const tsPkg of TYPESCRIPT_PACKAGES) {
-        if (tsPkg in allDeps) {
-          adapter.markPackageAsUsed(tsPkg);
-        }
-      }
+      // Package declaration alone is not usage evidence.
 
       // 2. Scan and parse all found tsconfig*.json files
       let hasConfigFile = false;

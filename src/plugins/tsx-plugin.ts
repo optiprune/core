@@ -49,13 +49,8 @@ export const TsxPlugin: AnalyzerPlugin = {
       let isTsxUsedInScripts = false;
 
       // 1. Protect installed tsx / esbuild-register packages in package.json
-      if (hasTsxDep) {
-        for (const tsxPkg of TSX_PACKAGES) {
-          if (allDeps[tsxPkg]) {
-            adapter.markPackageAsUsed(tsxPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 2. Inspect package.json scripts for tsx execution
       if (pkg?.scripts) {

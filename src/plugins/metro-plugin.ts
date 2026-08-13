@@ -59,13 +59,8 @@ export const MetroPlugin: AnalyzerPlugin = {
       }
 
       // Mark installed Metro/React Native packages as used in package.json
-      if (hasMetroDep) {
-        for (const metroPkg of METRO_PACKAGES) {
-          if (allDeps[metroPkg]) {
-            adapter.markPackageAsUsed(metroPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Metro or React Native CLI
       if (pkg?.scripts) {

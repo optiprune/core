@@ -74,13 +74,8 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
       let isUsedInScripts = false;
 
       // 1. Safeguard installed markdownlint ecosystem packages in package.json
-      if (hasMarkdownlintDep) {
-        for (const mlPkg of MARKDOWNLINT_PACKAGES) {
-          if (allDeps[mlPkg]) {
-            adapter.markPackageAsUsed(mlPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 2. Protect markdownlint configuration files
       let hasConfigFile = false;

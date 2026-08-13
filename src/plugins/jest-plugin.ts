@@ -71,13 +71,8 @@ export const JestPlugin: AnalyzerPlugin = {
       }
 
       // Safeguard installed Jest ecosystem packages in package.json
-      if (hasJestDep) {
-        for (const jestPkg of JEST_PACKAGES) {
-          if (allDeps[jestPkg]) {
-            adapter.markPackageAsUsed(jestPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Jest
       if (pkg?.scripts) {

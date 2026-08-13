@@ -65,11 +65,7 @@ export const PreCommitPlugin: AnalyzerPlugin = {
       };
 
       // 1. Safeguard pre-commit packages in package.json if installed
-      for (const pkgName of PRE_COMMIT_PACKAGES) {
-        if (pkgName in allDeps) {
-          adapter.markPackageAsUsed(pkgName);
-        }
-      }
+      // Package declaration alone is not usage evidence.
 
       // 2. Protect pre-commit configuration files
       let hasConfigFile = false;

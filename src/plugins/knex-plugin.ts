@@ -83,11 +83,7 @@ export const KnexPlugin: AnalyzerPlugin = {
       if (hasKnex) {
         adapter.markPackageAsUsed("knex");
 
-        for (const driver of KNEX_DRIVERS) {
-          if (driver in allDeps) {
-            adapter.markPackageAsUsed(driver);
-          }
-        }
+        // Package declaration alone is not usage evidence.
       }
 
       // 2. Protect standalone configuration files and default migration/seed directories

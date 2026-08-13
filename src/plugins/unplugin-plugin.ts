@@ -55,7 +55,8 @@ export const UnpluginPlugin: AnalyzerPlugin = {
       // 1. Safeguard all installed unplugin packages in package.json
       for (const depName of Object.keys(allDeps)) {
         if (isUnpluginPackage(depName)) {
-          adapter.markPackageAsUsed(depName);
+          // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
         }
       }
     },

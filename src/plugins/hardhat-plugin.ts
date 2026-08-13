@@ -71,13 +71,8 @@ export const HardhatPlugin: AnalyzerPlugin = {
       }
 
       // Safeguard all installed Hardhat ecosystem packages in package.json
-      if (hasHardhatDep) {
-        for (const hhPkg of HARDHAT_ECOSYSTEM_PACKAGES) {
-          if (allDeps[hhPkg]) {
-            adapter.markPackageAsUsed(hhPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Hardhat CLI (e.g. "compile": "hardhat compile")
       if (pkg?.scripts) {

@@ -75,9 +75,7 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
           ...pkg.peerDependencies
         };
 
-        if (allDeps[CHANGELOGEN_PACKAGE_NAME]) {
-          adapter.markPackageAsUsed(CHANGELOGEN_PACKAGE_NAME);
-        }
+        // A declared dependency is not usage evidence by itself.
 
         // 3. Process inline package.json#changelogen block
         if (pkg.changelogen) {

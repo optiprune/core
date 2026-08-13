@@ -96,7 +96,8 @@ export const StylelintPlugin: AnalyzerPlugin = {
             depName.startsWith("stylelint-") ||
             depName.startsWith("@stylelint/")
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

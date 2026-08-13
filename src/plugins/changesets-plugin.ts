@@ -101,7 +101,8 @@ export const ChangesetsPlugin: AnalyzerPlugin = {
 
         for (const depName of Object.keys(allDeps)) {
           if (depName.startsWith("@changesets/")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

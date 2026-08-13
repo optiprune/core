@@ -93,7 +93,8 @@ export const QwikPlugin: AnalyzerPlugin = {
             depName === "@builder.io/qwik" ||
             depName.startsWith("@builder.io/qwik-")
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

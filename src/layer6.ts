@@ -295,28 +295,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
 
-      if (context.enabledPlugins?.has('nextjs-plugin')) {
-        scriptPackages.add('next');
-        scriptPackages.add('react');
-        scriptPackages.add('react-dom');
-      }
-      if (context.enabledPlugins?.has('nestjs-plugin')) {
-        scriptPackages.add('@nestjs/core');
-        scriptPackages.add('@nestjs/common');
-        scriptPackages.add('reflect-metadata');
-        scriptPackages.add('rxjs');
-      }
-      if (context.enabledPlugins?.has('react-plugin')) {
-        scriptPackages.add('react');
-        scriptPackages.add('react-dom');
-      }
-      if (context.enabledPlugins?.has('vuejs-plugin')) {
-        scriptPackages.add('vue');
-      }
-      if (context.enabledPlugins?.has('angular-plugin')) {
-        scriptPackages.add('@angular/core');
-        scriptPackages.add('@angular/common');
-      }
+      // Plugin activation is not dependency usage evidence. Dependencies are
+      // considered used only when imports, scripts, explicit config marks, or
+      // verified configuration files establish a concrete relationship.
 
       const shellCommands = new Set([
         'if', 'then', 'else', 'fi', 'for', 'in', 'do', 'done', 'exit', 'echo', 'cd', 'rm', 'mkdir', 
@@ -489,13 +470,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       }
 
-      const CORE_TOOLING = [
-        'optiprune', '@optiprune/cli', '@optiprune/core', 'typescript', 'ts-node', 'tsx', 'babel', 'swc',
-        'eslint', 'prettier', 'husky', 'lint-staged', 'commitlint', 'knip',
-        'vitest', 'jest', 'cypress', 'playwright', 'semantic-release',
-        '@types/node', '@types/react', '@types/react-dom', '@types/jest'
-      ];
-
       const commonConfigs = [
         '.eslintrc', '.prettierrc', 'vitest.config', 'jest.config', 'webpack.config', 'vite.config', 'rollup.config',
         'postcss.config', 'tailwind.config', 'tsconfig.json', 'babel.config', 'swc.config', 'lerna.json', 'turbo.json',
@@ -519,8 +493,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
                              context.usedExports?.has(`package.json:dependencies:${dep}`) ||
                              context.usedExports?.has(`package.json:devDependencies:${dep}`);
 
-        const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
-
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '').replace(/^eslint-plugin-/, '').replace(/^prettier-plugin-/, '');
           if (cfg.includes(depBase || '___never___')) {
@@ -529,7 +501,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
-        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || hasRelatedConfig;
 
         // Skip packages the user has explicitly asked to ignore.
         if (ignoreDeps.has(dep)) continue;
@@ -566,8 +538,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
                              context.usedExports?.has(`package.json:dependencies:${dep}`) ||
                              context.usedExports?.has(`package.json:devDependencies:${dep}`);
 
-        const isCoreTool = CORE_TOOLING.some(p => dep.toLowerCase().includes(p.toLowerCase()));
-
         const hasRelatedConfig = commonConfigs.some(cfg => {
           const depBase = dep.split('/')[0]?.replace(/^@/, '').replace(/-config$/, '').replace(/config-/, '').replace(/^eslint-plugin-/, '').replace(/^prettier-plugin-/, '');
           if (cfg.includes(depBase || '___never___')) {
@@ -576,7 +546,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
-        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || isCoreTool || hasRelatedConfig;
+        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || hasRelatedConfig;
 
         let isPluginUsed = false;
         const pluginBases = ['eslint', 'prettier', 'babel', 'stylelint', 'postcss', 'remark', 'jest', 'vitest'];

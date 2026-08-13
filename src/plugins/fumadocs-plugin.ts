@@ -115,7 +115,8 @@ export const FumadocsPlugin: AnalyzerPlugin = {
 
         for (const depName of Object.keys(allDeps)) {
           if (depName.startsWith("fumadocs-") || depName === "fumadocs") {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

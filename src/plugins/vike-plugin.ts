@@ -99,7 +99,8 @@ export const VikePlugin: AnalyzerPlugin = {
             depName.startsWith("vike-") ||
             depName === "vite-plugin-ssr"
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

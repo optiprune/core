@@ -56,11 +56,7 @@ export const ReactPlugin: AnalyzerPlugin = {
       // Safeguard installed React ecosystem packages in package.json
       if (hasReactDep) {
         adapter.declareFramework("react");
-        for (const reactPkg of REACT_PACKAGES) {
-          if (allDeps[reactPkg]) {
-            adapter.markPackageAsUsed(reactPkg);
-          }
-        }
+        // Do not treat a manifest entry as usage evidence.
       }
 
       const config =

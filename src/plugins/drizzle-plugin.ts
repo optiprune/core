@@ -94,7 +94,8 @@ export const DrizzlePlugin: AnalyzerPlugin = {
       if (hasDrizzle) {
         for (const depName of DRIZZLE_PACKAGES) {
           if (allDeps[depName]) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

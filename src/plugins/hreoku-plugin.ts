@@ -154,7 +154,8 @@ export const HerokuPlugin: AnalyzerPlugin = {
             depName.startsWith("@heroku-cli/") ||
             depName === "heroku-cli"
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

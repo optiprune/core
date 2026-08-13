@@ -53,13 +53,8 @@ export const NitroPlugin: AnalyzerPlugin = {
       }
 
       // Safeguard nitropack and h3 packages in package.json
-      if (hasNitroDep) {
-        for (const nitroPkg of NITRO_PACKAGES) {
-          if (allDeps[nitroPkg]) {
-            adapter.markPackageAsUsed(nitroPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Nitro CLI
       if (pkg?.scripts) {

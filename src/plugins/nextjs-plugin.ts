@@ -148,16 +148,8 @@ export const NextjsPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasNext) {
-        adapter.markPackageAsUsed("next");
-
-        // Protect Next.js ecosystem packages if installed
-        for (const ecoPkg of NEXT_ECOSYSTEM_PACKAGES) {
-          if (allDeps[ecoPkg]) {
-            adapter.markPackageAsUsed(ecoPkg);
-          }
-        }
-      }
+      // The `next` declaration alone is not usage evidence. Route files,
+      // config, scripts, and imports are marked by the hooks below.
 
       // Mark npm scripts calling next CLI
       if (pkg?.scripts) {

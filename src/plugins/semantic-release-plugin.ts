@@ -98,7 +98,8 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
             depName.startsWith("@semantic-release/") ||
             depName.startsWith("semantic-release-")
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

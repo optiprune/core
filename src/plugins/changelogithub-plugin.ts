@@ -76,9 +76,7 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
           ...pkg.peerDependencies
         };
 
-        if (allDeps[CHANGELOGITHUB_PACKAGE_NAME]) {
-          adapter.markPackageAsUsed(CHANGELOGITHUB_PACKAGE_NAME);
-        }
+        // A declared dependency is not usage evidence by itself.
 
         // 3. Process inline package.json#changelogithub block
         if (pkg.changelogithub) {

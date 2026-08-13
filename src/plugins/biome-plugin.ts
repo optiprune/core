@@ -46,13 +46,8 @@ export const BiomePlugin: AnalyzerPlugin = {
       }
 
       // Mark @biomejs/biome package as used if installed
-      if (hasBiomeDep) {
-        for (const biomePkg of BIOME_PACKAGES) {
-          if (allDeps[biomePkg]) {
-            adapter.markPackageAsUsed(biomePkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Mark package.json scripts that execute biome (e.g., "lint": "biome check ./src")
       if (pkg?.scripts) {

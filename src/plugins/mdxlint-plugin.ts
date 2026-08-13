@@ -128,7 +128,8 @@ export const MdxlintPlugin: AnalyzerPlugin = {
             depName.startsWith("@mdxlint/") ||
             depName.startsWith("mdxlint-plugin-")
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

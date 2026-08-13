@@ -111,13 +111,8 @@ export const SveltePlugin: AnalyzerPlugin = {
       }
 
       // Safeguard installed Svelte ecosystem packages in package.json
-      if (hasSvelteDep) {
-        for (const sveltePkg of SVELTE_PACKAGES) {
-          if (allDeps[sveltePkg]) {
-            adapter.markPackageAsUsed(sveltePkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Svelte CLI / svelte-check
       if (pkg?.scripts) {

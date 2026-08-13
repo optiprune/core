@@ -90,7 +90,8 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           depName.startsWith("@wxt-dev/") ||
           depName.startsWith("@vite-pwa/")
         ) {
-          adapter.markPackageAsUsed(depName);
+          // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
         }
       }
 
@@ -158,23 +159,9 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("wxt");
       }
 
-      // 3. Electron Vite standard entry conventions (main, preload, renderer)
-      if (
-        normalized.includes("src/main/") ||
-        normalized.includes("src/preload/") ||
-        normalized.includes("src/renderer/")
-      ) {
-        if (
-          basename === "index.ts" ||
-          basename === "index.js" ||
-          basename === "main.ts" ||
-          basename === "main.js" ||
-          basename === "index.html"
-        ) {
-          adapter.markAsUsed(fileId);
-          adapter.markPackageAsUsed("electron-vite");
-        }
-      }
+      // Electron-Vite entry files are configuration-defined. Do not promote
+      // conventional src/main, src/preload, or src/renderer files without a
+      // corresponding config reference.
 
       // 4. File-Based Pages & Layouts Routing (vite-plugin-pages, vite-plugin-vue-layouts-next)
       if (

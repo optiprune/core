@@ -83,11 +83,7 @@ export const DockerPlugin: AnalyzerPlugin = {
       };
 
       // 1. Safeguard installed Docker packages in package.json
-      for (const dockerPkg of DOCKER_PACKAGES) {
-        if (dockerPkg in allDeps) {
-          adapter.markPackageAsUsed(dockerPkg);
-        }
-      }
+      // Package declaration alone is not usage evidence.
 
       // 2. Protect standalone Docker build and Compose files
       for (const configFile of DOCKER_CONFIG_FILES) {

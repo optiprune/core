@@ -81,13 +81,8 @@ export const UnocssPlugin: AnalyzerPlugin = {
       }
 
       // Safeguard installed UnoCSS ecosystem packages in package.json
-      if (hasUnoDep) {
-        for (const unoPkg of UNOCSS_PACKAGES) {
-          if (allDeps[unoPkg]) {
-            adapter.markPackageAsUsed(unoPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking UnoCSS CLI (e.g. "unocss --watch")
       if (pkg?.scripts) {

@@ -65,13 +65,8 @@ export const VitepressPlugin: AnalyzerPlugin = {
       const hasVitepressDep = VITEPRESS_PACKAGES.some((p) => p in allDeps);
 
       // 1. Safeguard installed VitePress ecosystem packages in package.json
-      if (hasVitepressDep) {
-        for (const vpPkg of VITEPRESS_PACKAGES) {
-          if (allDeps[vpPkg]) {
-            adapter.markPackageAsUsed(vpPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 2. Protect standalone config files and .vitepress folder
       let hasConfigFile = false;

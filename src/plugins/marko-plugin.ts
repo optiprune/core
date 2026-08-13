@@ -64,11 +64,7 @@ export const MarkoPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("marko");
 
         // Protect Marko ecosystem integrations if present in package.json
-        for (const ecoPkg of MARKO_ECOSYSTEM_PACKAGES) {
-          if (allDeps[ecoPkg]) {
-            adapter.markPackageAsUsed(ecoPkg);
-          }
-        }
+        // Do not treat a manifest entry as usage evidence.
       }
 
       // Check npm scripts running marko CLI or Marko Run

@@ -88,7 +88,8 @@ export const SvgrPlugin: AnalyzerPlugin = {
       if (hasSvgr) {
         for (const depName of SVGR_PACKAGES) {
           if (allDeps[depName]) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

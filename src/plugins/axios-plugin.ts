@@ -50,11 +50,7 @@ export const AxiosPlugin: AnalyzerPlugin = {
       };
 
       // Protect all installed axios ecosystem packages in package.json
-      for (const axiosPkg of AXIOS_PACKAGES) {
-        if (allDeps[axiosPkg]) {
-          adapter.markPackageAsUsed(axiosPkg);
-        }
-      }
+      // Do not treat a manifest entry as usage evidence.
     },
 
     onASTNode: (node, fileId, adapter) => {

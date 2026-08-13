@@ -116,7 +116,8 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
             depName.startsWith("@release-it/") ||
             depName.startsWith("release-it-")
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

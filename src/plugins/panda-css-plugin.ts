@@ -93,7 +93,8 @@ export const PandaCssPlugin: AnalyzerPlugin = {
       if (hasPanda) {
         for (const depName of Object.keys(allDeps)) {
           if (depName === "@pandacss/dev" || depName.startsWith("@pandacss/")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

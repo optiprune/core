@@ -67,11 +67,9 @@ export const TailwindPlugin: AnalyzerPlugin = {
       // must be marked only when they are actually imported or registered in
       // a Tailwind configuration. The AST pass below handles those cases.
       //
-      // The core package is protected when a Tailwind config is present; CSS
-      // entry imports are handled separately by the CSS resolver/plugin.
-      if (hasConfigFile && allDeps["tailwindcss"]) {
-        adapter.markPackageAsUsed("tailwindcss");
-      }
+      // The Tailwind package declaration alone is not usage evidence. The
+      // config file, CLI scripts, CSS directives, and plugin imports provide
+      // concrete usage marks below.
 
       // Check npm scripts running tailwind CLI
       if (pkg?.scripts) {

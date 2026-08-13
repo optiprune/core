@@ -86,7 +86,8 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       if (hasCommitlint) {
         for (const depName of Object.keys(allDeps)) {
           if (depName === "commitlint" || depName.startsWith("@commitlint/")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

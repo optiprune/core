@@ -80,13 +80,8 @@ export const NxPlugin: AnalyzerPlugin = {
       }
 
       // 2. Protect installed Nx packages
-      if (hasNxDep) {
-        for (const nxPkg of NX_PACKAGES) {
-          if (allDeps[nxPkg]) {
-            adapter.markPackageAsUsed(nxPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 3. Inspect package.json scripts for Nx CLI usage (e.g. "build": "nx build")
       if (pkg?.scripts) {

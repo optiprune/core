@@ -109,15 +109,7 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
       // 1. Safeguard installed TypeORM core, NestJS integration, and drivers in package.json
       if (hasTypeOrm) {
         adapter.markPackageAsUsed("typeorm");
-        if ("@nestjs/typeorm" in allDeps) {
-          adapter.markPackageAsUsed("@nestjs/typeorm");
-        }
-
-        for (const driver of TYPEORM_DRIVERS) {
-          if (driver in allDeps) {
-            adapter.markPackageAsUsed(driver);
-          }
-        }
+        // Package declaration alone is not usage evidence.
       }
 
       // 2. Protect standalone configuration files and migration directories

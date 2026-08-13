@@ -67,11 +67,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
       const hasRaycastApi = "@raycast/api" in allDeps;
 
       // 1. Safeguard Raycast ecosystem packages in package.json
-      for (const raycastPkg of RAYCAST_PACKAGES) {
-        if (raycastPkg in allDeps) {
-          adapter.markPackageAsUsed(raycastPkg);
-        }
-      }
+      // Package declaration alone is not usage evidence.
 
       // 2. Protect standalone configuration files
       let hasConfigFile = false;

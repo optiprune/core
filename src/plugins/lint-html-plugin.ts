@@ -76,12 +76,8 @@ export const LintHtmlPlugin: AnalyzerPlugin = {
           ...pkg.peerDependencies
         };
 
-        if (allDeps[LINTHTML_PACKAGE_NAME]) {
-          adapter.markPackageAsUsed(LINTHTML_PACKAGE_NAME);
-        }
-        if (allDeps[LINTHTML_ALT_PACKAGE_NAME]) {
-          adapter.markPackageAsUsed(LINTHTML_ALT_PACKAGE_NAME);
-        }
+        // A declared dependency is not usage evidence by itself.
+        // A declared dependency is not usage evidence by itself.
 
         // 3. Mark inline linthtml field in package.json as used
         if (pkg.linthtml) {

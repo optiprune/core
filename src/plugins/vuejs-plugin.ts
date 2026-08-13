@@ -116,11 +116,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       // Safeguard installed Vue ecosystem packages in package.json
       if (hasVueDep && !adapter.hasFramework("nuxt")) {
         adapter.declareFramework("vue");
-        for (const vuePkg of VUE_PACKAGES) {
-          if (allDeps[vuePkg]) {
-            adapter.markPackageAsUsed(vuePkg);
-          }
-        }
+        // Do not treat a manifest entry as usage evidence.
       }
 
       // Track npm scripts invoking Vue CLI or Nuxt

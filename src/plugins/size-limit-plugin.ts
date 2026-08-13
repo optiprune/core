@@ -116,7 +116,8 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
             depName.startsWith("@size-limit/") ||
             depName.startsWith("size-limit-")
           ) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
 

@@ -111,13 +111,8 @@ export const BabelPlugin: AnalyzerPlugin = {
       }
 
       // Mark core installed Babel packages
-      if (hasBabelDep) {
-        for (const pkgName of CORE_BABEL_PACKAGES) {
-          if (allDeps[pkgName]) {
-            adapter.markPackageAsUsed(pkgName);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Mark package.json scripts that execute babel CLI
       if (pkg?.scripts) {

@@ -60,13 +60,8 @@ export const TsNodePlugin: AnalyzerPlugin = {
       let isTsNodeUsedInScripts = false;
 
       // 1. Safeguard installed ts-node packages in package.json
-      if (hasTsNodeDep) {
-        for (const tsNodePkg of TS_NODE_PACKAGES) {
-          if (allDeps[tsNodePkg]) {
-            adapter.markPackageAsUsed(tsNodePkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 2. Inspect package.json scripts for ts-node invocations
       if (pkg?.scripts) {

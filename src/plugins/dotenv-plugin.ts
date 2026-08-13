@@ -47,11 +47,7 @@ export const DotenvPlugin: AnalyzerPlugin = {
       };
 
       // Protect installed dotenv packages
-      for (const envPkg of DOTENV_PACKAGES) {
-        if (allDeps[envPkg]) {
-          adapter.markPackageAsUsed(envPkg);
-        }
-      }
+      // Do not treat a manifest entry as usage evidence.
 
       // Check npm scripts using CLI flags (e.g. "dotenv -e .env -- node index.js")
       if (pkg?.scripts) {

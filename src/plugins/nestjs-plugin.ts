@@ -99,13 +99,8 @@ export const NestJsPlugin: AnalyzerPlugin = {
       }
 
       // Mark all installed @nestjs/* packages as used
-      if (hasNestDep) {
-        for (const nestPkg of NEST_ECOSYSTEM_PACKAGES) {
-          if (allDeps[nestPkg]) {
-            adapter.markPackageAsUsed(nestPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // Track npm scripts invoking Nest CLI (e.g. "start:dev": "nest start --watch")
       if (pkg?.scripts) {

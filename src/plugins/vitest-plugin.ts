@@ -85,13 +85,8 @@ export const VitestPlugin: AnalyzerPlugin = {
       }
 
       // 1. Protect installed Vitest ecosystem packages in package.json
-      if (hasVitestDep) {
-        for (const vitestPkg of VITEST_PACKAGES) {
-          if (allDeps[vitestPkg]) {
-            adapter.markPackageAsUsed(vitestPkg);
-          }
-        }
-      }
+      // Package manifest presence alone is not usage evidence;
+      // config, script, import, and file hooks provide the usage marks.
 
       // 2. Track npm scripts invoking Vitest (e.g., "test": "vitest run")
       if (pkg?.scripts) {

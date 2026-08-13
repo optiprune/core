@@ -55,11 +55,7 @@ export const MoonrepoPlugin: AnalyzerPlugin = {
       }
 
       // 2. Protect installed @moonrepo/* packages
-      for (const moonPkg of MOON_PACKAGES) {
-        if (allDeps[moonPkg]) {
-          adapter.markPackageAsUsed(moonPkg);
-        }
-      }
+      // Do not treat a manifest entry as usage evidence.
 
       // 3. Inspect package.json scripts for moon execution (e.g. "build": "moon run :build")
       if (pkg?.scripts) {

@@ -86,7 +86,8 @@ export const ConvexPlugin: AnalyzerPlugin = {
       if (hasConvex) {
         for (const depName of Object.keys(allDeps)) {
           if (depName === "convex" || depName.startsWith("@convex-dev/")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }

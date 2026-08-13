@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import type { PluginAdapter } from "../types.js";
 import path from "pathe";
 
 const VITE_CONFIG_FILES = [
@@ -20,6 +21,36 @@ const VITE_CORE_PACKAGES = [
   "@vitejs/plugin-react-swc",
   "@vitejs/plugin-legacy"
 ];
+
+function resolveViteRoot(rootDir: string, source: string): string {
+  // Vite config is not executed by OptiPrune. Resolve only the common static
+  // forms so a dynamic root cannot accidentally create a false entry point.
+  const rootMatch = source.match(/\broot\s*:\s*(?:path\.)?resolve\(\s*(?:import\.meta\.dirname|__dirname)\s*,\s*["']([^"']+)["']\s*\)/);
+  if (rootMatch?.[1]) return path.resolve(rootDir, rootMatch[1]);
+
+  const literalMatch = source.match(/\broot\s*:\s*["']([^"']+)["']/);
+  if (literalMatch?.[1]) return path.resolve(rootDir, literalMatch[1]);
+
+  return rootDir;
+}
+
+async function markHtmlEntry(adapter: PluginAdapter, indexFile: string) {
+  if (!(await adapter.folderExists(indexFile))) return;
+  adapter.markAsUsed(indexFile);
+  const content = await adapter.readFile(indexFile);
+  if (!content) return;
+
+  const scriptRe = /<script\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = scriptRe.exec(content)) !== null) {
+    const src = match[1]?.split(/[?#]/, 1)[0];
+    if (!src || src.startsWith("http") || src.startsWith("//")) continue;
+    const resolved = src.startsWith("/")
+      ? path.resolve(path.dirname(indexFile), `.${src}`)
+      : path.resolve(path.dirname(indexFile), src);
+    adapter.markAsUsed(resolved);
+  }
+}
 
 export const VitePlugin: AnalyzerPlugin = {
   name: "vite-plugin",
@@ -55,32 +86,23 @@ export const VitePlugin: AnalyzerPlugin = {
       };
 
             const hasViteDep = VITE_CORE_PACKAGES.some((p) => p in allDeps);
-      let hasConfigFile = false;
+      let configPath: string | undefined;
       for (const configFile of VITE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          hasConfigFile = true;
+          configPath = configFile;
           adapter.markAsUsed(configFile);
+          adapter.markPackageAsUsed("vite");
           break;
         }
       }
 
-      // If we have a config but no core package, mark the core package as missing
-      if (hasConfigFile && !hasViteDep) {
-        // If it's an Nx workspace (nx.json exists), suggest @nx/vite, otherwise vite
-        if (await adapter.folderExists("nx.json")) {
-          adapter.markPackageAsUsed("@nx/vite"); // This will trigger missing-dependency if not in package.json
-        } else {
-          adapter.markPackageAsUsed("vite");
-        }
-      }
-
-      // Safeguard installed Vite ecosystem packages in package.json
-      if (hasViteDep) {
-        for (const vitePkg of VITE_CORE_PACKAGES) {
-          if (allDeps[vitePkg]) {
-            adapter.markPackageAsUsed(vitePkg);
-          }
-        }
+      // A config file is evidence that Vite is intended to run, but it must not
+      // make a missing dependency look installed. The finding below is based on
+      // the manifest independently of the usage mark.
+      if (configPath) {
+        const configSource = await adapter.readFile(configPath);
+        const viteRoot = configSource ? resolveViteRoot(adapter.getConfig().rootDir, configSource) : adapter.getConfig().rootDir;
+        await markHtmlEntry(adapter, path.join(viteRoot, "index.html"));
       }
 
       // Track npm scripts invoking Vite CLI (e.g. "dev": "vite", "build": "vite build")
@@ -96,14 +118,14 @@ export const VitePlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasConfigFile && !hasViteDep) {
+      if (configPath && !hasViteDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
           message: "Vite configuration found but 'vite' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile: Boolean(configPath), configFile: configPath }
         });
       }
     },
@@ -118,44 +140,11 @@ export const VitePlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("vite");
       }
 
-      // 2. Mark default entry points for Vite apps and discover their scripts
-      if (basename === "index.html") {
-        adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed("vite");
-
-        // Extract script tags from index.html to find the real entry points
-        adapter.readFile(fileId).then((content) => {
-          if (content) {
-            const scriptRe = /<script\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/gi;
-            let m;
-            while ((m = scriptRe.exec(content)) !== null) {
-              const src = m[1];
-              if (src && !src.startsWith("http") && !src.startsWith("//")) {
-                // Resolve relative to index.html's directory
-                const dir = path.dirname(fileId);
-                const resolved = path.resolve(dir, src);
-                adapter.markAsUsed(resolved);
-              }
-            }
-          }
-        }).catch(() => {});
-      }
-
-      const standardEntries = [
-        "src/main.ts",
-        "src/main.js",
-        "src/main.tsx",
-        "src/main.jsx",
-        "src/index.ts",
-        "src/index.js",
-        "src/index.tsx",
-        "src/index.jsx"
-      ];
-
-      if (standardEntries.some((entry) => normalized.endsWith(entry))) {
-        adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed("vite");
-      }
+      // Vite's HTML file is the browser entry point. Its script graph is
+      // discovered during onProjectInit, where the configured root is known.
+      // Do not mark conventional src/main.* or src/App.* files here: they are
+      // reachable only when referenced by index.html (or an explicit entry).
+      if (basename === "index.html") adapter.markPackageAsUsed("vite");
     },
 
     onASTNode: (node, fileId, adapter) => {

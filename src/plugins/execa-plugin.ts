@@ -44,23 +44,14 @@ export const ExecaPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      // 1. Safeguard installed execa packages in package.json
-      for (const execaPkg of EXECA_PACKAGES) {
-        if (execaPkg in allDeps) {
-          adapter.markPackageAsUsed(execaPkg);
-        }
-      }
+      // Dependency declarations alone are not usage evidence. Imports and
+      // configuration/script hooks below provide the package usage marks.
     },
 
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
-      if (basename === "package.json") {
-        for (const execaPkg of EXECA_PACKAGES) {
-          adapter.markPackageAsUsed(execaPkg);
-        }
-      }
     },
 
     onASTNode: (node: any, fileId, adapter) => {

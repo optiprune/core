@@ -41,9 +41,8 @@ export const ZodPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      if ("zod" in allDeps) {
-        adapter.markPackageAsUsed("zod");
-      }
+      // A package.json declaration alone is not usage evidence. Zod imports
+      // and schema expressions are marked in onASTNode below.
     },
 
     onASTNode: (node: any, fileId, adapter) => {

@@ -84,7 +84,8 @@ export const RsbuildPlugin: AnalyzerPlugin = {
       if (hasRsbuild) {
         for (const depName of Object.keys(allDeps)) {
           if (depName.startsWith("@rsbuild/")) {
-            adapter.markPackageAsUsed(depName);
+            // A manifest entry alone is not evidence that this package is used.
+            // Usage is marked by the config, script, import, or file hooks below.
           }
         }
       }
@@ -135,22 +136,9 @@ export const RsbuildPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("@rsbuild/core");
       }
 
-      // 2. Standard Rsbuild entry point conventions (src/index.ts, src/index.js, src/index.tsx, etc.)
-      const standardEntries = [
-        "src/index.ts",
-        "src/index.tsx",
-        "src/index.js",
-        "src/index.jsx",
-        "src/main.ts",
-        "src/main.tsx",
-        "src/main.js",
-        "src/main.jsx"
-      ];
-
-      if (standardEntries.some((entry) => normalized.endsWith(entry))) {
-        adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed("@rsbuild/core");
-      }
+      // Rsbuild entries are configuration-defined. Do not promote files merely
+      // because they happen to be named src/index.* or src/main.*; configured
+      // `source.entry` values are handled in onASTNode below.
     },
 
     onASTNode: (node, fileId, adapter) => {
