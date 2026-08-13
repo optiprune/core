@@ -18,6 +18,13 @@ const SOURCE_EXTENSION_ALIASES = new Map<string, string[]>([
   [".vue", [".vue"]],
   [".svelte", [".svelte"]],
   [".astro", [".astro"]],
+  // Stylesheet imports are first-class module edges, not unresolved assets.
+  [".css", [".css"]],
+  [".scss", [".scss", ".sass"]],
+  [".sass", [".sass", ".scss"]],
+  [".less", [".less"]],
+  [".styl", [".styl", ".stylus"]],
+  [".stylus", [".stylus", ".styl"]],
 ]);
 
 export const DEFAULT_EXTENSIONS = [
@@ -33,6 +40,13 @@ export const DEFAULT_EXTENSIONS = [
   ".vue",
   ".svelte",
   ".astro",
+  // First-class stylesheet formats
+  ".css",
+  ".scss",
+  ".sass",
+  ".less",
+  ".styl",
+  ".stylus",
 ];
 
 export const DEFAULT_IGNORE = [
@@ -245,7 +259,10 @@ export function resolveLocalSpecifier(
   sourceFilePath: string,
   rawSpecifier: string,
   knownFiles: Set<string> | Map<string, unknown>,
-  extensions: string[] = [".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".astro", ".json"]
+  extensions: string[] = [
+    ".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".astro",
+    ".css", ".scss", ".sass", ".less", ".styl", ".stylus", ".json"
+  ]
 ): string | undefined {
   const cleaned = removeQueryAndHash(rawSpecifier);
   if (!isLikelyLocalSpecifier(cleaned)) {

@@ -1026,6 +1026,65 @@ function fallbackEdges(sourceText: string, file: string): DependencyEdge[] {
   return edges;
 }
 
+function isStylesheetPath(filePath: string): boolean {
+  return /\.(?:css|scss|sass|less|styl|stylus)$/i.test(filePath);
+}
+
+function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
+  const edges: DependencyEdge[] = [];
+  const seenOffsets = new Set<number>();
+
+  // CSS, Sass, Less, and Stylus support quoted imports. CSS url(...) imports
+  // are included, while ordinary asset URLs are intentionally ignored so
+  // fonts and images do not become false unresolved-import findings.
+  const quotedImport = /@(?:import|use|forward)\s+(?:(?:url\(\s*)?)["']([^"']+)["']\s*\)?/gi;
+  for (const match of sourceText.matchAll(quotedImport)) {
+    const specifier = match[1];
+    const offset = match.index ?? 0;
+    if (!specifier || seenOffsets.has(offset)) continue;
+    seenOffsets.add(offset);
+    edges.push({
+      source: file,
+      rawSpecifier: specifier,
+      kind: "import",
+      importedNames: ["*"],
+      resolution: "unknown",
+      location: locationAtOffset(sourceText, offset),
+    });
+  }
+
+  const unquotedUrlImport = /@(?:import|use|forward)\s+url\(\s*([^'"\s)]+)\s*\)/gi;
+  for (const match of sourceText.matchAll(unquotedUrlImport)) {
+    const specifier = match[1];
+    const offset = match.index ?? 0;
+    if (!specifier || seenOffsets.has(offset)) continue;
+    seenOffsets.add(offset);
+    edges.push({
+      source: file,
+      rawSpecifier: specifier,
+      kind: "import",
+      importedNames: ["*"],
+      resolution: "unknown",
+      location: locationAtOffset(sourceText, offset),
+    });
+  }
+
+  return {
+    id: file,
+    relativePath: file,
+    parseStatus: "parsed",
+    parseDiagnostics: [],
+    sourceText,
+    exports: [],
+    edges,
+    hasUnknownDynamicBoundary: false,
+    hasParseError: false,
+    hasUnresolvedCommonJsExports: false,
+    scannedDirectories: [],
+    dynamicImportCandidates: [],
+  };
+}
+
 function fallbackModule(sourceText: string, file: string, reason: unknown): ModuleRecord {
   const originalMessage = reason instanceof Error ? reason.message : "Parser could not recover this file";
   return {
@@ -1078,6 +1137,12 @@ export function parseModule(
       scannedDirectories: [],
       dynamicImportCandidates: [],
     };
+  }
+
+  // Stylesheets are graph modules, but not JavaScript AST modules. Parse their
+  // import directives directly before attempting yuku-parser.
+  if (isStylesheetPath(file)) {
+    return parseStylesheetModule(sourceText, file);
   }
 
   try {

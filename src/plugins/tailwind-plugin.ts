@@ -61,13 +61,16 @@ export const TailwindPlugin: AnalyzerPlugin = {
         }
       }
 
-      // Mark all installed Tailwind packages as used
-      if (hasTailwindDep) {
-        for (const tailwindPkg of TAILWIND_PACKAGES) {
-          if (allDeps[tailwindPkg]) {
-            adapter.markPackageAsUsed(tailwindPkg);
-          }
-        }
+      // Do not mark every installed Tailwind package as used merely because
+      // one Tailwind package is present. Optional integrations such as
+      // tailwindcss-animate, @tailwindcss/typography, and @tailwindcss/forms
+      // must be marked only when they are actually imported or registered in
+      // a Tailwind configuration. The AST pass below handles those cases.
+      //
+      // The core package is protected when a Tailwind config is present; CSS
+      // entry imports are handled separately by the CSS resolver/plugin.
+      if (hasConfigFile && allDeps["tailwindcss"]) {
+        adapter.markPackageAsUsed("tailwindcss");
       }
 
       // Check npm scripts running tailwind CLI
