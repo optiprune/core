@@ -20,14 +20,14 @@
         "type": "string"
       },
       "default": [],
-      "description": "Array of entry-point files. Files listed here and their dependency chains will be protected from unused symbol pruning."
+      "description": "Array of entry-point file patterns used as analysis roots. Their dependency chains are analyzed for reachability; only explicitly public entry APIs and package.json exports protect public exports from unused-export pruning."
     },
     "extensions": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "default": [".ts", ".tsx", ".js", ".jsx"],
+      "default": [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte", ".astro", ".css", ".scss", ".sass", ".less", ".styl", ".stylus"],
       "description": "File extensions OptiPrune will process during analysis. Replaces the default list when provided."
     },
     "ignore": {
@@ -82,7 +82,7 @@
       "oneOf": [
         {
           "type": "boolean",
-          "description": "When true, automatically applies fixes for all high-confidence findings."
+          "description": "When true, automatically applies high-confidence fixes from the conservative default set: unreachable files and unused dependencies. Source-level fixes require an explicit rules category."
         },
         {
           "type": "object",
@@ -99,7 +99,12 @@
               "items": {
                 "type": "string"
               },
-              "description": "List of rules or categories (exports, files, dependencies) to fix."
+              "description": "List of fix categories or individual rule names. Categories include exports, files, dependencies, and conditions. Supported core rules include unused-export, unused-member, unreachable-file, unused-dependency, unused-dev-dependency, and constant-condition.",
+              "examples": [
+                ["files", "dependencies"],
+                ["exports"],
+                ["files", "dependencies", "exports", "conditions"]
+              ]
             },
             "dryRun": {
               "type": "boolean",
@@ -111,7 +116,7 @@
         }
       ],
       "default": false,
-      "description": "Configures automated dead-code removal."
+      "description": "Configures automated dead-code removal. Boolean true uses the conservative default fix categories; use an object to opt into source-level export or condition fixes."
     },
     "output": {
       "type": "string",
