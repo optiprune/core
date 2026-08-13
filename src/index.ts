@@ -3,7 +3,7 @@ import { promises as fsp } from "node:fs";
 import path from "pathe";
 import { fileURLToPath } from "node:url";
 import { parseModule, walkAst } from "./parser.js";
-import { buildGraph, contextWithGraph, buildImportUsage, calculateReachability, calculateComponentReachability } from "./graph.js";
+import { buildGraph, contextWithGraph, buildImportUsage, calculateReachability, calculateComponentReachability, edgeTargets } from "./graph.js";
 import { analyzeLayer2 } from "./layer2.js";
 import { analyzeLayer3 } from "./layer3.js";
 import { analyzeLayer4 } from "./layer4.js";
@@ -476,20 +476,50 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           let isEffectivelyUsed = isExportUsed;
           
           // PUBLIC ENTRY POINT & BARREL PROTECTION
+          // PUBLIC ENTRY POINT & BARREL PROTECTION (symbol-aware)
+          // Protect only the export that is actually re-exported through a
+          // public barrel. The previous module-level check protected every
+          // export in a re-exported JSX/TSX/SFC file, including unrelated
+          // dead exports.
           const visited = new Set<string>();
-          const checkPublicReachability = (moduleId: string): boolean => {
-            if (visited.has(moduleId)) return false;
-            visited.add(moduleId);
-            
+          const checkPublicReachability = (moduleId: string, exportName: string): boolean => {
+            const visitKey = `${moduleId}:${exportName}`;
+            if (visited.has(visitKey)) return false;
+            visited.add(visitKey);
+
             if (publicEntryPoints.has(moduleId)) return true;
-            
+
             const usage = importUsage.get(moduleId);
-            if (!usage || !usage.reExportOnly) return false;
-            
-            return Array.from(usage.consumers).some(c => checkPublicReachability(c));
+            if (!usage) return false;
+
+            // A direct consumer can request a specific export from a public
+            // workspace barrel, e.g. app -> ui -> Button. Protect only the
+            // requested name (or a wildcard), not every export in the module.
+            if (!usage.reExportOnly) {
+              return usage.wildcard || usage.names.has(exportName) || (exportName === "default" && usage.names.has("default"));
+            }
+
+            const module = modules.get(moduleId);
+            if (!module) return false;
+
+            return Array.from(usage.consumers).some(consumerId => {
+              const consumer = modules.get(consumerId);
+              if (!consumer) return false;
+
+              for (const edge of consumer.edges) {
+                if (!edgeTargets(edge).includes(moduleId)) continue;
+                if (edge.kind === "export-all" && exportName !== "default") {
+                  if (checkPublicReachability(consumerId, exportName)) return true;
+                }
+                if (edge.kind === "export-from" && (edge.importedNames.includes(exportName) || edge.importedNames.includes("*"))) {
+                  if (checkPublicReachability(consumerId, exportName)) return true;
+                }
+              }
+              return false;
+            });
           };
 
-          if (checkPublicReachability(module.id)) {
+          if (checkPublicReachability(module.id, exp.exportedAs)) {
             isEffectivelyUsed = true;
           } else if (isExportUsed) {
             const usage = importUsage.get(module.id);

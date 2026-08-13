@@ -203,8 +203,10 @@ export interface FixConfig {
    */
   confidence?: 'high' | 'medium+' | 'low+' | 'all';
   /**
-   * List of rules to fix. If not provided, all fixable rules are applied.
-   * Example: ['unused-export', 'unreachable-file', 'unused-dependency']
+   * Rules to fix. If omitted, only dependency and unreachable-file fixes are
+   * enabled. Source-level rules are opt-in via `exports`; SFC exports and
+   * unsupported syntax remain unchanged when they cannot be located safely.
+   * Example: ['exports', 'files', 'dependencies']
    */
   rules?: string[];
   /**
