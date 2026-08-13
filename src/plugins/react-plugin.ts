@@ -98,7 +98,7 @@ export const ReactPlugin: AnalyzerPlugin = {
         t.isStringLiteral(node.expression) &&
         ["use client", "use server"].includes(node.expression.value)
       ) {
-        adapter.markAsUsed(fileId);
+        // React syntax identifies React usage, not file reachability.
         adapter.markPackageAsUsed("react");
       }
 
@@ -111,7 +111,6 @@ export const ReactPlugin: AnalyzerPlugin = {
           source.startsWith("@types/react")
         ) {
           adapter.markPackageAsUsed(source);
-          adapter.markAsUsed(fileId);
         }
       }
 
@@ -133,7 +132,6 @@ export const ReactPlugin: AnalyzerPlugin = {
         /^[A-Z]/.test(targetNode.id.name)
       ) {
         if (node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration") {
-          adapter.markAsUsed(fileId, targetNode.id.name);
           adapter.markPackageAsUsed("react");
         }
       }
@@ -173,7 +171,6 @@ export const ReactPlugin: AnalyzerPlugin = {
               (isStandardComponent || isHocComponent) &&
               (node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration")
             ) {
-              adapter.markAsUsed(fileId, decl.id.name);
               adapter.markPackageAsUsed("react");
             }
           }
@@ -188,7 +185,7 @@ export const ReactPlugin: AnalyzerPlugin = {
         node.callee.name.startsWith("use") &&
         node.callee.name.length > 3
       ) {
-        adapter.markAsUsed(fileId);
+        // React syntax identifies React usage, not file reachability.
         adapter.markPackageAsUsed("react");
       }
 
@@ -200,7 +197,6 @@ export const ReactPlugin: AnalyzerPlugin = {
         if (t.isJSXIdentifier(elementName)) {
           const compName = elementName.name;
           if (compName && compName.charAt(0) === compName.charAt(0).toUpperCase()) {
-            adapter.markAsUsed(fileId, compName);
             adapter.markPackageAsUsed("react");
           }
         }
@@ -212,7 +208,6 @@ export const ReactPlugin: AnalyzerPlugin = {
             object = object.object;
           }
           if (t.isJSXIdentifier(object) && object.name) {
-            adapter.markAsUsed(fileId, object.name);
             adapter.markPackageAsUsed("react");
           }
         }

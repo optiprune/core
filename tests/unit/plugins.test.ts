@@ -58,7 +58,7 @@ describe('Plugin Adapter & Framework Plugins', () => {
     engine.register(ReactPlugin);
     await engine.run(context);
 
-    expect(context.reachable.has(filePath)).toBe(true);
+    expect(context.reachable.has(filePath)).toBe(false);
     expect(context.usedExports.has(`${filePath}:MyComponent`)).toBe(true);
 
     await fs.rm(rootDir, { recursive: true, force: true });
