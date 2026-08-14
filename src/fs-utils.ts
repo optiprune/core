@@ -406,6 +406,110 @@ export async function discoverPackageBinEntryPatterns(rootDir: string): Promise<
   }
 }
 
+export interface PackageScriptTarget {
+  scriptName: string;
+  command: string;
+  relativePath: string;
+  exists: boolean;
+}
+
+/**
+ * Finds local files executed by `node` in package.json scripts. This deliberately
+ * handles only direct Node invocations such as `node scripts/task.mjs`, including
+ * common Node flags and shell command chains. Arbitrary shell interpretation is
+ * intentionally out of scope: only a concrete local file path is promoted to an
+ * analyzer entry point.
+ */
+export async function discoverPackageScriptTargets(rootDir: string): Promise<PackageScriptTarget[]> {
+  const packageFile = join(rootDir, "package.json");
+  try {
+    const packageJson = await readJsonFile<Record<string, unknown>>(packageFile);
+    const scripts = packageJson?.scripts;
+    if (!scripts || typeof scripts !== "object" || Array.isArray(scripts)) return [];
+
+    const normalizedRoot = normalizeAbsolute(rootDir);
+    const targets = new Map<string, PackageScriptTarget>();
+    for (const [scriptName, command] of Object.entries(scripts as Record<string, unknown>)) {
+      if (typeof command !== "string") continue;
+      for (const target of extractNodeScriptTargets(command)) {
+        if (target.includes("$") || target.includes("`")) continue;
+        const absolutePath = normalizeAbsolute(resolve(normalizedRoot, target));
+        const relativePath = toPosix(patheRelative(normalizedRoot, absolutePath));
+        if (!relativePath || relativePath === ".." || relativePath.startsWith("../") || isAbsolute(relativePath)) continue;
+
+        let exists = false;
+        try {
+          exists = (await fs.stat(absolutePath)).isFile();
+        } catch {
+          // Missing paths are returned so the caller can emit a focused diagnostic.
+        }
+        const key = `${scriptName}\u0000${relativePath}`;
+        targets.set(key, { scriptName, command, relativePath, exists });
+      }
+    }
+    return [...targets.values()];
+  } catch {
+    return [];
+  }
+}
+
+function extractNodeScriptTargets(command: string): string[] {
+  const tokens = tokenizeShellCommand(command);
+  const targets: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index] !== "node" && tokens[index] !== "nodejs") continue;
+
+    for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
+      const token = tokens[cursor];
+      if (!token) break;
+      if (token === "&&" || token === "||" || token === ";" || token === "|") break;
+      if (token === "-e" || token === "--eval" || token === "-p" || token === "--print") break;
+      if (token === "--") {
+        const candidate = tokens[cursor + 1];
+        if (candidate && !candidate.startsWith("-")) targets.push(candidate);
+        break;
+      }
+      if (token === "-r" || token === "--require" || token === "--loader" || token === "--import" || token === "--conditions" || token === "--experimental-loader") {
+        cursor += 1;
+        continue;
+      }
+      if (token.startsWith("-")) continue;
+      targets.push(token);
+      break;
+    }
+  }
+  return targets;
+}
+
+function tokenizeShellCommand(command: string): string[] {
+  const tokens: string[] = [];
+  let token = "";
+  let quote: "'" | '"' | undefined;
+  const push = () => { if (token) tokens.push(token); token = ""; };
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (!character) continue;
+    if (quote) {
+      if (character === quote) quote = undefined;
+      else token += character;
+      continue;
+    }
+    if (character === "'" || character === '"') { quote = character; continue; }
+    if (/\s/.test(character)) { push(); continue; }
+    if (character === "&" || character === "|") {
+      push();
+      if (command[index + 1] === character) index += 1;
+      tokens.push(character === "&" ? "&&" : "||");
+      continue;
+    }
+    if (character === ";") { push(); tokens.push(";"); continue; }
+    token += character;
+  }
+  push();
+  return tokens;
+}
+
 export async function discoverPackageEntryPatterns(rootDir: string): Promise<string[]> {
   const packageFile = join(rootDir, "package.json");
   try {

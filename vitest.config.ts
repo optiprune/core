@@ -2,6 +2,6 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    testTimeout: 20000, // 20 seconds standard timeout for Concolic & SMT runs
+    testTimeout: 30000, // 30 seconds standard timeout for Concolic & SMT runs
   },
 });

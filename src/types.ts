@@ -150,6 +150,7 @@ export interface Finding {
     | "unused-dependency"
     | "unused-dev-dependency"
     | "non-existent-dependency"
+    | "missing-script-target"
     | (string & {});
   severity: Severity;
   confidence: Confidence;

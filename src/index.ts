@@ -25,6 +25,7 @@ import {
   discoverPackageEntryPatterns,
   discoverPackageBinEntryPatterns,
   discoverPackageExportEntryPatterns,
+  discoverPackageScriptTargets,
   discoverSourceFiles,
   expandEntryPatterns,
   ingestTsConfigPaths,
@@ -239,6 +240,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const publicEntryPoints = new Set<string>();
   // Entries declared in package.json exports specifically describe public API.
   const publicApiEntryPoints = new Set<string>();
+  const missingScriptTargets: Array<{ scriptName: string; command: string; targetPath: string; manifestPath: string }> = [];
 
   // 1. Explicit Entry Points
   if (entry.length > 0) {
@@ -264,6 +266,25 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     const rawEntries = expandBuildEntryToSourceCandidates(await discoverPackageEntryPatterns(baseDir));
     const binEntries = expandBuildEntryToSourceCandidates(await discoverPackageBinEntryPatterns(baseDir));
     const publicExportEntries = expandBuildEntryToSourceCandidates(await discoverPackageExportEntryPatterns(baseDir));
+    const scriptTargets = await discoverPackageScriptTargets(baseDir);
+
+    for (const scriptTarget of scriptTargets) {
+      const adjustedPattern = relativeToRoot
+        ? path.posix.join(relativeToRoot, scriptTarget.relativePath)
+        : scriptTarget.relativePath;
+      if (!scriptTarget.exists) {
+        missingScriptTargets.push({
+          scriptName: scriptTarget.scriptName,
+          command: scriptTarget.command,
+          targetPath: adjustedPattern,
+          manifestPath: path.join(baseDir, "package.json"),
+        });
+        continue;
+      }
+      for (const scriptFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
+        entryPoints.add(path.normalize(scriptFile));
+      }
+    }
 
     for (const binPattern of binEntries) {
       const adjustedPattern = (relativeToRoot && !binPattern.startsWith('/'))
@@ -320,7 +341,21 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   const findings: Finding[] = [];
-
+  for (const missing of missingScriptTargets) {
+    findings.push({
+      rule: "missing-script-target",
+      severity: "error",
+      confidence: "high",
+      message: `Script '${missing.scriptName}' executes local Node target '${missing.targetPath}', but that path does not exist.`,
+      file: missing.manifestPath,
+      evidence: {
+        script: missing.scriptName,
+        command: missing.command,
+        targetPath: missing.targetPath,
+      },
+    });
+  }
+  
   if (entryPoints.size === 0) {
     findings.push({
       rule: "no-entry-points",
