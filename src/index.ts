@@ -382,6 +382,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const context = contextWithGraph(modules, entryPoints, resolvedOptions, publicApiEntryPoints);
   (context as any).publicEntryPoints = publicEntryPoints;
+  context.publicApiEntryPoints = publicApiEntryPoints;
   context.semanticGraph = semanticGraph;
   context.symbolicContracts = new Map();
 
