@@ -505,6 +505,23 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const protectedExportPatterns = compileGlobs(resolvedOptions.protectedExportPatterns ?? []);
   if (resolvedOptions.reportUnusedExports) {
     const importUsage = buildImportUsage(modules);
+    const packagePublicModules = new Set<string>(publicApiEntryPoints);
+    let packagePublicModulesChanged = true;
+    while (packagePublicModulesChanged) {
+      packagePublicModulesChanged = false;
+      for (const module of modules.values()) {
+        if (!packagePublicModules.has(module.id)) continue;
+        for (const edge of module.edges) {
+          if (edge.kind !== "export-all" && edge.kind !== "export-from") continue;
+          for (const targetId of edgeTargets(edge)) {
+            if (!packagePublicModules.has(targetId)) {
+              packagePublicModules.add(targetId);
+              packagePublicModulesChanged = true;
+            }
+          }
+        }
+      }
+    }
     for (const module of modules.values()) {
       if (
         (context.reachable.has(module.id) || context.maybeReachable.has(module.id)) &&
@@ -531,12 +548,12 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           // export in a re-exported JSX/TSX/SFC file, including unrelated
           // dead exports.
           const visited = new Set<string>();
-          const checkPublicReachability = (moduleId: string, exportName: string): boolean => {
-            const visitKey = `${moduleId}:${exportName}`;
+          const checkPublicReachability = (moduleId: string, exportName: string, packageOnly = false): boolean => {
+            const visitKey = `${packageOnly ? "package" : "workspace"}:${moduleId}:${exportName}`;
             if (visited.has(visitKey)) return false;
             visited.add(visitKey);
 
-            if (publicEntryPoints.has(moduleId)) return true;
+            if ((packageOnly ? packagePublicModules : publicEntryPoints).has(moduleId)) return true;
 
             const usage = importUsage.get(moduleId);
             if (!usage) return false;
@@ -545,6 +562,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             // workspace barrel, e.g. app -> ui -> Button. Protect only the
             // requested name (or a wildcard), not every export in the module.
             if (!usage.reExportOnly) {
+              if (packageOnly) {
+                const requested = usage.wildcard || usage.names.has(exportName) || (exportName === "default" && usage.names.has("default"));
+                return requested && Array.from(usage.consumers).some((consumerId) => packagePublicModules.has(consumerId));
+              }
               return usage.wildcard || usage.names.has(exportName) || (exportName === "default" && usage.names.has("default"));
             }
 
@@ -565,10 +586,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
                   continue;
                 }
                 if (edge.kind === "export-all" && exportName !== "default") {
-                  if (checkPublicReachability(consumerId, exportName)) return true;
+                  if (checkPublicReachability(consumerId, exportName, packageOnly)) return true;
                 }
                 if (edge.kind === "export-from" && (edge.importedNames.includes(exportName) || edge.importedNames.includes("*"))) {
-                  if (checkPublicReachability(consumerId, exportName)) return true;
+                  if (checkPublicReachability(consumerId, exportName, packageOnly)) return true;
                 }
               }
               return false;
@@ -612,7 +633,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
               ...(exp.location && { location: exp.location }),
               evidence: { exportName: exp.exportedAs },
             });
-          } else if (isEffectivelyUsed && exp.members && exp.members.length > 0) {
+          } else if (isEffectivelyUsed && !checkPublicReachability(module.id, exp.exportedAs, true) && exp.members && exp.members.length > 0) {
             for (const member of exp.members) {
               const memberKey = `${module.id}:${exp.exportedAs}:${member.name}`;
               const internalKey = `${module.id}:${exp.name}:${member.name}`;
