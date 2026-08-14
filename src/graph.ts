@@ -461,15 +461,21 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         if (!isReExport) {
           current.reExportOnly = false;
         }
-        for (const name of edge.importedNames) {
+        for (const [index, name] of edge.importedNames.entries()) {
           current.names.add(name);
           if (name === "*") {
             current.wildcard = true;
           }
-          
-          // Map local member access to the imported name
-          const accessed = localMemberAccess.get(name);
-          if (accessed) {
+
+          // Member expressions use the local binding (`Alias.member`), while
+          // importedNames stores the exported binding (`Original`). Preserve
+          // both keys so aliased imports and legacy edges are handled.
+          const localName = edge.importedLocals?.[index] ?? name;
+          const accessed = new Set<string>([
+            ...(localMemberAccess.get(localName) ?? []),
+            ...(localName !== name ? (localMemberAccess.get(name) ?? []) : []),
+          ]);
+          if (accessed.size > 0) {
             if (!current.memberAccess.has(name)) current.memberAccess.set(name, new Set());
             for (const m of accessed) current.memberAccess.get(name)!.add(m);
           }
