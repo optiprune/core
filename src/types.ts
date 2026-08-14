@@ -55,6 +55,8 @@ export interface DependencyEdge {
   target?: string;
   location?: Range;
   importedNames: string[];
+  /** Local bindings in the same order as importedNames (e.g. `x as y` -> `y`). */
+  importedLocals?: string[];
   dynamicPattern?: DynamicPattern;
   dynamicExpression?: string | undefined;
   resolution: "resolved" | "unresolved" | "external" | "unknown";
