@@ -153,7 +153,20 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 5. Tracking: Object spread reads an unknown set of members.
+      // 5. Tracking: Passing an object as a whole to another API hides the
+      // member access behind that API. Treat its members as dynamically used.
+      if ((node.type === "ObjectProperty" || node.type === "Property") && t.isIdentifier(node.value)) {
+        for (const objectName of state.resolveAliases(node.value.name)) state.wildcardObjects.add(objectName);
+      }
+      if (node.type === "CallExpression") {
+        for (const argument of node.arguments ?? []) {
+          if (t.isIdentifier(argument)) {
+            for (const objectName of state.resolveAliases(argument.name)) state.wildcardObjects.add(objectName);
+          }
+        }
+      }
+
+      // 6. Tracking: Object spread reads an unknown set of members.
       if (node.type === "SpreadElement") {
         if (t.isIdentifier(node.argument)) {
           for (const objectName of state.resolveAliases(node.argument.name)) state.wildcardObjects.add(objectName);
@@ -162,7 +175,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 6. Tracking: Destructuring Access -> const { usedKey } = config
+      // 7. Tracking: Destructuring Access -> const { usedKey } = config
       if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && t.isIdentifier(node.init)) {
         const objName = node.init.name;
         for (const prop of node.id.properties) {
