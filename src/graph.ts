@@ -384,6 +384,7 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     // Keep type-derived accesses separate from direct identifier accesses. The
     // former can safely be associated with an export in this same module.
     const localTypeMemberAccess = new Map<string, Set<string>>();
+    const localInstanceTypes = new Map<string, string>();
     const resolveScopedTypeName = (objectName: string, stack: any[]): string | undefined => {
       // `localTypeMap` is module-wide and can be overwritten when distinct
       // functions reuse a parameter name. Resolve the nearest matching
@@ -397,11 +398,43 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
           if (typeName?.type === "Identifier") return typeName.name;
         }
       }
-      return module.localTypeMap?.[objectName];
+      for (let index = stack.length - 1; index >= 0; index -= 1) {
+        const scope = stack[index] as any;
+        if (scope?.type !== "VariableDeclarator" || scope.id?.type !== "Identifier" || scope.id.name !== objectName) continue;
+        const annotation = scope.id.typeAnnotation?.typeAnnotation?.typeName;
+        if (annotation?.type === "Identifier") return annotation.name;
+        if (scope.init?.type === "NewExpression" && scope.init.callee?.type === "Identifier") return scope.init.callee.name;
+      }
+      return localInstanceTypes.get(objectName) ?? module.localTypeMap?.[objectName];
     };
     if (module.ast) {
       walkAst(module.ast, (node: any, stack: any[]) => {
-        // 1. Track Member Expressions (e.g., Status.Active, user.id)
+        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "NewExpression" && node.init.callee?.type === "Identifier") {
+          localInstanceTypes.set(node.id.name, node.init.callee.name);
+        }
+
+        // 1. Track destructured properties (e.g. const { imports, schemaType } = config).
+        // Destructuring is equivalent to reading those object members, but it is
+        // not represented as a MemberExpression in the AST.
+        if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && node.init?.type === "Identifier") {
+          for (const property of node.id.properties ?? []) {
+            if ((property.type !== "Property" && property.type !== "ObjectProperty") || property.computed) continue;
+            const memberName = property.key?.name ?? property.key?.value;
+            if (typeof memberName !== "string") continue;
+            const objectName = node.init.name;
+            if (!localMemberAccess.has(objectName)) localMemberAccess.set(objectName, new Set());
+            localMemberAccess.get(objectName)!.add(memberName);
+            const typeName = resolveScopedTypeName(objectName, stack);
+            if (typeName) {
+              if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
+              localMemberAccess.get(typeName)!.add(memberName);
+              if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+              localTypeMemberAccess.get(typeName)!.add(memberName);
+            }
+          }
+        }
+
+        // 2. Track Member Expressions (e.g., Status.Active, user.id)
         if (node.type === "MemberExpression" && node.object.type === "Identifier" && !node.computed) {
           const objectName = node.object.name;
           const propertyName = node.property.name || node.property.value;
