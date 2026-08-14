@@ -245,6 +245,39 @@ export class PluginEngine {
         const module = context.modules.get(fileId);
         return module?.edges.map(e => e.target).filter(Boolean) as string[] || [];
       },
+      isPublicExport: (fileId, exportName) => {
+        const module = context.modules.get(fileId);
+        const exportRecord = module?.exports.find((exp) => exp.exportedAs === exportName || exp.name === exportName);
+        if (!exportRecord) return false;
+        if (context.publicApiEntryPoints?.has(fileId)) return true;
+        if (context.usedExportConfidence.get(`${fileId}:${exportRecord.exportedAs}`) === "low") return true;
+
+        const visited = new Set<string>();
+        const queue = Array.from(context.publicApiEntryPoints ?? [], (entry) => ({ moduleId: entry, name: exportName }));
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          const visitKey = `${current.moduleId}:${current.name}`;
+          if (visited.has(visitKey)) continue;
+          visited.add(visitKey);
+          if (current.moduleId === fileId && current.name === exportName) return true;
+          const currentModule = context.modules.get(current.moduleId);
+          if (!currentModule) continue;
+          const currentExport = currentModule.exports.find((exp) => exp.exportedAs === current.name || exp.name === current.name);
+          for (const edge of currentModule.edges) {
+            const isReExportEdge = edge.kind === "export-all" || edge.kind === "export-from";
+            const isLocalImportReExport = edge.kind === "import" && currentExport &&
+              (edge.importedNames.includes("*") || edge.importedNames.includes(current.name));
+            if (!isReExportEdge && !isLocalImportReExport) continue;
+            const targetIds = edge.target ? [edge.target] : [];
+            for (const targetId of targetIds) {
+              if (edge.kind === "export-all" || edge.importedNames.includes("*") || edge.importedNames.includes(current.name)) {
+                queue.push({ moduleId: targetId, name: current.name });
+              }
+            }
+          }
+        }
+        return false;
+      },
       getConfig: () => context.options,
       readFile: async (filename) => {
         try {
