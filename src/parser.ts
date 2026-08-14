@@ -309,12 +309,14 @@ function addEdge(
   importedNames: string[] = [],
   isTypeOnly: boolean = false,
   dynamicExpression?: string,
+  importedLocals: string[] = [],
 ): void {
   const edge: DependencyEdge = {
     source: sourceFile,
     rawSpecifier,
     kind,
     importedNames,
+    ...(importedLocals.length > 0 ? { importedLocals } : {}),
     resolution: "unknown",
     isTypeOnly,
     dynamicExpression,
@@ -326,21 +328,25 @@ function addEdge(
   edges.push(edge);
 }
 
-function importSpecifierNames(specifiers: unknown[]): string[] {
+function importSpecifierBindings(specifiers: unknown[]): { names: string[]; locals: string[] } {
   const names: string[] = [];
+  const locals: string[] = [];
   for (const specifier of specifiers) {
     if (!isNode(specifier)) {
       continue;
     }
     if (specifier.type === "ImportDefaultSpecifier") {
       names.push("default");
+      locals.push(nodeIdentifierName(specifier.local) ?? "default");
     } else if (specifier.type === "ImportNamespaceSpecifier") {
       names.push("*");
+      locals.push(nodeIdentifierName(specifier.local) ?? "*");
     } else if (specifier.type === "ImportSpecifier") {
       names.push(propertyKeyName(specifier.imported) ?? "*");
+      locals.push(nodeIdentifierName(specifier.local) ?? propertyKeyName(specifier.imported) ?? "*");
     }
   }
-  return names;
+  return { names, locals };
 }
 
 function exportSpecifierNames(specifiers: unknown[], useLocal: boolean = false): string[] {
@@ -549,7 +555,8 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
       const specifier = nodeStringValue(node.source);
       if (specifier) {
         const isTypeOnly = node.importKind === "type";
-        addEdge(edges, file, specifier, "import", node, importSpecifierNames(asArray(node.specifiers)), isTypeOnly);
+        const bindings = importSpecifierBindings(asArray(node.specifiers));
+        addEdge(edges, file, specifier, "import", node, bindings.names, isTypeOnly, undefined, bindings.locals);
       }
       return;
     }
@@ -713,7 +720,6 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
               n.type === "ClassMethod" ||
               n.type === "ObjectMethod"
             );
-
             // ── TEMPLATE-STRING LOOP FIX ──────────────────────────────────────
             // When the dynamic import lives inside a forEach/map/filter callback
             // (i.e. the immediate scopeNode is an ArrowFunctionExpression/
@@ -1052,7 +1058,6 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
       location: locationAtOffset(sourceText, offset),
     });
   }
-
   const unquotedUrlImport = /@(?:import|use|forward)\s+url\(\s*([^'"\s)]+)\s*\)/gi;
   for (const match of sourceText.matchAll(unquotedUrlImport)) {
     const specifier = match[1];
@@ -1267,5 +1272,4 @@ export function isAstNode(node: unknown): boolean {
 export function walkAst(node: unknown, visitor: (node: AstNode, stack: AstNode[]) => void): void {
   walk(node, visitor);
 }
-
 export type { AstNode };
