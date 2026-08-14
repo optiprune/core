@@ -1,4 +1,5 @@
-from "../ast-utils.js";
+import { AnalyzerPlugin, PluginAdapter } from "../types.js";
+import { t } from "../ast-utils.js";
 
 interface MemberDef {
   fileId: string;
