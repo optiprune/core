@@ -240,6 +240,9 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const publicEntryPoints = new Set<string>();
   // Entries declared in package.json exports specifically describe public API.
   const publicApiEntryPoints = new Set<string>();
+  // Private workspace barrels are locally reachable, but their re-exports do
+  // not become external contracts without an actual consuming import.
+  const privateWorkspaceEntryPoints = new Set<string>();
   const missingScriptTargets: Array<{ scriptName: string; command: string; targetPath: string; manifestPath: string }> = [];
 
   // 1. Explicit Entry Points
@@ -263,6 +266,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       return [entry];
     });
 
+    const packageManifest = await readJsonFile<{ private?: boolean }>(path.join(baseDir, "package.json"));
     const rawEntries = expandBuildEntryToSourceCandidates(await discoverPackageEntryPatterns(baseDir));
     const binEntries = expandBuildEntryToSourceCandidates(await discoverPackageBinEntryPatterns(baseDir));
     const publicExportEntries = expandBuildEntryToSourceCandidates(await discoverPackageExportEntryPatterns(baseDir));
@@ -305,7 +309,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         const normalized = path.normalize(entryFile);
         entryPoints.add(normalized);
         publicEntryPoints.add(normalized);
-        publicApiEntryPoints.add(normalized);
+        if (packageManifest?.private === true && !isRoot) {
+          privateWorkspaceEntryPoints.add(normalized);
+        } else {
+          publicApiEntryPoints.add(normalized);
+        }
       }
     }
 
@@ -321,9 +329,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           entryPoints.add(normalized);
           publicEntryPoints.add(normalized);
         }
-        // Monorepo package entries are ALWAYS publicEntryPoints to protect their API
+        // Workspace barrels are entry points even when private. Only
+        // publishable packages enter `publicApiEntryPoints`, which controls
+        // whether their re-exports propagate external-contract protection.
         if (!isRoot) {
           publicEntryPoints.add(normalized);
+          if (packageManifest?.private === true) {
+            privateWorkspaceEntryPoints.add(normalized);
+          }
         }
       }
     }
@@ -543,6 +556,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
               for (const edge of consumer.edges) {
                 if (!edgeTargets(edge).includes(moduleId)) continue;
+
+                // A private workspace barrel exposes its own surface to local
+                // consumers, but its re-export alone is not evidence that the
+                // underlying source symbol is externally consumed.
+                if (privateWorkspaceEntryPoints.has(consumerId)) {
+                  continue;
+                }
                 if (edge.kind === "export-all" && exportName !== "default") {
                   if (checkPublicReachability(consumerId, exportName)) return true;
                 }

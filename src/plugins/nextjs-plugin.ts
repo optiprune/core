@@ -42,6 +42,12 @@ const NEXT_SPECIAL_FILES = new Set([
   "layout.mdx", "layout.md"
 ]);
 
+const NEXT_ROUTE_HANDLER_EXPORTS = new Set([
+  "GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE",
+]);
+
+const NEXT_MIDDLEWARE_EXPORTS = new Set(["middleware", "config"]);
+
 const NEXT_EXPORTS = new Set([
   "getServerSideProps",
   "getStaticProps",
@@ -90,6 +96,13 @@ function isNextRouteLocation(normalized: string, filename: string): boolean {
   const inAppRouter = normalized.startsWith("app/") || normalized.includes("/app/");
   if (inAppRouter && NEXT_SPECIAL_FILES.has(filename)) return true;
 
+  const isMiddleware = ["middleware.ts", "middleware.js"].includes(filename) && (
+    normalized.startsWith(filename) ||
+    normalized.startsWith(`src/${filename}`) ||
+    normalized.includes(`/src/${filename}`)
+  );
+  if (isMiddleware) return true;
+
   const isPagesSpecial =
     normalized.includes("/pages/api/") ||
     normalized.startsWith("pages/api/") ||
@@ -107,12 +120,17 @@ export const NextjsPlugin: AnalyzerPlugin = {
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
     const hasNextDependency = Boolean(pkg?.dependencies?.["next"] || pkg?.devDependencies?.["next"] || pkg?.peerDependencies?.["next"]);
-    const hasConfig = (await Promise.all(NEXT_CONFIG_FILES.map((file) => adapter.folderExists(file)))).some(Boolean);
+    const configFiles = typeof (adapter as Partial<import("../types.js").PluginAdapter>).findFiles === "function"
+      ? await adapter.findFiles(NEXT_CONFIG_FILES)
+      : [];
+    const hasRootConfig = (await Promise.all(
+      NEXT_CONFIG_FILES.map((file) => adapter.folderExists(file)),
+    )).some(Boolean);
 
-    // A next dependency alone is not ownership proof: libraries and tooling can
-    // depend on Next without being a Next application. Config or route/runtime
-    // evidence must corroborate the package declaration.
-    if (hasConfig) return true;
+    // A monorepo may keep the Next application below the analysis root. A
+    // discovered next.config.* is explicit framework ownership evidence even
+    // when the root manifest itself does not depend on Next.
+    if (configFiles.length > 0 || hasRootConfig) return true;
     if (!hasNextDependency) return false;
     return hasNextScript(pkg) || await hasNextRouteEvidence(adapter);
   },
@@ -129,14 +147,17 @@ export const NextjsPlugin: AnalyzerPlugin = {
       const hasNext = !!allDeps["next"];
       adapter.declareFramework("nextjs");
 
-      let hasConfigFile = false;
-      for (const file of NEXT_CONFIG_FILES) {
-        if (await adapter.folderExists(file)) {
-          hasConfigFile = true;
-          adapter.markAsUsed(file);
-          break;
-        }
+      const configFiles = await adapter.findFiles(NEXT_CONFIG_FILES);
+      for (const configFile of configFiles) {
+        adapter.markAsUsed(configFile);
       }
+
+      // Only a configuration at the analysis root can prove that the root
+      // manifest itself needs `next`. Nested workspace configs are retained
+      // above, but their dependency diagnostics belong to their own manifests.
+      const hasRootConfigFile = (await Promise.all(
+        NEXT_CONFIG_FILES.map((file) => adapter.folderExists(file)),
+      )).some(Boolean);
 
       // Protect Next.js MDX Provider file (mdx-components.tsx) if present
       for (const providerFile of NEXT_MDX_PROVIDER_FILES) {
@@ -160,7 +181,7 @@ export const NextjsPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasConfigFile && !hasNext) {
+      if (hasRootConfigFile && !hasNext) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
@@ -168,7 +189,7 @@ export const NextjsPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Next.js configuration found but 'next' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile: hasRootConfigFile }
         });
       }
     },
@@ -229,19 +250,24 @@ export const NextjsPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 2. Detect exported Next.js data fetching functions, metadata, and route config
+      // 2. Detect exported Next.js data fetching functions, metadata, route
+      // handlers, and middleware contracts.
       if (t.isExportNamedDeclaration(node) && node.declaration) {
         const decl = node.declaration;
+        const isRouteFile = filename.startsWith("route.") && isNextRouteLocation(normalized, filename);
+        const isMiddlewareFile = ["middleware.ts", "middleware.js"].includes(filename) && isNextRouteLocation(normalized, filename);
+        const isNextRuntimeExport = (name: string): boolean =>
+          NEXT_EXPORTS.has(name) ||
+          (isRouteFile && NEXT_ROUTE_HANDLER_EXPORTS.has(name)) ||
+          (isMiddlewareFile && NEXT_MIDDLEWARE_EXPORTS.has(name));
 
-        if (t.isFunctionDeclaration(decl) && decl.id) {
-          if (NEXT_EXPORTS.has(decl.id.name)) {
-            adapter.markAsUsed(fileId, decl.id.name);
-          }
+        if (t.isFunctionDeclaration(decl) && decl.id && isNextRuntimeExport(decl.id.name)) {
+          adapter.markAsUsed(fileId, decl.id.name);
         }
 
         if (t.isVariableDeclaration(decl)) {
           decl.declarations.forEach((vDecl: any) => {
-            if (t.isIdentifier(vDecl.id) && NEXT_EXPORTS.has(vDecl.id.name)) {
+            if (t.isIdentifier(vDecl.id) && isNextRuntimeExport(vDecl.id.name)) {
               adapter.markAsUsed(fileId, vDecl.id.name);
             }
           });

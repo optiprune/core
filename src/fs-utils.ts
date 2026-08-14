@@ -589,10 +589,6 @@ export function conventionalEntryPatterns(): string[] {
     "app/**/*.tsx",
     "app/**/*.js",
     "app/**/*.jsx",
-    "apps/**/*.ts",
-    "apps/**/*.tsx",
-    "apps/**/*.js",
-    "apps/**/*.jsx",
     "pages/**/*.ts",
     "pages/**/*.tsx",
     "pages/**/*.js",
@@ -746,7 +742,40 @@ export async function ingestTsConfigPaths(rootDir: string, configPath: string = 
     return effectiveBaseUrl;
   };
 
+  const discoverWorkspaceTsConfigs = async (): Promise<string[]> => {
+    const ignoredDirectories = new Set([
+      ".git", "node_modules", "dist", "build", "coverage", ".next", ".turbo", ".cache",
+    ]);
+    const discovered: string[] = [];
+
+    const visit = async (directory: string): Promise<void> => {
+      try {
+        const entries = await fs.readdir(directory, { withFileTypes: true });
+        for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+          const entryPath = join(directory, entry.name);
+          if (entry.isDirectory()) {
+            if (!ignoredDirectories.has(entry.name)) await visit(entryPath);
+          } else if (entry.isFile() && entry.name === "tsconfig.json") {
+            discovered.push(entryPath);
+          }
+        }
+      } catch {
+        return;
+      }
+    };
+
+    await visit(rootDir);
+    return discovered;
+  };
+
   const initialConfigPath = isAbsolute(configPath) ? configPath : join(rootDir, configPath);
   const baseUrl = await loadConfig(initialConfigPath);
+
+  // A workspace root need not carry a solution tsconfig. Load each local
+  // tsconfig so aliases such as `@/*` can resolve from applications below it.
+  for (const workspaceConfig of await discoverWorkspaceTsConfigs()) {
+    await loadConfig(workspaceConfig);
+  }
+
   return { paths: pathAliases, baseUrl };
 }

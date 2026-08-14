@@ -121,8 +121,29 @@ function resolveEdge(
             }
           }
         } else {
-          // Try resolving the sub-path
-          target = resolveLocalSpecifier(path.join(pkgRoot, 'package.json'), '.' + subPath, knownFiles, options.extensions);
+          // Try the package-local sub-path first. Source repositories often
+          // expose TypeScript source while their package export map names the
+          // eventual JavaScript artifact.
+          target = resolveLocalSpecifier(path.join(pkgRoot, "package.json"), `.${subPath}`, knownFiles, options.extensions);
+
+          // When no built artifact exists, resolve one unambiguous source file
+          // by its package-relative sub-path. This supports exports such as
+          // `./chart` -> `src/Chart.tsx` without guessing among multiple files.
+          if (!target) {
+            const requested = subPath.replace(/^\//, "").replace(/\.[^./]+$/, "").toLowerCase();
+            const candidatePaths = new Set([
+              requested,
+              `src/${requested}`,
+              `${requested}/index`,
+              `src/${requested}/index`,
+            ]);
+            const candidates = Array.from(knownFiles).filter((filePath) => {
+              const relativePath = path.relative(pkgRoot, filePath).replace(/\\/g, "/");
+              const sourcePath = relativePath.replace(/\.[^./]+$/, "").toLowerCase();
+              return candidatePaths.has(sourcePath);
+            });
+            if (candidates.length === 1) target = candidates[0];
+          }
         }
         
         if (target) break;

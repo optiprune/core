@@ -315,14 +315,20 @@ export const VitestPlugin: AnalyzerPlugin = {
         t.isIdentifier(node.key) &&
         node.key.name === "setupFiles"
       ) {
+        const configDirectory = path.dirname(fileId);
+        const markSetupFile = (configuredPath: string) => {
+          const target = path.isAbsolute(configuredPath)
+            ? configuredPath
+            : path.join(configDirectory, configuredPath);
+          adapter.markAsUsed(target);
+        };
+
         if (t.isArrayExpression(node.value)) {
           for (const element of node.value.elements) {
-            if (t.isStringLiteral(element)) {
-              adapter.markAsUsed(element.value);
-            }
+            if (t.isStringLiteral(element)) markSetupFile(element.value);
           }
         } else if (t.isStringLiteral(node.value)) {
-          adapter.markAsUsed(node.value.value);
+          markSetupFile(node.value.value);
         }
       }
     },

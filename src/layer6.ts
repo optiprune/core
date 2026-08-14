@@ -291,6 +291,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const relativeManifest = path.posix.relative(projectRoot, manifestPath);
 
       const importedInThisPackage = packageImportMap.get(pkgName) || new Set<string>();
+      const isRootMonorepoManifest = pkgName === "root" && Boolean(context.options.monorepo);
+      const workspaceDeclares = (dependency: string): boolean => Array.from(
+        context.options.monorepo?.packageMap.values() ?? [],
+      ).some((workspace) => workspace.allDependencies.has(dependency));
+      const workspaceHasTypeScriptSources = isRootMonorepoManifest && Array.from(context.modules.keys()).some(
+        (fileId) => /\.(?:ts|tsx|mts|cts)$/.test(fileId),
+      );
 
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
@@ -483,7 +490,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
-          if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
+          if (
+            importedInThisPackage.has(basePkg) ||
+            globalImports.has(basePkg) ||
+            (isRootMonorepoManifest && workspaceDeclares(basePkg)) ||
+            dependencies[basePkg] ||
+            devDependencies[basePkg]
+          ) {
             continue;
           }
         }
@@ -501,7 +514,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
-        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || hasRelatedConfig;
+        const isUsed = isMarkedUsed ||
+          importedInThisPackage.has(dep) ||
+          (isRootMonorepoManifest && globalImports.has(dep)) ||
+          (dep === "typescript" && workspaceHasTypeScriptSources) ||
+          scriptUsages.has(dep) ||
+          scriptPackages.has(dep) ||
+          hasRelatedConfig;
 
         // Skip packages the user has explicitly asked to ignore.
         if (ignoreDeps.has(dep)) continue;
@@ -528,7 +547,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
           if (dep === '@types/node') continue;
-          if (importedInThisPackage.has(basePkg) || globalImports.has(basePkg) || dependencies[basePkg] || devDependencies[basePkg]) {
+          if (
+            importedInThisPackage.has(basePkg) ||
+            globalImports.has(basePkg) ||
+            (isRootMonorepoManifest && workspaceDeclares(basePkg)) ||
+            dependencies[basePkg] ||
+            devDependencies[basePkg]
+          ) {
             continue;
           }
         }
@@ -546,20 +571,18 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           return false;
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
-        const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || hasRelatedConfig;
-
-        const pluginBases = ['eslint', 'prettier', 'babel', 'stylelint', 'postcss', 'remark', 'jest', 'vitest'];
-        const pluginBase = pluginBases.find((base) => dep.toLowerCase().includes(base.toLowerCase()));
-        const isPluginUsed = !isUsed && !!pluginBase && (
-          scriptPackages.has(pluginBase) ||
-          scriptUsages.has(pluginBase) ||
-          hasRelatedConfig
-        );
+        const isUsed = isMarkedUsed ||
+          importedInThisPackage.has(dep) ||
+          (isRootMonorepoManifest && globalImports.has(dep)) ||
+          (dep === "typescript" && workspaceHasTypeScriptSources) ||
+          scriptUsages.has(dep) ||
+          scriptPackages.has(dep) ||
+          hasRelatedConfig;
 
         // Skip packages the user has explicitly asked to ignore.
         if (ignoreDeps.has(dep)) continue;
 
-        if (!isUsed && !isPluginUsed) {
+        if (!isUsed) {
           findings.push({
             rule: dep,
             severity: 'info',

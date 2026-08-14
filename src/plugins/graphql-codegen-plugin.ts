@@ -105,6 +105,11 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
         }
       }
 
+      // An active Code Generator configuration requires the GraphQL runtime.
+      if (hasConfigFile && hasCodegen && allDeps.graphql) {
+        adapter.markPackageAsUsed("graphql");
+      }
+
       // 3. Track npm scripts invoking graphql-codegen CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
@@ -189,6 +194,14 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
                   targetProp.key.value || targetProp.key.name;
                 if (typeof targetFilePath === "string") {
                   adapter.markAsUsed(targetFilePath);
+
+                  // A `generates` target is owned by GraphQL Code Generator.
+                  // Its generated API may be consumed by generated documents or
+                  // runtime tooling outside the static import graph.
+                  const protectedPattern = targetFilePath.endsWith("/")
+                    ? `${targetFilePath}**/*`
+                    : targetFilePath;
+                  adapter.addProtectedExportPatterns([protectedPattern]);
                 }
               }
 

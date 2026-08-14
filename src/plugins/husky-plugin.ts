@@ -45,10 +45,11 @@ export const HuskyPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
-      const hasHuskyDep = pkg ? !!(pkg.dependencies?.["husky"] || pkg.devDependencies?.["husky"]) : false;
       const hasHuskyDir = await adapter.folderExists(".husky");
 
-      if (hasHuskyDir || hasHuskyDep) {
+      // Declaring Husky only enables this plugin; an actual hook directory,
+      // legacy config, or script is required before the package is retained.
+      if (hasHuskyDir) {
         adapter.markPackageAsUsed("husky");
       }
 
