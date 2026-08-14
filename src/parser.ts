@@ -720,6 +720,7 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
               n.type === "ClassMethod" ||
               n.type === "ObjectMethod"
             );
+
             // ── TEMPLATE-STRING LOOP FIX ──────────────────────────────────────
             // When the dynamic import lives inside a forEach/map/filter callback
             // (i.e. the immediate scopeNode is an ArrowFunctionExpression/
@@ -957,7 +958,6 @@ function fallbackExports(sourceText: string, file: string): ExportRecord[] {
   }
   return found;
 }
-
 function fallbackEdges(sourceText: string, file: string): DependencyEdge[] {
   const edges: DependencyEdge[] = [];
   
@@ -1058,6 +1058,7 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
       location: locationAtOffset(sourceText, offset),
     });
   }
+
   const unquotedUrlImport = /@(?:import|use|forward)\s+url\(\s*([^'"\s)]+)\s*\)/gi;
   for (const match of sourceText.matchAll(unquotedUrlImport)) {
     const specifier = match[1];
@@ -1272,4 +1273,5 @@ export function isAstNode(node: unknown): boolean {
 export function walkAst(node: unknown, visitor: (node: AstNode, stack: AstNode[]) => void): void {
   walk(node, visitor);
 }
+
 export type { AstNode };
