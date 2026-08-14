@@ -1,5 +1,4 @@
-import { AnalyzerPlugin, PluginAdapter } from "../types.js";
-import { t } from "../ast-utils.js";
+from "../ast-utils.js";
 
 interface MemberDef {
   fileId: string;
@@ -13,10 +12,36 @@ interface MemberDef {
 class MemberTrackerState {
   definitions = new Map<string, MemberDef>();
   usages = new Set<string>();
+  // Local aliases let us follow common object-flow patterns such as
+  // `const routers = [expressRouter]` and `routers.map((router) => router.name)`.
+  // The previous implementation only matched the original exported identifier,
+  // which caused false positives for interface-driven consumers.
+  aliases = new Map<string, Set<string>>();
 
   reset() {
     this.definitions.clear();
     this.usages.clear();
+    this.aliases.clear();
+  }
+
+  addAlias(alias: string, target: string) {
+    if (!this.aliases.has(alias)) this.aliases.set(alias, new Set());
+    this.aliases.get(alias)!.add(target);
+  }
+
+  resolveAliases(name: string): Set<string> {
+    const resolved = new Set<string>([name]);
+    const queue = [name];
+    while (queue.length) {
+      const current = queue.shift()!;
+      for (const target of this.aliases.get(current) ?? []) {
+        if (!resolved.has(target)) {
+          resolved.add(target);
+          queue.push(target);
+        }
+      }
+    }
+    return resolved;
   }
 }
 
@@ -74,29 +99,59 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 3. Tracking: Member Access -> obj.prop or obj?.prop
+      // 3. Track simple value-flow aliases: const router = expressRouter,
+      // const routers = [expressRouter], and map callbacks over that array.
+      if (node.type === "VariableDeclarator" && t.isIdentifier(node.id)) {
+        if (t.isIdentifier(node.init)) {
+          state.addAlias(node.id.name, node.init.name);
+        } else if (node.init?.type === "ArrayExpression") {
+          for (const element of node.init.elements ?? []) {
+            if (t.isIdentifier(element)) state.addAlias(node.id.name, element.name);
+          }
+        }
+      }
+      if (
+        node.type === "CallExpression" &&
+        node.callee?.type === "MemberExpression" &&
+        !node.callee.computed &&
+        t.isIdentifier(node.callee.object) &&
+        t.isIdentifier(node.callee.property) &&
+        node.callee.property.name === "map"
+      ) {
+        const callback = node.arguments?.[0];
+        const parameter = callback?.params?.[0];
+        if (parameter && t.isIdentifier(parameter) && t.isIdentifier(node.callee.object)) {
+          for (const target of state.resolveAliases(node.callee.object.name)) {
+            state.addAlias(parameter.name, target);
+          }
+        }
+      }
+
+      // 4. Tracking: Member Access -> obj.prop or obj?.prop
       if (
         node.type === "MemberExpression" ||
         node.type === "OptionalMemberExpression"
       ) {
-        // Direct Dot Access: obj.key
-        if (!node.computed && t.isIdentifier(node.property) && t.isIdentifier(node.object)) {
-          state.usages.add(`${node.object.name}.${node.property.name}`);
-        }
-        // Bracket Access with String Literal: obj["key"]
-        else if (node.computed && t.isStringLiteral(node.property) && t.isIdentifier(node.object)) {
-          state.usages.add(`${node.object.name}.${node.property.value}`);
+        const objectNames = t.isIdentifier(node.object)
+          ? state.resolveAliases(node.object.name)
+          : new Set<string>();
+        if (!node.computed && t.isIdentifier(node.property)) {
+          for (const objectName of objectNames) state.usages.add(`${objectName}.${node.property.name}`);
+        } else if (node.computed && t.isStringLiteral(node.property)) {
+          for (const objectName of objectNames) state.usages.add(`${objectName}.${node.property.value}`);
         }
       }
 
-      // 4. Tracking: Destructuring Access -> const { usedKey } = config
+      // 5. Tracking: Destructuring Access -> const { usedKey } = config
       if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && t.isIdentifier(node.init)) {
         const objName = node.init.name;
         for (const prop of node.id.properties) {
           if (prop.type === "Property" || prop.type === "ObjectProperty") {
             const keyName = prop.key?.name || prop.key?.value;
             if (keyName) {
-              state.usages.add(`${objName}.${keyName}`);
+              for (const objectName of state.resolveAliases(objName)) {
+                state.usages.add(`${objectName}.${keyName}`);
+              }
             }
           }
         }
