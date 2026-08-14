@@ -13,6 +13,7 @@ interface MemberDef {
 class MemberTrackerState {
   definitions = new Map<string, MemberDef>();
   usages = new Set<string>();
+  wildcardObjects = new Set<string>();
   // Local aliases let us follow common object-flow patterns such as
   // `const routers = [expressRouter]` and `routers.map((router) => router.name)`.
   // The previous implementation only matched the original exported identifier,
@@ -22,6 +23,7 @@ class MemberTrackerState {
   reset() {
     this.definitions.clear();
     this.usages.clear();
+    this.wildcardObjects.clear();
     this.aliases.clear();
   }
 
@@ -105,6 +107,10 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
       if (node.type === "VariableDeclarator" && t.isIdentifier(node.id)) {
         if (t.isIdentifier(node.init)) {
           state.addAlias(node.id.name, node.init.name);
+        } else if (node.init?.type === "LogicalExpression") {
+          for (const operand of [node.init.left, node.init.right]) {
+            if (t.isIdentifier(operand)) state.addAlias(node.id.name, operand.name);
+          }
         } else if (node.init?.type === "ArrayExpression") {
           for (const element of node.init.elements ?? []) {
             if (t.isIdentifier(element)) state.addAlias(node.id.name, element.name);
@@ -140,10 +146,23 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
           for (const objectName of objectNames) state.usages.add(`${objectName}.${node.property.name}`);
         } else if (node.computed && t.isStringLiteral(node.property)) {
           for (const objectName of objectNames) state.usages.add(`${objectName}.${node.property.value}`);
+        } else if (node.computed) {
+          // A dynamic key such as `map[tagName]` may read any property.
+          // Do not report statically declared members as unused in that case.
+          for (const objectName of objectNames) state.wildcardObjects.add(objectName);
         }
       }
 
-      // 5. Tracking: Destructuring Access -> const { usedKey } = config
+      // 5. Tracking: Object spread reads an unknown set of members.
+      if (node.type === "SpreadElement") {
+        if (t.isIdentifier(node.argument)) {
+          for (const objectName of state.resolveAliases(node.argument.name)) state.wildcardObjects.add(objectName);
+        } else if (node.argument?.type === "MemberExpression" && t.isIdentifier(node.argument.object)) {
+          for (const objectName of state.resolveAliases(node.argument.object.name)) state.wildcardObjects.add(objectName);
+        }
+      }
+
+      // 6. Tracking: Destructuring Access -> const { usedKey } = config
       if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && t.isIdentifier(node.init)) {
         const objName = node.init.name;
         for (const prop of node.id.properties) {
@@ -164,10 +183,17 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
      */
     onAnalysisComplete: async (adapter: PluginAdapter) => {
       for (const [objName, def] of state.definitions.entries()) {
+        // Package exports and low-confidence re-exports are externally
+        // consumable; their object members cannot be proven dead from the
+        // analyzed workspace alone.
+        if (adapter.isPublicExport(def.fileId, objName)) continue;
+
+        const aliases = state.resolveAliases(objName);
+        const hasWildcardUsage = Array.from(aliases).some((name) => state.wildcardObjects.has(name));
         for (const [memberName, memberLoc] of def.members.entries()) {
           const usageKey = `${objName}.${memberName}`;
 
-          if (!state.usages.has(usageKey)) {
+          if (!hasWildcardUsage && !state.usages.has(usageKey)) {
             adapter.emitFinding({
               rule: "unused-member",
               severity: "warning",
