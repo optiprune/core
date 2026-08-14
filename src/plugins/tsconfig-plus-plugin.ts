@@ -104,6 +104,12 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
         }
       }
 
+      // JSON config files do not necessarily pass through onFileStart. A
+      // present tsconfig is therefore direct evidence that TypeScript is used.
+      if (hasConfigFile && hasTs) {
+        adapter.markPackageAsUsed("typescript");
+      }
+
       // 3. Track npm scripts invoking TypeScript CLI (tsc)
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {

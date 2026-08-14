@@ -8,6 +8,22 @@ const TSX_PACKAGES = [
   "@esbuild-kit/esm-loader",
 ];
 
+function invokesTsx(script: string): boolean {
+  const tokens = script.split(/\s+/).filter(Boolean);
+  return tokens.some((token, index) => {
+    const normalized = token.replace(/^['\"]|['\"]$/g, "");
+    if (normalized === "tsx" || normalized.endsWith("/tsx") || normalized.endsWith("\\\\tsx")) return true;
+    return (normalized === "--import" || normalized === "-r" || normalized === "--require") && tokens[index + 1] === "tsx";
+  });
+}
+
+function invokesEsbuildRegister(script: string): boolean {
+  return script.split(/\s+/).some((token) => {
+    const normalized = token.replace(/^['\"]|['\"]$/g, "");
+    return normalized === "esbuild-register" || normalized.endsWith("/esbuild-register");
+  });
+}
+
 export const TsxPlugin: AnalyzerPlugin = {
   name: "tsx-plugin",
   version: "1.2.0",
@@ -28,7 +44,7 @@ export const TsxPlugin: AnalyzerPlugin = {
         return Object.values(pkg.scripts).some(
           (script) =>
             typeof script === "string" &&
-            (script.includes("tsx") || script.includes("esbuild-register")),
+            (invokesTsx(script) || invokesEsbuildRegister(script)),
         );
       }
     }
@@ -58,8 +74,8 @@ export const TsxPlugin: AnalyzerPlugin = {
           if (typeof scriptContent !== "string") continue;
 
           if (
-            scriptContent.includes("tsx") ||
-            scriptContent.includes("esbuild-register")
+            invokesTsx(scriptContent) ||
+            invokesEsbuildRegister(scriptContent)
           ) {
             isTsxUsedInScripts = true;
 
@@ -150,10 +166,13 @@ export const TsxPlugin: AnalyzerPlugin = {
       // A .tsx filename identifies syntax, not reachability.
       // The core graph determines whether the file is reachable.
       if (
-        normalized.includes("tsx") ||
-        normalized.includes("esbuild-register")
+        normalized.includes("/node_modules/tsx/") ||
+        normalized.endsWith("/tsx") ||
+        normalized.includes("/node_modules/esbuild-register/")
       ) {
-        adapter.markPackageAsUsed("tsx");
+        adapter.markPackageAsUsed(
+          normalized.includes("esbuild-register") ? "esbuild-register" : "tsx",
+        );
       }
     },
 

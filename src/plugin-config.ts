@@ -22,8 +22,48 @@ function propertyName(node: any): string | undefined {
   return undefined;
 }
 
-function toStaticValue(node: any): StaticConfigValue | undefined {
+function isIdentifier(node: any, name: string): boolean {
+  return node?.type === "Identifier" && node.name === name;
+}
+
+function unwrapStaticExpression(node: any): any {
   if (!node) return undefined;
+
+  if (
+    node.type === "TSAsExpression" ||
+    node.type === "TSSatisfiesExpression" ||
+    node.type === "TSTypeAssertion" ||
+    node.type === "TSNonNullExpression" ||
+    node.type === "TypeCastExpression"
+  ) {
+    return unwrapStaticExpression(node.expression);
+  }
+
+  if (
+    node.type === "CallExpression" &&
+    node.arguments?.length === 1 &&
+    (isIdentifier(node.callee, "defineConfig") ||
+      (node.callee?.type === "MemberExpression" &&
+        !node.callee.computed &&
+        isIdentifier(node.callee.property, "defineConfig")))
+  ) {
+    return unwrapStaticExpression(node.arguments[0]);
+  }
+
+  return node;
+}
+
+function toStaticValue(node: any): StaticConfigValue | undefined {
+  node = unwrapStaticExpression(node);
+  if (!node) return undefined;
+  if (node.type === "Literal") {
+    return node.value === null ||
+      typeof node.value === "string" ||
+      typeof node.value === "number" ||
+      typeof node.value === "boolean"
+      ? node.value
+      : undefined;
+  }
   if (node.type === "StringLiteral" || node.type === "NumericLiteral" || node.type === "BooleanLiteral") return node.value;
   if (node.type === "NullLiteral") return null;
   if (node.type === "TemplateLiteral" && (node.expressions?.length ?? 0) === 0) {
@@ -56,7 +96,7 @@ function parseStaticModuleConfig(source: string, file: string): Record<string, S
   walkAst(module.ast, (node: any) => {
     if (configExpression) return;
     if (node.type === "ExportDefaultDeclaration") {
-      configExpression = node.declaration;
+      configExpression = unwrapStaticExpression(node.declaration);
       return;
     }
     if (
@@ -67,7 +107,7 @@ function parseStaticModuleConfig(source: string, file: string): Record<string, S
       node.left.property?.type === "Identifier" &&
       node.left.property.name === "exports"
     ) {
-      configExpression = node.right;
+      configExpression = unwrapStaticExpression(node.right);
     }
   });
 

@@ -12,6 +12,7 @@ import { ReactPlugin } from "../src/plugins/react-plugin.js";
 import { ExpoPlugin } from "../src/plugins/expo-plugin.js";
 import { ReactNativePlugin } from "../src/plugins/react-native-plugin.js";
 import { NuxtPlugin } from "../src/plugins/nuxtjs-plugin.js";
+import { VitestPlugin } from "../src/plugins/vitest-plugin.js";
 
 const temporaryRoots: string[] = [];
 
@@ -160,6 +161,31 @@ describe("Plugin configuration integration", () => {
     } as any;
 
     await expect(ExpoPlugin.detect!(adapter)).resolves.toBe(false);
+  });
+
+  it("reports a missing jsdom dependency from a defineConfig Vitest config", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({
+        devDependencies: { vitest: "1.0.0" },
+      }),
+      "vitest.config.ts": [
+        'import { defineConfig } from "vitest/config";',
+        'export default defineConfig({ test: { environment: "jsdom" } });',
+      ].join("\n"),
+    });
+
+    const report = await analyze({
+      rootDir: root,
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+      layers: { skip3: true, skip4: true },
+    });
+
+    expect(report.findings.some((finding) =>
+      finding.rule === "missing-dependency" &&
+      finding.message.includes("jsdom") &&
+      finding.message.includes("vitest.config.ts")
+    )).toBe(true);
   });
 
   it("claims a Knip configuration only through a Knip-specific location or package key", async () => {
