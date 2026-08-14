@@ -4,7 +4,7 @@ import { t } from "./ast-utils.js";
 import fs from "node:fs/promises";
 import path from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isIgnored } from "./fs-utils.js";
+import { compileGlobs, isIgnored, matchesAnyGlob } from "./fs-utils.js";
 
 // ── Verbose debug helper ────────────────────────────────────────────────────
 // All engine-level debug messages go to stderr so they never pollute JSON /
@@ -277,6 +277,10 @@ export class PluginEngine {
       findFiles: async (fileNames) => {
         const names = new Set(fileNames);
         return (await discoverProjectFiles()).filter((file) => names.has(path.basename(file)));
+      },
+      findFilesByGlob: async (patterns) => {
+        const matchers = compileGlobs(patterns);
+        return (await discoverProjectFiles()).filter((file) => matchesAnyGlob(file, matchers));
       },
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({

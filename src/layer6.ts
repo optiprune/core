@@ -548,13 +548,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const isUsed = isMarkedUsed || importedInThisPackage.has(dep) || scriptUsages.has(dep) || scriptPackages.has(dep) || hasRelatedConfig;
 
-        let isPluginUsed = false;
         const pluginBases = ['eslint', 'prettier', 'babel', 'stylelint', 'postcss', 'remark', 'jest', 'vitest'];
-        if (!isUsed && pluginBases.some(base => dep.toLowerCase().includes(base.toLowerCase()))) {
-          if (pluginBases.some(base => scriptPackages.has(base) || scriptUsages.has(base) || hasRelatedConfig)) {
-             isPluginUsed = true;
-          }
-        }
+        const pluginBase = pluginBases.find((base) => dep.toLowerCase().includes(base.toLowerCase()));
+        const isPluginUsed = !isUsed && !!pluginBase && (
+          scriptPackages.has(pluginBase) ||
+          scriptUsages.has(pluginBase) ||
+          hasRelatedConfig
+        );
 
         // Skip packages the user has explicitly asked to ignore.
         if (ignoreDeps.has(dep)) continue;

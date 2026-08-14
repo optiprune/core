@@ -22,6 +22,69 @@ const VITE_CORE_PACKAGES = [
   "@vitejs/plugin-legacy"
 ];
 
+const pendingViteGlobPatterns = new Set<string>();
+
+function isImportMetaGlobCall(node: any): boolean {
+  if (!t.isCallExpression(node) || !t.isMemberExpression(node.callee)) return false;
+  const object = node.callee.object;
+  const property = node.callee.property;
+  return object?.type === "MetaProperty" &&
+    object.meta?.name === "import" &&
+    object.property?.name === "meta" &&
+    property?.type === "Identifier" &&
+    property.name === "glob";
+}
+
+function staticGlobArguments(node: any): string[] {
+  const argument = node.arguments?.[0];
+  if (t.isStringLiteral(argument)) return [argument.value];
+  if (t.isArrayExpression(argument)) {
+    return argument.elements
+      .filter((element: any) => t.isStringLiteral(element))
+      .map((element: any) => element.value);
+  }
+  return [];
+}
+
+function toProjectRelativeViteGlob(fileId: string, pattern: string, rootDir: string): string | undefined {
+  // Vite accepts relative and root-absolute globs. Package aliases are deliberately
+  // excluded here because their resolution belongs to the TypeScript/Vite alias layer.
+  if (pattern.startsWith("./") || pattern.startsWith("../")) {
+    const sourceFile = path.isAbsolute(fileId) ? fileId : path.resolve(rootDir, fileId);
+    return path.relative(rootDir, path.resolve(path.dirname(sourceFile), pattern)).split(String.fromCharCode(92)).join("/");
+  }
+  if (pattern.startsWith("/")) return pattern.slice(1);
+  return undefined;
+}
+
+function exportedNamesFromAst(ast: any): string[] {
+  const names = new Set<string>();
+  const program = ast?.program ?? ast;
+  for (const statement of program?.body ?? []) {
+    if (statement?.type === "ExportDefaultDeclaration") {
+      names.add("default");
+      continue;
+    }
+    if (statement?.type !== "ExportNamedDeclaration") continue;
+
+    for (const specifier of statement.specifiers ?? []) {
+      const exported = specifier.exported;
+      const name = exported?.name ?? exported?.value;
+      if (typeof name === "string") names.add(name);
+    }
+
+    const declaration = statement.declaration;
+    if (declaration?.type === "VariableDeclaration") {
+      for (const declarator of declaration.declarations ?? []) {
+        if (declarator.id?.type === "Identifier") names.add(declarator.id.name);
+      }
+    } else if ((declaration?.type === "FunctionDeclaration" || declaration?.type === "ClassDeclaration" || declaration?.type === "TSTypeAliasDeclaration" || declaration?.type === "TSInterfaceDeclaration") && declaration.id?.name) {
+      names.add(declaration.id.name);
+    }
+  }
+  return [...names];
+}
+
 function resolveViteRoot(rootDir: string, source: string): string {
   // Vite config is not executed by OptiPrune. Resolve only the common static
   // forms so a dynamic root cannot accidentally create a false entry point.
@@ -54,7 +117,7 @@ async function markHtmlEntry(adapter: PluginAdapter, indexFile: string) {
 
 export const VitePlugin: AnalyzerPlugin = {
   name: "vite-plugin",
-  version: "1.2.0",
+  version: "1.3.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
@@ -78,6 +141,7 @@ export const VitePlugin: AnalyzerPlugin = {
 
   lifecycle: {
     onProjectInit: async (adapter) => {
+      pendingViteGlobPatterns.clear();
       const pkg = await adapter.readJson("package.json");
       const allDeps = {
         ...pkg?.dependencies,
@@ -152,7 +216,18 @@ export const VitePlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
       const isConfigFile = VITE_CONFIG_FILES.includes(basename);
 
-      // 1. Detect Vite imports in any file
+      // 1. Vite compiles static import.meta.glob calls into module imports. Record
+      // only literal local patterns, then expand them against the filtered project
+      // inventory in onAnalysisComplete.
+      if (isImportMetaGlobCall(node)) {
+        for (const pattern of staticGlobArguments(node)) {
+          const projectRelativePattern = toProjectRelativeViteGlob(fileId, pattern, adapter.getConfig().rootDir);
+          if (projectRelativePattern) pendingViteGlobPatterns.add(projectRelativePattern);
+        }
+        adapter.markPackageAsUsed("vite");
+      }
+
+      // 2. Detect Vite imports in any file
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
         if (source === "vite" || source.startsWith("@vitejs/plugin-")) {
@@ -281,6 +356,19 @@ export const VitePlugin: AnalyzerPlugin = {
               adapter.markPackageAsUsed("vite");
             }
           });
+        }
+      }
+    },
+
+    onAnalysisComplete: async (adapter) => {
+      if (pendingViteGlobPatterns.size === 0) return;
+      const rootDir = adapter.getConfig().rootDir;
+      const matchedFiles = await adapter.findFilesByGlob([...pendingViteGlobPatterns]);
+      for (const file of matchedFiles) {
+        const fileId = path.resolve(rootDir, file);
+        adapter.markAsUsed(fileId);
+        for (const exportName of exportedNamesFromAst(adapter.getAst(fileId))) {
+          adapter.markAsUsed(fileId, exportName);
         }
       }
     }

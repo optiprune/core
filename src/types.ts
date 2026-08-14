@@ -382,6 +382,8 @@ export interface PluginAdapter {
   folderExists(folderName: string): Promise<boolean>;
   /** Find project files by exact basename while excluding dependency and build output directories. */
   findFiles(fileNames: string[]): Promise<string[]>;
+  /** Find project files matching static glob patterns with the engine's standard project filtering. */
+  findFilesByGlob(patterns: string[]): Promise<string[]>;
   
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;

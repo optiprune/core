@@ -673,56 +673,80 @@ export async function rootLooksValid(rootDir: string): Promise<boolean> {
   return directoryExists(rootDir);
 }
 
+type TsConfigReference = string | { path?: string };
+
+type TsConfigShape = {
+  extends?: string | string[];
+  references?: TsConfigReference[];
+  compilerOptions?: {
+    baseUrl?: string;
+    paths?: Record<string, string[]>;
+  };
+};
+
+/**
+ * Loads compiler path aliases from a solution tsconfig, its `extends` chain, and
+ * its project references. Alias targets are normalized to absolute paths because
+ * a referenced tsconfig can have a different base directory from the root config.
+ */
 export async function ingestTsConfigPaths(rootDir: string, configPath: string = "tsconfig.json"): Promise<{ paths: Map<string, string[]>, baseUrl: string | undefined }> {
   const pathAliases = new Map<string, string[]>();
-  const fullTsconfigPath = isAbsolute(configPath) ? configPath : join(rootDir, configPath);
+  const visitedConfigs = new Set<string>();
 
-  const tsconfig = await readJsonFile<{
-    extends?: string | string[];
-    compilerOptions?: {
-      baseUrl?: string;
-      paths?: Record<string, string[]>;
-    };
-  }>(fullTsconfigPath);
-
-  if (!tsconfig) return { paths: pathAliases, baseUrl: undefined };
-
-  // 1. Handle inheritance (extends)
-  if (tsconfig.extends) {
-    const extensions = Array.isArray(tsconfig.extends) ? tsconfig.extends : [tsconfig.extends];
-    for (const ext of extensions) {
-      let extPath = ext;
-      if (ext.startsWith(".")) {
-        extPath = join(dirname(fullTsconfigPath), ext);
-        if (!extPath.endsWith(".json")) extPath += ".json";
-      } else {
-        // Handle node_modules resolution for extends (simplified)
-        extPath = join(rootDir, "node_modules", ext);
-        if (!(await fileExists(extPath))) {
-          if (await fileExists(extPath + ".json")) extPath += ".json";
-          else if (await fileExists(join(extPath, "tsconfig.json"))) extPath = join(extPath, "tsconfig.json");
-        }
-      }
-      
-      const parentConfig = await ingestTsConfigPaths(rootDir, extPath);
-      for (const [alias, targets] of parentConfig.paths.entries()) {
-        pathAliases.set(alias, targets);
-      }
+  const resolveTsConfigFile = async (candidate: string): Promise<string> => {
+    const normalizedCandidate = normalizeAbsolute(candidate);
+    const candidates = normalizedCandidate.endsWith(".json")
+      ? [normalizedCandidate]
+      : [normalizedCandidate, `${normalizedCandidate}.json`, join(normalizedCandidate, "tsconfig.json")];
+    for (const possibleConfig of candidates) {
+      if (await fileExists(possibleConfig)) return possibleConfig;
     }
-  }
+    return normalizedCandidate;
+  };
 
-  // 2. Base URL
-  const baseUrl = tsconfig.compilerOptions?.baseUrl;
+  const loadConfig = async (candidate: string): Promise<string | undefined> => {
+    const configFile = await resolveTsConfigFile(candidate);
+    if (visitedConfigs.has(configFile)) return undefined;
+    visitedConfigs.add(configFile);
 
-  // 3. Paths
-  const paths = tsconfig.compilerOptions?.paths;
-  if (paths && typeof paths === "object") {
-    for (const [alias, targets] of Object.entries(paths)) {
+    const tsconfig = await readJsonFile<TsConfigShape>(configFile);
+    if (!tsconfig) return undefined;
+
+    const configDirectory = dirname(configFile);
+    let inheritedBaseUrl: string | undefined;
+
+    // Inherited compiler options are loaded first, so this config can override them.
+    for (const extension of tsconfig.extends ? (Array.isArray(tsconfig.extends) ? tsconfig.extends : [tsconfig.extends]) : []) {
+      const extensionPath = extension.startsWith(".") || isAbsolute(extension)
+        ? join(configDirectory, extension)
+        : join(rootDir, "node_modules", extension);
+      const parentBaseUrl = await loadConfig(extensionPath);
+      if (parentBaseUrl) inheritedBaseUrl = parentBaseUrl;
+    }
+
+    // A solution tsconfig often keeps aliases in referenced app/library configs.
+    // Their aliases are collected before local paths, preserving local overrides.
+    for (const reference of tsconfig.references ?? []) {
+      const referencePath = typeof reference === "string" ? reference : reference.path;
+      if (referencePath) await loadConfig(join(configDirectory, referencePath));
+    }
+
+    const configuredBaseUrl = tsconfig.compilerOptions?.baseUrl;
+    const effectiveBaseUrl = configuredBaseUrl
+      ? normalizeAbsolute(resolve(configDirectory, configuredBaseUrl))
+      : inheritedBaseUrl;
+    const aliasBaseDirectory = effectiveBaseUrl ?? configDirectory;
+
+    for (const [alias, targets] of Object.entries(tsconfig.compilerOptions?.paths ?? {})) {
       if (Array.isArray(targets)) {
-        pathAliases.set(alias, targets);
+        pathAliases.set(alias, targets.map((target) => normalizeAbsolute(resolve(aliasBaseDirectory, target))));
       }
     }
-  }
 
+    return effectiveBaseUrl;
+  };
+
+  const initialConfigPath = isAbsolute(configPath) ? configPath : join(rootDir, configPath);
+  const baseUrl = await loadConfig(initialConfigPath);
   return { paths: pathAliases, baseUrl };
 }
