@@ -369,6 +369,8 @@ export interface AnalysisContext {
   symbolicContracts?: Map<string, any>;
   usedPackages: Set<string>; // Added for Plugin Priority
   enabledPlugins: Set<string>; // Added for Plugin Priority
+  /** Package export-map entrypoints whose runtime members may be consumed externally. */
+  publicApiEntryPoints?: ReadonlySet<string>;
 }
 
 export interface PluginAdapter {
@@ -377,6 +379,8 @@ export interface PluginAdapter {
   getSymbol(name: string, fileId: string): any;
   getType(node: any): string | undefined;
   getDependencies(fileId: string): string[];
+  /** Whether a named export belongs to a package export-map entrypoint. */
+  isPublicExport(fileId: string, exportName: string): boolean;
   getConfig(): ResolvedOptions;
   readFile(filename: string): Promise<string | null>;
   readJson(filename: string): Promise<any | null>;
