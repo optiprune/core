@@ -434,25 +434,42 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
           }
         }
 
-        // 2. Track Member Expressions (e.g., Status.Active, user.id)
-        if (node.type === "MemberExpression" && node.object.type === "Identifier" && !node.computed) {
-          const objectName = node.object.name;
-          const propertyName = node.property.name || node.property.value;
+        // 2. Track Member Expressions (e.g., Status.Active, user.id, this.items)
+        if (node.type === "MemberExpression" && !node.computed) {
+          const propertyName = node.property?.name || node.property?.value;
           if (propertyName) {
-            // Track direct access (Status.Active)
-            if (!localMemberAccess.has(objectName)) localMemberAccess.set(objectName, new Set());
-            localMemberAccess.get(objectName)!.add(propertyName);
+            let objectName: string | undefined;
+            if (node.object?.type === "Identifier") {
+              objectName = node.object.name;
+            } else if (node.object?.type === "ThisExpression") {
+              // `this.items` has no identifier object. Resolve it against the
+              // nearest enclosing class so internal class-member usage reaches
+              // the same `usedMembers` key as external `registry.items` access.
+              const enclosingClass = [...stack].reverse().find((ancestor: any) =>
+                ancestor?.type === "ClassDeclaration" || ancestor?.type === "ClassExpression",
+              );
+              objectName = enclosingClass?.id?.name;
+            }
+            if (objectName) {
+              // Track direct access (Status.Active, Registry.items, this.items).
+              if (!localMemberAccess.has(objectName)) localMemberAccess.set(objectName, new Set());
+              localMemberAccess.get(objectName)!.add(propertyName);
 
-            // Track type-aware access (user.id where user is of type User).
-            // Preserve a separate map so same-module type usage can later be
-            // linked to that module's exported type without overmatching a
-            // value identifier that happens to share the type's name.
-            const typeName = resolveScopedTypeName(objectName, stack);
-            if (typeName) {
-              if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
-              localMemberAccess.get(typeName)!.add(propertyName);
-              if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
-              localTypeMemberAccess.get(typeName)!.add(propertyName);
+              // Track type-aware access (user.id where user is of type User).
+              // Preserve a separate map so same-module type usage can later be
+              // linked to that module's exported type without overmatching a
+              // value identifier that happens to share the type's name.
+              const typeName = resolveScopedTypeName(objectName, stack);
+              if (typeName) {
+                if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
+                localMemberAccess.get(typeName)!.add(propertyName);
+                if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+                localTypeMemberAccess.get(typeName)!.add(propertyName);
+              }
+              if (node.object?.type === "ThisExpression") {
+                if (!localTypeMemberAccess.has(objectName)) localTypeMemberAccess.set(objectName, new Set());
+                localTypeMemberAccess.get(objectName)!.add(propertyName);
+              }
             }
           }
         }

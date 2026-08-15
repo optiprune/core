@@ -65,7 +65,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
     /**
      * Scans AST nodes for exported object definitions and member usages.
      */
-    onASTNode: (node: any, fileId: string, adapter?: PluginAdapter, ancestors: any[] = []) => {
+    onASTNode: (node: any, fileId: string, adapter?: PluginAdapter) => {
       // 1. Erfassen: Named Exports -> export const config = { key: value }
       if (
         (t.isExportNamedDeclaration(node) || node.type === "ExportNamedDeclaration") &&
@@ -102,44 +102,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 3. Register class members. Class fields and methods are tracked under
-      // `ClassName.memberName`, matching the key used for `this.member` below.
-      const classDeclaration =
-        node.type === "ClassDeclaration" || node.type === "ClassExpression" ? node :
-        node.type === "ExportNamedDeclaration" &&
-        (node.declaration?.type === "ClassDeclaration" || node.declaration?.type === "ClassExpression")
-          ? node.declaration
-          : undefined;
-      if (classDeclaration?.id?.name && Array.isArray(classDeclaration.body?.body)) {
-        const members = new Map<string, any>();
-        for (const member of classDeclaration.body.body) {
-          const key = member.key?.name ?? member.key?.value;
-          if (key && !member.computed) members.set(key, member.key?.loc || member.loc);
-        }
-        if (members.size > 0) {
-          state.definitions.set(classDeclaration.id.name, {
-            fileId,
-            members,
-            loc: classDeclaration.id.loc || classDeclaration.loc,
-          });
-        }
-      }
-
-      // 4. Track `this.member` inside the nearest class declaration.
-      if (
-        (node.type === "MemberExpression" || node.type === "OptionalMemberExpression") &&
-        node.object?.type === "ThisExpression" &&
-        !node.computed &&
-        t.isIdentifier(node.property)
-      ) {
-        const enclosingClass = [...ancestors].reverse().find(
-          (ancestor: any) => ancestor?.type === "ClassDeclaration" || ancestor?.type === "ClassExpression",
-        );
-        const className = enclosingClass?.id?.name;
-        if (className) state.usages.add(`${className}.${node.property.name}`);
-      }
-
-      // 5. Track simple value-flow aliases: const router = expressRouter,
+      // 3. Track simple value-flow aliases: const router = expressRouter,
       // const routers = [expressRouter], and map callbacks over that array.
       if (node.type === "VariableDeclarator" && t.isIdentifier(node.id)) {
         if (t.isIdentifier(node.init)) {
@@ -171,7 +134,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 6. Tracking: Member Access -> obj.prop or obj?.prop
+      // 4. Tracking: Member Access -> obj.prop or obj?.prop
       if (
         node.type === "MemberExpression" ||
         node.type === "OptionalMemberExpression"
@@ -190,7 +153,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 7. Tracking: Passing an object as a whole to another API hides the
+      // 5. Tracking: Passing an object as a whole to another API hides the
       // member access behind that API. Treat its members as dynamically used.
       if ((node.type === "ObjectProperty" || node.type === "Property") && t.isIdentifier(node.value)) {
         for (const objectName of state.resolveAliases(node.value.name)) state.wildcardObjects.add(objectName);
@@ -203,7 +166,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 8. Tracking: Object spread reads an unknown set of members.
+      // 6. Tracking: Object spread reads an unknown set of members.
       if (node.type === "SpreadElement") {
         if (t.isIdentifier(node.argument)) {
           for (const objectName of state.resolveAliases(node.argument.name)) state.wildcardObjects.add(objectName);
@@ -212,7 +175,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 9. Tracking: Destructuring Access -> const { usedKey } = config
+      // 7. Tracking: Destructuring Access -> const { usedKey } = config
       if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && t.isIdentifier(node.init)) {
         const objName = node.init.name;
         for (const prop of node.id.properties) {
