@@ -1,4 +1,4 @@
-import { parse as yukuParse, langFromPath, sourceTypeFromPath } from "yuku-parser";
+import { parseWithYukuBackend, yukuLangFromPath, yukuSourceTypeFromPath } from "./parser.js";
 import { print as yukuPrint } from "yuku-codegen";
 import {walk as yukuWalk} from "yuku-ast";
 import { isSfcPath, extractSfcScript } from "./parser.js";
@@ -24,11 +24,11 @@ export function instrumentCode(code: string, filename: string): string | null {
       codeToParse = extracted.scriptContent;
       lang = extracted.lang;
     } else {
-      lang = langFromPath(filename) ?? "tsx";
+      lang = (yukuLangFromPath(filename) as typeof lang) ?? "tsx";
     }
 
-    const sourceType = sourceTypeFromPath(filename) ?? "module";
-    const result = yukuParse(codeToParse, { lang, sourceType });
+    const sourceType = (yukuSourceTypeFromPath(filename) as "module" | "script" | "commonjs") ?? "module";
+    const result = parseWithYukuBackend(codeToParse, { lang, sourceType });
     const ast = result.program;
     const coverageVariable = "__coverage__";
 

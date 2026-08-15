@@ -1,5 +1,67 @@
-import { parse as yukuParse, langFromPath, sourceTypeFromPath } from "yuku-parser";
 import { isIgnored } from "./fs-utils.js";
+
+type ParserOptions = {
+  lang: "ts" | "tsx" | "jsx" | "js" | "dts";
+  sourceType: "module" | "script" | "commonjs";
+  semanticErrors?: boolean;
+  attachComments?: boolean;
+};
+
+type ParserResult = {
+  program: any;
+  comments: unknown[];
+  diagnostics: Array<{
+    severity: string;
+    message: string;
+    start?: number | null;
+  }>;
+};
+
+type ParserModule = {
+  parse: (source: string, options: ParserOptions) => ParserResult;
+  langFromPath: (path: string) => string;
+  sourceTypeFromPath: (path: string) => string;
+};
+
+async function loadParserBackend(): Promise<(ParserModule & { kind: Exclude<ParserBackendName, "regex"> }) | undefined> {
+  try {
+    return { ...(await import("yuku-parser")) as unknown as ParserModule, kind: "node" };
+  } catch (nativeError) {
+    try {
+      return { ...(await import(/* @vite-ignore */ "@yuku-parser/wasm")) as unknown as ParserModule, kind: "wasm" };
+    } catch (wasmError) {
+      // Preserve both load errors for a useful diagnostic.
+      parserBackendLoadError = new Error(
+        "Yuku could not load its native .node parser and @yuku-parser/wasm is not installed. " +
+        "Install the optional peer dependency with `npm install @yuku-parser/wasm` to run in this environment.",
+        { cause: new AggregateError([nativeError, wasmError]) },
+      );
+      return undefined;
+    }
+  }
+}
+
+let parserBackendLoadError: unknown;
+const parserBackend = await loadParserBackend();
+
+export function getParserBackend(): Exclude<ParserBackendName, "regex"> | undefined {
+  return parserBackend?.kind;
+}
+
+export function parseWithYukuBackend(source: string, options: ParserOptions): ParserResult {
+  if (!parserBackend) {
+    throw parserBackendLoadError ?? new Error("No Yuku parser backend is available");
+  }
+  return parserBackend.parse(source, options);
+}
+
+export function yukuLangFromPath(filePath: string): string | undefined {
+  return parserBackend?.langFromPath(filePath);
+}
+
+export function yukuSourceTypeFromPath(filePath: string): string | undefined {
+  return parserBackend?.sourceTypeFromPath(filePath);
+}
 
 // ---------------------------------------------------------------------------
 // SFC / Framework pre-processor
@@ -133,7 +195,7 @@ export function extractSfcScript(source: string, filePath: string): SfcExtractRe
  * the script block and should pass the `lang` from `SfcExtractResult` instead.
  */
 export function resolveParserLang(filePath: string): "ts" | "tsx" | "jsx" | "js" | "dts" {
-  const fromYuku = langFromPath(filePath);
+  const fromYuku = yukuLangFromPath(filePath);
   if (fromYuku) return fromYuku as "ts" | "tsx" | "jsx" | "js" | "dts";
   // Fallback for framework extensions not known to yuku-parser
   if (filePath.endsWith(".vue")) return "ts";
@@ -149,6 +211,7 @@ import type {
   Position,
   Range,
   DynamicImportCandidate,
+  ParserBackend as ParserBackendName,
 } from "./types.js";
 
 interface AstNode {
@@ -1097,6 +1160,8 @@ function fallbackModule(sourceText: string, file: string, reason: unknown): Modu
     id: file,
     relativePath: file,
     parseStatus: "fallback",
+    parserBackend: "regex",
+
     parseDiagnostics: [
       {
         message: `${originalMessage} (Module parse failed, using regex fallback)`,
@@ -1185,11 +1250,11 @@ export function parseModule(
     }
 
     const lang = parserLang;
-    const sourceType = sourceTypeFromPath(file) ?? "module";
+    const sourceType = (yukuSourceTypeFromPath(file) ?? "module") as "module" | "script" | "commonjs";
     
     // Use the actual text being parsed for offset-to-position mapping
     setYukuSource(textToParse);
-    const result = yukuParse(textToParse, { lang, sourceType, semanticErrors: false, attachComments: true });
+    const result = parseWithYukuBackend(textToParse, { lang, sourceType, semanticErrors: false, attachComments: true });
 
     const parserErrors = result.diagnostics
       .filter((d) => d.severity === "error")
@@ -1220,6 +1285,7 @@ export function parseModule(
     } as any;
 
     const mod = extractAstModule(textToParse, file, ast as unknown as AstNode, []);
+    mod.parserBackend = getParserBackend() ?? "regex";
 
     // ── SFC post-processing ─────────────────────────────────────────────────
     if (isSfcPath(file)) {
@@ -1242,7 +1308,10 @@ export function parseModule(
 
     return mod;
   } catch (error) {
-    return fallbackModule(sourceText, file, error);
+    // A missing parser is not a syntax error. Never silently replace the AST
+    // parser with regex analysis: callers need to install the optional WASM
+    // peer dependency when the native binding cannot load.
+    throw error;
   }
 }
 

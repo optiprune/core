@@ -1,6 +1,6 @@
 {
   "name": "@optiprune/core",
-  "version": "1.11.31",
+  "version": "1.11.32",
   "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
   "type": "module",
   "main": "./dist/index.js",
@@ -82,6 +82,14 @@
     "yuku-codegen": "^0.8.3",
     "yuku-parser": "^0.8.3",
     "z3-solver": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@yuku-parser/wasm": "^0.8.7"
+  },
+  "peerDependenciesMeta": {
+    "@yuku-parser/wasm": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

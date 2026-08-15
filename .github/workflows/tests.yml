@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  tests:
+  Layers:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,4 +19,32 @@ jobs:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test
+      - run: npm run test layer2 layer3 layer4 layer5 layer6 layer7 monorepo v8
+  Plugins:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run test plugin css next nest package-script vite
+  Functions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts

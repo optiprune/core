@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'pathe';
-import { parse as yukuParse } from 'yuku-parser';
+import { parseWithYukuBackend } from './parser.js';
 import * as yaml from 'js-yaml';
 import { readJsonFile } from './fs-utils.js';
 import type { AnalysisContext, Finding, ModuleRecord } from './types.js';
@@ -100,7 +100,7 @@ export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsEx
   }
 
   const source = fs.readFileSync(absolutePath, 'utf-8');
-  const result = yukuParse(source, { lang: 'dts', sourceType: 'module' });
+  const result = parseWithYukuBackend(source, { lang: 'dts', sourceType: 'module' });
   const program = result.program as any;
 
   const exportedTypes = new Set<string>();

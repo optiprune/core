@@ -2,6 +2,7 @@ export type Confidence = "high" | "medium" | "low" | "info";
 export type FailOn = Confidence | "none";
 export type Severity = "error" | "warning" | "info";
 export type ParseStatus = "parsed" | "recovered" | "fallback";
+export type ParserBackend = "node" | "wasm" | "regex";
 export type EdgeKind =
   | "import"
   | "export-from"
@@ -75,6 +76,8 @@ export interface ModuleRecord {
   relativePath: string;
   parseStatus: ParseStatus;
   parseDiagnostics: ParseDiagnostic[];
+  /** Backend used for this module: native Node binding, WASM, or regex recovery. */
+  parserBackend?: ParserBackend;
   ast?: unknown;
   sourceText: string;
   exports: ExportRecord[];
