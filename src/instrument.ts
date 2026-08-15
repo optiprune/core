@@ -1,5 +1,31 @@
 import { parseWithYukuBackend, yukuLangFromPath, yukuSourceTypeFromPath } from "./parser.js";
-import { print as yukuPrint } from "yuku-codegen";
+type CodegenBackend = {
+  print: (program: any) => string | { code?: string };
+  kind: "node" | "wasm";
+};
+
+let codegenLoadError: Error | undefined;
+
+async function loadCodegenBackend(): Promise<CodegenBackend> {
+  try {
+    const native = await import("yuku-codegen");
+    return { print: (native.print as CodegenBackend["print"]), kind: "node" };
+  } catch (nativeError) {
+    try {
+      const wasm = await import(/* @vite-ignore */ "@yuku-codegen/wasm");
+      return { print: (wasm.print as CodegenBackend["print"]), kind: "wasm" };
+    } catch (wasmError) {
+      codegenLoadError = new Error(
+        "Yuku could not load its native yuku-codegen binding and @yuku-codegen/wasm is not installed. " +
+        "Install the optional peer dependency with `npm install @yuku-codegen/wasm` to instrument code in this environment.",
+        { cause: new AggregateError([nativeError, wasmError]) },
+      );
+      throw codegenLoadError;
+    }
+  }
+}
+
+const codegenBackend = await loadCodegenBackend();
 import {walk as yukuWalk} from "yuku-ast";
 import { isSfcPath, extractSfcScript } from "./parser.js";
 /**
@@ -150,8 +176,11 @@ export function instrumentCode(code: string, filename: string): string | null {
       }
     });
 
-    const output = yukuPrint(ast);
-    const instrumentedScript = output.code;
+    const output = codegenBackend.print(ast);
+    const instrumentedScript = typeof output === "string" ? output : output.code;
+    if (!instrumentedScript) {
+      throw codegenLoadError ?? new Error("Yuku codegen returned no generated source");
+    }
 
     // For SFC files: splice the instrumented script back into the original source
     // so that the template/style sections are preserved.
