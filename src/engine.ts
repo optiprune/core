@@ -159,11 +159,11 @@ export class PluginEngine {
       }
 
       try {
-        yukuWalk(module.ast as any, (node: any) => {
+        yukuWalk(module.ast as any, (node: any, ancestors: any[]) => {
           for (const plugin of this.plugins) {
             if (plugin.enabled && plugin.lifecycle.onASTNode) {
               try {
-                plugin.lifecycle.onASTNode(node, module.id, adapter);
+                plugin.lifecycle.onASTNode(node, module.id, adapter, ancestors);
               } catch (err) {}
             }
           }
