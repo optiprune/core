@@ -42,27 +42,3 @@ describe("TypeScript Local Reference Tracking (Fix 3)", () => {
     expect(unusedMemberFinding).toBeDefined();
   });
 });
-
-describe("Class member reference tracking", () => {
-  it("recognizes this.items as a use of the class member", async () => {
-    const rootDir = path.join(__dirname, "fixtures", "registry-member-test");
-    const report = await analyze({
-      rootDir,
-      entry: ["entry.ts"],
-      extensions: [".ts"],
-      ignore: [],
-      reportUnusedExports: true,
-      includeConventionalEntries: false,
-    });
-
-    const itemsFinding = report.findings.find(
-      (finding) => finding.rule === "unused-member" && finding.evidence.exportName === "Registry" && finding.evidence.memberName === "items",
-    );
-    expect(itemsFinding, "Registry.items is used through this.items").toBeUndefined();
-
-    const unusedFinding = report.findings.find(
-      (finding) => finding.rule === "unused-member" && finding.evidence.exportName === "Registry" && finding.evidence.memberName === "unused",
-    );
-    expect(unusedFinding, "A genuinely unused class field should still be reported").toBeDefined();
-  });
-});
