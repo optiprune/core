@@ -53,6 +53,71 @@ const VERSION = pkg?.version ?? "1.8.2";
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 import { applyFixes as runFixes } from "./fixer.js";
 
+function isPureStaticExpression(node: any): boolean {
+  if (!node) return true;
+  switch (node.type) {
+    case "StringLiteral":
+    case "NumericLiteral":
+    case "BooleanLiteral":
+    case "NullLiteral":
+    case "Literal":
+    case "Identifier":
+      return true;
+    case "UnaryExpression":
+      return isPureStaticExpression(node.argument);
+    case "BinaryExpression":
+    case "LogicalExpression":
+      return isPureStaticExpression(node.left) && isPureStaticExpression(node.right);
+    case "ConditionalExpression":
+      return isPureStaticExpression(node.test) && isPureStaticExpression(node.consequent) && isPureStaticExpression(node.alternate);
+    case "ArrayExpression":
+      return (node.elements ?? []).every((element: any) => isPureStaticExpression(element));
+    case "ObjectExpression":
+      return (node.properties ?? []).every((property: any) => {
+        if (property.type === "SpreadElement" || property.type === "SpreadProperty") return false;
+        if (property.computed && !isPureStaticExpression(property.key)) return false;
+        return isPureStaticExpression(property.value);
+      });
+    case "TemplateLiteral":
+      return (node.expressions ?? []).every((expression: any) => isPureStaticExpression(expression));
+    case "TSAsExpression":
+    case "TSTypeAssertion":
+    case "TypeCastExpression":
+      return isPureStaticExpression(node.expression);
+    case "ArrowFunctionExpression":
+    case "FunctionExpression":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isPureExportDeclaration(node: any): boolean {
+  if (!node) return true;
+  if (node.type === "VariableDeclaration") {
+    return (node.declarations ?? []).every((declaration: any) => isPureStaticExpression(declaration.init));
+  }
+  if (node.type === "FunctionDeclaration") return true;
+  // Classes may execute computed keys or static blocks at module evaluation.
+  return false;
+}
+
+function isPureExportOnlyModule(module: ModuleRecord): boolean {
+  const body = (module.ast as any)?.program?.body ?? (module.ast as any)?.body;
+  if (!Array.isArray(body) || body.length === 0 || module.exports.length === 0) return false;
+
+  return body.every((statement: any) => {
+    if (statement.type === "ExportNamedDeclaration") {
+      if (statement.source) return false;
+      return isPureExportDeclaration(statement.declaration);
+    }
+    if (statement.type === "ExportDefaultDeclaration") {
+      return isPureStaticExpression(statement.declaration) || isPureExportDeclaration(statement.declaration);
+    }
+    return false;
+  });
+}
+
 async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions> {
   const rootDir = normalizeAbsolute(options.rootDir ?? process.cwd());
 
@@ -389,6 +454,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // ── PLUGIN LIFECYCLE SYNC ────────────────────────────────────────────────
   // 1. Transfer marks from earlyContext (onProjectInit effects) to the final context
   for (const r of earlyContext.reachable) context.reachable.add(r);
+  for (const r of earlyContext.runtimeUsedFiles ?? []) context.runtimeUsedFiles?.add(r);
   for (const p of earlyContext.usedPackages) context.usedPackages.add(p);
   for (const e of earlyContext.usedExports) context.usedExports.add(e);
   for (const pl of earlyContext.enabledPlugins) context.enabledPlugins.add(pl);
@@ -503,6 +569,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Final Reporting Phase: Unused Exports & Unreachable Files
   const protectedExportPatterns = compileGlobs(resolvedOptions.protectedExportPatterns ?? []);
+  const fullyUnusedPureExportModules = new Set<string>();
   if (resolvedOptions.reportUnusedExports) {
     const importUsage = buildImportUsage(modules);
     const packagePublicModules = new Set<string>(publicApiEntryPoints);
@@ -527,17 +594,26 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         (context.reachable.has(module.id) || context.maybeReachable.has(module.id)) &&
         !matchesAnyGlob(module.id, protectedExportPatterns, rootDir)
       ) {
+        let allExportsUnused = module.exports.length > 0;
         for (const exp of module.exports) {
-          if (exp.isExternalContract) continue;
+          if (exp.isExternalContract) {
+            allExportsUnused = false;
+            continue;
+          }
 
-          const isExportUsed = context.usedExports.has(`${module.id}:${exp.exportedAs}`);
+          const isExportUsed =
+            context.usedExports.has(`${module.id}:${exp.exportedAs}`) ||
+            context.usedExports.has(`${module.id}:*`);
           
           let confidence: import('./types.js').Confidence = "high";
           if (context.maybeReachable.has(module.id)) confidence = "medium";
           if (context.hasReachableUnknownDynamicBoundary) confidence = "low";
           if (context.usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low") confidence = "low";
 
-          if (context.hasReachableUnknownDynamicBoundary && isExportUsed) continue;
+          if (context.hasReachableUnknownDynamicBoundary && isExportUsed) {
+            allExportsUnused = false;
+            continue;
+          }
           
           let isEffectivelyUsed = isExportUsed;
           
@@ -623,7 +699,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             }
           }
 
-          if (!isEffectivelyUsed && exp.exportedAs !== "default" && exp.exportedAs !== "*") {
+          if (isEffectivelyUsed) allExportsUnused = false;
+
+          // A maybe-reachable module can be loaded through an unresolved dynamic
+          // path (for example, a plugin name supplied via an environment variable).
+          // Its exports are not statically provable as unused, so do not emit a
+          // misleading unused-export finding for that module. Exact reachability
+          // still reports genuinely unused exports as before.
+          if (
+            !isEffectivelyUsed &&
+            context.reachable.has(module.id) &&
+            exp.exportedAs !== "default" &&
+            exp.exportedAs !== "*"
+          ) {
             findings.push({
               rule: "unused-export",
               severity: "warning",
@@ -651,6 +739,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             }
           }
         }
+        if (
+          allExportsUnused &&
+          isPureExportOnlyModule(module) &&
+          !context.runtimeUsedFiles?.has(module.id)
+        ) {
+          fullyUnusedPureExportModules.add(module.id);
+        }
       }
     }
   }
@@ -658,9 +753,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const unreachableFileIgnorePatterns = compileGlobs(resolvedOptions.unreachableFileIgnorePatterns ?? []);
   for (const module of modules.values()) {
     if (
-      !context.reachable.has(module.id) &&
-      !context.maybeReachable.has(module.id) &&
-      !matchesAnyGlob(module.id, unreachableFileIgnorePatterns, rootDir)
+      !matchesAnyGlob(module.id, unreachableFileIgnorePatterns, rootDir) &&
+      ((!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) || fullyUnusedPureExportModules.has(module.id))
     ) {
       const fileComponent = context.components.find((c) => c.modules.includes(module.id));
       const isIsolatedComponent = fileComponent && !fileComponent.isReachable && !fileComponent.isMaybeReachable;
@@ -668,15 +762,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         rule: "unreachable-file",
         severity: "warning",
         confidence: module.hasUnknownDynamicBoundary ? "medium" : "high",
-        message: isIsolatedComponent
-          ? `File is part of an isolated ${fileComponent.isCycle ? 'cycle' : 'component'} (#${fileComponent.id}) that is unreachable from any entry point.`
-          : "File is not reachable from any entry point.",
+        message: fullyUnusedPureExportModules.has(module.id)
+          ? "File contains only exports that are unused and has no top-level runtime logic."
+          : isIsolatedComponent
+            ? `File is part of an isolated ${fileComponent.isCycle ? 'cycle' : 'component'} (#${fileComponent.id}) that is unreachable from any entry point.`
+            : "File is not reachable from any entry point.",
         file: module.id,
         evidence: {
           entryPoints: [...context.entryPoints].map((p) => relativeDisplayPath(rootDir, p)),
           componentId: fileComponent?.id,
           componentSize: fileComponent?.modules.length,
           isCycle: fileComponent?.isCycle ?? false,
+          reason: fullyUnusedPureExportModules.has(module.id)
+            ? "all-exports-unused-and-no-top-level-runtime-logic"
+            : undefined,
         },
       });
     }

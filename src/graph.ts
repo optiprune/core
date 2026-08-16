@@ -885,6 +885,7 @@ export function contextWithGraph(
     entryPoints,
     reachable: graph.reachable,
     maybeReachable: graph.maybeReachable,
+    runtimeUsedFiles: new Set<string>(),
     hasReachableUnknownDynamicBoundary: graph.hasReachableUnknownDynamicBoundary,
     components: graph.components,
     usedExports: graph.usedExports,

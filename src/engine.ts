@@ -328,6 +328,7 @@ export class PluginEngine {
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
         context.reachable?.add(absolutePath);
+        context.runtimeUsedFiles?.add(absolutePath);
         if (symbol) {
           context.usedExports?.add(`${absolutePath}:${symbol}`);
         }

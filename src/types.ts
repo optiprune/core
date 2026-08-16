@@ -363,6 +363,8 @@ export interface AnalysisContext {
   entryPoints: Set<string>;
   reachable: Set<string>;
   maybeReachable: Set<string>;
+  /** Files explicitly executed or consumed by a runtime/tool contract. */
+  runtimeUsedFiles?: Set<string>;
   hasReachableUnknownDynamicBoundary: boolean;
   components: StronglyConnectedComponent[];
   usedExports: Set<string>;

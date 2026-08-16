@@ -16,7 +16,12 @@ export async function analyzeLayer4(context: AnalysisContext): Promise<Finding[]
 
   // 1. Resolve Dynamic Imports
   if (context.dynamicImportCandidates.length > 0) {
-    await resolveDynamicImports(context, quickJS);
+    // First evaluate with the normal runtime environment. Then run a second
+    // pass with environment lookups replaced by `undefined`, which activates
+    // source-level fallbacks such as `process.env.MYSTERY_PLUGIN || "markdown"`.
+    await resolveDynamicImports(context, quickJS, "host");
+    await resolveDynamicImports(context, quickJS, "unset");
+    await resolveDynamicImports(context, quickJS, "empty");
   }
 
   // 2. Validate Candidate Branches
@@ -245,7 +250,11 @@ function drainQuickJSPendingJobs(runtime: QuickJSRuntime, vm: QuickJSContext, ma
  * resolves it correctly because the `const` declaration is captured in the
  * context code.  No special handling is needed for that case.
  */
-async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
+async function resolveDynamicImports(
+  context: AnalysisContext,
+  quickJS: any,
+  environmentMode: "host" | "unset" | "empty" = "host",
+) {
   // Group candidates by file to avoid redundant simulations
   const candidatesByFile = new Map<string, any[]>();
   for (const candidate of context.dynamicImportCandidates) {
@@ -264,7 +273,7 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
         
         // Setup explicit runtime mocks first, then install the catch-all scope
         // that safely absorbs additional, unknown globals from application code.
-        setupQuickJSMocks(vm, candidate, context);
+        setupQuickJSMocks(vm, candidate, context, environmentMode);
         installGlobalResilience(vm);
 
         const globalHandle = vm.global;
@@ -311,7 +320,7 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
           : [];
 
         // Strip the hint comment before compiling so it does not confuse esbuild.
-        const cleanedContextCode = candidate.contextCode
+        let cleanedContextCode = candidate.contextCode
           .replace(/\n\/\/ __optiprune_loop_vars__:[^\n]*/g, "");
 
         const processedContext = await compileForQuickJS(cleanedContextCode, file);
@@ -403,7 +412,16 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
         finalTargetsHandle.dispose();
         finalGlobalHandle.dispose();
 
-        if (Array.isArray(targets) && targets.length > 0) {
+        // Unknown input values in the sandbox can stringify to paths such as
+        // `./commands/undefined.js`. These are simulation artifacts, not
+        // concrete dynamic-import targets, and must not affect graph state.
+        const concreteTargets = Array.isArray(targets)
+          ? targets.filter((target): target is string =>
+              typeof target === "string" && !isInvalidSimulatedSpecifier(target),
+            )
+          : [];
+
+        if (concreteTargets.length > 0) {
           // Mark the corresponding edge as resolved to suppress the warning.
           // We match on location first; if that fails (e.g. the column was
           // computed differently for a template-literal pattern edge) we fall
@@ -451,10 +469,8 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
             }
           }
 
-          for (const rawTarget of targets) {
-            if (typeof rawTarget === 'string') {
-              resolveAndMarkTarget(rawTarget, file, context, candidate);
-            }
+          for (const rawTarget of concreteTargets) {
+            resolveAndMarkTarget(rawTarget, file, context, candidate);
           }
         }
       } catch (err) {
@@ -470,8 +486,41 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
   }
 }
 
-function setupQuickJSMocks(vm: QuickJSContext, candidate: any, context: AnalysisContext) {
+function setupQuickJSMocks(
+  vm: QuickJSContext,
+  candidate: any,
+  context: AnalysisContext,
+  environmentMode: "host" | "unset" | "empty" = "host",
+) {
   const globalHandle = vm.global;
+
+  // Model process.env explicitly. The resilience proxy must not provide a
+  // callable fallback object for environment lookups because JavaScript treats
+  // `undefined`, the empty string, and a concrete value differently with `||`.
+  const processMock = vm.newObject();
+  const envMock = vm.newObject();
+  const envNames = new Set<string>();
+  for (const match of String(candidate.contextCode ?? "").matchAll(/\bprocess\.env\.([A-Za-z_$][\w$]*)/g)) {
+    const name = match[1];
+    if (name) envNames.add(name);
+  }
+  for (const name of envNames) {
+    const hostValue = process.env[name];
+    const value = environmentMode === "empty"
+      ? ""
+      : environmentMode === "host" && hostValue !== undefined
+        ? hostValue
+        : undefined;
+    if (value !== undefined) {
+      const valueHandle = vm.newString(value);
+      vm.setProp(envMock, name, valueHandle);
+      valueHandle.dispose();
+    }
+  }
+  vm.setProp(processMock, "env", envMock);
+  vm.setProp(globalHandle, "process", processMock);
+  envMock.dispose();
+  processMock.dispose();
 
   // 1. __dirname and __filename
   const fileDir = path.dirname(candidate.file);
@@ -676,6 +725,13 @@ function setupQuickJSMocks(vm: QuickJSContext, candidate: any, context: Analysis
   errorFn.dispose();
 
   globalHandle.dispose();
+}
+
+function isInvalidSimulatedSpecifier(specifier: string): boolean {
+  const value = specifier.trim();
+  if (!value || value === "undefined" || value === "null" || value === "NaN") return true;
+  if (value.includes("[object Object]") || value.includes("[object Undefined]")) return true;
+  return /(?:^|[\\/])(?:undefined|null|NaN)(?:$|[.\\/])/.test(value);
 }
 
 function resolveAndMarkTarget(specifier: string, sourceFile: string, context: AnalysisContext, candidate?: { line?: number; column?: number }) {

@@ -165,7 +165,10 @@ export const OclifPlugin: AnalyzerPlugin = {
         normalized.includes("/src/hooks/") ||
         normalized.startsWith("src/hooks/")
       ) {
-        adapter.markAsUsed(fileId);
+        // Oclif discovers command and hook modules by convention at runtime.
+        // File reachability alone is insufficient: their exported handlers are
+        // consumed by the framework rather than by static source imports.
+        adapter.markAsUsed(fileId, "*");
         adapter.markPackageAsUsed("@oclif/core");
       }
     },
@@ -185,7 +188,9 @@ export const OclifPlugin: AnalyzerPlugin = {
           t.isExportDefaultDeclaration(node) ||
           t.isExportNamedDeclaration(node)
         ) {
-          adapter.markAsUsed(fileId);
+          // Protect the complete runtime-facing export surface of Oclif
+          // command/hook modules from unused-export false positives.
+          adapter.markAsUsed(fileId, "*");
         }
 
         // Protect static flags / description / args properties on Command classes

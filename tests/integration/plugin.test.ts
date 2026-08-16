@@ -19,6 +19,10 @@ describe('Plugin Integration Tests', () => {
       export const schema = z.object({ id: z.string() });
       export const unused = 1;
     `);
+    await fs.mkdir(path.join(testDir, 'src', 'commands'), { recursive: true });
+    await fs.writeFile(path.join(testDir, 'src', 'commands', 'hello.ts'), `
+      export async function run() {}
+    `);
   });
 
   afterAll(async () => {
@@ -38,5 +42,19 @@ describe('Plugin Integration Tests', () => {
     expect(unusedExport).toBeDefined();
     // ZodPlugin hardening should protect 'schema'
     expect(schemaExport).toBeUndefined();
+  });
+
+  it('does not report exports from Oclif command modules as unused', async () => {
+    const report = await analyze({
+      rootDir: testDir,
+      entry: ['index.ts'],
+      reportUnusedExports: true,
+      skip4: true,
+    });
+
+    const commandExport = report.findings.find(
+      (finding) => finding.rule === 'unused-export' && finding.file.endsWith('/src/commands/hello.ts'),
+    );
+    expect(commandExport).toBeUndefined();
   });
 });
