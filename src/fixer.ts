@@ -95,12 +95,22 @@ function forceExportEdit(source: string, finding: Finding): TextEdit | null {
   let listMatch: RegExpExecArray | null;
   while ((listMatch = listPattern.exec(source))) {
     const body = listMatch[1] ?? "";
-    const specifier = new RegExp(`(^|,)\\s*${escaped}(?:\\s+as\\s+[A-Za-z_$][\\w$]*)?\\s*(?=,|$)`).exec(body);
-    if (!specifier || specifier.index === undefined) continue;
-    const bodyStart = (listMatch.index ?? 0) + listMatch[0].indexOf("{") + 1;
-    const start = bodyStart + specifier.index + (specifier[1]?.length ?? 0);
-    const end = bodyStart + specifier.index + specifier[0].length;
-    return { start, end, replacement: "" };
+    const specifiers = body.split(",").map((item) => item.trim()).filter(Boolean);
+    const remaining = specifiers.filter((specifier) => {
+      const match = /^(?<local>[A-Za-z_$][\w$]*)(?:\s+as\s+(?<exported>[A-Za-z_$][\w$]*))?$/.exec(specifier);
+      return !match || (match.groups?.local !== exportName && match.groups?.exported !== exportName);
+    });
+    if (remaining.length === specifiers.length) continue;
+    const openBrace = listMatch[0].indexOf("{");
+    const bodyStart = (listMatch.index ?? 0) + openBrace + 1;
+    const bodyEnd = bodyStart + body.length;
+    if (remaining.length === 0) return { start: bodyStart, end: bodyEnd, replacement: "" };
+    const indent = body.match(/\n([ \t]+)\S/)?.[1] ?? " ";
+    const multiline = body.includes("\n");
+    const replacement = multiline
+      ? `\n${indent}${remaining.join(`,\n${indent}`)},\n`
+      : ` ${remaining.join(", ")} `;
+    return { start: bodyStart, end: bodyEnd, replacement };
   }
   return null;
 }
@@ -234,8 +244,13 @@ function buildSourceEdits(source: string, file: string, findings: Finding[], for
         : finding.rule === "constant-condition"
           ? conditionEdit(source, finding, usedConditions)
           : null;
-    if (edit) edits.push(edit);
-    else console.error(`[Fixer] Skipping unsafe or unsupported source fix: ${finding.rule} in ${file}`);
+    if (edit) {
+      const duplicate = edits.some((existing) => existing.start === edit.start && existing.end === edit.end);
+      if (!duplicate) edits.push(edit);
+    }
+    else if (!(force && finding.rule === "unused-export")) {
+      console.error(`[Fixer] Skipping unsafe or unsupported source fix: ${finding.rule} in ${file}`);
+    }
   }
   edits.sort((a, b) => b.start - a.start);
   for (let i = 1; i < edits.length; i++) {

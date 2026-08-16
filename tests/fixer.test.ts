@@ -70,6 +70,23 @@ describe("applyFixes", () => {
     expect(packageJson.devDependencies).toEqual({ keep: "1.0.0" });
   });
 
+  it("removes separately declared exports from multiline lists without corrupting syntax", async () => {
+    const root = await fixture({}, "const Card = 1;\nconst CardContent = 2;\nexport {\n  Card,\n  CardContent,\n};\n");
+    const unusedCard = finding("unused-export", "high", "src.ts", { exportName: "Card" });
+    expect(await applyFixes(report([unusedCard]), root, { rules: ["exports"], force: true })).toBe(1);
+    const expected = "const Card = 1;\nconst CardContent = 2;\nexport {\n  CardContent,\n};\n";
+    expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe(expected);
+    expect(await applyFixes(report([unusedCard]), root, { rules: ["exports"], force: true })).toBe(0);
+    expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe(expected);
+  });
+
+  it("removes an unused exported alias while preserving the local declaration", async () => {
+    const root = await fixture({}, "const Card = 1;\nconst CardContent = 2;\nexport { Card as CardAlias, CardContent };\n");
+    const unusedAlias = finding("unused-export", "high", "src.ts", { exportName: "CardAlias" });
+    expect(await applyFixes(report([unusedAlias]), root, { rules: ["exports"], force: true })).toBe(1);
+    expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe("const Card = 1;\nconst CardContent = 2;\nexport { CardContent };\n");
+  });
+
   it("honors confidence thresholds and lets force override them", async () => {
     const root = await fixture({}, "export const value = 1;\n");
     const lowFinding = finding("unused-export", "low", "src.ts", { exportName: "value" });
