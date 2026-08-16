@@ -345,6 +345,15 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         'wait-on': 'wait-on'
       };
 
+      // Bun treats the next non-flag argument as its entry point. This is
+      // positional syntax, so it must not depend on file extensions or on
+      // whether the target currently exists on disk.
+      const consumeCommandFlags = (tokens: string[], start: number): number => {
+        let index = start;
+        while (tokens[index]?.startsWith('-')) index++;
+        return index;
+      };
+
       const allDeclaredDeps = new Set([
         ...Object.keys(dependencies), 
         ...Object.keys(devDependencies), 
@@ -381,11 +390,33 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             // 1. Skip environment variables and flags
             if (token.includes('=') || token.startsWith('-')) continue;
 
-            // 2. Handle package managers: npm run <script>, npx <pkg>
-            if (['npx', 'npm', 'pnpm', 'yarn', 'bun'].includes(token)) {
-              let pkgIndex = i + 1;
+            // 2. Bun uses positional entry-point syntax. After Bun flags,
+            // the next non-flag token is an entry point. `bun run <script>`
+            // is the only special case: an existing package script is a script
+            // reference, not a dependency or binary.
+            if (token === 'bun') {
+              let targetIndex = consumeCommandFlags(tokens, i + 1);
+              const mode = tokens[targetIndex];
+
+              if (mode === 'run' || mode === 'exec') {
+                targetIndex = consumeCommandFlags(tokens, targetIndex + 1);
+              }
+
+              const target = tokens[targetIndex]?.replace(/^["']|["']$/g, '');
+              if (target && !scripts[target] && !shellCommands.has(target)) {
+                // Record the target as used without classifying it by suffix.
+                // This also covers unknown files such as `app.wasm`.
+                scriptUsages.add(target);
+                scriptPackages.add(target);
+              }
+              break; // Bun target handled via positional entry-point rules
+            }
+
+            // 3. Handle the other package managers: npm run <script>, npx <pkg>
+            if (['npx', 'npm', 'pnpm', 'yarn'].includes(token)) {
+              let pkgIndex = consumeCommandFlags(tokens, i + 1);
               if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
-                pkgIndex++;
+                pkgIndex = consumeCommandFlags(tokens, pkgIndex + 1);
               }
               const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
               // Check if the argument is a script name first
