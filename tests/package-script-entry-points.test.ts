@@ -52,6 +52,58 @@ describe("package script entry points", () => {
     expect(report.findings.some((finding) => finding.rule === "missing-script-target")).toBe(false);
   });
 
+  it("treats Bun file arguments as reachable roots without treating Bun subcommands as files", async () => {
+    await fs.mkdir(path.join(fixtureRoot, "perf"), { recursive: true });
+    await fs.mkdir(path.join(fixtureRoot, "test", "integration"), { recursive: true });
+    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
+      name: "bun-package-script-entry-points",
+      private: true,
+      scripts: {
+        perf: "bun perf/bench.ts",
+        "test:integration:release": "bun test/integration/release.ts",
+        check: "bun run perf/bench.ts",
+        unit: "bun test",
+      },
+    }, null, 2));
+    await fs.writeFile(path.join(fixtureRoot, "perf", "bench.ts"), "export const bench = true;\n");
+    await fs.writeFile(path.join(fixtureRoot, "test", "integration", "release.ts"), "export const release = true;\n");
+
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: [],
+      extensions: [".ts"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+    });
+
+    expect(report.entryPoints).toEqual(expect.arrayContaining([
+      "perf/bench.ts",
+      "test/integration/release.ts",
+    ]));
+    expect(report.findings.some((finding) => finding.rule === "missing-script-target")).toBe(false);
+  });
+
+  it("counts Vite as used when Vitest configuration is the only evidence", async () => {
+    await fs.mkdir(fixtureRoot, { recursive: true });
+    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
+      name: "vitest-vite-usage",
+      private: true,
+      devDependencies: { vitest: "3.0.0", vite: "6.0.0" },
+    }, null, 2));
+    await fs.writeFile(path.join(fixtureRoot, "vitest.config.ts"), "export default { test: { environment: 'node' } };\n");
+
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: [],
+      extensions: [".ts"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+    });
+
+    expect(report.findings.some((finding) => finding.evidence?.package === "vite")).toBe(false);
+    expect(report.findings.some((finding) => finding.evidence?.package === "vitest")).toBe(false);
+  });
+
   it("reports a high-confidence error when a concrete local Node script target is absent", async () => {
     await fs.mkdir(fixtureRoot, { recursive: true });
     await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({

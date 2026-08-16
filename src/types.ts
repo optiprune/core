@@ -204,17 +204,21 @@ export interface FixConfig {
    * Minimum confidence level to apply a fix.
    * - 'high': Only fix findings with high confidence.
    * - 'medium+': Fix findings with medium or high confidence.
-   * - 'low+': Fix findings with low, medium, or high confidence.
+   * - 'low' or 'low+': Fix findings with low, medium, or high confidence.
    * - 'all': Fix all findings regardless of confidence.
    */
-  confidence?: 'high' | 'medium+' | 'low+' | 'all';
+  confidence?: 'high' | 'medium+' | 'low' | 'low+' | 'all';
   /**
    * Rules to fix. If omitted, only dependency and unreachable-file fixes are
    * enabled. Source-level rules are opt-in via `exports`; SFC exports and
    * unsupported syntax remain unchanged when they cannot be located safely.
-   * Example: ['exports', 'files', 'dependencies']
+   * Example: ['exports', 'files', 'dependencies', 'devDependencies']
    */
   rules?: string[];
+  /**
+   * Allow fixes that are considered unsafe or below the default safety boundary.
+   */
+  force?: boolean;
   /**
    * Whether to dry-run the fixes (log what would be fixed without changing files).
    */

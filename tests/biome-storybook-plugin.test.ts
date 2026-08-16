@@ -224,6 +224,29 @@ describe("OxlintPlugin configuration evidence", () => {
     expect(captured.findings).toEqual([]);
   });
 
+  it("retains packages referenced by OXLint jsPlugins and marks local plugin files", async () => {
+    const configFile = ".oxlintrc.json";
+    const localPlugin = "scripts/oxlint-repo-guidelines.js";
+    const { adapter, captured } = createAdapter({
+      packageJson: { devDependencies: { oxlint: "1.0.0", "eslint-plugin-security": "1.0.0" } },
+      configFiles: [configFile, localPlugin],
+      files: {
+        [configFile]: JSON.stringify({
+          jsPlugins: ["eslint-plugin-security", "./scripts/oxlint-test-guidelines.js", "./scripts/oxlint-repo-guidelines.js"],
+        }),
+      },
+    });
+
+    await OxlintPlugin.lifecycle.onProjectInit!(adapter);
+
+    expect(captured.usedPackages).toEqual(expect.arrayContaining(["oxlint", "eslint-plugin-security"]));
+    expect(captured.usedFiles).toEqual(expect.arrayContaining([
+      ["scripts/oxlint-test-guidelines.js", undefined],
+      [localPlugin, undefined],
+    ]));
+    expect(captured.findings).toEqual([]);
+  });
+
   it("reports an undeclared OXLint dependency when config or command exists", async () => {
     const { adapter, captured } = createAdapter({
       packageJson: { scripts: { lint: "oxlint -c tooling/lint.json --tsconfig tsconfig.lint.json --ignore-path .oxlintignore src" } },

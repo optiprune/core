@@ -457,7 +457,10 @@ function extractNodeScriptTargets(command: string): string[] {
   const tokens = tokenizeShellCommand(command);
   const targets: string[] = [];
   for (let index = 0; index < tokens.length; index += 1) {
-    if (tokens[index] !== "node" && tokens[index] !== "nodejs") continue;
+    const runner = tokens[index];
+    const isNode = runner === "node" || runner === "nodejs";
+    const isBun = runner === "bun";
+    if (!isNode && !isBun) continue;
 
     for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
       const token = tokens[cursor];
@@ -466,19 +469,24 @@ function extractNodeScriptTargets(command: string): string[] {
       if (token === "-e" || token === "--eval" || token === "-p" || token === "--print") break;
       if (token === "--") {
         const candidate = tokens[cursor + 1];
-        if (candidate && !candidate.startsWith("-")) targets.push(candidate);
+        if (candidate && !candidate.startsWith("-") && (isNode || looksLikeScriptFile(candidate))) targets.push(candidate);
         break;
       }
+      if (isBun && (token === "run" || token === "x" || token === "exec")) continue;
       if (token === "-r" || token === "--require" || token === "--loader" || token === "--import" || token === "--conditions" || token === "--experimental-loader") {
         cursor += 1;
         continue;
       }
       if (token.startsWith("-")) continue;
-      targets.push(token);
+      if (isNode || looksLikeScriptFile(token)) targets.push(token);
       break;
     }
   }
   return targets;
+}
+
+function looksLikeScriptFile(token: string): boolean {
+  return token.includes("/") || /\.(?:[cm]?[jt]sx?|json)$/i.test(token);
 }
 
 function tokenizeShellCommand(command: string): string[] {

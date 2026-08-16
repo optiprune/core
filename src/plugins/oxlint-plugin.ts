@@ -120,14 +120,23 @@ export const OxlintPlugin: AnalyzerPlugin = {
         });
       }
 
-      // JSON configurations can expose local extended config files. The static
-      // loader intentionally avoids evaluating TypeScript configuration code.
+      // Static JSON/config modules can expose local extends and JavaScript
+      // plugins. Both are runtime inputs even when no source file imports them.
       for (const configFile of configFiles) {
         const loaded = await loadStaticPluginConfig(adapter, [configFile]);
         if (!loaded) continue;
         for (const extension of stringArray(loaded.config.extends)) {
           const resolved = resolveConfigReference(configFile, extension);
           if (resolved) adapter.markAsUsed(resolved);
+        }
+
+        for (const plugin of stringArray(loaded.config.jsPlugins)) {
+          if (plugin.startsWith(".") || plugin.startsWith("/")) {
+            const resolved = resolveConfigReference(configFile, plugin);
+            if (resolved) adapter.markAsUsed(resolved);
+          } else {
+            adapter.markPackageAsUsed(plugin);
+          }
         }
       }
     },

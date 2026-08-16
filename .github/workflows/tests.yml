@@ -47,4 +47,4 @@ jobs:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts
+      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty

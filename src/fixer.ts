@@ -24,6 +24,7 @@ function getMinConfidence(config: FixConfig | boolean): number {
   if (typeof config === "boolean") return 3;
   switch (config.confidence) {
     case "all": return 0;
+    case "low":
     case "low+": return 1;
     case "medium+": return 2;
     case "high": return 3;
@@ -34,7 +35,8 @@ function getMinConfidence(config: FixConfig | boolean): number {
 function isRequestedRule(allowedRules: Set<string>, rule: string): boolean {
   if (allowedRules.has(rule)) return true;
   if (allowedRules.has("files") && rule === "unreachable-file") return true;
-  if (allowedRules.has("dependencies") && (rule === "unused-dependency" || rule === "unused-dev-dependency")) return true;
+  if (allowedRules.has("dependencies") && rule === "unused-dependency") return true;
+  if (allowedRules.has("devDependencies") && rule === "unused-dev-dependency") return true;
   if (allowedRules.has("exports") && (rule === "unused-export" || rule === "unused-member")) return true;
   if (allowedRules.has("conditions") && rule === "constant-condition") return true;
   return false;
@@ -229,10 +231,11 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
   const minConfidence = getMinConfidence(config);
   const allowedRules = typeof config === "object" && config.rules ? new Set(config.rules) : DEFAULT_SAFE_RULES;
   const dryRun = typeof config === "object" && !!config.dryRun;
+  const force = typeof config === "object" && !!config.force;
 
   const fixableFindings = report.findings.filter((finding) => {
     const confidence = CONFIDENCE_LEVELS[finding.confidence] ?? 0;
-    return confidence >= minConfidence && isRequestedRule(allowedRules, finding.rule);
+    return (force || confidence >= minConfidence) && isRequestedRule(allowedRules, finding.rule);
   });
   if (fixableFindings.length === 0) return 0;
 
