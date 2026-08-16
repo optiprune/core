@@ -402,14 +402,13 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
                 targetIndex = consumeCommandFlags(tokens, targetIndex + 1);
               }
 
-              const target = tokens[targetIndex]?.replace(/^["']|["']$/g, '');
-              if (target && !scripts[target] && !shellCommands.has(target)) {
-                // Record the target as used without classifying it by suffix.
-                // This also covers unknown files such as `app.wasm`.
-                scriptUsages.add(target);
-                scriptPackages.add(target);
-              }
-              break; // Bun target handled via positional entry-point rules
+              // Bun's positional target is handled by discoverPackageScriptTargets
+              // in fs-utils and promoted to an analyzer entry point there. It must
+              // not enter scriptUsages/scriptPackages: those sets represent
+              // binaries and packages and are later checked for missing deps.
+              // This applies equally to `bun <path>`, `bun --watch <path>`,
+              // `bun run <path>`, and `bun run <script>`.
+              break; // Bun target handled by the entry-point extractor
             }
 
             // 3. Handle the other package managers: npm run <script>, npx <pkg>
