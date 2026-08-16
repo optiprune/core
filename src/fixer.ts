@@ -78,6 +78,33 @@ function exportModifierEdit(source: string, finding: Finding): TextEdit | null {
   };
 }
 
+function forceExportEdit(source: string, finding: Finding): TextEdit | null {
+  if (SOURCE_EXTENSIONS.has(extensionOf(finding.file))) return null;
+  const exportName = finding.evidence?.exportName;
+  if (typeof exportName !== "string" || !exportName) return null;
+  const escaped = exportName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const declaration = new RegExp(`\\bexport\\s+(?:default\\s+)?(?=(?:async\\s+)?(?:function|class|const|let|var)\\s+${escaped}\\b)`);
+  const declarationMatch = declaration.exec(source);
+  if (declarationMatch && declarationMatch.index !== undefined) {
+    const exportOffset = declarationMatch.index;
+    return { start: exportOffset, end: exportOffset + (declarationMatch[0]?.match(/\s*$/)?.[0].length ?? 0) + "export".length, replacement: "" };
+  }
+
+  const listPattern = /\bexport\s*\{([^{}]*)\}/g;
+  let listMatch: RegExpExecArray | null;
+  while ((listMatch = listPattern.exec(source))) {
+    const body = listMatch[1] ?? "";
+    const specifier = new RegExp(`(^|,)\\s*${escaped}(?:\\s+as\\s+[A-Za-z_$][\\w$]*)?\\s*(?=,|$)`).exec(body);
+    if (!specifier || specifier.index === undefined) continue;
+    const bodyStart = (listMatch.index ?? 0) + listMatch[0].indexOf("{") + 1;
+    const start = bodyStart + specifier.index + (specifier[1]?.length ?? 0);
+    const end = bodyStart + specifier.index + specifier[0].length;
+    return { start, end, replacement: "" };
+  }
+  return null;
+}
+
 /**
  * Remove a simple object-literal member, such as `primary: '#09f'`. Complex
  * expressions, getters, spreads, and multiline values are deliberately left
@@ -196,12 +223,12 @@ function conditionEdit(source: string, finding: Finding, used: Set<number>): Tex
   return { start: region.start, end: region.thenEnd + 1, replacement: "" };
 }
 
-function buildSourceEdits(source: string, file: string, findings: Finding[]): TextEdit[] {
+function buildSourceEdits(source: string, file: string, findings: Finding[], force: boolean): TextEdit[] {
   const edits: TextEdit[] = [];
   const usedConditions = new Set<number>();
   for (const finding of findings) {
     const edit = finding.rule === "unused-export"
-      ? exportModifierEdit(source, finding)
+      ? (exportModifierEdit(source, finding) ?? (force ? forceExportEdit(source, finding) : null))
       : finding.rule === "unused-member"
         ? objectMemberEdit(source, finding)
         : finding.rule === "constant-condition"
@@ -286,7 +313,7 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
     const sourceFindings = findings.filter((finding) => finding.rule === "unused-export" || finding.rule === "unused-member" || finding.rule === "constant-condition");
     if (sourceFindings.length === 0) continue;
     const source = await fs.readFile(absolutePath, "utf8");
-    const edits = buildSourceEdits(source, file, sourceFindings);
+    const edits = buildSourceEdits(source, file, sourceFindings, force);
     if (edits.length === 0) continue;
     if (dryRun) continue;
     await fs.writeFile(absolutePath, applyEdits(source, edits));

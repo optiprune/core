@@ -73,7 +73,6 @@ describe("applyFixes", () => {
   it("honors confidence thresholds and lets force override them", async () => {
     const root = await fixture({}, "export const value = 1;\n");
     const lowFinding = finding("unused-export", "low", "src.ts", { exportName: "value" });
-    lowFinding.location = { start: { line: 1, column: 20 }, end: { line: 1, column: 25 } };
 
     expect(await applyFixes(report([lowFinding]), root, { rules: ["exports"], confidence: "high" })).toBe(0);
     expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toContain("export const");

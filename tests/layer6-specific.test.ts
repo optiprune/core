@@ -33,7 +33,7 @@ describe("Layer 6 tool-specific development dependency evidence", () => {
       reportUnusedExports: false,
     });
 
-    expect(report.findings.some((finding) => finding.rule === "prettier" && finding.evidence.type === "devDependency")).toBe(true);
-    expect(report.findings.some((finding) => finding.rule === "eslint" && finding.evidence.type === "devDependency")).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "prettier")).toBe(true);
+    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "eslint")).toBe(false);
   });
 });

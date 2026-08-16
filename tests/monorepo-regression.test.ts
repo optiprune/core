@@ -140,8 +140,8 @@ describe("nightmare monorepo regressions", () => {
     for (const dependency of ["@testing-library/react", "@types/react", "typescript"]) {
       expect(report.findings.some((finding) => finding.rule === dependency)).toBe(false);
     }
-    expect(report.findings.some((finding) => finding.rule === "husky")).toBe(true);
-    expect(report.findings.some((finding) => finding.rule === "eslint-plugin-import")).toBe(true);
+    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "husky")).toBe(true);
+    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "eslint-plugin-import")).toBe(true);
   });
 
   it("does not treat private workspace export maps as an external contract", async () => {

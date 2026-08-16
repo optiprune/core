@@ -37,6 +37,44 @@ describe("Optiprune Analyzer", () => {
     expect(shouldFail(report, "high")).toBe(true);
   });
 
+  it("does not fail when the only finding is an unresolved import", () => {
+    const report = {
+      findings: [{
+        rule: "unresolved-import",
+        severity: "info",
+        confidence: "high",
+        message: "Unresolved import specifier: 'missing-package'",
+        file: "src/main.ts",
+        evidence: {},
+      }],
+    } as any;
+    expect(shouldFail(report, "high")).toBe(false);
+  });
+
+  it("still fails for an unused export when informational findings are present", () => {
+    const report = {
+      findings: [
+        {
+          rule: "unresolved-import",
+          severity: "info",
+          confidence: "high",
+          message: "Unresolved import specifier: 'missing-package'",
+          file: "src/main.ts",
+          evidence: {},
+        },
+        {
+          rule: "unused-export",
+          severity: "warning",
+          confidence: "high",
+          message: "Export is unused",
+          file: "src/main.ts",
+          evidence: { exportName: "unused" },
+        },
+      ],
+    } as any;
+    expect(shouldFail(report, "high")).toBe(true);
+  });
+
   it("should handle invalid syntax gracefully with fallback parsing", async () => {
     const invalidSyntaxDir = path.join(fixturesDir, "invalid-syntax-test");
     const report = await analyze({

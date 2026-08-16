@@ -527,7 +527,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         if (!isUsed) {
           findings.push({
-            rule: dep,
+            rule: 'unused-dependency',
             severity: 'warning',
             confidence: 'high',
             message: `Package '${dep}' is declared as a dependency in ${relativeManifest} but never imported or used in scripts.`,
@@ -584,7 +584,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         if (!isUsed) {
           findings.push({
-            rule: dep,
+            rule: 'unused-dev-dependency',
             severity: 'info',
             confidence: 'medium',
             message: `DevDependency '${dep}' in ${relativeManifest} appears unused.`,

@@ -99,7 +99,7 @@ export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["fail
     return false;
   }
   const failThreshold = CONFIDENCE_RANK[failOn];
-  return report.findings.some((f) => CONFIDENCE_RANK[f.confidence] >= failThreshold);
+  return report.findings.some((f) => f.severity !== "info" && CONFIDENCE_RANK[f.confidence] >= failThreshold);
 }
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
@@ -479,7 +479,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       if (edge.resolution === "unresolved") {
         findings.push({
           rule: "unresolved-import",
-          severity: "warning",
+          severity: "info",
           confidence: "high",
           message: "Unresolved import specifier: '" + edge.rawSpecifier + "'",
           file: edge.source,
