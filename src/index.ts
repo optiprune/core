@@ -682,6 +682,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
 
+  // Regex fallback parsing is intentionally conservative: every finding whose
+  // source file was recovered by regex is low confidence, regardless of which
+  // analysis layer produced it.
+  const regexFallbackFiles = new Set(
+    [...modules.values()]
+      .filter((module) => module.parserBackend === "regex" || module.parseStatus === "fallback")
+      .map((module) => module.id),
+  );
+  for (const finding of findings) {
+    if (regexFallbackFiles.has(finding.file)) {
+      finding.confidence = "low";
+    }
+  }
+
   const summary: AnalysisSummary = {
     filesDiscovered: allSourceFiles.length,
     filesParsed,

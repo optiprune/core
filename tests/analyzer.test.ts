@@ -98,7 +98,7 @@ describe("Optiprune Analyzer", () => {
 
     const validExport = report.findings.find((f) => f.rule === "unused-export" && f.evidence.exportName === "validExport");
     expect(validExport).toBeDefined(); // Fallback parsing should detect this unused export.
-    expect(validExport?.confidence).toBe("high");
+    expect(validExport?.confidence).toBe("low");
   });
 
   it("should report unreachable files", async () => {

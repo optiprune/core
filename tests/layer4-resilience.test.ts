@@ -123,4 +123,50 @@ describe("Layer 4: resilient TypeScript dynamic-import simulation", () => {
     expect(context.reachable).toContain(targetFile);
     expect(context.usedExports).toContain(`${targetFile}:resilientPlugin`);
   });
+
+  it("resolves concatenated dynamic imports in the sandbox", async () => {
+    const rootDir = "/virtual/project";
+    const sourceFile = path.join(rootDir, "entry.ts");
+    const targetFile = path.join(rootDir, "plugins", "resilient-plugin.ts");
+    const edge: DependencyEdge = {
+      source: sourceFile,
+      rawSpecifier: "./plugins/${…}.ts",
+      kind: "dynamic-pattern",
+      importedNames: ["*"],
+      resolution: "unknown",
+      location: { start: { line: 3, column: 6 }, end: { line: 3, column: 52 } },
+      dynamicPattern: { prefix: "./plugins/", suffix: ".ts", baseDirectory: "", candidates: [] },
+    };
+    const sourceModule = makeModule(sourceFile, { edges: [edge] });
+    const targetModule = makeModule(targetFile, {
+      exports: [{ name: "resilientPlugin", exportedAs: "resilientPlugin", isDefault: false, isReExport: false, isWildcard: false }],
+    });
+    const context: AnalysisContext = {
+      options: makeOptions(rootDir),
+      modules: new Map([[sourceFile, sourceModule], [targetFile, targetModule]]),
+      entryPoints: new Set([sourceFile]),
+      reachable: new Set([sourceFile]),
+      maybeReachable: new Set(),
+      hasReachableUnknownDynamicBoundary: false,
+      components: [],
+      usedExports: new Set(),
+      candidateBranches: [],
+      dynamicImportCandidates: [{
+        file: sourceFile,
+        line: 3,
+        column: 6,
+        expression: "import('./plugins/' + suffix + '.ts')",
+        contextCode: `
+          const suffix = "resilient-plugin";
+          await import('./plugins/' + suffix + '.ts');
+        `,
+      }],
+    };
+
+    const findings = await analyzeLayer4(context);
+    expect(findings).toEqual([]);
+    expect(edge.resolution).toBe("resolved");
+    expect(context.reachable).toContain(targetFile);
+    expect(context.usedExports).toContain(`${targetFile}:resilientPlugin`);
+  });
 });

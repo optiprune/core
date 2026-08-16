@@ -457,6 +457,45 @@ function templateParts(node: unknown): { prefix: string; suffix: string } | unde
   return { prefix: firstValue, suffix: lastValue };
 }
 
+/**
+ * Extract the static parts of a dynamic import argument such as
+ * `"./plugins/" + suffix + ".js"`.  The parser does not need to know the
+ * value of the interpolated expression; Layer 4 evaluates it in the sandbox.
+ */
+function binaryPatternParts(node: unknown): { prefix: string; suffix: string } | undefined {
+  if (!isNode(node) || node.type !== "BinaryExpression" || node.operator !== "+") {
+    return undefined;
+  }
+
+  const parts: Array<string | undefined> = [];
+  const flatten = (current: unknown): void => {
+    if (isNode(current) && current.type === "BinaryExpression" && current.operator === "+") {
+      flatten(current.left);
+      flatten(current.right);
+      return;
+    }
+    const literal = nodeStringValue(current);
+    if (literal !== undefined) {
+      parts.push(literal);
+      return;
+    }
+    parts.push(undefined);
+  };
+  flatten(node);
+
+  const firstDynamic = parts.findIndex((part) => part === undefined);
+  if (firstDynamic < 0) return undefined;
+  const lastDynamic = parts.length - 1 - [...parts].reverse().findIndex((part) => part === undefined);
+  return {
+    prefix: parts.slice(0, firstDynamic).every((part): part is string => part !== undefined) ? parts.slice(0, firstDynamic).join("") : "",
+    suffix: parts.slice(lastDynamic + 1).every((part): part is string => part !== undefined) ? parts.slice(lastDynamic + 1).join("") : "",
+  };
+}
+
+function dynamicPatternParts(node: unknown): { prefix: string; suffix: string } | undefined {
+  return templateParts(node) ?? binaryPatternParts(node);
+}
+
 function walk(node: unknown, visitor: (node: AstNode, stack: AstNode[]) => void, stack: AstNode[] = []): void {
   if (Array.isArray(node)) {
     for (const item of node) {
@@ -746,7 +785,7 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
       if (literal) {
         addEdge(edges, file, literal, "dynamic-literal", node, ["*"]);
       } else {
-        const parts = templateParts(argument) || (isNode(argument) && argument.type === "CallExpression" && nodeIdentifierName(argument.callee) === "pathToFileURL" ? templateParts(asArray(argument.arguments)[0]) : undefined);
+        const parts = dynamicPatternParts(argument) || (isNode(argument) && argument.type === "CallExpression" && nodeIdentifierName(argument.callee) === "pathToFileURL" ? dynamicPatternParts(asArray(argument.arguments)[0]) : undefined);
         if (parts) {
           const edge: DependencyEdge = {
             source: file,

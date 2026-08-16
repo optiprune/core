@@ -321,20 +321,23 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
         // each file.  This replaces the original forEach callback execution.
         let loopExpansionScript = "";
         if (loopVarNames.length > 0) {
-          // Derive the directory from the import expression's static prefix.
-          // The expression is e.g. `import(\`./plugins/${file}\`)` so we look
-          // for the template literal prefix in the expression text.
+          // Derive the directory and static path parts from either a template
+          // literal or a string-concatenation expression.
           const exprText: string = candidate.expression ?? "";
           const templateMatch = exprText.match(/`([^`$]*?)\$\{/);
-          const templatePrefix = templateMatch ? templateMatch[1] : "";
+          const concatMatch = exprText.match(/import\s*\(\s*(['"])(.*?)\1\s*\+\s*[^+]+(?:\+\s*(['"])(.*?)\3)?\s*\)/);
+          const dynamicPrefix = templateMatch?.[1] ?? concatMatch?.[2] ?? "";
           const templateSuffixMatch = exprText.match(/\}([^`]*)`/);
-          const templateSuffix = templateSuffixMatch ? templateSuffixMatch[1] : "";
+          const dynamicSuffix = templateSuffixMatch?.[1] ?? concatMatch?.[4] ?? "";
 
-          // Resolve the directory from the prefix (strip the filename segment)
+          // A trailing slash already denotes a directory; otherwise strip the
+          // final static path segment before collecting sibling modules.
           const fileDir = path.dirname(file);
-          const prefixDir = templatePrefix
-            ? path.resolve(fileDir, path.dirname(templatePrefix))
-            : fileDir;
+          const prefixDir = dynamicPrefix.endsWith("/")
+            ? path.resolve(fileDir, dynamicPrefix)
+            : dynamicPrefix
+              ? path.resolve(fileDir, path.dirname(dynamicPrefix))
+              : fileDir;
 
           // Collect all known modules that live in that directory.
           const dirFiles = Array.from(context.modules.keys())
@@ -345,12 +348,15 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
             // Build a synthetic loop that calls __optiprune_import for each file.
             const primaryVar = loopVarNames[0];
             const fileListJson = JSON.stringify(dirFiles);
+            const targetExpression = templateMatch
+              ? `\`${dynamicPrefix}\${${primaryVar}}${dynamicSuffix}\``
+              : `${JSON.stringify(dynamicPrefix)} + ${primaryVar} + ${JSON.stringify(dynamicSuffix)}`;
             loopExpansionScript = `
               (async function __optiprune_loop_expansion__() {
                 const __loop_files__ = ${fileListJson};
                 for (const ${primaryVar} of __loop_files__) {
                   try {
-                    await __optiprune_import(\`${templatePrefix}\${${primaryVar}}${templateSuffix}\`);
+                    await __optiprune_import(${targetExpression});
                   } catch(e) {}
                 }
               })();
