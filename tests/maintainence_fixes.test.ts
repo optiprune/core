@@ -73,7 +73,7 @@ describe("Optiprune Maintenance Fixes", () => {
         // Unused export in entry.ts (the one with the error) should be found (via fallback)
         const unusedInEntry = report.findings.find(f => f.rule === "unused-export" && f.evidence.exportName === "unusedInEntry");
         expect(unusedInEntry).toBeDefined();
-        expect(unusedInEntry?.confidence).toBe("low"); // Fallback now correctly identifies names with low confidence if they are not ambiguous
+        expect(unusedInEntry?.confidence).toBe("low"); // Findings from regex fallback parsing are intentionally low confidence
     });
 
     it("should resolve imports via baseUrl and paths in tsconfig", async () => {

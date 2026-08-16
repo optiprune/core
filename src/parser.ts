@@ -879,13 +879,17 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
             const program = stack[0] as any;
             if (program && program.type === "File" && program.program) {
               const topNodes = asArray(program.program.body);
-              // Extract top-level declarations (const, let, var, function)
+              // Preserve declarations and top-level executable statements that
+              // establish values used by the dynamic import. In particular,
+              // `let suffix; suffix = "plugin"; import(...)` must keep the
+              // assignment; declarations alone would evaluate suffix as undefined.
               topLevelCode = topNodes
-                .filter((n: any) => 
-                  n.type === "VariableDeclaration" || 
+                .filter((n: any) =>
+                  n.type === "VariableDeclaration" ||
                   n.type === "FunctionDeclaration" ||
                   n.type === "ExportNamedDeclaration" ||
-                  n.type === "ExportDefaultDeclaration"
+                  n.type === "ExportDefaultDeclaration" ||
+                  n.type === "ExpressionStatement"
                 )
                 .map((n: any) => sourceText.slice(n.start, n.end))
                 .join("\n");

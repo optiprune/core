@@ -157,7 +157,8 @@ describe("Layer 4: resilient TypeScript dynamic-import simulation", () => {
         column: 6,
         expression: "import('./plugins/' + suffix + '.ts')",
         contextCode: `
-          const suffix = "resilient-plugin";
+          let suffix;
+          suffix = "resilient-plugin";
           await import('./plugins/' + suffix + '.ts');
         `,
       }],

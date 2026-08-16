@@ -453,7 +453,7 @@ async function resolveDynamicImports(context: AnalysisContext, quickJS: any) {
 
           for (const rawTarget of targets) {
             if (typeof rawTarget === 'string') {
-              resolveAndMarkTarget(rawTarget, file, context);
+              resolveAndMarkTarget(rawTarget, file, context, candidate);
             }
           }
         }
@@ -678,7 +678,7 @@ function setupQuickJSMocks(vm: QuickJSContext, candidate: any, context: Analysis
   globalHandle.dispose();
 }
 
-function resolveAndMarkTarget(specifier: string, sourceFile: string, context: AnalysisContext) {
+function resolveAndMarkTarget(specifier: string, sourceFile: string, context: AnalysisContext, candidate?: { line?: number; column?: number }) {
   let cleanSpecifier = specifier;
   if (specifier.startsWith('file://')) {
     cleanSpecifier = specifier.slice(7);
@@ -706,6 +706,27 @@ function resolveAndMarkTarget(specifier: string, sourceFile: string, context: An
     context.reachable.add(targetModule.id);
     for (const exp of targetModule.exports) {
       context.usedExports.add(`${targetModule.id}:${exp.exportedAs}`);
+    }
+
+    // Persist the concrete runtime target discovered by the sandbox. This is
+    // important when the graph could not infer a candidate from the symbolic
+    // pattern alone (for example, when `suffix` is assigned at runtime).
+    const sourceModule = context.modules.get(sourceFile);
+    const dynamicEdge = sourceModule?.edges.find((edge) =>
+      (edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic") &&
+      (!candidate || (
+        edge.location?.start.line === candidate.line &&
+        edge.location?.start.column === candidate.column
+      )),
+    );
+    if (dynamicEdge) {
+      dynamicEdge.resolution = "resolved";
+      if (dynamicEdge.dynamicPattern && !dynamicEdge.dynamicPattern.candidates.includes(targetModule.id)) {
+        dynamicEdge.dynamicPattern.candidates.push(targetModule.id);
+      }
+      if (!dynamicEdge.dynamicPattern) {
+        dynamicEdge.target = targetModule.id;
+      }
     }
   } else {
     if (context.options.verbose) {
