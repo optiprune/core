@@ -567,7 +567,12 @@ export async function discoverPackageExportEntryPatterns(rootDir: string): Promi
 
 function normalizePackageEntryPatterns(entries: Set<string>): string[] {
   return [...entries]
-    .filter((entry) => entry.startsWith(".") || entry.startsWith("src/") || entry.startsWith("lib/"))
+    .filter((entry) =>
+      entry.startsWith(".") ||
+      entry.startsWith("src/") ||
+      entry.startsWith("lib/") ||
+      entry.startsWith("dist/")
+    )
     .map((entry) => entry.replace(/^\.\//, ""));
 }
 

@@ -185,4 +185,33 @@ describe("nightmare monorepo regressions", () => {
       finding.evidence?.exportName === "Chart",
     )).toBe(false);
   });
+
+  it("uses a workspace package source index when its dist main is not built", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({
+        private: true,
+        workspaces: ["packages/*"],
+      }),
+      "packages/lib/package.json": JSON.stringify({
+        name: "@fixture/lib",
+        private: true,
+        type: "module",
+        main: "dist/index.js",
+      }),
+      "packages/lib/tsconfig.json": JSON.stringify({
+        compilerOptions: { rootDir: "src", outDir: "dist" },
+        include: ["src/**/*"],
+      }),
+      "packages/lib/src/index.ts": "export const publicValue = 1;\n",
+    });
+
+    const report = await analyze({
+      rootDir: root,
+      reportUnusedExports: false,
+      layers: { skip3: true, skip4: true },
+    });
+
+    expect(report.findings.some((finding) => finding.rule === "no-entry-points")).toBe(false);
+    expect(report.entryPoints.some((entryPoint) => entryPoint.endsWith("packages/lib/src/index.ts"))).toBe(true);
+  });
 });

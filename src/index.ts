@@ -401,6 +401,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         // publishable packages enter `publicApiEntryPoints`, which controls
         // whether their re-exports propagate external-contract protection.
         if (!isRoot) {
+          // Every workspace package entry is an analysis root. Keep the public
+          // and private-contract bookkeeping separate from reachability: a
+          // private package is still reachable through its package boundary.
+          entryPoints.add(normalized);
           publicEntryPoints.add(normalized);
           if (packageManifest?.private === true) {
             privateWorkspaceEntryPoints.add(normalized);
