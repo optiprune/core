@@ -215,7 +215,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   // Re-read configuration options after plugin initialization
-  const { extensions, ignore, entry, includeConventionalEntries } = resolvedOptions;
+  const { extensions, entry, includeConventionalEntries } = resolvedOptions;
+  const ignore = resolvedOptions.ignoreTests
+    ? [...resolvedOptions.ignore, "**/test/**", "**/tests/**", "**/__tests__/**", "**/test.*", "**/*.test.js", "**/*.test.jsx", "**/*.test.ts", "**/*.test.tsx", "**/*.test.vue", "**/*.spec.js", "**/*.spec.jsx", "**/*.spec.ts", "**/*.spec.tsx", "**/*.spec.vue"]
+    : resolvedOptions.ignore;
   const compiledIgnorePatterns = compileGlobs(ignore);
 
   const discoveredSourceFiles = await discoverSourceFiles(rootDir, extensions, compiledIgnorePatterns);
@@ -629,7 +632,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             if (visited.has(visitKey)) return false;
             visited.add(visitKey);
 
-            if ((packageOnly ? packagePublicModules : publicEntryPoints).has(moduleId)) return true;
+            if (!resolvedOptions.includeEntryExports && (packageOnly ? packagePublicModules : publicEntryPoints).has(moduleId)) return true;
 
             const usage = importUsage.get(moduleId);
             if (!usage) return false;

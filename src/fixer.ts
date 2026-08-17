@@ -16,7 +16,7 @@ const DEFAULT_SAFE_RULES = new Set([
   "unused-dev-dependency",
 ]);
 
-const SOURCE_EXTENSIONS = new Set([".vue", ".svelte", ".astro"]);
+const SUPPORTED_SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".vue"]);
 
 type TextEdit = { start: number; end: number; replacement: string };
 
@@ -58,28 +58,109 @@ function extensionOf(file: string): string {
 }
 
 /**
- * Remove only the export modifier for a named declaration. This intentionally
- * does not rewrite export lists or SFC component contracts.
+ * Return whether the source fixer supports this file type.
  */
+function isSupportedSourceFile(file: string): boolean {
+  return SUPPORTED_SOURCE_EXTENSIONS.has(extensionOf(file));
+}
+
+function exportTokenForFinding(source: string, finding: Finding): { index: number; name: string } | null {
+  const exportName = finding.evidence?.exportName;
+  if (typeof exportName !== "string" || !exportName) return null;
+  const from = finding.location ? Math.max(0, lineBounds(source, finding.location.start.line)?.start ?? 0) : 0;
+  const declaration = new RegExp(String.raw`\bexport\s+(?:default\s+)?(?=(?:async\s+)?(?:function|class|const|let|var)\s+${exportName}\b)`);
+  const match = declaration.exec(source.slice(from));
+  return match && match.index !== undefined ? { index: from + match.index, name: exportName } : null;
+}
+
+function identifierCount(source: string, name: string): number {
+  return (source.match(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\b`, "g")) ?? []).length;
+}
+
+function isUsedInSameFile(source: string, finding: Finding): boolean {
+  const name = finding.evidence?.exportName;
+  if (typeof name !== "string" || !name || name === "default") return false;
+  // Remove export lists first: `export { value }` is not a local use of `value`.
+  const withoutExportLists = source.replace(/\bexport\s*\{[^{}]*\}\s*;?/g, "");
+  // For declaration exports, the declaration itself remains one occurrence.
+  return identifierCount(withoutExportLists, name) > 1;
+}
+
+function matchingBrace(source: string, open: number): number {
+  let depth = 0;
+  let quote = "";
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i];
+    if (quote) {
+      if (ch === "\\\\") i++;
+      else if (ch === quote) quote = "";
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === "`") { quote = ch; continue; }
+    if (ch === "{") depth++;
+    if (ch === "}" && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+function wholeExportDeclarationEdit(source: string, finding: Finding): TextEdit | null {
+  if (!isSupportedSourceFile(finding.file)) return null;
+  const token = exportTokenForFinding(source, finding);
+  if (!token) return null;
+  const declarationStart = token.index;
+  const declarationEnd = source.indexOf(";", declarationStart);
+  const bodyStart = source.indexOf("{", declarationStart);
+  const keywordEnd = source.slice(declarationStart).search(/\b(?:function|class)\b/);
+  let end = declarationEnd >= 0 ? declarationEnd + 1 : -1;
+  if (keywordEnd >= 0 && (declarationEnd < 0 || declarationStart + keywordEnd < declarationEnd)) {
+    const open = source.indexOf("{", declarationStart + keywordEnd);
+    const close = open >= 0 ? matchingBrace(source, open) : -1;
+    if (close >= 0) end = close;
+  } else if (bodyStart >= 0 && (declarationEnd < 0 || bodyStart < declarationEnd)) {
+    const close = matchingBrace(source, bodyStart);
+    if (close >= 0 && /\b(?:const|let|var)\b/.test(source.slice(declarationStart, bodyStart))) end = source.indexOf(";", close) >= 0 ? source.indexOf(";", close) + 1 : close;
+  }
+  if (end < 0) return null;
+  while (end < source.length && (source[end] === "\r" || source[end] === "\n")) end++;
+  return { start: declarationStart, end, replacement: "" };
+}
+
+function exportListEdit(source: string, finding: Finding): TextEdit | null {
+  if (!isSupportedSourceFile(finding.file)) return null;
+  const name = finding.evidence?.exportName;
+  if (typeof name !== "string" || !name) return null;
+  const listPattern = /\bexport\s*\{([^{}]*)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = listPattern.exec(source))) {
+    const body = match[1] ?? "";
+    const parts = [...body.matchAll(/[^,]+/g)];
+    const target = parts.find((part) => new RegExp(String.raw`\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`).test(part[0] ?? ""));
+    if (!target || target.index === undefined) continue;
+    const absolute = (match.index ?? 0) + match[0].indexOf("{") + 1;
+    const start = absolute + target.index;
+    const end = start + target[0].length;
+    const before = source.slice(absolute, start);
+    const after = source.slice(end, absolute + body.length);
+    if (/\s*,\s*$/.test(before)) return { start: before.lastIndexOf(",") + absolute, end, replacement: "" };
+    const nextComma = after.indexOf(",");
+    if (nextComma >= 0) return { start, end: end + nextComma + 1, replacement: "" };
+    return { start, end, replacement: "" };
+  }
+  return null;
+}
+
+/** Remove only the export modifier when the declaration is referenced locally. */
 function exportModifierEdit(source: string, finding: Finding): TextEdit | null {
-  if (!finding.location || SOURCE_EXTENSIONS.has(extensionOf(finding.file))) return null;
-  const bounds = lineBounds(source, finding.location.start.line);
-  if (!bounds) return null;
-  const column = Math.max(0, finding.location.start.column - 1);
-  const prefix = bounds.text.slice(0, column);
-  const matches = [...prefix.matchAll(/\bexport\s+(default\s+)?(?=(?:async\s+)?(?:function|class|const|let|var)\b)/g)];
-  const match = matches.at(-1);
-  if (!match || match.index === undefined) return null;
-  const modifier = match[0];
-  return {
-    start: bounds.start + match.index,
-    end: bounds.start + match.index + modifier.length,
-    replacement: "",
-  };
+  if (!isSupportedSourceFile(finding.file)) return null;
+  const token = exportTokenForFinding(source, finding);
+  if (!token) return null;
+  const match = /\bexport\s+(?:default\s+)?/.exec(source.slice(token.index));
+  if (!match || match.index !== 0) return null;
+  return { start: token.index, end: token.index + match[0].length, replacement: "" };
 }
 
 function forceExportEdit(source: string, finding: Finding): TextEdit | null {
-  if (SOURCE_EXTENSIONS.has(extensionOf(finding.file))) return null;
+  if (!isSupportedSourceFile(finding.file)) return null;
   const exportName = finding.evidence?.exportName;
   if (typeof exportName !== "string" || !exportName) return null;
   const escaped = exportName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -238,7 +319,9 @@ function buildSourceEdits(source: string, file: string, findings: Finding[], for
   const usedConditions = new Set<number>();
   for (const finding of findings) {
     const edit = finding.rule === "unused-export"
-      ? (exportModifierEdit(source, finding) ?? (force ? forceExportEdit(source, finding) : null))
+      ? (isUsedInSameFile(source, finding)
+          ? exportModifierEdit(source, finding)
+          : (exportListEdit(source, finding) ?? wholeExportDeclarationEdit(source, finding) ?? (force ? forceExportEdit(source, finding) : null)))
       : finding.rule === "unused-member"
         ? objectMemberEdit(source, finding)
         : finding.rule === "constant-condition"
@@ -277,7 +360,7 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
 
   const fixableFindings = report.findings.filter((finding) => {
     const confidence = CONFIDENCE_LEVELS[finding.confidence] ?? 0;
-    return (force || confidence >= minConfidence) && isRequestedRule(allowedRules, finding.rule);
+    return confidence >= minConfidence && isRequestedRule(allowedRules, finding.rule);
   });
   if (fixableFindings.length === 0) return 0;
 

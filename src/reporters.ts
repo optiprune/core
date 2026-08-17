@@ -2,7 +2,7 @@ import type { AnalysisReport, Finding } from "./types.js";
 import path from "pathe";
 import fs from "node:fs";
 
-export function formatTerminal(report: AnalysisReport): string {
+export function formatTerminal(report: AnalysisReport, options: { showCycles?: boolean } = {}): string {
   const lines: string[] = [];
   lines.push(`\x1b[1mOptiprune Analysis Report v${report.version}\x1b[0m`);
   lines.push(`Root: ${report.rootDir}`);
@@ -12,6 +12,13 @@ export function formatTerminal(report: AnalysisReport): string {
   lines.push(`\x1b[1mSummary:\x1b[0m`);
   lines.push(`  Files: ${summary.filesDiscovered} discovered, ${summary.filesParsed} parsed`);
   lines.push(`  Findings: ${summary.findings} total (\x1b[31m${summary.errors} errors\x1b[0m, \x1b[33m${summary.warnings} warnings\x1b[0m)`);
+  if (options.showCycles) {
+    const cycles = report.components.filter((component) => component.isCycle);
+    lines.push(`  Cycles: ${cycles.length}`);
+    for (const cycle of cycles) {
+      lines.push(`    Cycle #${cycle.id}: ${cycle.modules.join(" -> ")}`);
+    }
+  }
   lines.push("");
 
   if (report.findings.length === 0) {

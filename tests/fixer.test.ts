@@ -87,13 +87,15 @@ describe("applyFixes", () => {
     expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe("const Card = 1;\nconst CardContent = 2;\nexport { CardContent };\n");
   });
 
-  it("honors confidence thresholds and lets force override them", async () => {
+  it("honors confidence thresholds independently from force", async () => {
     const root = await fixture({}, "export const value = 1;\n");
     const lowFinding = finding("unused-export", "low", "src.ts", { exportName: "value" });
 
     expect(await applyFixes(report([lowFinding]), root, { rules: ["exports"], confidence: "high" })).toBe(0);
     expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toContain("export const");
-    expect(await applyFixes(report([lowFinding]), root, { rules: ["exports"], confidence: "high", force: true })).toBe(1);
-    expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe("const value = 1;\n");
+    expect(await applyFixes(report([lowFinding]), root, { rules: ["exports"], confidence: "high", force: true })).toBe(0);
+    expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toContain("export const");
+    expect(await applyFixes(report([lowFinding]), root, { rules: ["exports"], confidence: "low+", force: true })).toBe(1);
+    expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe("");
   });
 });

@@ -179,6 +179,12 @@ export interface AnalyzerOptions {
   /** Output format: "terminal" (default), "json", or "sarif". */
   output?: OutputFormat;
   includeConventionalEntries?: boolean;
+  /** Report unused exports declared directly in entry files. */
+  includeEntryExports?: boolean;
+  /** Include dependency-cycle information in human-readable output. */
+  cycles?: boolean;
+  /** Ignore test files such as test.js, foo.test.ts, and __tests__ files. */
+  ignoreTests?: boolean;
   skip3?: boolean;
   skip4?: boolean;
   verbose?: boolean;
@@ -238,6 +244,9 @@ export interface Config {
   externalContracts?: string[];
   reportUnusedExports?: boolean;
   includeConventionalEntries?: boolean;
+  includeEntryExports?: boolean;
+  cycles?: boolean;
+  ignoreTests?: boolean;
   failOn?: FailOn;
   /** @deprecated Use `output` instead. */
   json?: boolean;
@@ -282,6 +291,9 @@ export interface ResolvedOptions {
   /** Resolved output format. */
   output: OutputFormat;
   includeConventionalEntries: boolean;
+  includeEntryExports: boolean;
+  cycles: boolean;
+  ignoreTests: boolean;
   monorepo?: MonorepoGraph;
   pathAliases: Map<string, string[]>;
   baseUrl?: string;
