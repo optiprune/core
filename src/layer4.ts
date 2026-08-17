@@ -735,6 +735,8 @@ function isInvalidSimulatedSpecifier(specifier: string): boolean {
 }
 
 function resolveAndMarkTarget(specifier: string, sourceFile: string, context: AnalysisContext, candidate?: { line?: number; column?: number }) {
+  if (context.options.ignoreUnknownImport) return;
+
   let cleanSpecifier = specifier;
   if (specifier.startsWith('file://')) {
     cleanSpecifier = specifier.slice(7);

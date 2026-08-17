@@ -472,7 +472,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // --- RE-CALCULATE REACHABILITY ---
   // Ensure that plugin marks (reachable files) are propagated through the graph
-  const newReachability = calculateReachability(modules, context.reachable);
+  const newReachability = calculateReachability(modules, context.reachable, resolvedOptions.ignoreUnknownImport);
   for (const r of newReachability.reachable) context.reachable.add(r);
   for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
   calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
@@ -556,7 +556,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           evidence: {},
         });
       }
-      if (edge.kind === "unknown-dynamic" && edge.resolution !== "resolved") {
+      if (!resolvedOptions.ignoreUnknownImport && edge.kind === "unknown-dynamic" && edge.resolution !== "resolved") {
         findings.push({
           rule: "unknown-dynamic-import",
           severity: "warning",

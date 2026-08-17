@@ -185,6 +185,8 @@ export interface AnalyzerOptions {
   cycles?: boolean;
   /** Ignore test files such as test.js, foo.test.ts, and __tests__ files. */
   ignoreTests?: boolean;
+  /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
+  ignoreUnknownImport?: boolean;
   skip3?: boolean;
   skip4?: boolean;
   verbose?: boolean;
@@ -247,6 +249,8 @@ export interface Config {
   includeEntryExports?: boolean;
   cycles?: boolean;
   ignoreTests?: boolean;
+  /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
+  ignoreUnknownImport?: boolean;
   failOn?: FailOn;
   /** @deprecated Use `output` instead. */
   json?: boolean;
@@ -294,6 +298,8 @@ export interface ResolvedOptions {
   includeEntryExports: boolean;
   cycles: boolean;
   ignoreTests: boolean;
+  /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
+  ignoreUnknownImport: boolean;
   monorepo?: MonorepoGraph;
   pathAliases: Map<string, string[]>;
   baseUrl?: string;

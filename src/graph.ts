@@ -285,6 +285,7 @@ interface ReachabilityWorkItem {
 export function calculateReachability(
   modules: Map<string, ModuleRecord>,
   entryPoints: Set<string>,
+  ignoreUnknownImport = false,
 ): Pick<GraphBuildResult, "reachable" | "maybeReachable" | "hasReachableUnknownDynamicBoundary"> {
   const reachable = new Set<string>();
   const maybeReachable = new Set<string>();
@@ -315,11 +316,14 @@ export function calculateReachability(
     if (!module) {
       continue;
     }
-    if (module.hasUnknownDynamicBoundary) {
+    if (!ignoreUnknownImport && module.hasUnknownDynamicBoundary) {
       hasReachableUnknownDynamicBoundary = true;
     }
 
     for (const edge of module.edges) {
+      if (ignoreUnknownImport && (edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic")) {
+        continue;
+      }
       // Type-only imports DO contribute to file reachability, but not necessarily runtime usage
       // The `isTypeOnly` flag is preserved on the edge for later analysis.
       // If a module has a parse error, we treat its edges as "maybe" because the AST might be incomplete.
@@ -336,7 +340,7 @@ export function calculateReachability(
   // If a reachable module scans a directory (readdir) and also has dynamic import patterns,
   // we assume it's a plugin loader and mark all files in that directory as maybe-reachable.
   for (const module of modules.values()) {
-    if (reachable.has(module.id)) {
+    if (!ignoreUnknownImport && reachable.has(module.id)) {
       const hasDynamicPatterns = module.edges.some(e => e.kind === "dynamic-pattern" || e.kind === "unknown-dynamic");
       const hasScannedDirs = module.scannedDirectories && module.scannedDirectories.length > 0;
       
@@ -853,7 +857,7 @@ export function buildGraph(
 ): GraphBuildResult {
   resolveDependencies(modules, options);
   const components = stronglyConnectedComponents(modules);
-  const reachability = calculateReachability(modules, entryPoints);
+  const reachability = calculateReachability(modules, entryPoints, options.ignoreUnknownImport);
   
   // Apply SCC reachability check
   calculateComponentReachability(components, reachability.reachable, reachability.maybeReachable);
