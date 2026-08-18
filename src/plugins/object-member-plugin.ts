@@ -49,10 +49,15 @@ class MemberTrackerState {
 }
 
 const state = new MemberTrackerState();
+const STORYBOOK_FILE_REGEX = /\.(?:stories|story)\.[cm]?[jt]sx?$/i;
+
+function isStorybookStory(fileId: string): boolean {
+  return STORYBOOK_FILE_REGEX.test(fileId.replace(/\\/g, "/"));
+}
 
 export const ObjectMemberPlugin: AnalyzerPlugin = {
   name: "object-member-plugin",
-  version: "1.1.0",
+  version: "1.1.1",
 
   lifecycle: {
     /**
@@ -196,6 +201,11 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
      */
     onAnalysisComplete: async (adapter: PluginAdapter) => {
       for (const [objName, def] of state.definitions.entries()) {
+        // Storybook consumes CSF story object members (for example `args`) through
+        // its discovery runtime rather than through local JavaScript member access.
+        // Treating those members as ordinary data creates false positives.
+        if (isStorybookStory(def.fileId)) continue;
+
         // Package exports and low-confidence re-exports are externally
         // consumable; their object members cannot be proven dead from the
         // analyzed workspace alone.
