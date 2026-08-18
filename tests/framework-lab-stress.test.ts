@@ -27,6 +27,8 @@ const expectedFindings = new Set([
   "unreachable-file|packages/core/src/dead-code.ts|",
   "unreachable-file|packages/core/src/unused.ts|",
   "unreachable-file|packages/ui/src/UnusedPanel.tsx|",
+  "unreachable-file|packages/webpack-fixture/src/alpha.js|",
+  "unreachable-file|packages/webpack-fixture/src/beta.js|",
   "unused-member|apps/nest-api/src/graphql.ts|export:resolvers/member:Query",
   "unused-export|apps/nest-api/src/graphql.ts|export:typeDefs",
   "unused-export|apps/nest-api/src/graphql.ts|export:resolvers",

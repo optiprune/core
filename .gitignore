@@ -37,5 +37,5 @@ test-results/
 # Temporary files
 *.log
 tmp/
-optiprune.config.*
+.optiprune.config.*
 all.txt
