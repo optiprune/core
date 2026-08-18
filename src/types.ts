@@ -171,6 +171,8 @@ export interface AnalyzerOptions {
   extensions?: string[];
   ignore?: string[];
   reportUnusedExports?: boolean;
+  /** Report unused exports from files that are also reported as unreachable. */
+  reportUnusedExportsInUnreachableFiles?: boolean;
   schemaEnums?: Record<string, string[]>;
   externalContracts?: string[]; // Added for Layer 5: list of externally consumed symbol names
   failOn?: FailOn;
@@ -245,6 +247,8 @@ export interface Config {
   ignoreDependencies?: string[];
   externalContracts?: string[];
   reportUnusedExports?: boolean;
+  /** Report unused exports from files that are also reported as unreachable. */
+  reportUnusedExportsInUnreachableFiles?: boolean;
   includeConventionalEntries?: boolean;
   includeEntryExports?: boolean;
   cycles?: boolean;
@@ -288,6 +292,7 @@ export interface ResolvedOptions {
   /** npm package names that are always treated as used. */
   ignoreDependencies: string[];
   reportUnusedExports: boolean;
+  reportUnusedExportsInUnreachableFiles: boolean;
   schemaEnums: Record<string, string[]>;
   failOn: FailOn;
   /** @deprecated Derived from `output`. True when output === "json". */
@@ -483,6 +488,7 @@ export interface OptiPruneUserConfig {
   ignoreDependencies?: string[];
   externalContracts?: string[];
   reportUnusedExports?: boolean;
+  reportUnusedExportsInUnreachableFiles?: boolean;
   includeConventionalEntries?: boolean;
   failOn?: "high" | "medium" | "low" | "info" | "none";
   layers?: {

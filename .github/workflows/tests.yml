@@ -48,3 +48,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
       - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty ignore-unknown-import
+  Framework-Lab:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run test framework-lab-stress

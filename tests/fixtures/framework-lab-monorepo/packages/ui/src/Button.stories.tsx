@@ -1,0 +1,1 @@
+import type { Meta, StoryObj } from "@storybook/react"; import { Button } from "./Button"; export default { title: "Fixture/Button", component: Button } satisfies Meta<typeof Button>; export const Primary: StoryObj<typeof Button> = { args: { label: "Primary" } };

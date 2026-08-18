@@ -597,8 +597,12 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       }
     }
     for (const module of modules.values()) {
+      const unreachableAndOptedIn =
+        resolvedOptions.reportUnusedExportsInUnreachableFiles &&
+        !context.reachable.has(module.id) &&
+        !context.maybeReachable.has(module.id);
       if (
-        (context.reachable.has(module.id) || context.maybeReachable.has(module.id)) &&
+        (context.reachable.has(module.id) || unreachableAndOptedIn) &&
         !matchesAnyGlob(module.id, protectedExportPatterns, rootDir)
       ) {
         let allExportsUnused = module.exports.length > 0;
@@ -714,8 +718,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           // misleading unused-export finding for that module. Exact reachability
           // still reports genuinely unused exports as before.
           if (
-            !isEffectivelyUsed &&
-            context.reachable.has(module.id) &&
+            (!isEffectivelyUsed || unreachableAndOptedIn) &&
             exp.exportedAs !== "default" &&
             exp.exportedAs !== "*"
           ) {

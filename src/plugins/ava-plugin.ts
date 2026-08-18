@@ -138,7 +138,9 @@ export const AvaPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
+      const root = adapter.getConfig().rootDir;
+      const absolute = path.isAbsolute(fileId) ? fileId : path.resolve(root, fileId);
+      const normalized = path.relative(root, absolute).replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
       // Protect configuration files
@@ -160,7 +162,9 @@ export const AvaPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
+      const root = adapter.getConfig().rootDir;
+      const absolute = path.isAbsolute(fileId) ? fileId : path.resolve(root, fileId);
+      const normalized = path.relative(root, absolute).replace(/\\/g, "/");
       const basename = path.basename(normalized);
       const isConfigFile = AVA_CONFIG_FILES.includes(basename);
 

@@ -32,6 +32,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   ignore: DEFAULT_IGNORE,
   ignoreDependencies: [],
   reportUnusedExports: true,
+  reportUnusedExportsInUnreachableFiles: false,
   schemaEnums: {},
   failOn: "high",
   json: false,
@@ -342,6 +343,9 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     ...(userConfig.failOn !== undefined && { failOn: userConfig.failOn }),
     ...(userConfig.reportUnusedExports !== undefined && {
       reportUnusedExports: userConfig.reportUnusedExports,
+    }),
+    ...(userConfig.reportUnusedExportsInUnreachableFiles !== undefined && {
+      reportUnusedExportsInUnreachableFiles: userConfig.reportUnusedExportsInUnreachableFiles,
     }),
     ...(userConfig.verbose !== undefined && { verbose: userConfig.verbose }),
     fix: userConfig.fix !== undefined ? userConfig.fix : base.fix,

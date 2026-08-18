@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info:
+  title: Fixture API
+  version: 0.0.0
+paths:
+  /health:
+    get:
+      responses:
+        '200':
+          description: healthy
+components:
+  schemas:
+    UnusedSchema:
+      type: object
+      properties:
+        ghost:
+          type: string

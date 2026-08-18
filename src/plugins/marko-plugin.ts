@@ -27,6 +27,8 @@ export const MarkoPlugin: AnalyzerPlugin = {
     if (
       pkg?.dependencies?.["marko"] ||
       pkg?.devDependencies?.["marko"] ||
+      pkg?.dependencies?.["@marko-js/marko"] ||
+      pkg?.devDependencies?.["@marko-js/marko"] ||
       pkg?.dependencies?.["@marko/run"] ||
       pkg?.devDependencies?.["@marko/run"]
     ) {
@@ -49,7 +51,12 @@ export const MarkoPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies
       };
 
-      const hasMarkoDep = !!(allDeps["marko"] || allDeps["@marko/run"]);
+      const hasMarkoDep = !!(allDeps["marko"] || allDeps["@marko-js/marko"] || allDeps["@marko/run"]);
+      const markoFiles = await adapter.findFilesByGlob(["**/*.marko"]);
+      for (const file of markoFiles) {
+        adapter.markAsUsed(file);
+        adapter.markPackageAsUsed("@marko-js/marko");
+      }
 
       let hasConfigFile = false;
       for (const file of MARKO_CONFIG_FILES) {
@@ -61,7 +68,7 @@ export const MarkoPlugin: AnalyzerPlugin = {
       }
 
       if (hasMarkoDep) {
-        adapter.markPackageAsUsed("marko");
+        adapter.markPackageAsUsed(allDeps["@marko-js/marko"] ? "@marko-js/marko" : "marko");
 
         // Protect Marko ecosystem integrations if present in package.json
         // Do not treat a manifest entry as usage evidence.
@@ -98,7 +105,7 @@ export const MarkoPlugin: AnalyzerPlugin = {
       // 1. Mark .marko files as used (components/pages/layouts)
       if (normalized.endsWith(".marko")) {
         adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed("marko");
+        adapter.markPackageAsUsed("@marko-js/marko");
       }
 
       // 2. Mark Marko config files

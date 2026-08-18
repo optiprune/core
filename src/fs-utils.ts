@@ -473,6 +473,10 @@ function extractNodeScriptTargets(command: string): string[] {
         break;
       }
       if (isBun && (token === "run" || token === "x" || token === "exec")) continue;
+      if (isBun && (token === "--cwd" || token === "--working-directory" || token === "-C")) {
+        cursor += 1;
+        continue;
+      }
       if (token === "-r" || token === "--require" || token === "--loader" || token === "--import" || token === "--conditions" || token === "--experimental-loader") {
         cursor += 1;
         continue;

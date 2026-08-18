@@ -1,0 +1,6 @@
+services:
+  fixture:
+    build: .
+    command: bun test
+    environment:
+      FIXTURE_MODE: docker

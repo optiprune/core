@@ -154,7 +154,9 @@ export const MochaPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
+      const root = adapter.getConfig().rootDir;
+      const absolute = path.isAbsolute(fileId) ? fileId : path.resolve(root, fileId);
+      const normalized = path.relative(root, absolute).replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
       // Protect configuration files
@@ -176,7 +178,9 @@ export const MochaPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      const normalized = fileId.replace(/\\/g, "/");
+      const root = adapter.getConfig().rootDir;
+      const absolute = path.isAbsolute(fileId) ? fileId : path.resolve(root, fileId);
+      const normalized = path.relative(root, absolute).replace(/\\/g, "/");
       const basename = path.basename(normalized);
       const isConfigFile = MOCHA_CONFIG_FILES.includes(basename);
       const isTestFile =
