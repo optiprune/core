@@ -33,7 +33,7 @@ jobs:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test plugin css next nest package-script vite
+      - run: npm run test plugin css next nest package-script vite extension-framework
   Functions:
     runs-on: ubuntu-latest
     permissions:
