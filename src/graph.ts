@@ -111,12 +111,23 @@ function resolveEdge(
         const pkgRoot = pkg.location;
         
         // Try common entry points if it's just the package name
-        if (!subPath || subPath === '/') {
+        const normalize = (p: string): string => path.resolve(p).replace(/\\/g, "/");
+
+        // Check if the subpath is empty or points to the root directory
+        const isRoot = !subPath || subPath === '/' || subPath === '.' || subPath === './';
+
+        if (isRoot) {
           const entries = ['src/index.ts', 'src/index.js', 'index.ts', 'index.js'];
+          
+          // Build a lookup map of [normalizedPath -> originalKnownFilePath]
+          const normalizedKnownMap = new Map<string, string>(
+            Array.from(knownFiles).map((f: string) => [normalize(f), f])
+          );
+
           for (const e of entries) {
-            const entryPath = path.join(pkgRoot, e);
-            if (knownFiles.has(entryPath)) {
-              target = entryPath;
+            const entryPath = normalize(path.join(pkgRoot, e));
+            if (normalizedKnownMap.has(entryPath)) {
+              target = normalizedKnownMap.get(entryPath);
               break;
             }
           }
@@ -124,21 +135,26 @@ function resolveEdge(
           // Try the package-local sub-path first. Source repositories often
           // expose TypeScript source while their package export map names the
           // eventual JavaScript artifact.
-          target = resolveLocalSpecifier(path.join(pkgRoot, "package.json"), `.${subPath}`, knownFiles, options.extensions);
+          const localSpecifier = subPath.startsWith('./') ? subPath : `./${subPath.replace(/^\//, '')}`;
+          target = resolveLocalSpecifier(path.join(pkgRoot, "package.json"), localSpecifier, knownFiles, options.extensions);
 
           // When no built artifact exists, resolve one unambiguous source file
           // by its package-relative sub-path. This supports exports such as
           // `./chart` -> `src/Chart.tsx` without guessing among multiple files.
           if (!target) {
-            const requested = subPath.replace(/^\//, "").replace(/\.[^./]+$/, "").toLowerCase();
-            const candidatePaths = new Set([
+            const requested = subPath.replace(/^\.?\//, "").replace(/\.[^./]+$/, "").toLowerCase();
+            const candidatePaths = new Set<string>([
               requested,
               `src/${requested}`,
               `${requested}/index`,
               `src/${requested}/index`,
             ]);
-            const candidates = Array.from(knownFiles).filter((filePath) => {
-              const relativePath = path.relative(pkgRoot, filePath).replace(/\\/g, "/");
+
+            const pkgRootNorm = normalize(pkgRoot);
+
+            const candidates = Array.from(knownFiles).filter((filePath: string) => {
+              const fileNorm = normalize(filePath);
+              const relativePath = path.posix.relative(pkgRootNorm, fileNorm);
               const sourcePath = relativePath.replace(/\.[^./]+$/, "").toLowerCase();
               return candidatePaths.has(sourcePath);
             });
