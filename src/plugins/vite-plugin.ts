@@ -117,7 +117,7 @@ async function markHtmlEntry(adapter: PluginAdapter, indexFile: string) {
 
 export const VitePlugin: AnalyzerPlugin = {
   name: "vite-plugin",
-  version: "1.3.0",
+  version: "1.3.1",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
@@ -154,6 +154,7 @@ export const VitePlugin: AnalyzerPlugin = {
       for (const configFile of VITE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           configPath = configFile;
+          adapter.addEntryPatterns([configFile]);
           adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("vite");
           break;
@@ -165,6 +166,16 @@ export const VitePlugin: AnalyzerPlugin = {
       // the manifest independently of the usage mark.
       if (configPath) {
         const configSource = await adapter.readFile(configPath);
+        if (configSource) {
+          const configImportPattern = /(?:from\s+|import\s*\()\s*["']([^"']+)["']/g;
+          for (const match of configSource.matchAll(configImportPattern)) {
+            const importedPackage = match[1];
+            if (!importedPackage) continue;
+            if (importedPackage === "vite" || importedPackage.startsWith("@vitejs/plugin-")) {
+              adapter.markPackageAsUsed(importedPackage);
+            }
+          }
+        }
         const viteRoot = configSource ? resolveViteRoot(adapter.getConfig().rootDir, configSource) : adapter.getConfig().rootDir;
         await markHtmlEntry(adapter, path.join(viteRoot, "index.html"));
       }
