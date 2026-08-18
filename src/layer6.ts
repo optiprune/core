@@ -546,7 +546,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
         const isUsed = isMarkedUsed ||
           importedInThisPackage.has(dep) ||
-          (isRootMonorepoManifest && globalImports.has(dep)) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||
           scriptPackages.has(dep) ||

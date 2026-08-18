@@ -214,4 +214,60 @@ describe("nightmare monorepo regressions", () => {
     expect(report.findings.some((finding) => finding.rule === "no-entry-points")).toBe(false);
     expect(report.entryPoints.some((entryPoint) => entryPoint.endsWith("packages/lib/src/index.ts"))).toBe(true);
   });
+
+  it("keeps dependency ownership local while following workspace exports", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({
+        name: "@fixture/root",
+        private: true,
+        workspaces: ["packages/*"],
+        dependencies: { tinyglobby: "1.0.0" },
+      }),
+      "packages/client/package.json": JSON.stringify({
+        name: "@fixture/client",
+        private: true,
+        type: "module",
+        main: "dist/index.js",
+        dependencies: { "@fixture/shared": "*" },
+      }),
+      "packages/shared/package.json": JSON.stringify({
+        name: "@fixture/shared",
+        private: true,
+        type: "module",
+        main: "dist/index.js",
+        dependencies: { tinyglobby: "1.0.0" },
+      }),
+      "packages/client/src/index.ts": 'import { usedFunction, someFunction } from "@fixture/shared"; usedFunction; someFunction;\n',
+      "packages/shared/src/index.ts": 'export * from "./exports.js"; export { usedFunction } from "./used-fn.js";\n',
+      "packages/shared/src/exports.ts": 'import { glob } from "tinyglobby"; glob; export const someFunction = () => "bar"; export const unusedFunction = () => "unused";\n',
+      "packages/shared/src/used-fn.ts": "export const usedFunction = () => \"bar\";\n",
+    });
+
+    const report = await analyze({
+      rootDir: root,
+      layers: { skip3: true, skip4: true },
+    });
+
+    expect(report.findings.some((finding) =>
+      finding.rule === "no-entry-points",
+    )).toBe(false);
+    expect(report.findings.some((finding) =>
+      finding.rule === "unused-dependency" &&
+      finding.evidence?.package === "tinyglobby" &&
+      finding.file === "package.json",
+    )).toBe(true);
+    expect(report.findings.some((finding) =>
+      finding.rule === "unused-dependency" &&
+      finding.evidence?.package === "tinyglobby" &&
+      finding.file.endsWith("packages/shared/package.json"),
+    )).toBe(false);
+    expect(report.findings.some((finding) =>
+      finding.rule === "unused-export" &&
+      finding.evidence?.exportName === "unusedFunction",
+    )).toBe(true);
+    expect(report.findings.some((finding) =>
+      finding.rule === "unused-export" &&
+      ["someFunction", "usedFunction"].includes(String(finding.evidence?.exportName)),
+    )).toBe(false);
+  });
 });
