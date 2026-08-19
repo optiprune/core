@@ -136,16 +136,42 @@ function collectTomlConfig(content: string, info: WranglerConfigInfo): void {
   }
 }
 
+function resolveConfigEntry(configFile: string, entryPoint: string): string {
+  const configDirectory = path.posix.dirname(configFile.replace(/\\/g, "/"));
+  const normalizedEntry = entryPoint.replace(/\\/g, "/");
+  return path.posix.normalize(
+    normalizedEntry.startsWith("/")
+      ? normalizedEntry.slice(1)
+      : path.posix.join(configDirectory === "." ? "" : configDirectory, normalizedEntry),
+  );
+}
+
 async function readWranglerConfig(adapter: PluginAdapter, configFile: string): Promise<void> {
   const content = await adapter.readFile(configFile);
   if (!content) return;
   configState.configFiles.add(configFile);
+
+  const parsedConfig: WranglerConfigInfo = { entryPoints: [], bindings: new Set() };
+  let isPagesConfig = false;
   if (configFile.endsWith(".toml")) {
-    collectTomlConfig(content, configState);
-    return;
+    collectTomlConfig(content, parsedConfig);
+    isPagesConfig = /(^|\n)\s*pages_build_output_dir\s*=/.test(content);
+  } else {
+    const parsed = parseJsonc<Record<string, unknown>>(content);
+    if (parsed) {
+      collectJsonConfig(parsed, undefined, parsedConfig);
+      isPagesConfig = typeof parsed.pages_build_output_dir === "string";
+    }
   }
-  const parsed = parseJsonc(content);
-  if (parsed) collectJsonConfig(parsed, undefined, configState);
+
+  const configuredEntries = parsedConfig.entryPoints.length > 0
+    ? parsedConfig.entryPoints
+    : isPagesConfig ? [] : ["./worker.js"];
+  for (const entryPoint of configuredEntries) {
+    const resolvedEntry = resolveConfigEntry(configFile, entryPoint);
+    if (!configState.entryPoints.includes(resolvedEntry)) configState.entryPoints.push(resolvedEntry);
+  }
+  for (const binding of parsedConfig.bindings) configState.bindings.add(binding);
 }
 
 function bindingNameFromMemberExpression(node: any): string | undefined {
