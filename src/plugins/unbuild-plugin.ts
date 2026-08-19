@@ -210,11 +210,20 @@ export const UnbuildPlugin: AnalyzerPlugin = {
             if (!t.isObjectExpression(objExpr)) return;
 
             objExpr.properties.forEach((prop: any) => {
-              if (
-                t.isObjectProperty(prop) &&
-                t.isIdentifier(prop.key) &&
-                prop.key.name === "entries"
-              ) {
+              if (!t.isObjectProperty(prop)) return;
+
+              const keyName = t.isIdentifier(prop.key)
+                ? prop.key.name
+                : t.isStringLiteral(prop.key)
+                  ? prop.key.value
+                  : null;
+              if (keyName) {
+                // Unbuild consumes these configuration members through its
+                // config loader, even when no local JS/TS code reads them.
+                adapter.markConfigMemberAsUsed(fileId, "default", keyName);
+              }
+
+              if (keyName === "entries") {
                 const val = prop.value;
                 if (t.isArrayExpression(val)) {
                   val.elements.forEach((el: any) => {

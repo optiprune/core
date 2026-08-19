@@ -66,7 +66,7 @@ function isExternalConfigContract(fileId: string, objectName: string): boolean {
 
 export const ObjectMemberPlugin: AnalyzerPlugin = {
   name: "object-member-plugin",
-  version: "1.1.1",
+  version: "1.2.0",
 
   lifecycle: {
     /**
@@ -226,7 +226,13 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         for (const [memberName, memberLoc] of def.members.entries()) {
           const usageKey = `${objName}.${memberName}`;
 
-          if (!hasWildcardUsage && !state.usages.has(usageKey)) {
+          const semanticallyUsed = adapter.isConfigMemberUsed(
+            def.fileId,
+            objName,
+            memberName,
+          );
+
+          if (!hasWildcardUsage && !state.usages.has(usageKey) && !semanticallyUsed) {
             adapter.emitFinding({
               rule: "unused-member",
               severity: "warning",

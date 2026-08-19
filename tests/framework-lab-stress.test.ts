@@ -60,7 +60,6 @@ const expectedFindings = new Set([
   "unused-dev-dependency|packages/webpack-fixture/package.json|package:webpack-cli",
 ]);
 
-
 describe("framework-lab strict benchmark", () => {
   it("matches the complete ground truth with zero analyzer errors or drift", async () => {
     const report = await analyze({

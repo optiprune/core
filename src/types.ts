@@ -388,6 +388,8 @@ export interface AnalysisContext {
   maybeReachable: Set<string>;
   /** Files explicitly executed or consumed by a runtime/tool contract. */
   runtimeUsedFiles?: Set<string>;
+  /** Object members consumed by ecosystem configuration contracts. */
+  semanticConfigMembers?: Set<string>;
   hasReachableUnknownDynamicBoundary: boolean;
   components: StronglyConnectedComponent[];
   usedExports: Set<string>;
@@ -426,6 +428,10 @@ export interface PluginAdapter {
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;
   markAsUsed(fileId: string, symbol?: string): void;
+  /** Mark an object member as consumed by a framework/tool configuration contract. */
+  markConfigMemberAsUsed(fileId: string, objectName: string, memberName: string): void;
+  /** Check whether a plugin has marked an object member as semantically consumed. */
+  isConfigMemberUsed(fileId: string, objectName: string, memberName: string): boolean;
   markPackageAsUsed(packageName: string): void; // Added for Plugin Priority
   attachMetadata(node: any, key: string, value: any): void;
   setMonorepo(monorepo: MonorepoGraph): void;

@@ -333,6 +333,18 @@ export class PluginEngine {
           context.usedExports?.add(`${absolutePath}:${symbol}`);
         }
       },
+      markConfigMemberAsUsed: (fileId, objectName, memberName) => {
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        context.semanticConfigMembers?.add(`${absolutePath}:${objectName}:${memberName}`);
+      },
+      isConfigMemberUsed: (fileId, objectName, memberName) => {
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        return context.semanticConfigMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false;
+      },
       markPackageAsUsed: (packageName) => {
         context.usedPackages?.add(packageName);
       },
