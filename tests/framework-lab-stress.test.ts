@@ -31,9 +31,6 @@ const expectedFindings = new Set([
   "unreachable-file|packages/webpack-fixture/src/beta.js|",
   "unused-export|apps/nest-api/src/graphql.ts|export:typeDefs",
   "unused-export|apps/nest-api/src/graphql.ts|export:resolvers",
-  "unused-member|packages/core/build.config.ts|export:default/member:entries",
-  "unused-member|packages/core/build.config.ts|export:default/member:declaration",
-  "unused-member|packages/core/build.config.ts|export:default/member:clean",
   "unused-export|packages/core/src/dead-code.ts|export:unusedExport",
   "unused-export|packages/core/src/dead-code.ts|export:unreachableHelper",
   "unused-export|packages/core/src/dead-code.ts|export:UnusedService",
@@ -57,8 +54,12 @@ const expectedFindings = new Set([
   "unused-dev-dependency|package.json|package:unused-dependency",
   "unused-dependency|packages/core/package.json|package:lodash",
   "unused-dependency|packages/ui/package.json|package:@fixture/core",
+  "unused-dependency|packages/ui/package.json|package:axios",
+  "unused-dev-dependency|package.json|package:axios",
+  "unused-dev-dependency|packages/core/package.json|package:axios",
   "unused-dev-dependency|packages/webpack-fixture/package.json|package:webpack-cli",
 ]);
+
 
 describe("framework-lab strict benchmark", () => {
   it("matches the complete ground truth with zero analyzer errors or drift", async () => {

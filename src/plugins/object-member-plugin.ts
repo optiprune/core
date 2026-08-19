@@ -60,7 +60,7 @@ function isExternalConfigContract(fileId: string, objectName: string): boolean {
   const basename = normalized.split("/").pop() ?? "";
   if (basename.startsWith("stylelint.config.")) return true;
   if (normalized.includes("/.storybook/") && basename.startsWith("preview.")) return true;
-  if (objectName === "metadata" && /(?:^|\\/)app\\/layout\\.[cm]?[jt]sx?$/.test(normalized)) return true;
+  if (objectName === "metadata" && /(?:^|\/)app\/layout\.[cm]?[jt]sx?$/.test(normalized)) return true;
   return false;
 }
 
