@@ -54,6 +54,7 @@ const NEXT_EXPORTS = new Set([
   "getStaticPaths",
   "generateStaticParams",
   "generateMetadata",
+  "metadata",
   "generateViewport",
   "revalidate",
   "dynamic",

@@ -74,8 +74,11 @@ export const NuxtPlugin: AnalyzerPlugin = {
     const hasNuxtConfig = (await Promise.all(
       NUXT_CONFIG_FILES.filter((file) => file.startsWith("nuxt.config")).map((file) => adapter.folderExists(file)),
     )).some(Boolean);
+    const discoveredConfigs = typeof (adapter as Partial<import("../types.js").PluginAdapter>).findFiles === "function"
+      ? await adapter.findFiles(NUXT_CONFIG_FILES)
+      : [];
 
-    if (hasNuxtConfig) return true;
+    if (hasNuxtConfig || discoveredConfigs.length > 0) return true;
     if (!hasNuxtDependency) return false;
     return hasNuxtScript(pkg) || await hasNuxtRuntimeEvidence(adapter);
   },

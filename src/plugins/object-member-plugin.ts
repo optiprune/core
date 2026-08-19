@@ -55,6 +55,15 @@ function isStorybookStory(fileId: string): boolean {
   return STORYBOOK_FILE_REGEX.test(fileId.replace(/\\/g, "/"));
 }
 
+function isExternalConfigContract(fileId: string, objectName: string): boolean {
+  const normalized = fileId.replace(/\\/g, "/");
+  const basename = normalized.split("/").pop() ?? "";
+  if (basename.startsWith("stylelint.config.")) return true;
+  if (normalized.includes("/.storybook/") && basename.startsWith("preview.")) return true;
+  if (objectName === "metadata" && /(?:^|\\/)app\\/layout\\.[cm]?[jt]sx?$/.test(normalized)) return true;
+  return false;
+}
+
 export const ObjectMemberPlugin: AnalyzerPlugin = {
   name: "object-member-plugin",
   version: "1.1.1",
@@ -205,6 +214,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         // its discovery runtime rather than through local JavaScript member access.
         // Treating those members as ordinary data creates false positives.
         if (isStorybookStory(def.fileId)) continue;
+        if (isExternalConfigContract(def.fileId, objName)) continue;
 
         // Package exports and low-confidence re-exports are externally
         // consumable; their object members cannot be proven dead from the

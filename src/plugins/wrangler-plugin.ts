@@ -198,6 +198,13 @@ function markBindingUsed(fileId: string, binding: string): void {
   configState.usedBindings.set(fileId, bindings);
 }
 
+function isWorkerScopedFile(fileId: string): boolean {
+  const normalized = fileId.replace(/\\/g, "/");
+  return configState.entryPoints.some((entry) => normalized === entry || normalized.endsWith(`/${entry}`)) ||
+    normalized.includes("/functions/") ||
+    normalized.startsWith("functions/");
+}
+
 function emitMissingBinding(adapter: PluginAdapter, fileId: string, binding: string): void {
   adapter.emitFinding({
     rule: "missing-wrangler-binding",
@@ -411,14 +418,16 @@ export const WranglerPlugin: AnalyzerPlugin = {
       }
 
       // 2. Track runtime bindings exposed through env or context.env.
-      const bindingFromMember = bindingNameFromMemberExpression(node);
+      const bindingFromMember = isWorkerScopedFile(fileId)
+        ? bindingNameFromMemberExpression(node)
+        : undefined;
       if (bindingFromMember) {
         markBindingUsed(fileId, bindingFromMember);
         adapter.markPackageAsUsed("wrangler");
       }
 
       // `const { DB, KV } = env` is also a standard Workers access pattern.
-      if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern") {
+      if (isWorkerScopedFile(fileId) && node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern") {
         const init = node.init;
         const isEnvObject = t.isIdentifier(init) && init.name === "env" ||
           (init && (init.type === "MemberExpression" || init.type === "OptionalMemberExpression") &&
