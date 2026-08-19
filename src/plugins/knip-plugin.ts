@@ -22,6 +22,7 @@ const KNIP_CONFIG_FILES = [
 ];
 
 const KNIP_CONFIG_KEYS = new Set([
+  "$schema",
   "entry",
   "project",
   "workspaces",
@@ -31,7 +32,61 @@ const KNIP_CONFIG_KEYS = new Set([
   "ignoreIssues",
   "includeEntryExports",
   "paths",
+  "rules",
+  "compilers",
+  "tags",
+  "classMembers",
 ]);
+
+/**
+ * Strips single-line and multi-line comments + trailing commas from JSON/JSONC strings.
+ */
+function parseJsonc(content: string): Record<string, StaticConfigValue> | undefined {
+  try {
+    const stripped = content
+      .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1")
+      .replace(/,\s*([}\]])/g, "$1");
+    return JSON.parse(stripped);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Statically extracts object properties from JS/TS config AST files.
+ * Handles `export default { ... }`, `module.exports = { ... }`, and `defineConfig({ ... })`.
+ */
+function extractStaticJsTsObject(code: string): Record<string, StaticConfigValue> | undefined {
+  // Strip comments
+  const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1");
+
+  // Match: export default { ... }, module.exports = { ... }, or defineConfig({ ... })
+  const match =
+    cleanCode.match(/(?:export\s+default\s+(?:defineConfig\s*\(\s*)?|module\.exports\s*=\s*)([\s\S]+?)(?:\s*\)\s*)?(?:;|\n|$)/) ||
+    cleanCode.match(/const\s+config(?:\s*:\s*KnipConfig)?\s*=\s*([\s\S]+?);/);
+
+  if (!match) return undefined;
+
+  const rawObjectStr = match[1]?.trim();
+  if (!rawObjectStr || !rawObjectStr.startsWith("{")) return undefined;
+
+  // Convert relaxed JS/TS object literal to JSON-parseable string
+  try {
+    const jsonish = rawObjectStr
+      // Remove trailing type assertions like `satisfies KnipConfig` or `as KnipConfig`
+      .replace(/\s+(?:satisfies|as)\s+[A-Za-z0-9_<>]+/g, "")
+      // Quote unquoted object keys (e.g. entry: -> "entry":)
+      .replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":')
+      // Replace single quotes with double quotes for string values
+      .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"')
+      // Remove trailing commas in objects and arrays
+      .replace(/,\s*([}\]])/g, "$1");
+
+    return JSON.parse(jsonish);
+  } catch {
+    return undefined;
+  }
+}
 
 function hasKnipShape(config: Record<string, StaticConfigValue>): boolean {
   return Object.keys(config).some((key) => KNIP_CONFIG_KEYS.has(key));
@@ -54,7 +109,11 @@ function dependencyNames(value: StaticConfigValue | undefined): string[] {
     .filter((name) => /^[A-Za-z@][A-Za-z0-9@/_.-]*$/.test(name));
 }
 
-function applyIgnoreIssues(config: Record<string, StaticConfigValue>, workspace: string, adapter: PluginAdapter): void {
+function applyIgnoreIssues(
+  config: Record<string, StaticConfigValue>,
+  workspace: string,
+  adapter: PluginAdapter
+): void {
   for (const [pattern, issueTypes] of Object.entries(stringRecord(config.ignoreIssues))) {
     const types = stringArray(issueTypes);
     const scopedPattern = prefixedPatterns(workspace, [pattern]);
@@ -70,7 +129,7 @@ function applyIgnoreIssues(config: Record<string, StaticConfigValue>, workspace:
 function applyKnipConfig(
   config: Record<string, StaticConfigValue>,
   adapter: PluginAdapter,
-  workspace = ".",
+  workspace = "."
 ): void {
   const entries = prefixedPatterns(workspace, stringArray(config.entry));
   const projects = prefixedPatterns(workspace, stringArray(config.project));
@@ -79,15 +138,12 @@ function applyKnipConfig(
 
   if (entries.length > 0) {
     adapter.addEntryPatterns(entries);
-    // Knip deliberately excludes entry-file exports unless this opt-in is set.
     if (config.includeEntryExports !== true) {
       adapter.addProtectedExportPatterns(entries);
     }
   }
   if (projects.length > 0) adapter.addProjectPatterns(projects);
   if (ignored.length > 0) {
-    // Knip ignores suppress reports rather than excluding parsing. Preserve analysis,
-    // while preventing file/export removal in the matching paths.
     adapter.addUnreachableFileIgnorePatterns(ignored);
     adapter.addProtectedExportPatterns(ignored);
   }
@@ -98,37 +154,62 @@ function applyKnipConfig(
   const workspaces = stringRecord(config.workspaces);
   for (const [workspacePattern, workspaceConfig] of Object.entries(workspaces)) {
     if (workspacePattern !== ".") adapter.setWorkspaceGlobs([workspacePattern]);
-    const nestedConfig = stringRecord(workspaceConfig);
-    applyKnipConfig(nestedConfig, adapter, workspacePattern);
+    if (workspaceConfig && typeof workspaceConfig === "object" && !Array.isArray(workspaceConfig)) {
+      const nestedConfig = stringRecord(workspaceConfig);
+      applyKnipConfig(nestedConfig, adapter, workspacePattern);
+    }
   }
 
-  // Knip plugins may declare their own entry file patterns at root or workspace level.
+  // Knip plugins (e.g., eslint, vite, next) may declare entry patterns
   for (const [key, value] of Object.entries(config)) {
     if (KNIP_CONFIG_KEYS.has(key)) continue;
+    // Guard against boolean flags ("eslint": false) or non-object primitives
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+
     const pluginConfig = stringRecord(value);
     const pluginEntries = prefixedPatterns(workspace, stringArray(pluginConfig.entry));
     if (pluginEntries.length > 0) {
       adapter.addEntryPatterns(pluginEntries);
-      if (pluginConfig.includeEntryExports !== true) adapter.addProtectedExportPatterns(pluginEntries);
+      if (pluginConfig.includeEntryExports !== true) {
+        adapter.addProtectedExportPatterns(pluginEntries);
+      }
     }
   }
 }
 
-async function loadKnipConfig(adapter: PluginAdapter) {
+async function loadKnipConfig(
+  adapter: PluginAdapter
+): Promise<{ config: Record<string, StaticConfigValue>; source: string } | undefined> {
+  // 1. Try generic static helper first
   const loaded = await loadStaticPluginConfig(adapter, KNIP_CONFIG_FILES, "knip");
-  if (!loaded) return undefined;
+  if (loaded && (hasKnipShape(loaded.config) || loaded.source.startsWith("package.json#"))) {
+    return loaded;
+  }
 
-  // Dedicated Knip config filenames are already collision-resistant. For an
-  // inline package.json configuration, the `knip` key is definitive. For a
-  // dynamic config that cannot be statically read, no settings are applied.
-  return hasKnipShape(loaded.config) || loaded.source.startsWith("package.json#")
-    ? loaded
-    : undefined;
+  // 2. Direct fallback reading for .jsonc, .json, .ts, .js, .mjs, .cjs files
+  for (const file of KNIP_CONFIG_FILES) {
+    const content = await adapter.readFile(file);
+    if (!content) continue;
+
+    let config: Record<string, StaticConfigValue> | undefined;
+
+    if (file.endsWith(".json") || file.endsWith(".jsonc")) {
+      config = parseJsonc(content);
+    } else {
+      config = extractStaticJsTsObject(content);
+    }
+
+    if (config && typeof config === "object" && hasKnipShape(config)) {
+      return { config, source: file };
+    }
+  }
+
+  return undefined;
 }
 
 export const KnipPlugin: AnalyzerPlugin = {
   name: "knip-plugin",
-  version: "1.0.0",
+  version: "1.1.0",
 
   detect: async (adapter) => {
     if (await loadKnipConfig(adapter)) return true;
@@ -141,7 +222,9 @@ export const KnipPlugin: AnalyzerPlugin = {
     };
     const hasDependency = typeof allDependencies.knip === "string";
     const hasKnipScript = Object.values(pkg?.scripts ?? {}).some(
-      (script) => typeof script === "string" && /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?knip(?:\s|$)/.test(script),
+      (script) =>
+        typeof script === "string" &&
+        /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?knip(?:\s|$)/.test(script)
     );
     return hasDependency || hasKnipScript;
   },
@@ -157,10 +240,15 @@ export const KnipPlugin: AnalyzerPlugin = {
         ...pkg?.devDependencies,
         ...pkg?.peerDependencies,
       };
-      if (typeof allDependencies.knip === "string") adapter.markPackageAsUsed("knip");
+      if (typeof allDependencies.knip === "string") {
+        adapter.markPackageAsUsed("knip");
+      }
 
       for (const [name, script] of Object.entries(pkg?.scripts ?? {})) {
-        if (typeof script === "string" && /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?knip(?:\s|$)/.test(script)) {
+        if (
+          typeof script === "string" &&
+          /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?knip(?:\s|$)/.test(script)
+        ) {
           adapter.markAsUsed("package.json", `scripts:${name}`);
         }
       }
