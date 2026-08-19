@@ -396,9 +396,28 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       // Bun treats the next non-flag argument as its entry point. This is
       // positional syntax, so it must not depend on file extensions or on
       // whether the target currently exists on disk.
-      const consumeCommandFlags = (tokens: string[], start: number): number => {
+      const consumeCommandFlags = (tokens: string[], start: number, manager?: string): number => {
         let index = start;
-        while (tokens[index]?.startsWith('-')) index++;
+        while (index < tokens.length) {
+          const token = tokens[index];
+          if (!token?.startsWith('-')) break;
+
+          // pnpm/yarn option values are positional tokens. In particular,
+          // `pnpm --filter @scope/pkg script` must not treat `@scope/pkg`
+          // as a binary or package dependency.
+          if (manager === 'pnpm' || manager === 'yarn') {
+            if (token === '--filter' || token === '-F' || token === '--workspace-root' || token === '-w') {
+              index += token === '--filter' || token === '-F' ? 2 : 1;
+              continue;
+            }
+            if (token.startsWith('--filter=')) {
+              index += 1;
+              continue;
+            }
+          }
+
+          index += 1;
+        }
         return index;
       };
 
@@ -461,9 +480,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
             // 3. Handle the other package managers: npm run <script>, npx <pkg>
             if (['npx', 'npm', 'pnpm', 'yarn'].includes(token)) {
-              let pkgIndex = consumeCommandFlags(tokens, i + 1);
+              let pkgIndex = consumeCommandFlags(tokens, i + 1, token);
               if (tokens[pkgIndex] === 'run' || tokens[pkgIndex] === 'exec') {
-                pkgIndex = consumeCommandFlags(tokens, pkgIndex + 1);
+                pkgIndex = consumeCommandFlags(tokens, pkgIndex + 1, token);
               }
               const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, '');
               // Check if the argument is a script name first

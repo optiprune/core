@@ -104,6 +104,32 @@ describe("package script entry points", () => {
     expect(report.findings.some((finding) => finding.evidence?.package === "vitest")).toBe(false);
   });
 
+  it("does not treat pnpm workspace filter selectors as missing dependencies", async () => {
+    await fs.mkdir(fixtureRoot, { recursive: true });
+    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
+      name: "pnpm-filter-script",
+      private: true,
+      scripts: {
+        "dev:console": "pnpm --filter @scope/console dev",
+        "dev:docs": "pnpm --filter=@scope/docs dev",
+        "build": "pnpm -F @scope/console build",
+      },
+    }, null, 2));
+
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: [],
+      extensions: [".ts"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+    });
+
+    expect(report.findings.some((finding) =>
+      finding.rule === "missing-dependency" &&
+      (finding.evidence?.package === "@scope/console" || finding.evidence?.package === "@scope/docs")
+    )).toBe(false);
+  });
+
   it("reports a high-confidence error when a concrete local Node script target is absent", async () => {
     await fs.mkdir(fixtureRoot, { recursive: true });
     await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
