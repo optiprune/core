@@ -221,7 +221,38 @@ async function analyzeIfStatement(
   }
 }
 
-function resolveFunctionLiteral(name: string, module: ModuleRecord): any | null {
+function evaluateStaticExpression(node: any, module: ModuleRecord, depth = 0): any | null {
+  if (!node || depth > 12) return null;
+  if (node.type === "Literal" || node.type === "NumericLiteral" || node.type === "StringLiteral" || node.type === "BooleanLiteral") return node.value;
+  if (node.type === "Identifier") return resolveFunctionLiteral(node.name, module, depth + 1);
+  if (node.type === "UnaryExpression") {
+    const value = evaluateStaticExpression(node.argument, module, depth + 1);
+    if (value === null) return null;
+    if (node.operator === "-") return -value;
+    if (node.operator === "+") return +value;
+    if (node.operator === "!") return !value;
+  }
+  if (node.type === "BinaryExpression") {
+    const left = evaluateStaticExpression(node.left, module, depth + 1);
+    const right = evaluateStaticExpression(node.right, module, depth + 1);
+    if (left === null || right === null) return null;
+    switch (node.operator) {
+      case "+": return left + right;
+      case "-": return left - right;
+      case "*": return left * right;
+      case "/": return left / right;
+      case "%": return left % right;
+      case "===": return left === right;
+      case "!==": return left !== right;
+      case "==": return left == right;
+      case "!=": return left != right;
+    }
+  }
+  return null;
+}
+
+function resolveFunctionLiteral(name: string, module: ModuleRecord, depth = 0): any | null {
+  if (depth > 12) return null;
   const ast = module.ast as any;
   let returnValue: any = null;
   let found = false;
@@ -230,16 +261,10 @@ function resolveFunctionLiteral(name: string, module: ModuleRecord): any | null 
     const node = n as any;
     if (found) return;
     if (node.type === "FunctionDeclaration" && node.id?.name === name) {
-      const body = node.body.body;
+      const body = node.body?.body ?? [];
       if (body.length === 1 && body[0].type === "ReturnStatement") {
-        const arg = body[0].argument;
-        if (arg.type === "BooleanLiteral" || arg.type === "NumericLiteral" || arg.type === "StringLiteral") {
-          returnValue = arg.value;
-          found = true;
-        } else if (arg.type === "Literal") {
-          returnValue = arg.value;
-          found = true;
-        }
+        const evaluated = evaluateStaticExpression(body[0].argument, module, depth + 1);
+        if (evaluated !== null) { returnValue = evaluated; found = true; }
       }
     }
   });
@@ -299,6 +324,10 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   }
   
   if (node.type === "Identifier") {
+    if (module) {
+      const staticValue = resolveFunctionLiteral(node.name, module);
+      if (staticValue !== null) return encodeLiteral(staticValue, z3);
+    }
     try {
         // Use Real for identifiers to handle both integers and floats in JS
         return z3.Real.const(node.name);

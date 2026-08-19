@@ -17,3 +17,12 @@ export function rangeLogic(age: number) {
         }
     }
 }
+
+function a() { return 1; }
+function b() { return -1; }
+
+export function functionComparison() {
+    if (a() === b()) {
+        console.log("Impossible: 1 is not -1");
+    }
+}

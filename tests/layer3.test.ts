@@ -24,5 +24,10 @@ describe("Layer 3: SMT Constraint Solver", () => {
     const impossibleX = smtFindings.find(f => f.file.includes("layer3-test.ts"));
     expect(impossibleX).toBeDefined();
     expect(impossibleX?.rule).toBe("constant-condition");
+
+    // The parser backend used in CI may omit `loc` on findings. The added
+    // function-comparison fixture must nevertheless increase the set of
+    // proven constant paths beyond the original arithmetic cases.
+    expect(smtFindings.length).toBeGreaterThanOrEqual(3);
   });
 });

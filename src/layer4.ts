@@ -115,10 +115,32 @@ function cleanForQuickJS(code: string): string {
     .replace(/^\s*export\s+\*\s+from\s+['"][^'"]+['"]\s*;?\s*$/gm, "")
     .replace(/\bexport\s+(?=(?:const|let|var|function|class|async|type|interface|enum)\b)/g, "")
     .replace(/\bexport\s+default\s+/g, "")
-    // Keep import.meta usable after the static import pre-processing.
+    // Keep import.meta usable after the static import pre-processing. Build
+    // tools expose additional import.meta properties which must be modeled
+    // before esbuild sees the source.
+    .replace(/import\.meta\.env\.([A-Za-z_$][\w$]*)/g, '__optiprune_import_meta_env.$1')
+    .replace(/import\.meta\.glob\s*\(/g, '__optiprune_glob(')
     .replace(/import\.meta\.url/g, '("file://" + __filename)')
+    // `new URL(..., import.meta.url)` is common for workers and WASM assets.
+    .replace(/new\s+URL\s*\(/g, '__optiprune_new_url(')
+    // CommonJS/Vite context helpers are represented by a deterministic
+    // virtual context instead of touching the host filesystem.
+    .replace(/\brequire\.context\s*\(/g, '__optiprune_require_context(')
     // Record simulated dynamic-import targets instead of loading modules.
     .replace(/\bimport\s*\(/g, "__optiprune_import(");
+}
+
+function applyStaticDefines(code: string): string {
+  // Layer 4 receives source snippets rather than the bundler configuration.
+  // Preserve explicit define assignments when present and provide safe
+  // defaults for conventional compile-time tokens. This lets `TOKEN || ...`
+  // and `TOKEN ? ... : ...` execute instead of throwing ReferenceError.
+  return code
+    .replace(/\\b(__DEV__|DEV|PROD|VERSION)\\b(?!\\s*:)/g, (token) => {
+      if (token === 'VERSION') return '__optiprune_define_VERSION';
+      if (token === 'PROD') return '__optiprune_define_PROD';
+      return token === '__DEV__' ? '__optiprune_define___DEV__' : '__optiprune_define_DEV';
+    });
 }
 
 type QuickJSSourceLoader = "ts" | "tsx" | "js" | "jsx";
@@ -149,7 +171,7 @@ async function compileForQuickJS(code: string, sourceFile: string): Promise<stri
   // Candidate context can contain a captured function body, including `await`
   // and `return`. Wrapping it first lets esbuild parse those statements in the
   // same asynchronous function scope QuickJS will execute later.
-  const wrappedContext = `async function ${QUICKJS_CONTEXT_FUNCTION}() {\n${cleanForQuickJS(code)}\n}`;
+  const wrappedContext = `async function ${QUICKJS_CONTEXT_FUNCTION}() {\n${cleanForQuickJS(applyStaticDefines(code))}\n}`;
   const transformed = await transform(wrappedContext, {
     loader: quickJSSourceLoader(sourceFile),
     format: "esm",
@@ -519,6 +541,22 @@ function setupQuickJSMocks(
   }
   vm.setProp(processMock, "env", envMock);
   vm.setProp(globalHandle, "process", processMock);
+
+  // Vite-style import.meta.env and conventional esbuild/Webpack defines.
+  const importMetaEnv = vm.newObject();
+  const envKeys = new Set<string>();
+  for (const match of String(candidate.contextCode ?? '').matchAll(/import\.meta\.env\.([A-Za-z_$][\w$]*)/g)) { if (match[1]) envKeys.add(match[1]); }
+  for (const key of envKeys) {
+    const value = process.env[key];
+    if (value !== undefined) { const h = vm.newString(value); vm.setProp(importMetaEnv, key, h); h.dispose(); }
+  }
+  vm.setProp(globalHandle, '__optiprune_import_meta_env', importMetaEnv);
+  for (const [name, value] of [['__optiprune_define___DEV__', false], ['__optiprune_define_DEV', false], ['__optiprune_define_PROD', true], ['__optiprune_define_VERSION', '0.0.0']] as const) {
+    const h = typeof value === 'boolean' ? (value ? vm.true : vm.false) : vm.newString(value);
+    vm.setProp(globalHandle, name, h);
+    if (typeof value !== 'boolean') h.dispose();
+  }
+  importMetaEnv.dispose();
   envMock.dispose();
   processMock.dispose();
 
@@ -692,7 +730,62 @@ function setupQuickJSMocks(
   readdirSyncFn.dispose();
   existsSyncFn.dispose();
 
-  // 5. console mock
+  // 5. Vite import.meta.glob and webpack require.context. Both APIs return
+  // module maps, but their important static-analysis effect is that every
+  // matching file becomes a reachable graph node.
+  const markGlobMatches = (rawPattern: unknown, recursive = true, rawRegex?: unknown): string[] => {
+    const pattern = String(rawPattern);
+    const baseDir = path.dirname(candidate.file);
+    const normalized = pattern.replace(/^\.\//, '');
+    const regex = rawRegex instanceof RegExp ? rawRegex : undefined;
+    const globRegex = globPatternToRegExp(normalized);
+    const matches: string[] = [];
+    for (const id of context.modules.keys()) {
+      const rel = path.relative(baseDir, id).replaceAll('\\\\', '/');
+      if ((!recursive && rel.includes('/')) || (regex ? regex.test(`./${rel}`) : globRegex.test(rel))) {
+        matches.push(`./${rel}`);
+        resolveAndMarkTarget(`./${rel}`, candidate.file, context);
+      }
+    }
+    return matches;
+  };
+  const globFn = vm.newFunction('__optiprune_glob', (patternHandle: QuickJSHandle) => {
+    const map = vm.newObject();
+    for (const [index, target] of markGlobMatches(vm.dump(patternHandle)).entries()) {
+      const fn = vm.newFunction(`glob_${index}`, () => vm.undefined);
+      vm.setProp(map, target, fn); fn.dispose();
+    }
+    return map;
+  });
+  vm.setProp(globalHandle, '__optiprune_glob', globFn); globFn.dispose();
+  const contextFn = vm.newFunction('__optiprune_require_context', (dirHandle: QuickJSHandle, recursiveHandle?: QuickJSHandle, regexHandle?: QuickJSHandle) => {
+    const dir = String(vm.dump(dirHandle)).replace(/^\.\//, '');
+    const map = vm.newObject();
+    for (const target of markGlobMatches(`${dir}/**`, Boolean(recursiveHandle ? vm.dump(recursiveHandle) : true), regexHandle ? vm.dump(regexHandle) : undefined)) {
+      const fn = vm.newFunction('context_module', () => vm.undefined);
+      vm.setProp(map, target, fn); fn.dispose();
+    }
+    return map;
+  });
+  vm.setProp(globalHandle, '__optiprune_require_context', contextFn); contextFn.dispose();
+  const newUrlFn = vm.newFunction('__optiprune_new_url', (specHandle: QuickJSHandle, baseHandle: QuickJSHandle) => {
+    const spec = String(vm.dump(specHandle));
+    const base = String(vm.dump(baseHandle));
+    const href = spec.startsWith('.') ? `file://${path.resolve(path.dirname(base.replace(/^file:\/\//, '')), spec)}` : spec;
+    const obj = vm.newObject(); const h = vm.newString(href); vm.setProp(obj, 'href', h); h.dispose();
+    const toString = vm.newFunction('toString', () => vm.newString(href)); vm.setProp(obj, 'toString', toString); toString.dispose();
+    return obj;
+  });
+  vm.setProp(globalHandle, '__optiprune_new_url', newUrlFn); newUrlFn.dispose();
+  const wasmMock = vm.newObject();
+  const instantiateFn = vm.newFunction('instantiate', () => {
+    const p = vm.evalCode('Promise.resolve({ instance: { exports: {} }, module: {} })');
+    return p.error ? vm.undefined : p.value;
+  });
+  vm.setProp(wasmMock, 'instantiate', instantiateFn); vm.setProp(wasmMock, 'instantiateStreaming', instantiateFn);
+  vm.setProp(globalHandle, 'WebAssembly', wasmMock); wasmMock.dispose(); instantiateFn.dispose();
+
+  // 6. console mock
   const consoleMock = vm.newObject();
   const logFn = vm.newFunction("log", (...args: QuickJSHandle[]) => {
     if (context.options.verbose) {
@@ -725,6 +818,18 @@ function setupQuickJSMocks(
   errorFn.dispose();
 
   globalHandle.dispose();
+}
+
+function globPatternToRegExp(pattern: string): RegExp {
+  let source = '^';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i] ?? '';
+    if (ch === '*' && pattern[i + 1] === '*') { source += '.*'; i++; continue; }
+    if (ch === '*') { source += '[^/]*'; continue; }
+    if (ch === '?') { source += '[^/]'; continue; }
+    source += /[.+^${}()|[\]\\]/.test(ch) ? `\\\\${ch}` : ch;
+  }
+  return new RegExp(`${source}$`);
 }
 
 function isInvalidSimulatedSpecifier(specifier: string): boolean {
