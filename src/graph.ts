@@ -75,22 +75,36 @@ function resolveEdge(
     // console.log("Resolving " + edge.rawSpecifier + " from " + source.id + " -> " + target);
   }
   
-  // 2. Try tsconfig path aliases
+  // 2. Try tsconfig path aliases. Match the most specific alias first and
+  // substitute every wildcard capture in order (`@/*/test/*` is valid), rather
+  // than reusing only the first capture.
   if (!target && options.pathAliases.size > 0) {
-    for (const [alias, targets] of options.pathAliases.entries()) {
-      const aliasPattern = alias.replace(/\*/g, "(.*)");
-      const matcher = new RegExp(`^${aliasPattern}$`);
-      const match = edge.rawSpecifier.match(matcher);
+    const aliases = [...options.pathAliases.entries()].sort(([left], [right]) => {
+      const leftWildcards = (left.match(/\*/g) ?? []).length;
+      const rightWildcards = (right.match(/\*/g) ?? []).length;
+      if (leftWildcards !== rightWildcards) return leftWildcards - rightWildcards;
+      return right.length - left.length;
+    });
 
-      if (match) {
-        for (const targetPattern of targets) {
-          const resolvedSpecifier = targetPattern.replace(/\*/g, match[1] || "");
-          const absoluteTarget = path.resolve(options.rootDir, options.baseUrl || ".", resolvedSpecifier);
-          target = resolveLocalSpecifier(source.id, absoluteTarget, knownFiles, options.extensions);
-          if (target) break;
-        }
+    for (const [alias, targets] of aliases) {
+      const wildcardCount = (alias.match(/\*/g) ?? []).length;
+      const aliasPattern = alias
+        .split("*")
+        .map((part) => part.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"))
+        .join("(.*)");
+      const match = edge.rawSpecifier.match(new RegExp(`^${aliasPattern}$`));
+      if (!match) continue;
+
+      for (const targetPattern of targets) {
+        let captureIndex = 1;
+        const resolvedSpecifier = targetPattern.replace(/\*/g, () => match[captureIndex++] ?? "");
+        const absoluteTarget = path.isAbsolute(resolvedSpecifier)
+          ? resolvedSpecifier
+          : path.resolve(options.rootDir, options.baseUrl || ".", resolvedSpecifier);
+        target = resolveLocalSpecifier(source.id, absoluteTarget, knownFiles, options.extensions);
+        if (target) break;
       }
-      if (target) break;
+      if (target || wildcardCount === 0) break;
     }
   }
 

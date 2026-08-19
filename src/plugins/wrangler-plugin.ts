@@ -1,4 +1,4 @@
-import { AnalyzerPlugin } from "../types.js";
+import { AnalyzerPlugin, PluginAdapter } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
@@ -7,6 +7,25 @@ const WRANGLER_CONFIG_FILES = [
   "wrangler.json",
   "wrangler.toml"
 ];
+
+type WranglerConfigInfo = {
+  entryPoints: string[];
+  bindings: Set<string>;
+};
+
+const configState: WranglerConfigInfo & { configFiles: Set<string>; usedBindings: Map<string, Set<string>> } = {
+  entryPoints: [],
+  bindings: new Set(),
+  configFiles: new Set(),
+  usedBindings: new Map(),
+};
+
+function resetConfigState(): void {
+  configState.entryPoints = [];
+  configState.bindings.clear();
+  configState.configFiles.clear();
+  configState.usedBindings.clear();
+}
 
 const WRANGLER_SPECIAL_FILES = [
   "worker-configuration.d.ts",
@@ -24,14 +43,146 @@ const CLOUDFLARE_PACKAGES = [
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
+    let cleanJson = "";
+    let quote = false;
+    let escaped = false;
+    let lineComment = false;
+    let blockComment = false;
+    for (let index = 0; index < content.length; index += 1) {
+      const current = content[index] ?? "";
+      const next = content[index + 1] ?? "";
+      if (lineComment) {
+        if (current === "\\n" || current === "\\r") {
+          lineComment = false;
+          cleanJson += current;
+        }
+        continue;
+      }
+      if (blockComment) {
+        if (current === "*" && next === "/") {
+          blockComment = false;
+          index += 1;
+        }
+        continue;
+      }
+      if (quote) {
+        cleanJson += current;
+        if (escaped) escaped = false;
+        else if (current === "\\\\") escaped = true;
+        else if (current === '"') quote = false;
+        continue;
+      }
+      if (current === '"') {
+        quote = true;
+        cleanJson += current;
+      } else if (current === "/" && next === "/") {
+        lineComment = true;
+        index += 1;
+      } else if (current === "/" && next === "*") {
+        blockComment = true;
+        index += 1;
+      } else {
+        cleanJson += current;
+      }
+    }
+    return JSON.parse(cleanJson.replace(/,(\s*[\]}])/g, "$1"));
   } catch {
     return null;
   }
+}
+
+function addBinding(value: unknown, bindings: Set<string>): void {
+  if (typeof value === "string" && /^[A-Za-z_$][\w$]*$/.test(value)) bindings.add(value);
+}
+
+function collectJsonConfig(value: unknown, key: string | undefined, info: WranglerConfigInfo): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectJsonConfig(item, key, info);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+
+  for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
+    if (childKey === "main" || childKey === "entry-point") {
+      if (typeof childValue === "string") info.entryPoints.push(childValue);
+    }
+    if (childKey === "binding") addBinding(childValue, info.bindings);
+    if (key === "vars" && /^[A-Za-z_$][\w$]*$/.test(childKey)) info.bindings.add(childKey);
+    collectJsonConfig(childValue, childKey, info);
+  }
+}
+
+/** Parse only the stable Wrangler TOML fields needed for reachability/bindings. */
+function collectTomlConfig(content: string, info: WranglerConfigInfo): void {
+  let section = "";
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.replace(/#.*/, "").trim();
+    if (!line) continue;
+    const table = line.match(/^\[\[?([^\]]+)\]\]?$/);
+    if (table) {
+      section = table[1] ?? "";
+      continue;
+    }
+    const assignment = line.match(/^([A-Za-z0-9_.-]+)\s*=\s*(.+)$/);
+    if (!assignment) continue;
+    const key = assignment[1] ?? "";
+    const rawValue = assignment[2]?.trim() ?? "";
+    const quoted = rawValue.match(/^['\"]([^'\"]*)['\"](?:\s|$)/)?.[1];
+    if ((key === "main" || key === "entry-point") && quoted) info.entryPoints.push(quoted);
+    if (key === "binding") addBinding(quoted, info.bindings);
+    if ((section === "vars" || section.endsWith(".vars")) && /^[A-Za-z_$][\w$]*$/.test(key)) {
+      info.bindings.add(key);
+    }
+  }
+}
+
+async function readWranglerConfig(adapter: PluginAdapter, configFile: string): Promise<void> {
+  const content = await adapter.readFile(configFile);
+  if (!content) return;
+  configState.configFiles.add(configFile);
+  if (configFile.endsWith(".toml")) {
+    collectTomlConfig(content, configState);
+    return;
+  }
+  const parsed = parseJsonc(content);
+  if (parsed) collectJsonConfig(parsed, undefined, configState);
+}
+
+function bindingNameFromMemberExpression(node: any): string | undefined {
+  if (!node || node.type !== "MemberExpression" && node.type !== "OptionalMemberExpression") return undefined;
+  if (node.computed || !t.isIdentifier(node.property)) return undefined;
+  const propertyName = node.property.name;
+  if (t.isIdentifier(node.object) && node.object.name === "env") return propertyName;
+  const object = node.object;
+  if (
+    object &&
+    (object.type === "MemberExpression" || object.type === "OptionalMemberExpression") &&
+    !object.computed &&
+    t.isIdentifier(object.property) &&
+    object.property.name === "env"
+  ) {
+    return propertyName;
+  }
+  return undefined;
+}
+
+function markBindingUsed(fileId: string, binding: string): void {
+  const bindings = configState.usedBindings.get(fileId) ?? new Set<string>();
+  bindings.add(binding);
+  configState.usedBindings.set(fileId, bindings);
+}
+
+function emitMissingBinding(adapter: PluginAdapter, fileId: string, binding: string): void {
+  adapter.emitFinding({
+    rule: "missing-wrangler-binding",
+    severity: "warning",
+    confidence: "medium",
+    file: fileId,
+    message: configState.configFiles.size === 0
+      ? `Cloudflare binding '${binding}' is used in code, but no Wrangler configuration file was found.`
+      : `Cloudflare binding '${binding}' is used in code but is not declared in the Wrangler configuration.`,
+    evidence: { binding, configFiles: [...configState.configFiles] },
+  });
 }
 
 export const WranglerPlugin: AnalyzerPlugin = {
@@ -70,7 +221,11 @@ export const WranglerPlugin: AnalyzerPlugin = {
       }
     }
 
-    // 2. Check for Wrangler configuration files
+    // 2. Check for Wrangler configuration files, including workspace configs.
+    const discoveredConfigs = typeof adapter.findFiles === "function"
+      ? await adapter.findFiles(WRANGLER_CONFIG_FILES)
+      : [];
+    if (discoveredConfigs.length > 0) return true;
     for (const configFile of WRANGLER_CONFIG_FILES) {
       if (await adapter.folderExists(configFile)) return true;
     }
@@ -84,6 +239,7 @@ export const WranglerPlugin: AnalyzerPlugin = {
 
   lifecycle: {
     onProjectInit: async (adapter) => {
+      resetConfigState();
       const pkg = await adapter.readJson("package.json");
       const allDeps = {
         ...pkg?.dependencies,
@@ -105,13 +261,26 @@ export const WranglerPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 2. Protect standalone configuration and special generated files
+      // 2. Protect and parse every supported Wrangler configuration file,
+      // including configurations belonging to nested workspace projects.
       let hasConfigFile = false;
+      const discoveredConfigs = typeof adapter.findFiles === "function"
+        ? await adapter.findFiles(WRANGLER_CONFIG_FILES)
+        : [];
+      const configFiles = new Set(discoveredConfigs);
       for (const configFile of WRANGLER_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
-          hasConfigFile = true;
-          adapter.markAsUsed(configFile);
-        }
+        if (await adapter.folderExists(configFile)) configFiles.add(configFile);
+      }
+      for (const configFile of configFiles) {
+        hasConfigFile = true;
+        adapter.markAsUsed(configFile);
+        adapter.markPackageAsUsed("wrangler");
+        await readWranglerConfig(adapter, configFile);
+      }
+
+      if (configState.entryPoints.length > 0) {
+        adapter.addEntryPatterns(configState.entryPoints);
+        for (const entryPoint of configState.entryPoints) adapter.markAsUsed(entryPoint);
       }
 
       for (const specialFile of WRANGLER_SPECIAL_FILES) {
@@ -154,7 +323,11 @@ export const WranglerPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 6. Report missing dependency if Wrangler config exists without wrangler package
+      // 6. Report code/config binding mismatches after AST scanning.
+      // The actual diagnostics are emitted from onAnalysisComplete, once all
+      // files have been visited and all binding usages are known.
+
+      // 7. Report missing dependency if Wrangler config exists without wrangler package
       if (hasConfigFile && !hasWrangler) {
         adapter.emitFinding({
           rule: "missing-dependency",
@@ -168,14 +341,19 @@ export const WranglerPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
-      // Protect Wrangler configuration files
+      // Protect and parse Wrangler configuration files in every lifecycle run.
       if (WRANGLER_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("wrangler");
+        await readWranglerConfig(adapter, normalized);
+        if (configState.entryPoints.length > 0) {
+          adapter.addEntryPatterns(configState.entryPoints);
+          for (const entryPoint of configState.entryPoints) adapter.markAsUsed(entryPoint);
+        }
       }
 
       // Protect special Wrangler generated files
@@ -206,7 +384,30 @@ export const WranglerPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 2. Protect Cloudflare Worker fetch / scheduled event handlers
+      // 2. Track runtime bindings exposed through env or context.env.
+      const bindingFromMember = bindingNameFromMemberExpression(node);
+      if (bindingFromMember) {
+        markBindingUsed(fileId, bindingFromMember);
+        adapter.markPackageAsUsed("wrangler");
+      }
+
+      // `const { DB, KV } = env` is also a standard Workers access pattern.
+      if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern") {
+        const init = node.init;
+        const isEnvObject = t.isIdentifier(init) && init.name === "env" ||
+          (init && (init.type === "MemberExpression" || init.type === "OptionalMemberExpression") &&
+            !init.computed && t.isIdentifier(init.property) && init.property.name === "env");
+        if (isEnvObject) {
+          for (const property of node.id.properties ?? []) {
+            if ((property.type === "Property" || property.type === "ObjectProperty") && t.isIdentifier(property.key)) {
+              markBindingUsed(fileId, property.key.name);
+              adapter.markPackageAsUsed("wrangler");
+            }
+          }
+        }
+      }
+
+      // 3. Protect Cloudflare Worker fetch / scheduled event handlers
       if (
         t.isExportDefaultDeclaration(node) &&
         t.isObjectExpression(node.declaration)
@@ -223,6 +424,24 @@ export const WranglerPlugin: AnalyzerPlugin = {
           }
         });
       }
+    },
+
+    onAnalysisComplete: async (adapter) => {
+      if (configState.configFiles.size === 0) {
+        const discoveredConfigs = typeof adapter.findFiles === "function"
+          ? await adapter.findFiles(WRANGLER_CONFIG_FILES)
+          : [];
+        for (const configFile of discoveredConfigs) await readWranglerConfig(adapter, configFile);
+        for (const configFile of WRANGLER_CONFIG_FILES) {
+          if (await adapter.folderExists(configFile)) await readWranglerConfig(adapter, configFile);
+        }
+      }
+      for (const [fileId, bindings] of configState.usedBindings.entries()) {
+        for (const binding of bindings) {
+          if (!configState.bindings.has(binding)) emitMissingBinding(adapter, fileId, binding);
+        }
+      }
+      resetConfigState();
     }
   }
 };

@@ -349,6 +349,7 @@ export class PluginEngine {
           .filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0)
           .map((pattern) => path.isAbsolute(pattern) ? pattern : path.resolve(context.options.rootDir, pattern));
         context.options.entry = Array.from(new Set([...context.options.entry, ...normalized]));
+        for (const entry of normalized) context.entryPoints?.add(entry);
       },
       addIgnorePatterns: (patterns) => {
         const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);

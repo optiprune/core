@@ -92,6 +92,43 @@ function checkPkgBin(pkgJsonPath: string, pkgName: string, token: string): strin
   return null;
 }
 
+/**
+ * Expand packages marked as used with their installed, non-optional peer
+ * dependencies. Framework plugins often mark only the framework package (for
+ * example `next`), while npm's package contract requires peers such as
+ * `react` and `react-dom` to be present in the consuming application.
+ */
+function expandRequiredPeerDependencies(usedPackages: Set<string>, manifestRoots: string[]): void {
+  const queue = [...usedPackages];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const packageName = queue.shift();
+    if (!packageName || visited.has(packageName)) continue;
+    visited.add(packageName);
+
+    for (const root of manifestRoots) {
+      const manifestPath = path.join(root, 'node_modules', ...packageName.split('/'), 'package.json');
+      if (!fs.existsSync(manifestPath)) continue;
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
+          peerDependencies?: Record<string, string>;
+          peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+        };
+        for (const peerName of Object.keys(manifest.peerDependencies ?? {})) {
+          if (manifest.peerDependenciesMeta?.[peerName]?.optional === true) continue;
+          if (usedPackages.has(peerName)) continue;
+          usedPackages.add(peerName);
+          queue.push(peerName);
+        }
+      } catch {
+        // Ignore missing or malformed third-party manifests.
+      }
+      break;
+    }
+  }
+}
+
 export async function parseDtsWithSwc(entryPointRelative: string): Promise<DtsExportGraph> {
   const absolutePath = path.resolve(entryPointRelative);
 
@@ -275,6 +312,17 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       manifestPaths.set(name, pkg.manifestPath);
     }
   }
+
+  // Plugins mark the tool/framework package they observe. Resolve its package
+  // contract once before dependency diagnostics so required peers are retained
+  // as well (optional peers remain eligible for unused-dependency findings).
+  expandRequiredPeerDependencies(
+    context.usedPackages ?? new Set<string>(),
+    [
+      projectRoot,
+      ...Array.from(context.options.monorepo?.packageMap.values() ?? [], (pkg) => pkg.location),
+    ],
+  );
 
   // Build a Set of dependencies the user explicitly wants to ignore so we
   // never emit unused-dependency / unused-dev-dependency findings for them.

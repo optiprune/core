@@ -461,6 +461,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // ── PLUGIN LIFECYCLE SYNC ────────────────────────────────────────────────
   // 1. Transfer marks from earlyContext (onProjectInit effects) to the final context
   for (const r of earlyContext.reachable) context.reachable.add(r);
+  for (const e of earlyContext.entryPoints) {
+    context.entryPoints.add(e);
+    entryPoints.add(e);
+  }
   for (const r of earlyContext.runtimeUsedFiles ?? []) context.runtimeUsedFiles?.add(r);
   for (const p of earlyContext.usedPackages) context.usedPackages.add(p);
   for (const e of earlyContext.usedExports) context.usedExports.add(e);
@@ -788,6 +792,24 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             : undefined,
         },
       });
+    }
+  }
+
+  // A file that is already proven unreachable will be removed as a whole by
+  // the fixer. Member- and statement-level diagnostics inside it are therefore
+  // redundant and misleading; keeping only unreachable-file makes the report
+  // actionable and prevents follow-up edits against a file that will disappear.
+  const unreachableFiles = new Set(
+    findings.filter((finding) => finding.rule === "unreachable-file").map((finding) => finding.file),
+  );
+  for (let index = findings.length - 1; index >= 0; index--) {
+    const finding = findings[index];
+    if (
+      finding &&
+      unreachableFiles.has(finding.file) &&
+      (finding.rule === "unused-member" || finding.rule === "unreachable-statement")
+    ) {
+      findings.splice(index, 1);
     }
   }
 
