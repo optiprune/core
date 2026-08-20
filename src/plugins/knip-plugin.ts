@@ -132,7 +132,9 @@ function applyKnipConfig(
   workspace = "."
 ): void {
   const entries = prefixedPatterns(workspace, stringArray(config.entry));
-  const projects = prefixedPatterns(workspace, stringArray(config.project));
+  // Knip's `project` patterns describe Knip's own file universe. They must
+  // not restrict OptiPrune's source discovery, otherwise a shared knip.json
+  // changes the Core graph and can hide valid TypeScript/JS files.
   const ignored = prefixedPatterns(workspace, stringArray(config.ignore));
   const ignoredFiles = prefixedPatterns(workspace, stringArray(config.ignoreFiles));
 
@@ -142,7 +144,7 @@ function applyKnipConfig(
       adapter.addProtectedExportPatterns(entries);
     }
   }
-  if (projects.length > 0) adapter.addProjectPatterns(projects);
+  // Intentionally do not call adapter.addProjectPatterns(projects).
   if (ignored.length > 0) {
     adapter.addUnreachableFileIgnorePatterns(ignored);
     adapter.addProtectedExportPatterns(ignored);
