@@ -131,7 +131,10 @@ function resolveEdge(
         const isRoot = !subPath || subPath === '/' || subPath === '.' || subPath === './';
 
         if (isRoot) {
-          const entries = ['src/index.ts', 'src/index.js', 'index.ts', 'index.js'];
+          const entries = [
+            'src/index.ts', 'src/index.tsx', 'src/index.mts', 'src/index.mjs', 'src/index.cjs', 'src/index.js',
+            'index.ts', 'index.tsx', 'index.mts', 'index.mjs', 'index.cjs', 'index.js',
+          ];
           
           // Build a lookup map of [normalizedPath -> originalKnownFilePath]
           const normalizedKnownMap = new Map<string, string>(
@@ -764,9 +767,6 @@ export function buildUsedExports(
       }
     }
   }
-
-  // 2. Propagation pass: Follow re-export chains
-  // This handles: App -> Barrel (export * from 'Lib') -> Lib
   let changed = true;
   while (changed) {
     changed = false;
@@ -796,11 +796,7 @@ export function buildUsedExports(
               let isUsedViaReExport = false;
 
               if (edge.kind === 'export-all') {
-                // A package entry point that uses export * exposes every target
-                // export as part of its public API. This remains low-confidence
-                // because the declaration does not prove a concrete consumer.
                 const isPublicApiReExport = isPublicApiModule;
-                // PRECISION FIX: Only mark this specific export as used if it's actually requested from the barrel
                 const isRequested = effectiveUsage.wildcard || effectiveUsage.names.has(exp.exportedAs);
                 
                 // Also check if it's a default export being requested via a name (not common for export *)
@@ -816,9 +812,6 @@ export function buildUsedExports(
                   }
                 }
               } else if (edge.kind === 'export-from') {
-                // Explicit re-export: export { x } from 'mod'
-                // edge.importedNames contains the names from 'targetModule'
-                // We need to see if the corresponding exported name in 'module' is used
                 for (const edgeImportName of edge.importedNames) {
                    if (edgeImportName === exp.exportedAs || (exp.isDefault && edgeImportName === 'default')) {
                      // Find the name this is exported as in 'module'
@@ -829,10 +822,6 @@ export function buildUsedExports(
                          isUsedViaReExport = true;
                          break;
                        }
-                       
-                       // DEEP ALIAS FIX: If this re-export is itself re-exported further, 
-                       // the usage might be further down the chain.
-                       // We check if any consumer of 'module' uses this specific exported name.
                        const moduleUsage = importUsage.get(module.id);
                        if (moduleUsage && (moduleUsage.wildcard || moduleUsage.names.has(correspondingExport.exportedAs))) {
                          isUsedViaReExport = true;
@@ -958,11 +947,6 @@ export function buildUsedExports(
 
   return { usedExports, usedExportConfidence, usedMembers };
 }
-
-/**
- * Refines component reachability. A component is reachable if at least one of its
- * modules is reachable from an entry point.
- */
 /**
  * Refines component reachability. A component is reachable if at least one of its
  * modules is reachable from an entry point.
