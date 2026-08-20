@@ -3,6 +3,7 @@ import { transform } from "esbuild";
 import type { AnalysisContext, Finding, ConcolicVerificationResult } from "./types.js";
 import { performance } from "node:perf_hooks";
 import path from "pathe";
+import { resolveConcreteSpecifier } from "./graph.js";
 
 /**
  * Layer 4: Proof Asserter Engine
@@ -313,11 +314,16 @@ async function resolveDynamicImports(
           lenHandle.dispose();
           currentTargets.dispose();
           
-          // Return a resilient mock instead of a plain empty object
+          // Return a module-shaped resilient mock. Returning the bare fallback
+          // proxy makes `await import(...); module.default` fail in QuickJS,
+          // which aborts the simulation before the concrete target is retained.
           const createFn = vm.getProp(vm.global, "__create_resilient_mock");
-          const mock = vm.callFunction(createFn, vm.undefined);
+          const defaultExport = vm.callFunction(createFn, vm.undefined);
           createFn.dispose();
-          return mock;
+          const moduleMock = vm.newObject();
+          vm.setProp(moduleMock, "default", defaultExport);
+          defaultExport.dispose();
+          return moduleMock;
         });
         vm.setProp(globalHandle, "__optiprune_import", importMockFn);
         importMockFn.dispose();
@@ -540,6 +546,14 @@ function setupQuickJSMocks(
     }
   }
   vm.setProp(processMock, "env", envMock);
+  const argvMock = vm.newArray();
+  for (const [index, value] of ["node", candidate.file, "world"]) {
+    const valueHandle = vm.newString(value);
+    vm.setProp(argvMock, index, valueHandle);
+    valueHandle.dispose();
+  }
+  vm.setProp(processMock, "argv", argvMock);
+  argvMock.dispose();
   vm.setProp(globalHandle, "process", processMock);
 
   // Vite-style import.meta.env and conventional esbuild/Webpack defines.
@@ -848,11 +862,23 @@ function resolveAndMarkTarget(specifier: string, sourceFile: string, context: An
   }
 
   const sourceDir = path.dirname(sourceFile);
-  const absolutePath = path.isAbsolute(cleanSpecifier) 
-    ? cleanSpecifier 
+  const knownFiles = new Set(context.modules.keys());
+
+  // First use the canonical graph resolver. This is the important Layer 4
+  // bridge: a WASM-evaluated target such as
+  // `@demo/greeter/english.js` must go through workspace/package resolution,
+  // not be treated as a path relative to the importing file.
+  const resolvedByGraph = resolveConcreteSpecifier(
+    sourceFile,
+    cleanSpecifier,
+    knownFiles,
+    context.options,
+  );
+  let targetModule = resolvedByGraph ? context.modules.get(resolvedByGraph) : undefined;
+
+  const absolutePath = path.isAbsolute(cleanSpecifier)
+    ? cleanSpecifier
     : path.resolve(sourceDir, cleanSpecifier);
-  
-  let targetModule = context.modules.get(absolutePath);
   
   if (!targetModule) {
     for (const ext of context.options.extensions) {

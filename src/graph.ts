@@ -191,6 +191,42 @@ function resolveEdge(
   }
 }
 
+/**
+ * Resolve a concrete runtime import specifier using the same rules as the
+ * static graph builder. Layer 4 calls this after its WASM sandbox evaluates a
+ * dynamic import expression, including workspace package subpaths.
+ */
+export function resolveConcreteSpecifier(
+  sourceFile: string,
+  specifier: string,
+  knownFiles: Set<string>,
+  options: ResolvedOptions,
+): string | undefined {
+  const source: ModuleRecord = {
+    id: sourceFile,
+    relativePath: sourceFile,
+    parseStatus: "parsed",
+    parseDiagnostics: [],
+    sourceText: "",
+    exports: [],
+    edges: [],
+    hasUnknownDynamicBoundary: false,
+    hasParseError: false,
+    hasUnresolvedCommonJsExports: false,
+    scannedDirectories: [],
+    dynamicImportCandidates: [],
+  };
+  const edge: DependencyEdge = {
+    source: sourceFile,
+    rawSpecifier: specifier,
+    kind: "import",
+    importedNames: [],
+    resolution: "unknown",
+  };
+  resolveEdge(edge, source, knownFiles, options);
+  return edge.target;
+}
+
 export function resolveDependencies(modules: Map<string, ModuleRecord>, options: ResolvedOptions): void {
   const knownFiles = new Set(modules.keys());
   for (const module of modules.values()) {
