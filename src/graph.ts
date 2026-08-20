@@ -419,6 +419,40 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     // former can safely be associated with an export in this same module.
     const localTypeMemberAccess = new Map<string, Set<string>>();
     const localInstanceTypes = new Map<string, string>();
+    const typeNameFromAnnotation = (annotation: any): string | undefined => {
+      const typeName = annotation?.typeAnnotation?.typeName ?? annotation?.typeName;
+      return typeName?.type === "Identifier" ? typeName.name : undefined;
+    };
+    const exportedReturnType = (targetModule: ModuleRecord, exportName: string): string | undefined => {
+      if (!targetModule.ast) return undefined;
+      let result: string | undefined;
+      walkAst(targetModule.ast, (node: any) => {
+        if (result) return;
+        if (node.type === "FunctionDeclaration" && node.id?.name === exportName) {
+          result = typeNameFromAnnotation(node.returnType);
+          return;
+        }
+        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.id.name === exportName) {
+          const init = node.init;
+          if (init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression") {
+            result = typeNameFromAnnotation(init.returnType);
+          }
+        }
+      });
+      return result;
+    };
+    // Connect `const value = importedFactory()` with the factory's explicit
+    // exported return type so member reads are attributed to that type.
+    for (const edge of module.edges) {
+      const targetId = edgeTargets(edge)[0];
+      const targetModule = targetId ? modules.get(targetId) : undefined;
+      if (!targetModule) continue;
+      for (const [index, importedName] of edge.importedNames.entries()) {
+        const localName = edge.importedLocals?.[index] ?? importedName;
+        const returnType = exportedReturnType(targetModule, importedName);
+        if (returnType) localInstanceTypes.set(localName, returnType);
+      }
+    }
     const resolveScopedTypeName = (objectName: string, stack: any[]): string | undefined => {
       // `localTypeMap` is module-wide and can be overwritten when distinct
       // functions reuse a parameter name. Resolve the nearest matching
@@ -446,7 +480,29 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "NewExpression" && node.init.callee?.type === "Identifier") {
           localInstanceTypes.set(node.id.name, node.init.callee.name);
         }
+        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "CallExpression" && node.init.callee?.type === "Identifier") {
+          const returnType = localInstanceTypes.get(node.init.callee.name);
+          if (returnType) localInstanceTypes.set(node.id.name, returnType);
+        }
 
+        // Track destructured typed function parameters, e.g.
+        // `({ children }: ButtonProps) => ...`.
+        if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") {
+          for (const parameter of node.params ?? []) {
+            if (parameter?.type !== "ObjectPattern" || !parameter.typeAnnotation) continue;
+            const typeName = typeNameFromAnnotation(parameter.typeAnnotation);
+            if (!typeName) continue;
+            for (const property of parameter.properties ?? []) {
+              if ((property.type !== "Property" && property.type !== "ObjectProperty") || property.computed) continue;
+              const memberName = property.key?.name ?? property.key?.value;
+              if (typeof memberName !== "string") continue;
+              if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
+              localMemberAccess.get(typeName)!.add(memberName);
+              if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+              localTypeMemberAccess.get(typeName)!.add(memberName);
+            }
+          }
+        }
         // 1. Track destructured properties (e.g. const { imports, schemaType } = config).
         // Destructuring is equivalent to reading those object members, but it is
         // not represented as a MemberExpression in the AST.
@@ -533,6 +589,8 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
 
     for (const edge of module.edges) {
       for (const target of edgeTargets(edge)) {
+        const targetModule = modules.get(target);
+        if (!targetModule) continue;
         const current = usage.get(target) ?? { 
           consumers: new Set<string>(), 
           names: new Set<string>(), 
@@ -559,9 +617,17 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             ...(localMemberAccess.get(localName) ?? []),
             ...(localName !== name ? (localMemberAccess.get(name) ?? []) : []),
           ]);
+          // A factory import may return an exported interface/class. If the
+          // caller reads `theme.colors`, the usage is keyed by the return type
+          // (`Theme`), not by the factory name (`createTheme`).
+          const returnedType = exportedReturnType(targetModule, name);
+          if (returnedType) {
+            for (const member of localMemberAccess.get(returnedType) ?? []) accessed.add(member);
+          }
           if (accessed.size > 0) {
-            if (!current.memberAccess.has(name)) current.memberAccess.set(name, new Set());
-            for (const m of accessed) current.memberAccess.get(name)!.add(m);
+            const usageKey = returnedType ?? name;
+            if (!current.memberAccess.has(usageKey)) current.memberAccess.set(usageKey, new Set());
+            for (const m of accessed) current.memberAccess.get(usageKey)!.add(m);
           }
         }
         if (edge.kind === "dynamic-pattern") {
