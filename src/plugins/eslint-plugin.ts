@@ -159,6 +159,28 @@ export const EslintPlugin: AnalyzerPlugin = {
         }
       }
 
+      // Flat-config resolver shorthands can be object keys (`typescript: true`)
+      // rather than string literals. Map those keys to resolver packages too.
+      if ((node.type === "ObjectProperty" || node.type === "Property") && !node.computed) {
+        const keyName = node.key?.name ?? node.key?.value;
+        if (keyName === "typescript") adapter.markPackageAsUsed("eslint-import-resolver-typescript");
+        if (keyName === "node") adapter.markPackageAsUsed("eslint-import-resolver-node");
+        if (keyName === "webpack") adapter.markPackageAsUsed("eslint-import-resolver-webpack");
+      }
+
+      // Flat-config resolver shorthands are strings nested in settings, not
+      // imports. Map the well-known resolver names to their npm packages.
+      if (t.isStringLiteral(node)) {
+        const resolverPackages: Record<string, string> = {
+          typescript: "eslint-import-resolver-typescript",
+          node: "eslint-import-resolver-node",
+          webpack: "eslint-import-resolver-webpack",
+        };
+        const resolverPackage = resolverPackages[node.value] ??
+          (node.value.startsWith("eslint-import-resolver-") ? node.value : undefined);
+        if (resolverPackage) adapter.markPackageAsUsed(resolverPackage);
+      }
+
       // 3. Resolve Legacy Shorthands in strings ONLY for .eslintrc* files
       if (isLegacyConfig && t.isStringLiteral(node)) {
         const val = node.value;
