@@ -17,6 +17,15 @@ export interface DependencyNode {
   dependencies: Set<string>;
 }
 
+// These packages are the analyzer itself or its public CLI entrypoint. They
+// are intentionally retained when the project invokes OptiPrune from npm
+// scripts or exposes the Core API through tooling.
+const OPTIPRUNE_PROTECTED_PACKAGES = new Set([
+  "@optiprune/core",
+  "@optiprune/cli",
+  "optiprune",
+]);
+
 /**
  * Dynamically resolves a command token (e.g., "mocha" or "c8") to its providing npm package
  * by inspecting `node_modules/.bin` and package `package.json` manifests.
@@ -494,6 +503,25 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
               break; // Token handled via package manager handler
             }
 
+            // A package script may have the same name as its installed binary
+            // (for example: { "optiprune": "optiprune" }). Resolve the binary
+            // before treating the token as an internal script reference.
+            // This preserves npm-script usage evidence for CLI dependencies.
+            const tokenParts = token.split('/');
+            const tokenPkgBase = token.startsWith('@')
+              ? (tokenParts.length >= 2 ? `${tokenParts[0]}/${tokenParts[1]}` : null)
+              : tokenParts[0];
+            const tokenBinaryPackage = resolveBinaryDependency(token, projectRoot);
+            const tokenResolvedPackage = (tokenBinaryPackage && tokenBinaryPackage !== '.bin')
+              ? tokenBinaryPackage
+              : (STATIC_BINARY_FALLBACKS[token] ||
+                (allDeclaredDeps.has(token) ? token : (tokenPkgBase && allDeclaredDeps.has(tokenPkgBase) ? tokenPkgBase : null)));
+            if (tokenResolvedPackage) {
+              scriptUsages.add(token);
+              scriptPackages.add(tokenResolvedPackage);
+              continue;
+            }
+
             // 3. Skip if it's an internal script reference (trap for "npm test" or direct script calls)
             if (scripts[token]) continue;
 
@@ -583,6 +611,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       for (const dep of Object.keys(dependencies)) {
         if (context.usedPackages?.has(dep)) continue;
+        if (OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
         if (dep === '@types/node') continue;
 
         if (dep.startsWith('@types/')) {
@@ -639,7 +668,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
 
         if (context.usedPackages?.has(dep)) continue;
-
+        if (OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
           if (dep === '@types/node') continue;
