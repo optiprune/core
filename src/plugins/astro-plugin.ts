@@ -52,14 +52,14 @@ function extractPackageName(specifier: string): string | null {
 /**
  * Normalizes and extracts package dependencies from Starlight or Markdoc customCss options
  */
-function markCssDependency(cssEntry: string, adapter: any): void {
+function markCssDependency(cssEntry: string, sourceFileId: string, adapter: any): void {
   if (!cssEntry.startsWith(".") && !cssEntry.startsWith("/")) {
     const pkgName = extractPackageName(cssEntry);
     if (pkgName) {
       adapter.markPackageAsUsed(pkgName);
     }
   } else {
-    adapter.markAsUsed(cssEntry);
+      adapter.markRelativeFileAsUsed(sourceFileId, cssEntry);
   }
 }
 
@@ -369,7 +369,7 @@ export const AstroPlugin: AnalyzerPlugin = {
                 if (prop.key.name === "customCss" && t.isArrayExpression(prop.value)) {
                   for (const el of prop.value.elements) {
                     if (t.isStringLiteral(el)) {
-                      markCssDependency(el.value, adapter);
+                      markCssDependency(el.value, fileId, adapter);
                     }
                   }
                 }

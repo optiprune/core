@@ -428,6 +428,8 @@ export interface PluginAdapter {
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;
   markAsUsed(fileId: string, symbol?: string): void;
+  /** Mark a file reference relative to the source file that declared it. */
+  markRelativeFileAsUsed(sourceFileId: string, referencedPath: string): void;
   /** Mark an object member as consumed by a framework/tool configuration contract. */
   markConfigMemberAsUsed(fileId: string, objectName: string, memberName: string): void;
   /** Check whether a plugin has marked an object member as semantically consumed. */

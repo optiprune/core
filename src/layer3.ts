@@ -324,10 +324,9 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   }
   
   if (node.type === "Identifier") {
-    if (module) {
-      const staticValue = resolveFunctionLiteral(node.name, module);
-      if (staticValue !== null) return encodeLiteral(staticValue, z3);
-    }
+    // Identifier binding is scope-sensitive. Without a lexical resolver, treating
+    // a same-named function declaration as a constant is unsound under shadowing,
+    // parameters, reassignment, and block scope. Keep the value symbolic instead.
     try {
         // Use Real for identifiers to handle both integers and floats in JS
         return z3.Real.const(node.name);

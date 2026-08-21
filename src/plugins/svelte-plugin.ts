@@ -62,18 +62,26 @@ const SVELTEKIT_ROUTE_EXPORTS = new Set([
   "trailingSlash"
 ]);
 
+const svelteKitByRoot = new Map<string, boolean>();
+
+function packageName(specifier: string): string {
+  const parts = specifier.split("/");
+  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0] ?? specifier;
+}
+
 export const SveltePlugin: AnalyzerPlugin = {
   name: "svelte-plugin",
   version: "1.2.0",
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
+    const allDeps = {
+      ...pkg?.dependencies,
+      ...pkg?.devDependencies,
+      ...pkg?.peerDependencies
+    };
+    svelteKitByRoot.set(adapter.getConfig().rootDir, Boolean(allDeps["@sveltejs/kit"]));
     if (pkg) {
-      const allDeps = {
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies
-      };
       if (SVELTE_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
       }
@@ -98,6 +106,7 @@ export const SveltePlugin: AnalyzerPlugin = {
         ...pkg?.devDependencies,
         ...pkg?.peerDependencies
       };
+      svelteKitByRoot.set(adapter.getConfig().rootDir, Boolean(allDeps["@sveltejs/kit"]));
 
       const hasSvelteDep = SVELTE_PACKAGES.some((p) => p in allDeps);
 
@@ -188,7 +197,7 @@ export const SveltePlugin: AnalyzerPlugin = {
           source.startsWith("svelte/") ||
           source.startsWith("@sveltejs/")
         ) {
-          adapter.markPackageAsUsed(source.split("/")[0] ?? source);
+          adapter.markPackageAsUsed(packageName(source));
           adapter.markAsUsed(fileId);
         }
       }
@@ -274,7 +283,7 @@ export const SveltePlugin: AnalyzerPlugin = {
 };
 
 function allDepsHasKit(adapter: any): boolean {
-  return true;
+  return svelteKitByRoot.get(adapter.getConfig().rootDir) ?? false;
 }
 
 export default SveltePlugin;

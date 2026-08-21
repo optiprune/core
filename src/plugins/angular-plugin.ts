@@ -62,7 +62,7 @@ function extractAngularPackageName(specifier: string): string | null {
 /**
  * Inspects @Component decorator metadata objects to extract external templates & styles
  */
-function extractComponentMetadata(metadataObj: any, adapter: any): void {
+function extractComponentMetadata(metadataObj: any, fileId: string, adapter: any): void {
   if (!t.isObjectExpression(metadataObj)) return;
 
   for (const prop of metadataObj.properties) {
@@ -71,19 +71,19 @@ function extractComponentMetadata(metadataObj: any, adapter: any): void {
 
     // templateUrl: './app.component.html'
     if (keyName === "templateUrl" && t.isStringLiteral(prop.value)) {
-      adapter.markAsUsed(prop.value.value);
+      adapter.markRelativeFileAsUsed(fileId, prop.value.value);
     }
 
     // styleUrl: './app.component.scss'
     if (keyName === "styleUrl" && t.isStringLiteral(prop.value)) {
-      adapter.markAsUsed(prop.value.value);
+      adapter.markRelativeFileAsUsed(fileId, prop.value.value);
     }
 
     // styleUrls: ['./app.component.scss', './theme.css']
     if (keyName === "styleUrls" && t.isArrayExpression(prop.value)) {
       for (const el of prop.value.elements) {
         if (t.isStringLiteral(el)) {
-          adapter.markAsUsed(el.value);
+          adapter.markRelativeFileAsUsed(fileId, el.value);
         }
       }
     }
@@ -233,7 +233,7 @@ export const AngularPlugin: AnalyzerPlugin = {
 
             // Extract external template & style assets for @Component
             if (name === "Component" && arg) {
-              extractComponentMetadata(arg, adapter);
+              extractComponentMetadata(arg, fileId, adapter);
             }
           }
         }

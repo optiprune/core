@@ -333,6 +333,16 @@ export class PluginEngine {
           context.usedExports?.add(`${absolutePath}:${symbol}`);
         }
       },
+      markRelativeFileAsUsed: (sourceFileId, referencedPath) => {
+        if (!referencedPath || (!referencedPath.startsWith(".") && !referencedPath.startsWith("/"))) {
+          return;
+        }
+        const absolutePath = path.isAbsolute(referencedPath)
+          ? referencedPath
+          : path.resolve(path.dirname(sourceFileId), referencedPath);
+        context.reachable?.add(absolutePath);
+        context.runtimeUsedFiles?.add(absolutePath);
+      },
       markConfigMemberAsUsed: (fileId, objectName, memberName) => {
         const absolutePath = path.isAbsolute(fileId)
           ? fileId
