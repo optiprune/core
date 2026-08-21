@@ -344,11 +344,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       const adjustedPattern = relativeToRoot
         ? path.posix.join(relativeToRoot, scriptTarget.relativePath)
         : scriptTarget.relativePath;
+      const requestedPattern = relativeToRoot
+        ? path.posix.join(relativeToRoot, scriptTarget.requestedPath)
+        : scriptTarget.requestedPath;
       if (!scriptTarget.exists) {
         missingScriptTargets.push({
           scriptName: scriptTarget.scriptName,
           command: scriptTarget.command,
-          targetPath: adjustedPattern,
+          targetPath: requestedPattern,
           manifestPath: path.join(baseDir, "package.json"),
         });
         continue;

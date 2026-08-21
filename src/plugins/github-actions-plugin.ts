@@ -79,6 +79,37 @@ async function markLocalScript(rawPath: string, adapter: any): Promise<void> {
   }
 }
 
+async function collectLocalActionSetup(
+  rawPath: string,
+  adapter: any,
+  visited: Set<string>,
+  usedActions: Set<string>,
+  setupCommands: Set<string>,
+): Promise<void> {
+  const rootDir = adapter.getConfig().rootDir;
+  const actionRoot = path.resolve(rootDir, rawPath);
+  const actionFile = (await adapter.folderExists(actionRoot))
+    ? (await adapter.folderExists(path.join(actionRoot, "action.yml")) ? path.join(actionRoot, "action.yml") : path.join(actionRoot, "action.yaml"))
+    : actionRoot;
+  if (visited.has(actionFile)) return;
+  visited.add(actionFile);
+  const content = await adapter.readFile(actionFile);
+  if (!content) return;
+  adapter.markAsUsed(actionFile);
+
+  for (const actionMatch of content.matchAll(/uses:\s+([a-zA-Z0-9._\-/]+)/gi)) {
+    const action = actionMatch[1]?.toLowerCase();
+    if (!action) continue;
+    usedActions.add(action);
+    if (action.startsWith("./")) {
+      await collectLocalActionSetup(action, adapter, visited, usedActions, setupCommands);
+    }
+  }
+  for (const command of extractRunCommands(content)) {
+    setupCommands.add(command.toLowerCase());
+  }
+}
+
 async function markRunCommand(command: string, adapter: any): Promise<void> {
   const tokens = commandTokens(command);
   const firstToken = tokens[0];
@@ -194,15 +225,21 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
 
         // 1. Extract used actions from 'uses:' steps
-        const usedActions: string[] = [];
+        const usedActions = new Set<string>();
+        const setupCommands = new Set<string>();
+        const visitedLocalActions = new Set<string>();
         const usesRegex = /uses:\s+([a-zA-Z0-9\-._\/]+)/gi;
         let match: RegExpExecArray | null;
 
         while ((match = usesRegex.exec(content)) !== null) {
           const action = match[1];
           if (action) {
-            usedActions.push(action.toLowerCase());
+            const normalizedAction = action.toLowerCase();
+            usedActions.add(normalizedAction);
             adapter.markPackageAsUsed(action);
+            if (normalizedAction.startsWith("./")) {
+              await collectLocalActionSetup(action, adapter, visitedLocalActions, usedActions, setupCommands);
+            }
           }
         }
 
@@ -223,20 +260,24 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
 
         // 4. Dynamic Tool Setup Checking
         for (const [tool, config] of Object.entries(KNOWN_CLI_TOOLS)) {
-          // Check if tool command is invoked in any run step (e.g. "pnpm ", "pnpm\n", "bun ")
+          // Only shell `run:` steps execute a CLI. Mentions in comments,
+          // `script:` blocks, messages, and documentation are not invocations.
+          const runText = extractRunCommands(content).join("\n");
           const toolRegex = new RegExp(`(?:^|\\s|\\/)${tool}(?:\\s|$)`, "m");
-          const isToolUsed = toolRegex.test(content);
+          const isToolUsed = toolRegex.test(runText);
 
           if (!isToolUsed) continue;
 
           // Verify if the tool is set up via an action
           const hasSetupAction = config.actions.some((actionPattern) =>
-            usedActions.some((action) => action.includes(actionPattern.toLowerCase()))
+            [...usedActions].some((action) => action.includes(actionPattern.toLowerCase()))
           );
 
-          // Verify if the tool is set up via a setup command in `run:`
+          // Verify if the tool is set up via a setup command in this workflow or a
+          // local composite action invoked by it.
+          const setupText = [content.toLowerCase(), ...setupCommands].join("\n");
           const hasSetupCommand = config.setupCommands?.some((cmd) =>
-            content.toLowerCase().includes(cmd.toLowerCase())
+            setupText.includes(cmd.toLowerCase())
           ) ?? false;
 
           // If used but not setup via action or setup command -> emit finding

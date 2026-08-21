@@ -454,6 +454,9 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
   for (const module of modules.values()) {
     // Member Access Tracking within the module
     const localMemberAccess = new Map<string, Set<string>>();
+    // Track local aliases such as `const meta = SITE` so member reads through
+    // an alias are attributed to the original exported object.
+    const localAliases = new Map<string, Set<string>>();
     // Keep type-derived accesses separate from direct identifier accesses. The
     // former can safely be associated with an export in this same module.
     const localTypeMemberAccess = new Map<string, Set<string>>();
@@ -514,8 +517,42 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
       }
       return localInstanceTypes.get(objectName) ?? module.localTypeMap?.[objectName];
     };
+    const recordMemberAccess = (objectName: string, memberName: string): void => {
+      const queue = [objectName];
+      const visited = new Set<string>();
+      while (queue.length > 0) {
+        const currentName = queue.shift()!;
+        if (visited.has(currentName)) continue;
+        visited.add(currentName);
+        if (!localMemberAccess.has(currentName)) localMemberAccess.set(currentName, new Set());
+        localMemberAccess.get(currentName)!.add(memberName);
+        for (const alias of localAliases.get(currentName) ?? []) queue.push(alias);
+      }
+    };
+    const recordWildcardAccess = (objectName: string): void => recordMemberAccess(objectName, "*");
+
     if (module.ast) {
       walkAst(module.ast, (node: any, stack: any[]) => {
+        // Preserve object aliases (`const config = SITE`) for later member reads.
+        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "Identifier") {
+          if (!localAliases.has(node.id.name)) localAliases.set(node.id.name, new Set());
+          localAliases.get(node.id.name)!.add(node.init.name);
+        }
+        // Object spread, enumeration, and serialization consume the entire
+        // object contract; individual properties cannot be proven dead.
+        if (node.type === "SpreadElement" && node.argument?.type === "Identifier") {
+          recordWildcardAccess(node.argument.name);
+        }
+        if (node.type === "ForInStatement" && node.right?.type === "Identifier") {
+          recordWildcardAccess(node.right.name);
+        }
+        if (node.type === "CallExpression" && node.callee?.type === "MemberExpression" &&
+            node.callee.object?.type === "Identifier" && !node.callee.computed &&
+            ["keys", "values", "entries", "assign"].includes(node.callee.property?.name)) {
+          for (const argument of node.arguments ?? []) {
+            if (argument?.type === "Identifier") recordWildcardAccess(argument.name);
+          }
+        }
         if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "NewExpression" && node.init.callee?.type === "Identifier") {
           localInstanceTypes.set(node.id.name, node.init.callee.name);
         }
@@ -564,8 +601,10 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         }
 
         // 2. Track Member Expressions (e.g., Status.Active, user.id, this.items)
-        if (node.type === "MemberExpression" && !node.computed) {
-          const propertyName = node.property?.name || node.property?.value;
+        if (node.type === "MemberExpression") {
+          const propertyName = node.computed
+            ? (node.property?.type === "StringLiteral" || node.property?.type === "Literal" ? node.property.value : undefined)
+            : (node.property?.name || node.property?.value);
           if (propertyName) {
             let objectName: string | undefined;
             if (node.object?.type === "Identifier") {
@@ -581,8 +620,7 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             }
             if (objectName) {
               // Track direct access (Status.Active, Registry.items, this.items).
-              if (!localMemberAccess.has(objectName)) localMemberAccess.set(objectName, new Set());
-              localMemberAccess.get(objectName)!.add(propertyName);
+              recordMemberAccess(objectName, propertyName);
 
               // Track type-aware access (user.id where user is of type User).
               // Preserve a separate map so same-module type usage can later be
@@ -758,8 +796,10 @@ export function buildUsedExports(
           const accessed = usage.memberAccess.get(exp.exportedAs);
           
           if (accessed) {
-            for (const m of accessed) {
-              
+            const membersToMark = accessed.has("*")
+              ? new Set((exp.members ?? []).map((member: any) => member.name))
+              : accessed;
+            for (const m of membersToMark) {
               usedMembers.add(`${targetId}:${exp.exportedAs}:${m}`);
             }
           }
@@ -842,7 +882,10 @@ export function buildUsedExports(
                 // PROPAGATE MEMBER ACCESS THROUGH RE-EXPORTS
                 const accessedInModule = effectiveUsage.memberAccess.get(edge.kind === 'export-all' ? exp.exportedAs : (module.exports.find(e => e.isReExport && e.name === exp.exportedAs)?.exportedAs || ""));
                 if (accessedInModule) {
-                  for (const m of accessedInModule) {
+                  const membersToMark = accessedInModule.has("*")
+                    ? new Set((exp.members ?? []).map((member: any) => member.name))
+                    : accessedInModule;
+                  for (const m of membersToMark) {
                     usedMembers.add(`${targetId}:${exp.exportedAs}:${m}`);
                   }
                 }
@@ -938,7 +981,10 @@ export function buildUsedExports(
         }
       }
 
-      for (const member of accessedMembers) {
+      const membersToMark = accessedMembers.has("*")
+        ? new Set((exp.members ?? []).map((member: any) => member.name))
+        : accessedMembers;
+      for (const member of membersToMark) {
         usedMembers.add(`${moduleId}:${exp.exportedAs}:${member}`);
         usedMembers.add(`${moduleId}:${exp.name}:${member}`);
       }

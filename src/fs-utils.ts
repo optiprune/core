@@ -409,8 +409,56 @@ export async function discoverPackageBinEntryPatterns(rootDir: string): Promise<
 export interface PackageScriptTarget {
   scriptName: string;
   command: string;
+  /** Analyzer entry path: the built target when present, otherwise its source counterpart. */
   relativePath: string;
+  /** Original path written in package.json, preserved for diagnostics. */
+  requestedPath: string;
   exists: boolean;
+}
+
+type ScriptPathConfig = {
+  compilerOptions?: {
+    outDir?: string;
+    rootDir?: string;
+  };
+};
+
+async function sourceCandidatesForScript(rootDir: string, relativePath: string): Promise<string[]> {
+  const candidates = new Set<string>();
+  const normalized = relativePath.replace(/\\/g, "/");
+  const extension = extname(normalized).toLowerCase();
+  const sourceExtensions = SOURCE_EXTENSION_ALIASES.get(extension) ?? [extension];
+  const configs = ["tsconfig.json", "tsconfig.build.json", "tsconfig.app.json", "tsconfig.node.json"];
+
+  for (const configName of configs) {
+    const config = await readJsonFile<ScriptPathConfig>(join(rootDir, configName));
+    const outDir = config?.compilerOptions?.outDir;
+    const rootDirOption = config?.compilerOptions?.rootDir;
+    if (!outDir) continue;
+    const outputRoot = normalizeAbsolute(resolve(rootDir, outDir));
+    const absoluteTarget = normalizeAbsolute(resolve(rootDir, normalized));
+    if (!pathInside(outputRoot, absoluteTarget)) continue;
+    const relativeFromOutput = patheRelative(outputRoot, absoluteTarget);
+    const sourceRoot = normalizeAbsolute(resolve(rootDir, rootDirOption ?? "src"));
+    const sourceStem = resolve(sourceRoot, relativeFromOutput);
+    for (const sourceExtension of sourceExtensions) {
+      candidates.add(toPosix(patheRelative(normalizeAbsolute(rootDir), `${sourceStem.slice(0, -extension.length)}${sourceExtension}`)));
+    }
+  }
+
+  // Common convention fallback for projects that omit outDir/rootDir metadata.
+  const segments = normalized.split("/");
+  const outputIndex = segments.findIndex((segment) => ["dist", "build", "out", "lib"].includes(segment));
+  if (outputIndex >= 0) {
+    const sourceSegments = [...segments];
+    sourceSegments[outputIndex] = "src";
+    const sourceBase = sourceSegments.join("/");
+    for (const sourceExtension of sourceExtensions) {
+      candidates.add(`${sourceBase.slice(0, -extension.length)}${sourceExtension}`);
+    }
+  }
+
+  return [...candidates];
 }
 
 /**
@@ -438,13 +486,25 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
         if (!relativePath || relativePath === ".." || relativePath.startsWith("../") || isAbsolute(relativePath)) continue;
 
         let exists = false;
+        let resolvedRelativePath = relativePath;
         try {
           exists = (await fs.stat(absolutePath)).isFile();
         } catch {
-          // Missing paths are returned so the caller can emit a focused diagnostic.
+          // A build output may be absent while its source entry is present.
+          for (const sourceCandidate of await sourceCandidatesForScript(normalizedRoot, relativePath)) {
+            try {
+              if ((await fs.stat(resolve(normalizedRoot, sourceCandidate))).isFile()) {
+                exists = true;
+                resolvedRelativePath = sourceCandidate;
+                break;
+              }
+            } catch {
+              // Continue checking source candidates.
+            }
+          }
         }
         const key = `${scriptName}\u0000${relativePath}`;
-        targets.set(key, { scriptName, command, relativePath, exists });
+        targets.set(key, { scriptName, command, relativePath: resolvedRelativePath, requestedPath: relativePath, exists });
       }
     }
     return [...targets.values()];
