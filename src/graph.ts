@@ -108,13 +108,36 @@ function resolveEdge(
     }
   }
 
-  // 3. Try baseUrl resolution (non-relative imports)
+  // 3. Try Node.js package.json#imports aliases. These aliases are internal
+  // module specifiers and must be resolved before falling back to an external
+  // package; otherwise Layer 6 emits a false missing-dependency finding.
+  if (!target && edge.rawSpecifier.startsWith("#")) {
+    const aliases = [...(options.packageImports ?? new Map<string, string[]>()).entries()].sort(([left], [right]) => right.length - left.length);
+    for (const [alias, targets] of aliases) {
+      const wildcardIndex = alias.indexOf("*");
+      const matched = wildcardIndex >= 0
+        ? edge.rawSpecifier.startsWith(alias.slice(0, wildcardIndex)) && edge.rawSpecifier.endsWith(alias.slice(wildcardIndex + 1))
+        : edge.rawSpecifier === alias;
+      if (!matched) continue;
+      const wildcardValue = wildcardIndex >= 0
+        ? edge.rawSpecifier.slice(alias.slice(0, wildcardIndex).length, edge.rawSpecifier.length - alias.slice(wildcardIndex + 1).length)
+        : "";
+      for (const candidate of targets) {
+        const substituted = wildcardIndex >= 0 ? candidate.replace(/\*/g, wildcardValue) : candidate;
+        target = resolveLocalSpecifier(source.id, substituted, knownFiles, options.extensions);
+        if (target) break;
+      }
+      if (target) break;
+    }
+  }
+
+  // 4. Try baseUrl resolution (non-relative imports)
   if (!target && options.baseUrl && !edge.rawSpecifier.startsWith(".") && !path.isAbsolute(edge.rawSpecifier)) {
     const absoluteTarget = path.resolve(options.rootDir, options.baseUrl, edge.rawSpecifier);
     target = resolveLocalSpecifier(source.id, absoluteTarget, knownFiles, options.extensions);
   }
 
-  // 4. Try Monorepo Workspace resolution
+  // 5. Try Monorepo Workspace resolution
   if (!target && options.monorepo) {
     // Check if the specifier starts with a workspace package name
     for (const [pkgName, pkg] of options.monorepo.packageMap.entries()) {

@@ -28,6 +28,7 @@ import {
   discoverPackageScriptTargets,
   discoverSourceFiles,
   expandEntryPatterns,
+  ingestPackageImports,
   ingestTsConfigPaths,
   normalizeAbsolute,
   matchesAnyGlob,
@@ -150,6 +151,7 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
   }
 
   const { paths: pathAliases, baseUrl } = await ingestTsConfigPaths(rootDir);
+  const packageImports = await ingestPackageImports(rootDir);
 
   return {
     ...merged,
@@ -157,6 +159,7 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
     // DEFAULT_IGNORE is already baked into mergeConfig; avoid doubling it.
     ignore: merged.ignore,
     pathAliases,
+    packageImports,
     baseUrl,
   } as ResolvedOptions;
 }

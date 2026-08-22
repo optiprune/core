@@ -312,6 +312,8 @@ export interface ResolvedOptions {
   ignoreUnknownImport: boolean;
   monorepo?: MonorepoGraph;
   pathAliases: Map<string, string[]>;
+  /** Node.js package.json#imports aliases, resolved to project-local targets. */
+  packageImports: Map<string, string[]>;
   baseUrl?: string;
   externalContracts: string[];
   verbose: boolean;

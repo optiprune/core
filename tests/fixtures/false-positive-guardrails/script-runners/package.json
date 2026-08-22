@@ -1,0 +1,9 @@
+{
+  "name": "script-runners-guardrail",
+  "type": "module",
+  "scripts": {
+    "seed": "tsx scripts/seed.tsx",
+    "start": "node --import ./scripts/register.mjs ./scripts/main.mjs"
+  },
+  "devDependencies": { "tsx": "1.0.0" }
+}

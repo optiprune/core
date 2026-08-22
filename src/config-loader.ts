@@ -53,6 +53,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   protectedExportPatterns: [],
   frameworks: [],
   pathAliases: new Map<string, string[]>(),
+  packageImports: new Map<string, string[]>(),
   layers: {
     smtTimeoutMs: 100,
     isolateMemoryLimitMb: 16,

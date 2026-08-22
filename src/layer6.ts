@@ -244,7 +244,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
   const lockfileGraph = buildLockfileGraph(projectRoot);
   const packageImportMap = new Map<string, Set<string>>();
+  const packageImportFiles = new Map<string, Map<string, Set<string>>>();
   const globalImports = new Set<string>();
+  const reachableGlobalImports = new Set<string>();
   const workspacePackageNames = new Set<string>(context.options.monorepo?.packageMap.keys() ?? []);
 
   const projectHasTypesNode = Array.from(context.modules.keys()).some(f => {
@@ -283,6 +285,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
     const pkgImports = packageImportMap.get(ownerPackage) || new Set<string>();
     if (!packageImportMap.has(ownerPackage)) packageImportMap.set(ownerPackage, pkgImports);
+    const packageFiles = packageImportFiles.get(ownerPackage) || new Map<string, Set<string>>();
+    if (!packageImportFiles.has(ownerPackage)) packageImportFiles.set(ownerPackage, packageFiles);
+    const moduleIsReachable = context.reachable.has(module.id) || context.maybeReachable.has(module.id);
 
     for (const edge of module.edges) {
       if (edge.resolution === 'external') {
@@ -301,12 +306,17 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (pkgName && !NODE_BUILTINS.has(pkgName) && !NODE_BUILTINS.has(`node:${pkgName}`)) {
           pkgImports.add(pkgName);
           globalImports.add(pkgName);
+          const importingFiles = packageFiles.get(pkgName) || new Set<string>();
+          importingFiles.add(module.id);
+          packageFiles.set(pkgName, importingFiles);
+          if (moduleIsReachable) reachableGlobalImports.add(pkgName);
         }
       } else if (edge.resolution === 'resolved' && edge.target && context.options.monorepo) {
         for (const [pkgName, pkg] of context.options.monorepo.packageMap.entries()) {
           if (edge.target.startsWith(pkg.location + path.sep) || edge.target === pkg.location) {
             pkgImports.add(pkgName);
             globalImports.add(pkgName);
+            if (moduleIsReachable) reachableGlobalImports.add(pkgName);
             break;
           }
         }
@@ -355,6 +365,16 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const workspaceHasTypeScriptSources = isRootMonorepoManifest && Array.from(context.modules.keys()).some(
         (fileId) => /\.(?:ts|tsx|mts|cts)$/.test(fileId),
       );
+      const importFilesFor = (dependency: string): string[] => Array.from(
+        packageImportFiles.get(pkgName)?.get(dependency) ?? [],
+      );
+      const hasReachableImport = (dependency: string): boolean => importFilesFor(dependency).some(
+        (fileId) => context.reachable.has(fileId) || context.maybeReachable.has(fileId),
+      );
+      const onlyUsedByUnreachableFiles = (dependency: string): string[] => {
+        const files = importFilesFor(dependency);
+        return files.length > 0 && !hasReachableImport(dependency) ? files : [];
+      };
 
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
@@ -617,8 +637,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (dep.startsWith('@types/')) {
           const basePkg = dep.slice(7).replace('__', '/');
           if (
-            importedInThisPackage.has(basePkg) ||
-            globalImports.has(basePkg) ||
+            hasReachableImport(basePkg) ||
+            reachableGlobalImports.has(basePkg) ||
             (isRootMonorepoManifest && workspaceDeclares(basePkg)) ||
             dependencies[basePkg] ||
             devDependencies[basePkg]
@@ -641,7 +661,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
         const isUsed = isMarkedUsed ||
-          importedInThisPackage.has(dep) ||
+          hasReachableImport(dep) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||
           scriptPackages.has(dep) ||
@@ -657,7 +677,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             confidence: 'high',
             message: `Package '${dep}' is declared as a dependency in ${relativeManifest} but never imported or used in scripts.`,
             file: relativeManifest,
-            evidence: { package: dep, type: 'dependency' }
+            evidence: {
+              package: dep,
+              type: 'dependency',
+              ...(onlyUsedByUnreachableFiles(dep).length > 0 && {
+                onlyUsedByUnreachableFiles: true,
+                removalRequiresFiles: onlyUsedByUnreachableFiles(dep),
+              }),
+            }
           });
         }
       }
@@ -673,8 +700,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           const basePkg = dep.slice(7).replace('__', '/');
           if (dep === '@types/node') continue;
           if (
-            importedInThisPackage.has(basePkg) ||
-            globalImports.has(basePkg) ||
+            hasReachableImport(basePkg) ||
+            reachableGlobalImports.has(basePkg) ||
             (isRootMonorepoManifest && workspaceDeclares(basePkg)) ||
             dependencies[basePkg] ||
             devDependencies[basePkg]
@@ -697,8 +724,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }) || (dep === 'husky' && fs.existsSync(path.join(projectRoot, '.husky')));
 
         const isUsed = isMarkedUsed ||
-          importedInThisPackage.has(dep) ||
-          (isRootMonorepoManifest && globalImports.has(dep)) ||
+          hasReachableImport(dep) ||
+          (isRootMonorepoManifest && reachableGlobalImports.has(dep)) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||
           scriptPackages.has(dep) ||
@@ -714,7 +741,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             confidence: 'medium',
             message: `DevDependency '${dep}' in ${relativeManifest} appears unused.`,
             file: relativeManifest,
-            evidence: { package: dep, type: 'devDependency' }
+            evidence: {
+              package: dep,
+              type: 'devDependency',
+              ...(onlyUsedByUnreachableFiles(dep).length > 0 && {
+                onlyUsedByUnreachableFiles: true,
+                removalRequiresFiles: onlyUsedByUnreachableFiles(dep),
+              }),
+            }
           });
         }
       }

@@ -1,0 +1,6 @@
+{
+  "name": "conditional-dependencies-guardrail",
+  "type": "module",
+  "dependencies": { "only-dead": "1.0.0" },
+  "devDependencies": { "only-dead-tool": "1.0.0" }
+}

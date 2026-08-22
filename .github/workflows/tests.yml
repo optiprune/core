@@ -47,7 +47,7 @@ jobs:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty ignore-unknown-import config-loader
+      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty ignore-unknown-import config-loader false-positive-guardrails
   Framework-Lab:
     runs-on: ubuntu-latest
     permissions:

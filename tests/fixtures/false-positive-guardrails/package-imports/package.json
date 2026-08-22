@@ -1,0 +1,5 @@
+{
+  "name": "package-imports-guardrail",
+  "type": "module",
+  "imports": { "#config": "./src/config.js" }
+}

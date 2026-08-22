@@ -367,6 +367,32 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
   });
   if (fixableFindings.length === 0) return 0;
 
+  // A dependency imported only by unreachable files is a valid reportable
+  // cleanup candidate, but it is not independently safe to remove. Retain it
+  // until every supporting file is either selected for deletion in this run or
+  // is already absent from disk.
+  const scheduledFileRemovals = new Set(
+    fixableFindings
+      .filter((finding) => finding.rule === "unreachable-file")
+      .map((finding) => path.resolve(rootDir, finding.file)),
+  );
+  const canRemoveConditionalDependency = async (finding: Finding): Promise<boolean> => {
+    const requiredFiles = finding.evidence?.removalRequiresFiles;
+    if (!Array.isArray(requiredFiles) || requiredFiles.length === 0) return true;
+    for (const file of requiredFiles) {
+      if (typeof file !== "string" || !file) return false;
+      const absoluteFile = path.resolve(rootDir, file);
+      if (scheduledFileRemovals.has(absoluteFile)) continue;
+      try {
+        await fs.access(absoluteFile);
+        return false;
+      } catch {
+        // The file has already been removed, so it cannot retain the dependency.
+      }
+    }
+    return true;
+  };
+
   const findingsByFile = new Map<string, Finding[]>();
   for (const finding of fixableFindings) {
     const list = findingsByFile.get(finding.file) ?? [];
@@ -374,11 +400,22 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
     findingsByFile.set(finding.file, list);
   }
 
-  for (const [file, findings] of findingsByFile) {
+  const orderedFiles = [...findingsByFile.entries()].sort(([left], [right]) => {
+    const leftIsManifest = left === "package.json" || left.endsWith("/package.json");
+    const rightIsManifest = right === "package.json" || right.endsWith("/package.json");
+    return Number(leftIsManifest) - Number(rightIsManifest);
+  });
+
+  for (const [file, findings] of orderedFiles) {
     const absolutePath = path.resolve(rootDir, file);
     if (dryRun) {
-      console.error(`[Fixer] [Dry Run] Would fix ${findings.length} issues in ${file}`);
-      fixesApplied += findings.length;
+      const eligibleFindings = await Promise.all(findings.map(async (finding) => {
+        if (finding.rule !== "unused-dependency" && finding.rule !== "unused-dev-dependency") return true;
+        return canRemoveConditionalDependency(finding);
+      }));
+      const eligibleCount = eligibleFindings.filter(Boolean).length;
+      console.error(`[Fixer] [Dry Run] Would fix ${eligibleCount} issue(s) in ${file}`);
+      fixesApplied += eligibleCount;
       continue;
     }
 
@@ -406,7 +443,11 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
       const pkg = await readJsonFile<any>(absolutePath);
       if (!pkg) continue;
       for (const finding of findings) {
-        if ((finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency") && finding.evidence?.package) {
+        if (
+          (finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency") &&
+          finding.evidence?.package &&
+          await canRemoveConditionalDependency(finding)
+        ) {
           const section = finding.rule === "unused-dev-dependency" ? "devDependencies" : "dependencies";
           const packageName = finding.evidence.package as string;
           if (pkg[section]?.[packageName]) {

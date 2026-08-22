@@ -480,7 +480,7 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
     const targets = new Map<string, PackageScriptTarget>();
     for (const [scriptName, command] of Object.entries(scripts as Record<string, unknown>)) {
       if (typeof command !== "string") continue;
-      for (const target of extractNodeScriptTargets(command)) {
+      for (const target of extractScriptRunnerTargets(command)) {
         if (target.includes("$") || target.includes("`")) continue;
         const absolutePath = normalizeAbsolute(resolve(normalizedRoot, target));
         const relativePath = toPosix(patheRelative(normalizedRoot, absolutePath));
@@ -514,14 +514,15 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
   }
 }
 
-function extractNodeScriptTargets(command: string): string[] {
+function extractScriptRunnerTargets(command: string): string[] {
   const tokens = tokenizeShellCommand(command);
   const targets: string[] = [];
   for (let index = 0; index < tokens.length; index += 1) {
     const runner = tokens[index];
     const isNode = runner === "node" || runner === "nodejs";
     const isBun = runner === "bun";
-    if (!isNode && !isBun) continue;
+    const isTypeScriptRunner = runner === "tsx" || runner === "ts-node" || runner === "ts-node-esm";
+    if (!isNode && !isBun && !isTypeScriptRunner) continue;
 
     for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
       const token = tokens[cursor];
@@ -538,7 +539,15 @@ function extractNodeScriptTargets(command: string): string[] {
         cursor += 1;
         continue;
       }
-      if (token === "-r" || token === "--require" || token === "--loader" || token === "--import" || token === "--conditions" || token === "--experimental-loader") {
+      if (token === "-r" || token === "--require" || token === "--loader" || token === "--import" || token === "--experimental-loader") {
+        const preload = tokens[cursor + 1];
+        // Local preloads execute before the main program and are genuine runtime
+        // roots. Bare package preloads remain dependency evidence, not files.
+        if (preload && (preload.startsWith(".") || preload.startsWith("/"))) targets.push(preload);
+        cursor += 1;
+        continue;
+      }
+      if (token === "--conditions") {
         cursor += 1;
         continue;
       }
@@ -734,6 +743,35 @@ export function relativeDisplayPath(rootDir: string, candidate: string): string 
 
 export async function rootLooksValid(rootDir: string): Promise<boolean> {
   return directoryExists(rootDir);
+}
+
+type PackageImportValue = string | { [condition: string]: PackageImportValue };
+
+/**
+ * Load project-local Node.js `package.json#imports` aliases without executing
+ * configuration code. Conditional targets are retained in declaration order;
+ * external/package targets are deliberately excluded because they are not
+ * project modules.
+ */
+export async function ingestPackageImports(rootDir: string): Promise<Map<string, string[]>> {
+  const aliases = new Map<string, string[]>();
+  const packageJson = await readJsonFile<{ imports?: Record<string, PackageImportValue> }>(join(rootDir, "package.json"));
+  const collectLocalTargets = (value: PackageImportValue | undefined, collected: string[]): void => {
+    if (typeof value === "string") {
+      if (value.startsWith(".")) collected.push(normalizeAbsolute(resolve(rootDir, value)));
+      return;
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    for (const nested of Object.values(value)) collectLocalTargets(nested, collected);
+  };
+
+  for (const [alias, value] of Object.entries(packageJson?.imports ?? {})) {
+    if (!alias.startsWith("#")) continue;
+    const targets: string[] = [];
+    collectLocalTargets(value, targets);
+    if (targets.length > 0) aliases.set(alias, Array.from(new Set(targets)));
+  }
+  return aliases;
 }
 
 type TsConfigReference = string | { path?: string };

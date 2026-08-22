@@ -1,0 +1,5 @@
+{
+  "name": "require-resolve-guardrail",
+  "type": "commonjs",
+  "dependencies": { "fixture-tool": "1.0.0" }
+}

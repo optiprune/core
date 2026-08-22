@@ -432,6 +432,14 @@ function isRequireCall(node: AstNode): boolean {
   return node.type === "CallExpression" && nodeIdentifierName(node.callee) === "require";
 }
 
+function isRequireResolveCall(node: AstNode): boolean {
+  return node.type === "CallExpression" &&
+    isNode(node.callee) &&
+    node.callee.type === "MemberExpression" &&
+    nodeIdentifierName(node.callee.object) === "require" &&
+    nodeIdentifierName(node.callee.property) === "resolve";
+}
+
 function isDynamicImportCall(node: AstNode): boolean {
   return (
     node.type === "ImportExpression" ||
@@ -766,7 +774,7 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
       return;
     }
 
-    if (isRequireCall(node)) {
+    if (isRequireCall(node) || isRequireResolveCall(node)) {
       const specifier = nodeStringValue(asArray(node.arguments)[0]);
       if (specifier) {
         addEdge(edges, file, specifier, "require", node, ["*"]);
@@ -1110,7 +1118,7 @@ function fallbackEdges(sourceText: string, file: string): DependencyEdge[] {
   const patterns: Array<{ regex: RegExp; kind: DependencyEdge["kind"] }> = [
     { regex: /\bimport\s+["']([^"'\n]+)["']/g, kind: "import" }, // side-effect import
     { regex: /\bexport\s+(?:\*|\{[^}]*\})\s+from\s+["']([^"'\n]+)["']/g, kind: "export-from" },
-    { regex: /\brequire\s*\(\s*["']([^"'\n]+)["']\s*\)/g, kind: "require" },
+    { regex: /\brequire(?:\.resolve)?\s*\(\s*["']([^"'\n]+)["']\s*\)/g, kind: "require" },
     { regex: /\bimport\s*\(\s*["']([^"'\n]+)["']\s*\)/g, kind: "dynamic-literal" },
   ];
   for (const { regex, kind } of patterns) {
