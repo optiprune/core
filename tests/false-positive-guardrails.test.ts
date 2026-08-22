@@ -55,6 +55,8 @@ describe("false-positive guardrails", () => {
     const root = await copyFixture("conditional-dependencies");
     const report = await analyze({ rootDir: root, extensions: [".ts"], layers: { skip3: true, skip4: true } });
 
+    expect(isFinding(report, "missing-dependency", (finding) => finding.evidence.package === "missing-only-dead")).toBe(false);
+
     for (const dependency of ["only-dead", "only-dead-tool"]) {
       const finding = report.findings.find((candidate) =>
         (candidate.rule === "unused-dependency" || candidate.rule === "unused-dev-dependency") &&

@@ -317,6 +317,18 @@ function conditionEdit(source: string, finding: Finding, used: Set<number>): Tex
   return { start: region.start, end: region.thenEnd + 1, replacement: "" };
 }
 
+function sourceFindingLabel(finding: Finding): string {
+  const exportName = typeof finding.evidence?.exportName === "string" ? finding.evidence.exportName : undefined;
+  const memberName = typeof finding.evidence?.memberName === "string" ? finding.evidence.memberName : undefined;
+  if (finding.rule === "unused-member" && exportName && memberName) return `${exportName}.${memberName}`;
+  if (exportName) return exportName;
+  return finding.rule;
+}
+
+function sourceFindingStatus(source: string, finding: Finding): "removed" | "edited" {
+  return finding.rule === "unused-export" && !isUsedInSameFile(source, finding) ? "removed" : "edited";
+}
+
 function buildSourceEdits(source: string, file: string, findings: Finding[], force: boolean): TextEdit[] {
   const edits: TextEdit[] = [];
   const usedConditions = new Set<number>();
@@ -434,6 +446,7 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
             await fs.writeFile(absolutePath, repaired);
             changed = true;
             fixesApplied++;
+            console.error(`[Fixer] ${file} (edited)`);
           }
         } catch {
           // A concurrent file change or an unsafe document leaves the manifest untouched.
@@ -454,6 +467,7 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
             delete pkg[section][packageName];
             changed = true;
             fixesApplied++;
+            console.error(`[Fixer] ${file} -> ${packageName} (removed)`);
           }
         }
       }
@@ -465,6 +479,7 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
       try {
         await fs.unlink(absolutePath);
         fixesApplied++;
+        console.error(`[Fixer] ${file} (removed)`);
       } catch {
         // The file may already have been removed by another finding.
       }
@@ -479,6 +494,11 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
     if (dryRun) continue;
     await fs.writeFile(absolutePath, applyEdits(source, edits));
     fixesApplied += edits.length;
+    for (const finding of sourceFindings) {
+      const label = sourceFindingLabel(finding);
+      const status = sourceFindingStatus(source, finding);
+      console.error(`[Fixer] ${file}:${label} (${status})`);
+    }
   }
 
   return fixesApplied;

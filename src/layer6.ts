@@ -591,7 +591,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
-        if (!allDeclaredDeps.has(imp) && !workspacePackageNames.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':')) {
+        if (!allDeclaredDeps.has(imp) && !workspacePackageNames.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':') && hasReachableImport(imp)) {
           findings.push({
             rule: 'missing-dependency',
             severity: 'error',
