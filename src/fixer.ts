@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "pathe";
 import { AnalysisReport, Finding, FixConfig } from "./types.js";
 import { readJsonFile } from "./fs-utils.js";
+import { repairJsonDocument } from "./json-utils.js";
 
 const CONFIDENCE_LEVELS: Record<string, number> = {
   low: 1,
@@ -14,6 +15,7 @@ const DEFAULT_SAFE_RULES = new Set([
   "unreachable-file",
   "unused-dependency",
   "unused-dev-dependency",
+  "parse-recovery",
 ]);
 
 const SUPPORTED_SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".vue"]);
@@ -39,6 +41,7 @@ function isRequestedRule(allowedRules: Set<string>, rule: string): boolean {
   if (allowedRules.has("devDependencies") && rule === "unused-dev-dependency") return true;
   if (allowedRules.has("exports") && (rule === "unused-export" || rule === "unused-member")) return true;
   if (allowedRules.has("conditions") && rule === "constant-condition") return true;
+  if (allowedRules.has("json") && rule === "parse-recovery") return true;
   return false;
 }
 
@@ -380,9 +383,28 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
     }
 
     if (file === "package.json" || file.endsWith("/package.json")) {
+      let changed = false;
+      const repairFinding = findings.find((finding) =>
+        finding.rule === "parse-recovery" &&
+        finding.evidence?.kind === "json-parse" &&
+        finding.evidence?.repairable === true,
+      );
+      if (repairFinding) {
+        try {
+          const original = await fs.readFile(absolutePath, "utf8");
+          const repaired = repairJsonDocument(original);
+          if (repaired && repaired !== original) {
+            await fs.writeFile(absolutePath, repaired);
+            changed = true;
+            fixesApplied++;
+          }
+        } catch {
+          // A concurrent file change or an unsafe document leaves the manifest untouched.
+        }
+      }
+
       const pkg = await readJsonFile<any>(absolutePath);
       if (!pkg) continue;
-      let changed = false;
       for (const finding of findings) {
         if ((finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency") && finding.evidence?.package) {
           const section = finding.rule === "unused-dev-dependency" ? "devDependencies" : "dependencies";

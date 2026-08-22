@@ -32,6 +32,7 @@ import {
   normalizeAbsolute,
   matchesAnyGlob,
   readJsonFile,
+  readJsonFileWithDiagnostics,
   relativeDisplayPath,
   rootLooksValid,
 } from "./fs-utils.js";
@@ -189,6 +190,15 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   if (!(await rootLooksValid(rootDir))) {
     throw new Error(`Root directory does not exist: ${rootDir}`);
   }
+
+  // Parse the root package manifest once with diagnostics. Safe JSONC-style
+  // recovery keeps dependency analysis available while preserving actionable
+  // errors for malformed manifests.
+  const packageJsonPath = path.join(rootDir, "package.json");
+  const packageJsonRead = await readJsonFileWithDiagnostics<Record<string, unknown>>(packageJsonPath);
+  const packageJsonDiagnostics = packageJsonRead?.diagnostics ?? [];
+  const packageJsonRecovered = packageJsonRead?.recovered ?? false;
+  const packageJsonRepairable = packageJsonRead?.repairable ?? false;
 
   // ── RUN PLUGIN ENGINE INIT BEFORE FILE DISCOVERY ───────────────────────────
   // Initialize early context and run PluginEngine so CustomConfigPlugin can populate
@@ -429,6 +439,22 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   const findings: Finding[] = [];
+  for (const diagnostic of packageJsonDiagnostics) {
+    findings.push({
+      rule: "parse-recovery",
+      severity: packageJsonRecovered ? "warning" : "error",
+      confidence: "high",
+      message: `Invalid package.json: ${diagnostic.message} (${diagnostic.code}).`,
+      file: relativeDisplayPath(rootDir, packageJsonPath),
+      location: diagnostic.location,
+      evidence: {
+        kind: "json-parse",
+        code: diagnostic.code,
+        excerpt: diagnostic.excerpt,
+        repairable: packageJsonRepairable,
+      },
+    });
+  }
   for (const missing of missingScriptTargets) {
     findings.push({
       rule: "missing-script-target",
@@ -844,6 +870,18 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     warnings: findings.filter((f) => f.severity === "warning").length,
   };
 
+  const modulesByStatus: Record<ModuleRecord["parseStatus"], number> = {
+    parsed: 0,
+    recovered: 0,
+    fallback: 0,
+  };
+  let parserDiagnosticCount = 0;
+  for (const module of modules.values()) {
+    modulesByStatus[module.parseStatus] += 1;
+    parserDiagnosticCount += module.parseDiagnostics.length;
+  }
+  const verboseJsonDebug = resolvedOptions.verbose && resolvedOptions.output === "json";
+
   const report: AnalysisReport = {
     version: VERSION,
     rootDir,
@@ -860,6 +898,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     modules: [...modules.values()].map((module) => ({
       path: relativeDisplayPath(rootDir, module.id),
       parseStatus: module.parseStatus,
+      parseDiagnostics: module.parseDiagnostics.map((diagnostic) => ({
+        ...diagnostic,
+        file: relativeDisplayPath(rootDir, diagnostic.file),
+      })),
       exports: module.exports.map((e) => {
         const confidence = context.usedExportConfidence.get(`${module.id}:${e.exportedAs}`);
         const isUsed = context.usedExports.has(`${module.id}:${e.exportedAs}`) || confidence !== undefined;
@@ -887,6 +929,25 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       modules: c.modules.map((m) => relativeDisplayPath(rootDir, m)),
       isCycle: c.isCycle,
     })),
+    ...(verboseJsonDebug && {
+      debug: {
+        json: {
+          diagnostics: packageJsonDiagnostics.map((diagnostic) => ({
+            file: relativeDisplayPath(rootDir, packageJsonPath),
+            code: diagnostic.code,
+            message: diagnostic.message,
+            location: diagnostic.location,
+            excerpt: diagnostic.excerpt,
+            recovered: packageJsonRecovered,
+            repairable: packageJsonRepairable,
+          })),
+        },
+        parser: {
+          modulesByStatus,
+          diagnostics: parserDiagnosticCount,
+        },
+      },
+    }),
   };
 
   // Support automated fixes

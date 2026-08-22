@@ -277,6 +277,11 @@ function locationAtOffset(source: string, offset: number): Range {
   };
 }
 
+function excerptAtPosition(source: string, position: Position | undefined): string | undefined {
+  if (!position || position.line < 1) return undefined;
+  return source.split("\n")[position.line - 1]?.trimEnd();
+}
+
 function nodeStringValue(node: unknown): string | undefined {
   if (!isNode(node)) {
     return undefined;
@@ -542,6 +547,7 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
     const diagnostic: ParseDiagnostic = {
       message: typeof candidate.message === "string" ? candidate.message : "Recoverable parser error",
       file,
+      code: "YukuParserError",
       recovered: true,
     };
     if (typeof candidate.loc?.line === "number" && typeof candidate.loc?.column === "number") {
@@ -549,6 +555,8 @@ function extractAstModule(sourceText: string, file: string, ast: AstNode, parser
         start: { line: candidate.loc.line, column: candidate.loc.column },
         end: { line: candidate.loc.line, column: candidate.loc.column + 1 },
       };
+      const excerpt = excerptAtPosition(sourceText, diagnostic.location.start);
+      if (excerpt !== undefined) diagnostic.excerpt = excerpt;
     }
     return diagnostic;
   });
@@ -1197,21 +1205,28 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
   };
 }
 
-function fallbackModule(sourceText: string, file: string, reason: unknown): ModuleRecord {
+function fallbackModule(
+  sourceText: string,
+  file: string,
+  reason: unknown,
+  diagnostics: ParseDiagnostic[] = [],
+): ModuleRecord {
   const originalMessage = reason instanceof Error ? reason.message : "Parser could not recover this file";
+  const parseDiagnostics = diagnostics.length > 0
+    ? diagnostics.map((diagnostic) => ({ ...diagnostic, file, recovered: false }))
+    : [{
+        message: `${originalMessage} (Module parse failed; a conservative fallback was used)`,
+        file,
+        code: "YukuParserError",
+        recovered: false,
+      }];
   return {
     id: file,
     relativePath: file,
     parseStatus: "fallback",
     parserBackend: "regex",
 
-    parseDiagnostics: [
-      {
-        message: `${originalMessage} (Module parse failed, using regex fallback)`,
-        file,
-        recovered: false,
-      },
-    ],
+    parseDiagnostics,
     sourceText,
     exports: fallbackExports(sourceText, file),
     edges: fallbackEdges(sourceText, file),
@@ -1299,20 +1314,25 @@ export function parseModule(
     setYukuSource(textToParse);
     const result = parseWithYukuBackend(textToParse, { lang, sourceType, semanticErrors: false, attachComments: true });
 
-    const parserErrors = result.diagnostics
+    const parserErrors: ParseDiagnostic[] = result.diagnostics
       .filter((d) => d.severity === "error")
-      .map((d) => ({
-        message: d.message,
-        loc: d.start != null ? (() => {
-          const pos = offsetToPosition(d.start as number);
-          return { line: pos.line, column: pos.column };
-        })() : undefined,
-      }));
+      .map((d) => {
+        const location = d.start != null ? locationAtOffset(textToParse, d.start) : undefined;
+        const excerpt = location ? excerptAtPosition(textToParse, location.start) : undefined;
+        return {
+          message: d.message,
+          file,
+          code: "YukuParserError",
+          recovered: false,
+          ...(location && { location }),
+          ...(excerpt !== undefined && { excerpt }),
+        };
+      });
     
-    if (result.diagnostics?.some(d => d.severity === 'error')) {
-      const firstError = result.diagnostics[0]?.message ?? "Unknown parse error";
-      // Even on failure, use the processed text for fallback analysis to avoid HTML tags
-      const mod = fallbackModule(textToParse, file, new Error("Parse failed: " + firstError));
+    if (parserErrors.length > 0) {
+      const firstError = parserErrors[0]?.message ?? "Unknown parse error";
+      // Even on failure, use the processed text for fallback analysis to avoid HTML tags.
+      const mod = fallbackModule(textToParse, file, new Error("Parse failed: " + firstError), parserErrors);
       // Requirement: Don't show parse errors for custom file endings like .astro, .svelte, .vue
       if (isSfcPath(file)) {
         mod.hasParseError = false;

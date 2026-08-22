@@ -28,6 +28,10 @@ export interface ParseDiagnostic {
   message: string;
   file: string;
   location?: Range;
+  /** Stable parser-specific identifier when one is available. */
+  code?: string;
+  /** The affected source line, when it can be determined safely. */
+  excerpt?: string;
   recovered: boolean;
 }
 
@@ -219,10 +223,11 @@ export interface FixConfig {
    */
   confidence?: 'high' | 'medium+' | 'low' | 'low+' | 'all';
   /**
-   * Rules to fix. If omitted, only dependency and unreachable-file fixes are
-   * enabled. Source-level rules are opt-in via `exports`; SFC exports and
-   * unsupported syntax remain unchanged when they cannot be located safely.
-   * Example: ['exports', 'files', 'dependencies', 'devDependencies']
+   * Rules to fix. If omitted, dependency, development-dependency,
+   * unreachable-file, and safely recoverable package.json fixes are enabled.
+   * Source-level rules are opt-in via `exports`; SFC exports and unsupported
+   * syntax remain unchanged when they cannot be located safely.
+   * Example: ['exports', 'files', 'dependencies', 'devDependencies', 'json']
    */
   rules?: string[];
   /**
@@ -345,15 +350,39 @@ export interface AnalysisSummary {
   warnings: number;
 }
 
+export interface AnalysisJsonDebugDiagnostic {
+  file: string;
+  code: string;
+  message: string;
+  location: Range;
+  excerpt: string;
+  recovered: boolean;
+  repairable: boolean;
+}
+
+export interface AnalysisDebugInfo {
+  json: {
+    diagnostics: AnalysisJsonDebugDiagnostic[];
+  };
+  parser: {
+    modulesByStatus: Record<ParseStatus, number>;
+    diagnostics: number;
+  };
+}
+
 export interface AnalysisReport {
   version: string;
   rootDir: string;
   entryPoints: string[];
   summary: AnalysisSummary;
   findings: Finding[];
+  /** Present only when verbose JSON output is requested. */
+  debug?: AnalysisDebugInfo;
     modules: Array<{
     path: string;
     parseStatus: ParseStatus;
+    /** Parser diagnostics retain their source locations for JSON consumers. */
+    parseDiagnostics: ParseDiagnostic[];
     exports: Array<{
       name: string;
       exportedAs: string;

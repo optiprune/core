@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { parseJsonDocument, type JsonParseResult } from "./json-utils.js";
 import {
   normalize,
   resolve,
@@ -692,34 +693,23 @@ export function normalizedConventionalEntryPatterns(): string[] {
   ];
 }
 
-export async function readJsonFile<T>(candidate: string): Promise<T | undefined> {
+/**
+ * Reads JSON using the structured parser. JSONC syntax and a small set of
+ * unambiguous structural omissions are recovered; malformed values are never
+ * exposed to analysis callers as partially parsed objects.
+ */
+export async function readJsonFileWithDiagnostics<T>(candidate: string): Promise<JsonParseResult<T> | undefined> {
   try {
-    let rawContent = await fs.readFile(candidate, "utf8");
-    
-    // Strip UTF-8 BOM
-    if (rawContent.charCodeAt(0) === 0xFEFF) {
-      rawContent = rawContent.slice(1);
-    }
-
-    rawContent = rawContent.trim();
-
-    try {
-      // Strip comments for JSONC support (common in tsconfig.json)
-      const stripped = rawContent
-        .replace(/\/\/.*$/gm, "") // Strip single line comments
-        .replace(/\/\*[\s\S]*?\*\//g, ""); // Strip multi-line comments
-      return JSON.parse(stripped) as T;
-    } catch {
-      // Fallback for literal escaped strings in synthetic test fixtures
-      const sanitized = rawContent
-        .replace(/\\n/g, "\n")
-        .replace(/\\r/g, "\r")
-        .replace(/\\t/g, "\t");
-      return JSON.parse(sanitized) as T;
-    }
+    const rawContent = await fs.readFile(candidate, "utf8");
+    return parseJsonDocument<T>(rawContent);
   } catch {
     return undefined;
   }
+}
+
+/** Backward-compatible JSON reader for call sites that do not need diagnostics. */
+export async function readJsonFile<T>(candidate: string): Promise<T | undefined> {
+  return (await readJsonFileWithDiagnostics<T>(candidate))?.value;
 }
 
 export async function findNearestConfig(startDirectory: string): Promise<string | undefined> {

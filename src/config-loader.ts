@@ -17,9 +17,11 @@
 
 import path from "pathe";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import type { Config, ResolvedOptions, OutputFormat } from "./types.js";
 import { DEFAULT_EXTENSIONS, DEFAULT_IGNORE, normalizeAbsolute } from "./fs-utils.js";
+import { formatJsonDiagnostic, parseJsonDocument } from "./json-utils.js";
 
 // ---------------------------------------------------------------------------
 // Default resolved configuration
@@ -68,22 +70,6 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
 };
 
 // ---------------------------------------------------------------------------
-// JSONC parser (strips // line comments, /* block comments */, trailing commas)
-// ---------------------------------------------------------------------------
-
-function parseJsonc<T = unknown>(raw: string): T {
-  const stripped = raw
-    // Remove single-line comments (// …) – but not inside strings
-    .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*/g, (m, str) => (str ? m : ""))
-    // Remove block comments (/* … */)
-    .replace(/("(?:[^"\\]|\\.)*")|\/\*[\s\S]*?\*\//g, (m, str) => (str ? m : ""))
-    // Remove trailing commas before ] or }
-    .replace(/,(\s*[}\]])/g, "$1");
-
-  return JSON.parse(stripped) as T;
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -96,13 +82,18 @@ function tryReadFile(filePath: string): string | null {
   }
 }
 
-/** Safely parse JSON; returns null on any error. */
-function tryParseJson<T = unknown>(raw: string): T | null {
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
+function parseConfigJson<T = unknown>(label: string, raw: string): T | null {
+  const parsed = parseJsonDocument<T>(raw);
+  if (parsed.value === undefined) {
+    const primary = parsed.diagnostics[0];
+    console.warn(`[Config] ${label} could not be parsed: ${primary ? formatJsonDiagnostic(primary) : "unknown JSON error"} – skipping.`);
     return null;
   }
+  if (!parsed.valid) {
+    const primary = parsed.diagnostics[0];
+    console.warn(`[Config] ${label} is not strict JSON: ${primary ? formatJsonDiagnostic(primary) : "recoverable JSON syntax"} – using a safe recovered value.`);
+  }
+  return parsed.value;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,14 +114,13 @@ export async function loadConfig(rootDir: string): Promise<Config> {
   if (fs.existsSync(jsonPath)) {
     const raw = tryReadFile(jsonPath);
     if (raw !== null) {
-      const parsed = tryParseJson<Config>(raw);
+      const parsed = parseConfigJson<Config>("optiprune.json", raw);
       if (parsed !== null) {
         if (process.env.OPTIPRUNE_DEBUG) {
           console.debug("[Config] Loaded from optiprune.json");
         }
         return parsed;
       }
-      console.warn("[Config] optiprune.json exists but could not be parsed as JSON – skipping.");
     }
   }
 
@@ -139,14 +129,12 @@ export async function loadConfig(rootDir: string): Promise<Config> {
   if (fs.existsSync(jsoncPath)) {
     const raw = tryReadFile(jsoncPath);
     if (raw !== null) {
-      try {
-        const parsed = parseJsonc<Config>(raw);
+      const parsed = parseConfigJson<Config>("optiprune.jsonc", raw);
+      if (parsed !== null) {
         if (process.env.OPTIPRUNE_DEBUG) {
           console.debug("[Config] Loaded from optiprune.jsonc");
         }
         return parsed;
-      } catch (e) {
-        console.warn(`[Config] optiprune.jsonc could not be parsed: ${(e as Error).message} – skipping.`);
       }
     }
   }
@@ -161,35 +149,30 @@ export async function loadConfig(rootDir: string): Promise<Config> {
   for (const configPath of scriptPaths) {
     if (!fs.existsSync(configPath)) continue;
 
+    let loadPath = configPath;
     try {
-      let loadPath = configPath;
-
-      // Transpile TypeScript to a temporary ESM file so Node can import it.
+      // Bundle a TypeScript config from the project root. This preserves package
+      // imports as external modules while resolving local .ts/.mts helpers and
+      // tsconfig path aliases before Node evaluates the generated ESM file.
       if (configPath.endsWith(".ts")) {
-        try {
-          const esbuild = await import("esbuild");
-          const code = fs.readFileSync(configPath, "utf-8");
-          const result = await esbuild.transform(code, {
-            loader: "ts",
-            format: "esm",
-            target: "node22",
-          });
-          const tempJsPath = path.join(rootDir, `.optiprune.config.${Date.now()}.mjs`);
-          fs.writeFileSync(tempJsPath, result.code, "utf-8");
-          loadPath = tempJsPath;
-        } catch (transpileError) {
-          console.warn(`[Config] Failed to transpile TypeScript config ${configPath}:`, transpileError);
-        }
+        const esbuild = await import("esbuild");
+        const tempJsPath = path.join(rootDir, `.optiprune.config.${randomUUID()}.mjs`);
+        await esbuild.build({
+          entryPoints: [configPath],
+          outfile: tempJsPath,
+          absWorkingDir: rootDir,
+          bundle: true,
+          packages: "external",
+          platform: "node",
+          format: "esm",
+          target: "node22",
+          logLevel: "silent",
+        });
+        loadPath = tempJsPath;
       }
 
       const configUrl = pathToFileURL(loadPath).href;
       const mod = await import(configUrl);
-
-      // Clean up temporary transpiled file if created.
-      if (loadPath !== configPath && fs.existsSync(loadPath)) {
-        try { fs.unlinkSync(loadPath); } catch { /* ignore */ }
-      }
-
       const exported = mod.default ?? mod;
       if (exported && typeof exported === "object") {
         if (process.env.OPTIPRUNE_DEBUG) {
@@ -197,8 +180,13 @@ export async function loadConfig(rootDir: string): Promise<Config> {
         }
         return exported as Config;
       }
-    } catch (e) {
-      console.warn(`[Config] Failed to load config from ${configPath}:`, e);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[Config] Failed to load ${path.basename(configPath)}: ${message}`);
+    } finally {
+      if (loadPath !== configPath && fs.existsSync(loadPath)) {
+        try { fs.unlinkSync(loadPath); } catch { /* ignore */ }
+      }
     }
   }
 
@@ -207,7 +195,7 @@ export async function loadConfig(rootDir: string): Promise<Config> {
   if (fs.existsSync(pkgPath)) {
     const raw = tryReadFile(pkgPath);
     if (raw !== null) {
-      const pkg = tryParseJson<Record<string, unknown>>(raw);
+      const pkg = parseConfigJson<Record<string, unknown>>("package.json", raw);
       if (pkg?.optiprune && typeof pkg.optiprune === "object") {
         if (process.env.OPTIPRUNE_DEBUG) {
           console.debug("[Config] Loaded from package.json#optiprune");
