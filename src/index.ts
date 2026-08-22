@@ -257,6 +257,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   let filesParsed = 0;
   let filesRecovered = 0;
   let filesFallback = 0;
+  let cacheDirty = false;
   let hasFrameworkNodes = false;
 
   for (const file of allSourceFiles) {
@@ -279,6 +280,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       moduleRecord = cached.moduleRecord;
       newCache.entries[file] = cached;
     } else {
+      cacheDirty = true;
       moduleRecord = parseModule(sourceText, file);
       newCache.entries[file] = {
         hash: currentHash,
@@ -314,7 +316,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
   
-  saveCache(resolvedOptions.rootDir, newCache);
+  if (Object.keys(cache.entries).length !== allSourceFiles.length) cacheDirty = true;
+  if (cacheDirty) saveCache(resolvedOptions.rootDir, newCache);
 
   let entryPoints = new Set<string>();
   // Existing public-entry behavior for conventional/package roots.

@@ -4,7 +4,7 @@ import { t } from "./ast-utils.js";
 import fs from "node:fs/promises";
 import path from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { compileGlobs, isIgnored, matchesAnyGlob } from "./fs-utils.js";
+import { compileGlobs, matchesAnyGlob } from "./fs-utils.js";
 
 // ── Verbose debug helper ────────────────────────────────────────────────────
 // All engine-level debug messages go to stderr so they never pollute JSON /
@@ -60,6 +60,8 @@ export class PluginEngine {
 
     const verbose = context.options?.verbose;
     const adapter = this.createAdapter(context);
+    // Compile ignore globs once per engine pass instead of once per module.
+    const compiledIgnorePatterns = compileGlobs(context.options?.ignore ?? []);
     
     if (!runOptions.skipDetection) {
       this.findings = [];
@@ -142,7 +144,7 @@ export class PluginEngine {
 
     for (const module of context.modules.values()) {
       // Check ignore list resolved from options (including plugin config updates)
-      if (isIgnored(module.id, context.options?.ignore, context.options?.rootDir)) {
+      if (matchesAnyGlob(module.id, compiledIgnorePatterns, context.options?.rootDir)) {
         continue;
       }
 
@@ -172,7 +174,6 @@ export class PluginEngine {
         console.error(`[Plugin Engine] Error during AST traversal for ${module.id}:`, err);
       }
     }
-
     for (const plugin of this.plugins) {
       if (plugin.enabled && plugin.lifecycle.onAnalysisComplete) {
         try {
@@ -185,7 +186,6 @@ export class PluginEngine {
         }
       }
     }
-
     // ── Engine Debug: final reachability marks ─────────────────────────────
     if (verbose) {
       dbg(verbose, `[Plugin Engine] ── Post-run state ──`);

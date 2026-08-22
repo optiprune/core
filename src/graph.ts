@@ -474,6 +474,10 @@ export function calculateReachability(
 
 export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string, ImportUsage> {
   const usage = new Map<string, ImportUsage>();
+  // Return-type inference is queried once per imported binding, but the old
+  // implementation walked the target module's entire AST for every query.
+  // Cache both positive and negative results for the duration of this pass.
+  const exportedReturnTypeCache = new Map<string, string | undefined>();
   for (const module of modules.values()) {
     // Member Access Tracking within the module
     const localMemberAccess = new Map<string, Set<string>>();
@@ -489,7 +493,12 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
       return typeName?.type === "Identifier" ? typeName.name : undefined;
     };
     const exportedReturnType = (targetModule: ModuleRecord, exportName: string): string | undefined => {
-      if (!targetModule.ast) return undefined;
+      const cacheKey = `${targetModule.id}:${exportName}`;
+      if (exportedReturnTypeCache.has(cacheKey)) return exportedReturnTypeCache.get(cacheKey);
+      if (!targetModule.ast) {
+        exportedReturnTypeCache.set(cacheKey, undefined);
+        return undefined;
+      }
       let result: string | undefined;
       walkAst(targetModule.ast, (node: any) => {
         if (result) return;
@@ -504,6 +513,7 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
           }
         }
       });
+      exportedReturnTypeCache.set(cacheKey, result);
       return result;
     };
     // Connect `const value = importedFactory()` with the factory's explicit
