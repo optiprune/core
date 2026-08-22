@@ -633,42 +633,59 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
           }
         }
 
-        // 2. Track Member Expressions (e.g., Status.Active, user.id, this.items)
+        // 2. Track Member Expressions (e.g., Status.Active, user.id, this.items).
+        // A computed non-string key such as Status[code] or Status[0] can read
+        // any enum/namespace member (including reverse numeric enum mappings),
+        // so treating it as one concrete property would create false positives.
         if (node.type === "MemberExpression") {
           const propertyName = node.computed
-            ? (node.property?.type === "StringLiteral" || node.property?.type === "Literal" ? node.property.value : undefined)
+            ? ((node.property?.type === "StringLiteral" || node.property?.type === "Literal") && typeof node.property.value === "string"
+              ? node.property.value
+              : undefined)
             : (node.property?.name || node.property?.value);
-          if (propertyName) {
-            let objectName: string | undefined;
-            if (node.object?.type === "Identifier") {
-              objectName = node.object.name;
-            } else if (node.object?.type === "ThisExpression") {
-              // `this.items` has no identifier object. Resolve it against the
-              // nearest enclosing class so internal class-member usage reaches
-              // the same `usedMembers` key as external `registry.items` access.
-              const enclosingClass = [...stack].reverse().find((ancestor: any) =>
-                ancestor?.type === "ClassDeclaration" || ancestor?.type === "ClassExpression",
-              );
-              objectName = enclosingClass?.id?.name;
-            }
-            if (objectName) {
+          let objectName: string | undefined;
+          if (node.object?.type === "Identifier") {
+            objectName = node.object.name;
+          } else if (node.object?.type === "ThisExpression") {
+            // `this.items` has no identifier object. Resolve it against the
+            // nearest enclosing class so internal class-member usage reaches
+            // the same `usedMembers` key as external `registry.items` access.
+            const enclosingClass = [...stack].reverse().find((ancestor: any) =>
+              ancestor?.type === "ClassDeclaration" || ancestor?.type === "ClassExpression",
+            );
+            objectName = enclosingClass?.id?.name;
+          }
+          if (objectName) {
+            const typeName = resolveScopedTypeName(objectName, stack);
+            if (propertyName !== undefined && propertyName !== null) {
               // Track direct access (Status.Active, Registry.items, this.items).
-              recordMemberAccess(objectName, propertyName);
+              recordMemberAccess(objectName, String(propertyName));
 
               // Track type-aware access (user.id where user is of type User).
               // Preserve a separate map so same-module type usage can later be
               // linked to that module's exported type without overmatching a
               // value identifier that happens to share the type's name.
-              const typeName = resolveScopedTypeName(objectName, stack);
               if (typeName) {
                 if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
-                localMemberAccess.get(typeName)!.add(propertyName);
+                localMemberAccess.get(typeName)!.add(String(propertyName));
                 if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
-                localTypeMemberAccess.get(typeName)!.add(propertyName);
+                localTypeMemberAccess.get(typeName)!.add(String(propertyName));
               }
               if (node.object?.type === "ThisExpression") {
                 if (!localTypeMemberAccess.has(objectName)) localTypeMemberAccess.set(objectName, new Set());
-                localTypeMemberAccess.get(objectName)!.add(propertyName);
+                localTypeMemberAccess.get(objectName)!.add(String(propertyName));
+              }
+            } else if (node.computed) {
+              recordWildcardAccess(objectName);
+              if (typeName) {
+                if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
+                localMemberAccess.get(typeName)!.add("*");
+                if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+                localTypeMemberAccess.get(typeName)!.add("*");
+              }
+              if (node.object?.type === "ThisExpression") {
+                if (!localTypeMemberAccess.has(objectName)) localTypeMemberAccess.set(objectName, new Set());
+                localTypeMemberAccess.get(objectName)!.add("*");
               }
             }
           }

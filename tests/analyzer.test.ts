@@ -209,4 +209,48 @@ describe("Optiprune Analyzer", () => {
     expect(exp).toBeDefined();
     expect(exp?.usageConfidence).toBe("low");
   });
+
+  it("treats dynamic enum element access as a whole-export read", async () => {
+    const testDir = path.join(fixturesDir, "dynamic-enum-member-access");
+    await fs.promises.rm(testDir, { recursive: true, force: true });
+    await fs.promises.mkdir(testDir, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(testDir, "status.ts"),
+      [
+        "export enum Status {",
+        "  Pending = 100,",
+        "  Active = 200,",
+        "  Disabled = 300,",
+        "}",
+      ].join("\n"),
+    );
+    await fs.promises.writeFile(
+      path.join(testDir, "entry.ts"),
+      [
+        'import { Status } from "./status";',
+        'const statusCode = Number.parseInt(process.argv[2] ?? "100", 10);',
+        "console.log(Status[statusCode]);",
+      ].join("\n"),
+    );
+
+    try {
+      const report = await analyze({
+        rootDir: testDir,
+        entry: ["entry.ts"],
+        extensions: [".ts"],
+        ignore: [],
+        includeConventionalEntries: false,
+        reportUnusedExports: true,
+      });
+
+      const unusedStatusMembers = report.findings.filter(
+        (finding) =>
+          finding.rule === "unused-member" &&
+          finding.evidence?.exportName === "Status",
+      );
+      expect(unusedStatusMembers).toEqual([]);
+    } finally {
+      await fs.promises.rm(testDir, { recursive: true, force: true });
+    }
+  });
 });
