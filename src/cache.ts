@@ -41,7 +41,9 @@ export function saveCache(rootDir: string, cache: AnalysisCache): void {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
-    fs.writeFileSync(path.join(dirPath, CACHE_FILE), JSON.stringify(cache, null, 2));
+    // Cache files are machine-only data. Compact serialization substantially
+    // reduces both synchronous write time and the next run's parse/IO cost.
+    fs.writeFileSync(path.join(dirPath, CACHE_FILE), JSON.stringify(cache));
   } catch (e) {
     // Ignore cache write errors in environments like tests where rootDir might be problematic
   }
@@ -53,7 +55,7 @@ export function saveCache(rootDir: string, cache: AnalysisCache): void {
  */
 export async function exportCache(rootDir: string, targetPath: string): Promise<void> {
   const cache = loadCache(rootDir);
-  await fs.promises.writeFile(targetPath, JSON.stringify(cache, null, 2));
+  await fs.promises.writeFile(targetPath, JSON.stringify(cache));
 }
 
 /**

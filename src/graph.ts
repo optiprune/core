@@ -474,10 +474,50 @@ export function calculateReachability(
 
 export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string, ImportUsage> {
   const usage = new Map<string, ImportUsage>();
-  // Return-type inference is queried once per imported binding, but the old
-  // implementation walked the target module's entire AST for every query.
-  // Cache both positive and negative results for the duration of this pass.
-  const exportedReturnTypeCache = new Map<string, string | undefined>();
+  const typeNameFromAnnotation = (annotation: any): string | undefined => {
+    const typeName = annotation?.typeAnnotation?.typeName ?? annotation?.typeName;
+    return typeName?.type === "Identifier" ? typeName.name : undefined;
+  };
+
+  // Collect the exact imported bindings whose return type can be relevant.
+  // The previous implementation walked a target AST once per binding; indexing
+  // each requested target once avoids repeated whole-module traversals.
+  const requestedReturnTypes = new Map<string, Set<string>>();
+  for (const module of modules.values()) {
+    for (const edge of module.edges) {
+      const targetId = edgeTargets(edge)[0];
+      if (!targetId || !modules.has(targetId)) continue;
+      let requestedNames = requestedReturnTypes.get(targetId);
+      if (!requestedNames) {
+        requestedNames = new Set<string>();
+        requestedReturnTypes.set(targetId, requestedNames);
+      }
+      for (const importedName of edge.importedNames) requestedNames.add(importedName);
+    }
+  }
+
+  const exportedReturnTypes = new Map<string, Map<string, string>>();
+  for (const [moduleId, requestedNames] of requestedReturnTypes) {
+    const targetModule = modules.get(moduleId);
+    if (!targetModule?.ast) continue;
+    const returnTypes = new Map<string, string>();
+    exportedReturnTypes.set(moduleId, returnTypes);
+    walkAst(targetModule.ast, (node: any) => {
+      if (node.type === "FunctionDeclaration" && requestedNames.has(node.id?.name) && !returnTypes.has(node.id.name)) {
+        const returnType = typeNameFromAnnotation(node.returnType);
+        if (returnType) returnTypes.set(node.id.name, returnType);
+        return;
+      }
+      if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && requestedNames.has(node.id.name) && !returnTypes.has(node.id.name)) {
+        const init = node.init;
+        if (init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression") {
+          const returnType = typeNameFromAnnotation(init.returnType);
+          if (returnType) returnTypes.set(node.id.name, returnType);
+        }
+      }
+    });
+  }
+
   for (const module of modules.values()) {
     // Member Access Tracking within the module
     const localMemberAccess = new Map<string, Set<string>>();
@@ -488,34 +528,8 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     // former can safely be associated with an export in this same module.
     const localTypeMemberAccess = new Map<string, Set<string>>();
     const localInstanceTypes = new Map<string, string>();
-    const typeNameFromAnnotation = (annotation: any): string | undefined => {
-      const typeName = annotation?.typeAnnotation?.typeName ?? annotation?.typeName;
-      return typeName?.type === "Identifier" ? typeName.name : undefined;
-    };
-    const exportedReturnType = (targetModule: ModuleRecord, exportName: string): string | undefined => {
-      const cacheKey = `${targetModule.id}:${exportName}`;
-      if (exportedReturnTypeCache.has(cacheKey)) return exportedReturnTypeCache.get(cacheKey);
-      if (!targetModule.ast) {
-        exportedReturnTypeCache.set(cacheKey, undefined);
-        return undefined;
-      }
-      let result: string | undefined;
-      walkAst(targetModule.ast, (node: any) => {
-        if (result) return;
-        if (node.type === "FunctionDeclaration" && node.id?.name === exportName) {
-          result = typeNameFromAnnotation(node.returnType);
-          return;
-        }
-        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.id.name === exportName) {
-          const init = node.init;
-          if (init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression") {
-            result = typeNameFromAnnotation(init.returnType);
-          }
-        }
-      });
-      exportedReturnTypeCache.set(cacheKey, result);
-      return result;
-    };
+    const exportedReturnType = (targetModule: ModuleRecord, exportName: string): string | undefined =>
+      exportedReturnTypes.get(targetModule.id)?.get(exportName);
     // Connect `const value = importedFactory()` with the factory's explicit
     // exported return type so member reads are attributed to that type.
     for (const edge of module.edges) {

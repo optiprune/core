@@ -519,31 +519,37 @@ function walk(node: unknown, visitor: (node: AstNode, stack: AstNode[]) => void,
   if (!isNode(node)) {
     return;
   }
-  
-  const currentStack = [...stack, node];
-  visitor(node, stack);
 
-  // If this is a File node, we only want to walk into the program
-  if (node.type === "File" && (node as any).program) {
-    walk((node as any).program, visitor, currentStack);
-    return;
-  }
-  
-  for (const [key, value] of Object.entries(node)) {
-    if (
-      key === "loc" ||
-      key === "start" ||
-      key === "end" ||
-      key === "tokens" ||
-      key === "comments" ||
-      key === "errors" ||
-      key === "extra"
-    ) {
-      continue;
+  // The visitor consumes the current ancestor stack synchronously. Reuse one
+  // mutable stack while descending instead of allocating [...stack, node] for
+  // every AST node; large projects walk their ASTs in several analysis phases.
+  visitor(node, stack);
+  stack.push(node);
+  try {
+    // If this is a File node, we only want to walk into the program.
+    if (node.type === "File" && (node as any).program) {
+      walk((node as any).program, visitor, stack);
+      return;
     }
-    if (Array.isArray(value) || isNode(value)) {
-      walk(value, visitor, currentStack);
+
+    for (const [key, value] of Object.entries(node)) {
+      if (
+        key === "loc" ||
+        key === "start" ||
+        key === "end" ||
+        key === "tokens" ||
+        key === "comments" ||
+        key === "errors" ||
+        key === "extra"
+      ) {
+        continue;
+      }
+      if (Array.isArray(value) || isNode(value)) {
+        walk(value, visitor, stack);
+      }
     }
+  } finally {
+    stack.pop();
   }
 }
 

@@ -62,16 +62,29 @@ export const DEFAULT_IGNORE = [
   "**/vendor/**",
 ];
 
+// Normalization is pure and the same project paths are compared repeatedly by
+// discovery, graph construction, and plugins. Keep a bounded cache so a large
+// or long-running analysis cannot accumulate unbounded path state.
+const NORMALIZED_PATH_CACHE_LIMIT = 4096;
+const normalizedPathCache = new Map<string, string>();
+
 export function normalizeCanonicalPath(filePath: string): string {
   if (!filePath) return "";
+  const cached = normalizedPathCache.get(filePath);
+  if (cached !== undefined) return cached;
+
   let posixPath = filePath.replace(/\\/g, "/");
   if (/^[a-z]:\//i.test(posixPath)) {
     posixPath = posixPath.charAt(0).toUpperCase() + posixPath.slice(1);
   }
   const normalized = normalize(posixPath);
-  return normalized.length > 1 && normalized.endsWith("/")
+  const result = normalized.length > 1 && normalized.endsWith("/")
     ? normalized.slice(0, -1)
     : normalized;
+
+  if (normalizedPathCache.size >= NORMALIZED_PATH_CACHE_LIMIT) normalizedPathCache.clear();
+  normalizedPathCache.set(filePath, result);
+  return result;
 }
 
 export function toPosix(value: string): string {
