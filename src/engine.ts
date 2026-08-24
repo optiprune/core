@@ -13,7 +13,17 @@ import { compileGlobs, matchesAnyGlob } from "./fs-utils.js";
 function dbg(verbose: boolean | undefined, msg: string): void {
   if (verbose) console.error(msg);
 }
+function safeResolve(rootDir: string, targetPath: string): string | null {
+  // Always resolve relative to rootDir
+  const resolved = path.resolve(rootDir, targetPath);
+  const relative = path.relative(rootDir, resolved);
 
+  // If the path starts with '..' or points to a different root, it escaped rootDir
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+  return resolved;
+}
 export class PluginEngine {
   private plugins: AnalyzerPlugin[] = [];
   private findings: Finding[] = [];
@@ -280,28 +290,29 @@ export class PluginEngine {
       },
       getConfig: () => context.options,
       readFile: async (filename) => {
+        const safePath = safeResolve(context.options.rootDir, filename);
+        if (!safePath) return null;
         try {
-          const fullPath = path.isAbsolute(filename) ? filename : path.join(context.options.rootDir, filename);
-          return await fs.readFile(fullPath, 'utf8');
+          return await fs.readFile(safePath, 'utf8');
         } catch {
           return null;
         }
       },
       readJson: async (filename) => {
+        const safePath = safeResolve(context.options.rootDir, filename);
+        if (!safePath) return null;
         try {
-          const fullPath = path.isAbsolute(filename) ? filename : path.join(context.options.rootDir, filename);
-          const content = await fs.readFile(fullPath, 'utf8');
+          const content = await fs.readFile(safePath, 'utf8');
           return JSON.parse(content);
         } catch {
           return null;
         }
       },
       folderExists: async (folderName) => {
+        const safePath = safeResolve(context.options.rootDir, folderName);
+        if (!safePath) return false;
         try {
-          const fullPath = path.isAbsolute(folderName)
-            ? folderName
-            : path.join(context.options.rootDir, folderName);
-          await fs.access(fullPath);
+          await fs.access(safePath);
           return true;
         } catch {
           return false;
