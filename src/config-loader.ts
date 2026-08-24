@@ -17,8 +17,7 @@
 
 import path from "pathe";
 import fs from "node:fs";
-import { randomUUID } from "node:crypto";
-import { pathToFileURL } from "node:url";
+import { createJiti } from "jiti";
 import type { Config, ResolvedOptions, OutputFormat } from "./types.js";
 import { DEFAULT_EXTENSIONS, DEFAULT_IGNORE, normalizeAbsolute } from "./fs-utils.js";
 import { formatJsonDiagnostic, parseJsonDocument } from "./json-utils.js";
@@ -106,8 +105,7 @@ function parseConfigJson<T = unknown>(label: string, raw: string): T | null {
  *
  * The function is intentionally synchronous-first for JSON/JSONC sources so
  * that the config is available as early as possible in the analysis pipeline.
- * TypeScript/JS config files are still loaded asynchronously via dynamic
- * `import()`.
+ * TypeScript/JS config files are loaded via jiti.
  */
 export async function loadConfig(rootDir: string): Promise<Config> {
   // ── 1. optiprune.json ────────────────────────────────────────────────────
@@ -150,31 +148,14 @@ export async function loadConfig(rootDir: string): Promise<Config> {
   for (const configPath of scriptPaths) {
     if (!fs.existsSync(configPath)) continue;
 
-    let loadPath = configPath;
     try {
-      // Bundle a TypeScript config from the project root. This preserves package
-      // imports as external modules while resolving local .ts/.mts helpers and
-      // tsconfig path aliases before Node evaluates the generated ESM file.
-      if (configPath.endsWith(".ts")) {
-        const esbuild = await import("esbuild");
-        const tempJsPath = path.join(rootDir, `.optiprune.config.${randomUUID()}.mjs`);
-        await esbuild.build({
-          entryPoints: [configPath],
-          outfile: tempJsPath,
-          absWorkingDir: rootDir,
-          bundle: true,
-          packages: "external",
-          platform: "node",
-          format: "esm",
-          target: "node22",
-          logLevel: "silent",
-        });
-        loadPath = tempJsPath;
-      }
+      const jiti = createJiti(import.meta.url, {
+        interopDefault: true,
+      });
 
-      const configUrl = pathToFileURL(loadPath).href;
-      const mod = await import(configUrl);
+      const mod = await jiti.import<{ default?: Config } & Config>(configPath);
       const exported = mod.default ?? mod;
+
       if (exported && typeof exported === "object") {
         if (process.env.OPTIPRUNE_DEBUG) {
           console.debug(`[Config] Loaded from ${path.basename(configPath)}`);
@@ -184,10 +165,6 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[Config] Failed to load ${path.basename(configPath)}: ${message}`);
-    } finally {
-      if (loadPath !== configPath && fs.existsSync(loadPath)) {
-        try { fs.unlinkSync(loadPath); } catch { /* ignore */ }
-      }
     }
   }
 
@@ -216,19 +193,6 @@ export async function loadConfig(rootDir: string): Promise<Config> {
 
 /**
  * Merge a base `ResolvedOptions` with a user-supplied `Config`.
- *
- * Rules:
- * - Arrays (`entry`, `ignore`, `extensions`, `externalContracts`,
- *   `ignoreDependencies`) are **replaced** when the user supplies them
- *   (not merged), so the user has full control.
- * - `ignore` is the only exception: user patterns are **appended** to the
- *   built-in DEFAULT_IGNORE list so that node_modules etc. are always
- *   excluded.
- * - `layers` and `rules` are shallow-merged (user values win).
- * - `plugins` is shallow-merged (user values win).
- * - The `json` boolean and the `output` string are kept in sync:
- *     - If `output` is set, it takes precedence and `json` is derived.
- *     - If only `json: true` is set, `output` is set to `"json"`.
  */
 export function mergeConfig(base: ResolvedOptions, userConfig: Config): ResolvedOptions {
   // ── rootDir ──────────────────────────────────────────────────────────────
@@ -244,8 +208,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
   const entry = rawEntries.map((e) => normalizeAbsolute(path.resolve(rootDir, e)));
 
   // ── includeConventionalEntries ───────────────────────────────────────────
-  // When the user explicitly provides entry points, default to false unless
-  // they also explicitly set this flag.
   const includeConventionalEntries = hasUserEntries
     ? (userConfig.includeConventionalEntries ?? false)
     : (userConfig.includeConventionalEntries ?? base.includeConventionalEntries);
@@ -256,8 +218,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     : base.extensions;
 
   // ── ignore ───────────────────────────────────────────────────────────────
-  // Always keep the built-in DEFAULT_IGNORE patterns; user patterns are
-  // appended so they can add more without accidentally removing the defaults.
   const userIgnore = Array.isArray(userConfig.ignore) ? userConfig.ignore : [];
   const ignore = Array.from(new Set([...DEFAULT_IGNORE, ...userIgnore]));
 
@@ -299,7 +259,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
   let plugins = { ...base.plugins };
   if (userConfig.plugins) {
     if (Array.isArray(userConfig.plugins)) {
-      // Support array of plugin names for simple enabling
       for (const pluginName of userConfig.plugins) {
         if (typeof pluginName === "string") {
           plugins[pluginName] = true;
@@ -328,7 +287,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     layers,
     rules,
     plugins,
-    // Scalar overrides – only apply when explicitly provided
     ...(userConfig.failOn !== undefined && { failOn: userConfig.failOn }),
     ...(userConfig.reportUnusedExports !== undefined && {
       reportUnusedExports: userConfig.reportUnusedExports,
