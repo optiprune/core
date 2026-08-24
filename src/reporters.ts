@@ -56,7 +56,7 @@ export function formatSarif(report: AnalysisReport): string {
           driver: {
             name: "Optiprune",
             version: report.version,
-            informationUri: "https://github.com/manus/optiprune",
+            informationUri: "https://github.com/optiprune/core",
             rules: Array.from(new Set(report.findings.map(f => f.rule))).map(ruleId => ({
               id: ruleId,
               shortDescription: { text: `Optiprune rule: ${ruleId}` }

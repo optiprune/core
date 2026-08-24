@@ -1,0 +1,4 @@
+# socket.yml
+project:
+  ignore:
+    - "tests/fixtures/**"
