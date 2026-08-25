@@ -1076,3 +1076,4 @@ export { exportCache as exportCacheAlias, importCache as importCacheAlias } from
  * Headless API: Configuration loading and resolution.
  */
 export { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
+export { defineConfig } from "./types.js";
