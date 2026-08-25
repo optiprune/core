@@ -386,6 +386,15 @@ export function resolveDynamicPattern(
   return matches.sort((left, right) => left.localeCompare(right));
 }
 
+/** Configuration files are tool entry points even without source-level imports. */
+export function isConfigurationFile(filePath: string): boolean {
+  const basename = toPosix(filePath).split("/").pop()?.toLowerCase() ?? "";
+  const sourceConfig = /(?:^|[.-])config(?:\.[^.]+)*\.(?:[cm]?[jt]sx?|json|ya?ml)$/.test(basename);
+  const compilerConfig = /^(?:tsconfig|jsconfig)(?:\.[^.]+)*\.json$/.test(basename);
+  const rcConfig = /^(?:\.[^.]+rc|[^.]+rc)(?:\.[^.]+)?$/.test(basename);
+  return sourceConfig || compilerConfig || rcConfig;
+}
+
 export function expandEntryPatterns(
   sourceFiles: string[],
   rootDir: string,
@@ -516,14 +525,21 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
     const targets = new Map<string, PackageScriptTarget>();
     for (const [scriptName, command] of Object.entries(scripts as Record<string, unknown>)) {
       if (typeof command !== "string") continue;
-      for (const target of extractScriptRunnerTargets(command)) {
-        if (target.includes("$") || target.includes("`")) continue;
-        const absolutePath = normalizeAbsolute(resolve(normalizedRoot, target));
-        const relativePath = toPosix(patheRelative(normalizedRoot, absolutePath));
-        if (!relativePath || relativePath === ".." || relativePath.startsWith("../") || isAbsolute(relativePath)) continue;
-
-        let exists = false;
-        let resolvedRelativePath = relativePath;
+            for (const rawTarget of extractScriptRunnerTargets(command)) {
+        if (rawTarget.includes("$") || rawTarget.includes("`")) continue;
+        const hasGlob = /[*?{\[]/.test(rawTarget);
+        const expandedTargets = hasGlob
+          ? await expandLocalScriptGlob(normalizedRoot, rawTarget)
+          : [rawTarget];
+        // An unmatched shell glob is not a concrete file target. Do not emit a
+        // false missing-script-target error for it.
+        if (hasGlob && expandedTargets.length === 0) continue;
+        for (const target of expandedTargets) {
+          const absolutePath = normalizeAbsolute(resolve(normalizedRoot, target));
+          const relativePath = toPosix(patheRelative(normalizedRoot, absolutePath));
+          if (!relativePath || relativePath === ".." || relativePath.startsWith("../") || isAbsolute(relativePath)) continue;
+          let exists = false;
+          let resolvedRelativePath = relativePath;
         try {
           exists = (await fs.stat(absolutePath)).isFile();
         } catch {
@@ -540,8 +556,9 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
             }
           }
         }
-        const key = `${scriptName}\u0000${relativePath}`;
-        targets.set(key, { scriptName, command, relativePath: resolvedRelativePath, requestedPath: relativePath, exists });
+          const key = `${scriptName}\u0000${relativePath}`;
+          targets.set(key, { scriptName, command, relativePath: resolvedRelativePath, requestedPath: relativePath, exists });
+        }
       }
     }
     return [...targets.values()];
@@ -550,6 +567,25 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
   }
 }
 
+async function expandLocalScriptGlob(rootDir: string, pattern: string): Promise<string[]> {
+  const matcher = globToRegExp(toPosix(pattern).replace(/^\.\//, ""));
+  const matches: string[] = [];
+  const visit = async (directory: string): Promise<void> => {
+    let entries;
+    try { entries = await fs.readdir(directory, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (["node_modules", ".git", "dist", "build"].includes(entry.name)) continue;
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) await visit(absolute);
+      else if (entry.isFile()) {
+        const relative = toPosix(patheRelative(rootDir, absolute));
+        if (matcher.test(relative)) matches.push(relative);
+      }
+    }
+  };
+  await visit(rootDir);
+  return matches.sort((left, right) => left.localeCompare(right));
+}
 function extractScriptRunnerTargets(command: string): string[] {
   const tokens = tokenizeShellCommand(command);
   const targets: string[] = [];

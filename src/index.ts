@@ -37,6 +37,7 @@ import {
   readJsonFileWithDiagnostics,
   relativeDisplayPath,
   rootLooksValid,
+  isConfigurationFile,
 } from "./fs-utils.js";
 import type {
   AnalysisContext,
@@ -392,6 +393,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   if (cacheDirty) saveCache(resolvedOptions.rootDir, newCache);
 
   let entryPoints = new Set<string>();
+  // Tool configuration files are executable entry points even when no source
+  // file imports them directly.
+  for (const sourceFile of allSourceFiles) {
+    if (isConfigurationFile(sourceFile)) entryPoints.add(path.normalize(sourceFile));
+  }
   // Existing public-entry behavior for conventional/package roots.
   const publicEntryPoints = new Set<string>();
   // Entries declared in package.json exports specifically describe public API.
@@ -863,7 +869,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         if (
           allExportsUnused &&
           isPureExportOnlyModule(module) &&
-          !context.runtimeUsedFiles?.has(module.id)
+          !context.runtimeUsedFiles?.has(module.id) &&
+          !isConfigurationFile(module.id)
         ) {
           fullyUnusedPureExportModules.add(module.id);
         }
