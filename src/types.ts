@@ -296,6 +296,8 @@ export interface ResolvedOptions {
   ignore: string[];
   /** npm package names that are always treated as used. */
   ignoreDependencies: string[];
+  /** Package-manifest-specific dependency names that are excluded from unused-dependency findings. */
+  packageIgnoreDependencies: Map<string, string[]>;
   reportUnusedExports: boolean;
   reportUnusedExportsInUnreachableFiles: boolean;
   schemaEnums: Record<string, string[]>;

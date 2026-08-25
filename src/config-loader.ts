@@ -32,6 +32,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   extensions: DEFAULT_EXTENSIONS,
   ignore: DEFAULT_IGNORE,
   ignoreDependencies: [],
+  packageIgnoreDependencies: new Map<string, string[]>(),
   reportUnusedExports: true,
   reportUnusedExportsInUnreachableFiles: false,
   schemaEnums: {},
@@ -149,8 +150,21 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     if (!fs.existsSync(configPath)) continue;
 
     try {
-      const jiti = createJiti(import.meta.url, {
-        interopDefault: true,
+      // Use the project configuration itself as Jiti's parent. This makes bare
+      // imports resolve from the analyzed project's dependency tree instead of
+      // from @optiprune/core. When present, use the project's tsconfig so that
+      // `compilerOptions.paths` aliases behave the same way they did with the
+      // previous esbuild bundle step.
+      const tsconfigPath = path.join(rootDir, "tsconfig.json");
+      const jiti = createJiti(configPath, {
+        interopDefault: false,
+        tsconfigPaths: fs.existsSync(tsconfigPath) ? tsconfigPath : false,
+        // A caller may execute more than one analysis in one process (for
+        // example an editor integration). Config files are user input, so each
+        // load must observe the current file contents rather than Jiti's module
+        // or transformed-source cache.
+        moduleCache: false,
+        fsCache: false,
       });
 
       const mod = await jiti.import<{ default?: Config } & Config>(configPath);
@@ -197,7 +211,7 @@ export async function loadConfig(rootDir: string): Promise<Config> {
 export function mergeConfig(base: ResolvedOptions, userConfig: Config): ResolvedOptions {
   // ── rootDir ──────────────────────────────────────────────────────────────
   const rootDir = userConfig.rootDir
-    ? normalizeAbsolute(userConfig.rootDir)
+    ? normalizeAbsolute(path.resolve(base.rootDir, userConfig.rootDir))
     : base.rootDir;
 
   // ── entry ────────────────────────────────────────────────────────────────

@@ -188,6 +188,37 @@ describe("Plugin configuration integration", () => {
     )).toBe(true);
   });
 
+  it("does not retain tsx, esbuild, or vite merely because Vitest is configured", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({
+        private: true,
+        devDependencies: {
+          vitest: "1.0.0",
+          tsx: "4.0.0",
+          esbuild: "0.25.0",
+          vite: "7.0.0",
+        },
+        scripts: { test: "vitest run" },
+      }),
+      "src/index.ts": "export const value = 1;\n",
+      "src/index.test.ts": "import { describe, it, expect } from 'vitest'; describe('value', () => it('works', () => expect(1).toBe(1)));\n",
+      "vitest.config.ts": "export default { test: { environment: 'node' } };\n",
+    });
+
+    const report = await analyze({
+      rootDir: root,
+      entry: ["src/index.ts"],
+      failOn: "none",
+      layers: { skip3: true, skip4: true },
+    });
+    const unusedDependencies = report.findings
+      .filter((finding) => finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency")
+      .map((finding) => String(finding.evidence.package));
+
+    expect(unusedDependencies).not.toContain("vitest");
+    expect(unusedDependencies).toEqual(expect.arrayContaining(["tsx", "esbuild", "vite"]));
+  });
+
   it("claims a Knip configuration only through a Knip-specific location or package key", async () => {
     const adapter = {
       folderExists: async (file: string) => file === "knip.json",

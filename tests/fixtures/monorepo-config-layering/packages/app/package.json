@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/app",
+  "private": true,
+  "dependencies": {
+    "app-ignored": "1.0.0",
+    "app-unused": "1.0.0"
+  }
+}

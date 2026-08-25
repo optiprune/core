@@ -211,13 +211,6 @@ export const VitestPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed(VITEST_PACKAGE);
       }
 
-      // Vitest uses Vite's config/runtime integration. If the project declares
-      // Vite explicitly, Vitest evidence is sufficient usage evidence for it,
-      // even when the config does not import Vite directly.
-      if (hasVitestEvidence && dependencies.has("vite")) {
-        adapter.markPackageAsUsed("vite");
-      }
-
       if (hasVitestEvidence && !dependencies.has(VITEST_PACKAGE)) {
         adapter.emitFinding({
           rule: "missing-dependency",

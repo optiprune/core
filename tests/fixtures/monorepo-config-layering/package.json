@@ -1,0 +1,9 @@
+{
+  "name": "monorepo-config-layering",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "dependencies": {
+    "root-ignored": "1.0.0",
+    "root-unused": "1.0.0"
+  }
+}

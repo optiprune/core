@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
   Layers:
@@ -19,7 +20,7 @@ jobs:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test layer2 layer3 layer4 layer5 layer6 layer7 monorepo v8
+      - run: npm run test layer2 layer3 layer4 layer5 layer6 layer7 monorepo monorepo-config-layering v8
   Plugins:
     runs-on: ubuntu-latest
     permissions:
@@ -47,7 +48,7 @@ jobs:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty ignore-unknown-import config-loader false-positive-guardrails
+      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty ignore-unknown-import config-loader config-loader-jiti false-positive-guardrails
   Framework-Lab:
     runs-on: ubuntu-latest
     permissions:

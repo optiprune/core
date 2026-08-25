@@ -163,6 +163,69 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
     baseUrl,
   } as ResolvedOptions;
 }
+/** Rebase a package-local path or glob so root-level discovery can match it. */
+function rebaseWorkspacePattern(rootDir: string, packageRoot: string, pattern: string): string {
+  const absolutePattern = path.isAbsolute(pattern)
+    ? pattern
+    : path.resolve(packageRoot, pattern);
+  return path.relative(rootDir, absolutePattern).replace(/\\/g, "/");
+}
+
+/**
+ * Applies only the configuration fields that have package-local semantics. The
+ * root configuration remains the source of global analyzer options; workspace
+ * configuration can contribute its own entry points, discovery ignores, source
+ * extensions, external contracts, and manifest-scoped dependency exceptions.
+ */
+async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<void> {
+  const workspaces = options.monorepo?.packageMap.values();
+  if (!workspaces) return;
+
+  const entries = new Set(options.entry);
+  const ignores = new Set(options.ignore);
+  const extensions = new Set(options.extensions);
+  const externalContracts = new Set(options.externalContracts);
+  const packageIgnoreDependencies = new Map(options.packageIgnoreDependencies);
+
+  for (const workspacePackage of workspaces) {
+    const packageConfig = await loadConfig(workspacePackage.location);
+
+    for (const entry of packageConfig.entry ?? []) {
+      if (typeof entry !== "string" || entry.trim().length === 0) continue;
+      entries.add(path.resolve(workspacePackage.location, entry));
+    }
+
+    for (const ignore of packageConfig.ignore ?? []) {
+      if (typeof ignore !== "string" || ignore.trim().length === 0) continue;
+      ignores.add(rebaseWorkspacePattern(options.rootDir, workspacePackage.location, ignore));
+    }
+
+    for (const extension of packageConfig.extensions ?? []) {
+      if (typeof extension === "string" && extension.trim().length > 0) {
+        extensions.add(extension);
+      }
+    }
+
+    for (const contract of packageConfig.externalContracts ?? []) {
+      if (typeof contract === "string" && contract.trim().length > 0) {
+        externalContracts.add(contract);
+      }
+    }
+
+    const ignoredDependencies = (packageConfig.ignoreDependencies ?? [])
+      .filter((dependency): dependency is string => typeof dependency === "string" && dependency.trim().length > 0);
+    if (ignoredDependencies.length > 0) {
+      packageIgnoreDependencies.set(workspacePackage.manifestPath, Array.from(new Set(ignoredDependencies)));
+    }
+  }
+
+  options.entry = Array.from(entries);
+  options.ignore = Array.from(ignores);
+  options.extensions = Array.from(extensions);
+  options.externalContracts = Array.from(externalContracts);
+  options.packageIgnoreDependencies = packageIgnoreDependencies;
+}
+
 export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["failOn"]): boolean {
   if (failOn === "none") {
     return false;
@@ -225,6 +288,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     hasMonorepo = resolvedOptions.monorepo.packageMap.size > 0;
   } catch (e) {
     // Ignore malformed package-manager configuration and continue analysis.
+  }
+
+  // Workspace packages can supply package-local entries, ignore patterns, and
+  // dependency exceptions. Apply them after topology discovery and before
+  // source discovery, so every package config has the same effect as a root
+  // config without leaking its relative paths into sibling packages.
+  if (hasMonorepo) {
+    await applyWorkspacePackageConfigs(resolvedOptions);
   }
 
   // Re-read configuration options after plugin initialization
@@ -988,3 +1059,8 @@ export { applyFixes } from "./fixer.js";
 
 // Fix für CLI-Imports
 export { exportCache as exportCacheAlias, importCache as importCacheAlias } from './cache.js';
+
+/**
+ * Headless API: Configuration loading and resolution.
+ */
+export { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";

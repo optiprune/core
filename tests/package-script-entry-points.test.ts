@@ -83,7 +83,7 @@ describe("package script entry points", () => {
     expect(report.findings.some((finding) => finding.rule === "missing-script-target")).toBe(false);
   });
 
-  it("counts Vite as used when Vitest configuration is the only evidence", async () => {
+  it("reports Vite as unused when Vitest configuration is the only evidence", async () => {
     await fs.mkdir(fixtureRoot, { recursive: true });
     await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
       name: "vitest-vite-usage",
@@ -100,7 +100,7 @@ describe("package script entry points", () => {
       reportUnusedExports: false,
     });
 
-    expect(report.findings.some((finding) => finding.evidence?.package === "vite")).toBe(false);
+    expect(report.findings.some((finding) => finding.evidence?.package === "vite")).toBe(true);
     expect(report.findings.some((finding) => finding.evidence?.package === "vitest")).toBe(false);
   });
 

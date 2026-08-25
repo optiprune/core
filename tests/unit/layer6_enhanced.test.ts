@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeLayer6 } from '../../src/layer6.js';
 import { AnalysisContext, ResolvedOptions } from '../../src/types.js';
+import { DEFAULT_CONFIG } from '../../src/config-loader.js';
 import fs from 'node:fs/promises';
 import path from 'pathe';
 
@@ -24,6 +25,60 @@ describe('Layer 6: Enhanced Dependency Auditing', () => {
     },
     rules: {}
   };
+
+  it('retains only non-optional peers of a package that a plugin has actually marked as used', async () => {
+    const rootDir = await fs.mkdtemp('/tmp/optiprune-required-peers-');
+    try {
+      await fs.writeFile(path.join(rootDir, 'package.json'), JSON.stringify({
+        dependencies: {
+          framework: '1.0.0',
+          'required-peer': '1.0.0',
+          'optional-peer': '1.0.0',
+        },
+      }));
+      await fs.mkdir(path.join(rootDir, 'node_modules', 'framework'), { recursive: true });
+      await fs.writeFile(path.join(rootDir, 'node_modules', 'framework', 'package.json'), JSON.stringify({
+        name: 'framework',
+        peerDependencies: {
+          'required-peer': '^1.0.0',
+          'optional-peer': '^1.0.0',
+        },
+        peerDependenciesMeta: {
+          'optional-peer': { optional: true },
+        },
+      }));
+
+      const context: AnalysisContext = {
+        options: {
+          ...DEFAULT_CONFIG,
+          rootDir,
+          entry: [],
+          ignore: [],
+          pathAliases: new Map(),
+          packageImports: new Map(),
+          packageIgnoreDependencies: new Map(),
+          layers: { ...DEFAULT_CONFIG.layers },
+          rules: { ...DEFAULT_CONFIG.rules },
+          plugins: { ...DEFAULT_CONFIG.plugins },
+        },
+        modules: new Map(),
+        entryPoints: new Set(),
+        reachable: new Set(),
+        maybeReachable: new Set(),
+        components: [],
+        usedExports: new Set(),
+        usedPackages: new Set(['framework']),
+        enabledPlugins: new Set(['fixture-plugin']),
+      } as AnalysisContext;
+
+      const findings = await analyzeLayer6(context);
+      expect(findings.some((finding) => finding.evidence.package === 'framework')).toBe(false);
+      expect(findings.some((finding) => finding.evidence.package === 'required-peer')).toBe(false);
+      expect(findings.some((finding) => finding.evidence.package === 'optional-peer')).toBe(true);
+    } finally {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    }
+  });
 
   it('should identify unused dependencies and devDependencies', async () => {
     const rootDir = mockOptions.rootDir;

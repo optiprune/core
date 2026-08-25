@@ -345,7 +345,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
   // Build a Set of dependencies the user explicitly wants to ignore so we
   // never emit unused-dependency / unused-dev-dependency findings for them.
-  const ignoreDeps = new Set<string>(context.options.ignoreDependencies ?? []);
+  const globallyIgnoredDependencies = new Set<string>(context.options.ignoreDependencies ?? []);
 
   for (const [pkgName, manifestPath] of manifestPaths.entries()) {
     if (fs.existsSync(manifestPath)) {
@@ -356,6 +356,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const devDependencies = pkg.devDependencies || {};
       const scripts = pkg.scripts || {};
       const relativeManifest = path.posix.relative(projectRoot, manifestPath);
+      const ignoreDeps = new Set<string>([
+        ...globallyIgnoredDependencies,
+        ...(context.options.packageIgnoreDependencies?.get(manifestPath) ?? []),
+      ]);
 
       const importedInThisPackage = packageImportMap.get(pkgName) || new Set<string>();
       const isRootMonorepoManifest = pkgName === "root" && Boolean(context.options.monorepo);
