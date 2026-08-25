@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/lib",
+  "private": true,
+  "dependencies": {
+    "lib-unused": "1.0.0"
+  }
+}

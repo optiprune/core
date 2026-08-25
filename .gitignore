@@ -40,3 +40,7 @@ tmp/
 .optiprune.config.*
 all.txt
 *.diff
+
+# Versionierte Monorepo-Fixture; darf nicht durch die generische lib/-Regel verschwinden.
+!tests/fixtures/monorepo-config-layering/packages/lib/
+!tests/fixtures/monorepo-config-layering/packages/lib/**
