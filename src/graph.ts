@@ -1117,6 +1117,7 @@ export function contextWithGraph(
     maybeReachable: graph.maybeReachable,
     runtimeUsedFiles: new Set<string>(),
     semanticConfigMembers: new Set<string>(),
+    runtimeUsedMembers: new Set<string>(),
     hasReachableUnknownDynamicBoundary: graph.hasReachableUnknownDynamicBoundary,
     components: graph.components,
     usedExports: graph.usedExports,

@@ -147,6 +147,39 @@ describe("Jiti configuration loading", () => {
     expect(resolved.ignore).toEqual(expect.arrayContaining(["generated/**"]));
   });
 
+  it("ignores every file below test-like directories, including package.json", async () => {
+    const rootDir = await createProject("ignore-tests-complete");
+    await write(rootDir, "package.json", JSON.stringify({ name: "ignore-tests-complete", private: true }));
+    await write(rootDir, "src/index.ts", "export const live = true;\n");
+    await write(rootDir, "tests/nested/dead.ts", "export const dead = true;\n");
+    await write(rootDir, "tests/nested/package.json", JSON.stringify({ dependencies: { "unused-test-dependency": "1.0.0" } }));
+    await write(rootDir, "src/widget.spec.ts", "export const deadSpec = true;\n");
+    await write(rootDir, "src/fixtures/data.ts", "export const fixture = true;\n");
+    await write(rootDir, "optiprune.config.ts", "export default { entry: ['src/index.ts'], ignoreTests: true, failOn: 'none' };\n");
+
+    const report = await analyze({ rootDir, layers: { skip3: true, skip4: true } });
+
+    expect(report.findings.some((finding) => /(^|[/\\\\])(test|tests|spec|specs|fixtures|__tests__)([/\\\\]|$)|(?:^|[.])(test|spec)[.]/i.test(path.relative(rootDir, String(finding.file))))).toBe(false);
+    expect(report.findings.some((finding) => String(finding.evidence?.package) === "unused-test-dependency")).toBe(false);
+  });
+
+  it("treats dynamically registered AnalyzerPlugin object members as used", async () => {
+    const rootDir = await createProject("plugin-contract-members");
+    await write(rootDir, "package.json", JSON.stringify({ name: "plugin-contract-members", private: true }));
+    await write(rootDir, "src/index.ts", "import { XoPlugin } from './plugins/xo-plugin';\nvoid XoPlugin;\n");
+    await write(rootDir, "src/plugins/xo-plugin.ts", [
+      "export const XoPlugin = {",
+      "  name: 'xo-plugin',",
+      "  version: '1.0.0',",
+      "  detect: async () => true,",
+      "  lifecycle: {},",
+      "};",
+    ].join("\\n"));
+
+    const report = await analyze({ rootDir, layers: { skip3: true, skip4: true } });
+    expect(report.findings.filter((finding) => finding.rule === "unused-member")).toEqual([]);
+  });
+
   it("applies imported ignore patterns and ignoreDependencies to analysis", async () => {
     const rootDir = await createProject("jiti-options");
     await write(rootDir, "package.json", JSON.stringify({

@@ -302,6 +302,44 @@ async function resolveDynamicImports(
         const globalHandle = vm.global;
         const targetsHandle = vm.newArray();
         vm.setProp(globalHandle, "__OPTIPRUNE_TARGETS__", targetsHandle);
+        const memberSetup = vm.evalCode(`
+          globalThis.__OPTIPRUNE_MEMBER_USES__ = [];
+          globalThis.__optiprune_make_import_mock__ = (target) => {
+            const uses = globalThis.__OPTIPRUNE_MEMBER_USES__;
+            const record = (path) => uses.push({ target: String(target), path });
+            const fallback = () => globalThis.__create_resilient_mock();
+            const lifecycle = new Proxy({}, {
+              get(_target, property) {
+                record('default.lifecycle.' + String(property));
+                return fallback();
+              }
+            });
+            const plugin = new Proxy({ lifecycle }, {
+              get(targetObject, property) {
+                const name = String(property);
+                record('default.' + name);
+                return name === 'lifecycle' ? lifecycle : fallback();
+              }
+            });
+            return new Proxy({ default: plugin }, {
+              get(targetObject, property) {
+                const name = String(property);
+                if (name === 'default') {
+                  record('default');
+                  return plugin;
+                }
+                record(name);
+                return fallback();
+              }
+            });
+          };
+        `);
+        if (memberSetup.error) {
+          const error = vm.dump(memberSetup.error);
+          memberSetup.error.dispose();
+          throw new Error(`Could not install WASM member instrumentation: ${String(error)}`);
+        }
+        memberSetup.value.dispose();
 
         const importMockFn = vm.newFunction("__optiprune_import", (arg: QuickJSHandle) => {
           const target = vm.dump(arg);
@@ -310,19 +348,13 @@ async function resolveDynamicImports(
           const len = vm.dump(lenHandle);
           const targetHandle = vm.newString(String(target));
           vm.setProp(currentTargets, len, targetHandle);
-          targetHandle.dispose();
           lenHandle.dispose();
           currentTargets.dispose();
-          
-          // Return a module-shaped resilient mock. Returning the bare fallback
-          // proxy makes `await import(...); module.default` fail in QuickJS,
-          // which aborts the simulation before the concrete target is retained.
-          const createFn = vm.getProp(vm.global, "__create_resilient_mock");
-          const defaultExport = vm.callFunction(createFn, vm.undefined);
-          createFn.dispose();
-          const moduleMock = vm.newObject();
-          vm.setProp(moduleMock, "default", defaultExport);
-          defaultExport.dispose();
+
+          const makeMockFn = vm.getProp(vm.global, "__optiprune_make_import_mock__");
+          const moduleMock = vm.callFunction(makeMockFn, vm.undefined, targetHandle);
+          makeMockFn.dispose();
+          targetHandle.dispose();
           return moduleMock;
         });
         vm.setProp(globalHandle, "__optiprune_import", importMockFn);
@@ -438,6 +470,9 @@ async function resolveDynamicImports(
         const finalTargetsHandle = vm.getProp(finalGlobalHandle, "__OPTIPRUNE_TARGETS__");
         const targets = vm.dump(finalTargetsHandle) as any[];
         finalTargetsHandle.dispose();
+        const memberUsesHandle = vm.getProp(finalGlobalHandle, "__OPTIPRUNE_MEMBER_USES__");
+        const memberUses = vm.dump(memberUsesHandle) as Array<{ target?: unknown; path?: unknown }>;
+        memberUsesHandle.dispose();
         finalGlobalHandle.dispose();
 
         // Unknown input values in the sandbox can stringify to paths such as
@@ -498,7 +533,13 @@ async function resolveDynamicImports(
           }
 
           for (const rawTarget of concreteTargets) {
-            resolveAndMarkTarget(rawTarget, file, context, candidate);
+            const runtimePaths = Array.isArray(memberUses)
+              ? memberUses
+                  .filter((use) => String(use?.target) === rawTarget)
+                  .map((use) => String(use?.path ?? ""))
+                  .filter((value) => value.length > 0 && value !== "then" && value !== "default.lifecycle.then")
+              : [];
+            resolveAndMarkTarget(rawTarget, file, context, candidate, runtimePaths);
           }
         }
       } catch (err) {
@@ -853,7 +894,13 @@ function isInvalidSimulatedSpecifier(specifier: string): boolean {
   return /(?:^|[\\/])(?:undefined|null|NaN)(?:$|[.\\/])/.test(value);
 }
 
-function resolveAndMarkTarget(specifier: string, sourceFile: string, context: AnalysisContext, candidate?: { line?: number; column?: number }) {
+function resolveAndMarkTarget(
+  specifier: string,
+  sourceFile: string,
+  context: AnalysisContext,
+  candidate?: { line?: number; column?: number },
+  runtimePaths: string[] = [],
+) {
   if (context.options.ignoreUnknownImport) return;
 
   let cleanSpecifier = specifier;
@@ -892,11 +939,34 @@ function resolveAndMarkTarget(specifier: string, sourceFile: string, context: An
     if (context.options.verbose) {
       console.log(`[Layer 4] Marking reachable: ${targetModule.id}`);
     }
-    context.reachable.add(targetModule.id);
+        context.reachable.add(targetModule.id);
+    const normalizedRuntimePaths = new Set(runtimePaths.map((value) => value.replace(/^module\./, "")));
     for (const exp of targetModule.exports) {
-      context.usedExports.add(`${targetModule.id}:${exp.exportedAs}`);
+      const exportKey = `${targetModule.id}:${exp.exportedAs}`;
+      const isDefault = exp.exportedAs === "default" || exp.isDefault;
+      const directExportUse = normalizedRuntimePaths.has(exp.exportedAs)
+        || (isDefault && normalizedRuntimePaths.has("default"));
+      const memberUses = new Set<string>();
+      for (const runtimePath of normalizedRuntimePaths) {
+        const parts = runtimePath.split(".").filter(Boolean);
+        const defaultOffset = parts[0] === "default" ? 1 : 0;
+        const memberName = parts[defaultOffset];
+        if (memberName && parts.length > defaultOffset + 1 && (parts[0] === exp.exportedAs || (isDefault && parts[0] === "default"))) {
+          memberUses.add(memberName);
+        }
+      }
+      // A dynamic import without an observed namespace/member read proves that
+      // the module is loaded, but it does not prove that every object property
+      // is consumed. WASM observations therefore mark the export itself, and
+      // only the properties actually read through the import proxy.
+      if (runtimePaths.length === 0 || directExportUse || memberUses.size > 0) {
+        context.usedExports.add(exportKey);
+      }
+      for (const memberName of memberUses) {
+        context.usedMembers.add(`${targetModule.id}:${exp.exportedAs}:${memberName}`);
+        context.usedMembers.add(`${targetModule.id}:${exp.name}:${memberName}`);
+      }
     }
-
     // Persist the concrete runtime target discovered by the sandbox. This is
     // important when the graph could not infer a candidate from the symbolic
     // pattern alone (for example, when `suffix` is assigned at runtime).

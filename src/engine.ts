@@ -40,7 +40,7 @@ export class PluginEngine {
     this.plugins.push(plugin);
   }
 
-  async loadDynamicPlugins() {
+  async loadDynamicPlugins(context: AnalysisContext, registerPlugins = true) {
     try {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const pluginsDir = path.join(__dirname, "plugins");
@@ -62,8 +62,34 @@ export class PluginEngine {
             const firstKey = keys[0];
             const plugin = module.default || (firstKey ? (module as any)[firstKey] : null);
             
-            if (plugin && typeof plugin === "object" && plugin.name && plugin.lifecycle) {
-              this.register(plugin);
+            if (plugin && typeof plugin === "object") {
+              // These property reads are the real dynamic registry contract.
+              // Forward the observed reads to the analysis graph rather than
+              // suppressing object-member diagnostics by path or name.
+              const pluginName = plugin.name;
+              const pluginVersion = plugin.version;
+              const pluginDetect = plugin.detect;
+              const pluginLifecycle = plugin.lifecycle;
+              if (pluginName && pluginLifecycle) {
+                const stem = file.replace(/\.(?:[cm]?js|ts)$/i, "");
+                const sourceModule = [...context.modules.values()].find((candidate) => {
+                  const normalized = candidate.id.replace(/\\/g, "/");
+                  return normalized.endsWith(`/src/plugins/${stem}.ts`)
+                    || normalized.endsWith(`/src/plugins/${stem}.js`)
+                    || normalized.endsWith(`/plugins/${stem}.ts`)
+                    || normalized.endsWith(`/plugins/${stem}.js`);
+                });
+                if (sourceModule && firstKey) {
+                  for (const memberName of ["name", "version", "detect", "lifecycle"]) {
+                    if (memberName === "version" && pluginVersion === undefined) continue;
+                    if (memberName === "detect" && pluginDetect === undefined) continue;
+                    if (memberName === "lifecycle" && pluginLifecycle === undefined) continue;
+                    context.runtimeUsedMembers?.add(`${sourceModule.id}:${firstKey}:${memberName}`);
+                    context.usedMembers.add(`${sourceModule.id}:${firstKey}:${memberName}`);
+                  }
+                }
+                if (registerPlugins) this.register(plugin);
+              }
             }
           } catch (err) {}
         }
@@ -84,7 +110,7 @@ export class PluginEngine {
     
     if (!runOptions.skipDetection) {
       this.findings = [];
-      await this.loadDynamicPlugins();
+      await this.loadDynamicPlugins(context, true);
 
       // ── Engine Debug: registered plugins ───────────────────────────────────
       if (verbose) {
@@ -93,6 +119,12 @@ export class PluginEngine {
           dbg(verbose, `  • ${plugin.name}@${plugin.version}`);
         }
       }
+    } else {
+      // The final execution pass runs after source discovery. Re-read the
+      // dynamically imported registry here so runtime member observations can
+      // be attached to the now-populated module graph without re-registering
+      // plugin lifecycle handlers.
+      await this.loadDynamicPlugins(context, false);
     }
 
     // ── Plugin detection with config-driven overrides ──────────────────────
@@ -393,6 +425,18 @@ export class PluginEngine {
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
         return context.semanticConfigMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false;
+      },
+      markRuntimeMemberAsUsed: (fileId, objectName, memberName) => {
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        context.runtimeUsedMembers?.add(`${absolutePath}:${objectName}:${memberName}`);
+      },
+      isRuntimeMemberUsed: (fileId, objectName, memberName) => {
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        return context.runtimeUsedMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false;
       },
       markPackageAsUsed: (packageName) => {
         context.usedPackages?.add(packageName);

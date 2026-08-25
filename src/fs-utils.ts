@@ -62,6 +62,29 @@ export const DEFAULT_IGNORE = [
   "**/vendor/**",
 ];
 
+/**
+ * Files and directories conventionally belonging to tests. These patterns are
+ * deliberately extension-agnostic: ignored test directories also exclude
+ * package.json, fixtures, snapshots, and every other file below them.
+ */
+export const TEST_IGNORE_PATTERNS = [
+  "**/test/**",
+  "**/tests/**",
+  "**/spec/**",
+  "**/specs/**",
+  "**/fixtures/**",
+  "**/__tests__/**",
+  "**/__specs__/**",
+  "**/*.test.*",
+  "**/*.spec.*",
+  "**/*-test.*",
+  "**/*-spec.*",
+  "**/test.*",
+  "**/spec.*",
+  "**/test-*.*",
+  "**/spec-*.*",
+];
+
 // Normalization is pure and the same project paths are compared repeatedly by
 // discovery, graph construction, and plugins. Keep a bounded cache so a large
 // or long-running analysis cannot accumulate unbounded path state.

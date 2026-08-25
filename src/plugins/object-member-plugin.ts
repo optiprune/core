@@ -220,11 +220,6 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         // Treating those members as ordinary data creates false positives.
         if (isStorybookStory(def.fileId)) continue;
         if (isExternalConfigContract(def.fileId, objName)) continue;
-
-        // A dynamically imported module is consumed as a namespace at runtime;
-        // static member reads in the importer do not describe the full contract.
-        if (adapter.isDynamicallyImported(def.fileId)) continue;
-
         // Entry-point members are opt-in, independently of unused-export
         // reporting. Other package exports remain externally consumable.
         const isEntryPoint = adapter.isEntryPoint(def.fileId);
@@ -237,6 +232,10 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
           const usageKey = `${objName}.${memberName}`;
 
           const semanticallyUsed = adapter.isConfigMemberUsed(
+            def.fileId,
+            objName,
+            memberName,
+          ) || adapter.isRuntimeMemberUsed(
             def.fileId,
             objName,
             memberName,

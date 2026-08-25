@@ -428,6 +428,8 @@ export interface AnalysisContext {
   runtimeUsedFiles?: Set<string>;
   /** Object members consumed by ecosystem configuration contracts. */
   semanticConfigMembers?: Set<string>;
+  /** Object members observed through runtime registry or WASM execution. */
+  runtimeUsedMembers?: Set<string>;
   hasReachableUnknownDynamicBoundary: boolean;
   components: StronglyConnectedComponent[];
   usedExports: Set<string>;
@@ -476,6 +478,10 @@ export interface PluginAdapter {
   markConfigMemberAsUsed(fileId: string, objectName: string, memberName: string): void;
   /** Check whether a plugin has marked an object member as semantically consumed. */
   isConfigMemberUsed(fileId: string, objectName: string, memberName: string): boolean;
+  /** Record a member read observed by a runtime registry or WASM sandbox. */
+  markRuntimeMemberAsUsed(fileId: string, objectName: string, memberName: string): void;
+  /** Check a member read observed by a runtime registry or WASM sandbox. */
+  isRuntimeMemberUsed(fileId: string, objectName: string, memberName: string): boolean;
   markPackageAsUsed(packageName: string): void; // Added for Plugin Priority
   attachMetadata(node: any, key: string, value: any): void;
   setMonorepo(monorepo: MonorepoGraph): void;

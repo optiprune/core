@@ -32,6 +32,7 @@ import {
   ingestTsConfigPaths,
   normalizeAbsolute,
   matchesAnyGlob,
+  TEST_IGNORE_PATTERNS,
   readJsonFile,
   readJsonFileWithDiagnostics,
   relativeDisplayPath,
@@ -301,7 +302,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // Re-read configuration options after plugin initialization
   const { extensions, entry, includeConventionalEntries } = resolvedOptions;
   const ignore = resolvedOptions.ignoreTests
-    ? [...resolvedOptions.ignore, "**/test/**", "**/tests/**", "**/__tests__/**", "**/test.*", "**/*.test.js", "**/*.test.jsx", "**/*.test.ts", "**/*.test.tsx", "**/*.test.vue", "**/*.spec.js", "**/*.spec.jsx", "**/*.spec.ts", "**/*.spec.tsx", "**/*.spec.vue"]
+    ? [...resolvedOptions.ignore, ...TEST_IGNORE_PATTERNS]
     : resolvedOptions.ignore;
   const compiledIgnorePatterns = compileGlobs(ignore);
 
@@ -916,6 +917,16 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       (finding.rule === "unused-member" || finding.rule === "unreachable-statement") &&
       !(finding.rule === "unused-member" && resolvedOptions.includeEntryMembers && context.entryPoints.has(finding.file))
     ) {
+      findings.splice(index, 1);
+    }
+  }
+
+  // Ignore means ignore the entire path, not only source files. In particular,
+  // package.json and other metadata below test/fixtures directories must not
+  // produce dependency, schema, or parse findings either.
+  for (let index = findings.length - 1; index >= 0; index -= 1) {
+    const finding = findings[index];
+    if (finding && matchesAnyGlob(finding.file, compiledIgnorePatterns, rootDir)) {
       findings.splice(index, 1);
     }
   }
