@@ -913,7 +913,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     if (
       finding &&
       unreachableFiles.has(finding.file) &&
-      (finding.rule === "unused-member" || finding.rule === "unreachable-statement")
+      (finding.rule === "unused-member" || finding.rule === "unreachable-statement") &&
+      !(finding.rule === "unused-member" && resolvedOptions.includeEntryMembers && context.entryPoints.has(finding.file))
     ) {
       findings.splice(index, 1);
     }

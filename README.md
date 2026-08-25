@@ -69,6 +69,7 @@ The main `AnalyzerOptions` surface includes:
 | `externalContracts` | Public symbols or contracts that should be treated as externally consumed. |
 | `reportUnusedExports` | Enable or disable unused-export reporting. |
 | `includeConventionalEntries` | Include conventional framework and project entry points. |
+| `includeEntryMembers` | Report unused members in objects exported directly from entry points; disabled by default. |
 | `failOn` | Confidence threshold used by `shouldFail`. |
 | `output` | `terminal`, `json`, or `sarif`. |
 | `json` | Compatibility switch for JSON output. |

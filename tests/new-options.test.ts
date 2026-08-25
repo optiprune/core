@@ -47,6 +47,64 @@ describe("new analysis options", () => {
     expect(enabled.findings.some((f) => f.rule === "unused-export" && f.evidence.exportName === "deadValue")).toBe(true);
   });
 
+  it("does not report members of dynamically imported modules", async () => {
+    const root = await rootWith({
+      "src/index.ts": "const loaded = await import('./dynamic-module');\nconsole.log(loaded);\n",
+      "src/dynamic-module.ts": "export const runtimeConfig = { onlyLoadedDynamically: true };\n",
+    });
+    const result = await analyze({
+      rootDir: root,
+      entry: ["src/index.ts"],
+      includeConventionalEntries: false,
+      skip3: true,
+      skip4: true,
+    });
+    expect(result.findings.some((finding) =>
+      finding.rule === "unused-member" && finding.evidence.memberName === "onlyLoadedDynamically",
+    )).toBe(false);
+  });
+
+  it("does not report members declared in configuration files", async () => {
+    const root = await rootWith({
+      "tool.config.ts": "export const config = { consumedByTool: true };\n",
+    });
+    const result = await analyze({
+      rootDir: root,
+      entry: ["tool.config.ts"],
+      includeConventionalEntries: false,
+      includeEntryMembers: true,
+      skip3: true,
+      skip4: true,
+    });
+    expect(result.findings.some((finding) => finding.rule === "unused-member")).toBe(false);
+  });
+
+  it("reports entry-point members only when includeEntryMembers is enabled", async () => {
+    const root = await rootWith({
+      "src/index.ts": "export const publicConfig = { externallyVisible: true };\n",
+    });
+    const normal = await analyze({
+      rootDir: root,
+      entry: ["src/index.ts"],
+      includeConventionalEntries: false,
+      skip3: true,
+      skip4: true,
+    });
+    expect(normal.findings.some((finding) => finding.rule === "unused-member")).toBe(false);
+
+    const enabled = await analyze({
+      rootDir: root,
+      entry: ["src/index.ts"],
+      includeConventionalEntries: false,
+      includeEntryMembers: true,
+      skip3: true,
+      skip4: true,
+    });
+    expect(enabled.findings.some((finding) =>
+      finding.rule === "unused-member" && finding.evidence.memberName === "externallyVisible",
+    )).toBe(true);
+  });
+
   it("ignores test files when ignoreTests is enabled", async () => {
     const root = await rootWith({
       "src/index.ts": "import './helper';\nexport const entry = true;\n",

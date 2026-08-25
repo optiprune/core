@@ -187,6 +187,8 @@ export interface AnalyzerOptions {
   includeConventionalEntries?: boolean;
   /** Report unused exports declared directly in entry files. */
   includeEntryExports?: boolean;
+  /** Report unused members declared in objects exported directly from entry files. */
+  includeEntryMembers?: boolean;
   /** Include dependency-cycle information in human-readable output. */
   cycles?: boolean;
   /** Ignore test files such as test.js, foo.test.ts, and __tests__ files. */
@@ -256,6 +258,8 @@ export interface Config {
   reportUnusedExportsInUnreachableFiles?: boolean;
   includeConventionalEntries?: boolean;
   includeEntryExports?: boolean;
+  /** Report unused members declared in objects exported directly from entry files. */
+  includeEntryMembers?: boolean;
   cycles?: boolean;
   ignoreTests?: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
@@ -308,6 +312,7 @@ export interface ResolvedOptions {
   output: OutputFormat;
   includeConventionalEntries: boolean;
   includeEntryExports: boolean;
+  includeEntryMembers: boolean;
   cycles: boolean;
   ignoreTests: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
@@ -448,6 +453,10 @@ export interface PluginAdapter {
   getDependencies(fileId: string): string[];
   /** Whether a named export belongs to a package export-map entrypoint. */
   isPublicExport(fileId: string, exportName: string): boolean;
+  /** Whether a file is an analyzer entry point. */
+  isEntryPoint(fileId: string): boolean;
+  /** Whether a file is reached by a dynamic import edge. */
+  isDynamicallyImported(fileId: string): boolean;
   getConfig(): ResolvedOptions;
   readFile(filename: string): Promise<string | null>;
   readJson(filename: string): Promise<any | null>;
@@ -531,6 +540,7 @@ export interface OptiPruneUserConfig {
   reportUnusedExports?: boolean;
   reportUnusedExportsInUnreachableFiles?: boolean;
   includeConventionalEntries?: boolean;
+  includeEntryMembers?: boolean;
   failOn?: "high" | "medium" | "low" | "info" | "none";
   layers?: {
     smtTimeoutMs?: number;

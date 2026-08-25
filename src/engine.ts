@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { compileGlobs, matchesAnyGlob } from "./fs-utils.js";
+import { ObjectMemberPlugin } from "./plugins/object-member-plugin.js";
 
 // ── Verbose debug helper ────────────────────────────────────────────────────
 // All engine-level debug messages go to stderr so they never pollute JSON /
@@ -28,6 +29,13 @@ export class PluginEngine {
   private plugins: AnalyzerPlugin[] = [];
   private findings: Finding[] = [];
 
+  constructor() {
+    // Object-member analysis is a core correctness rule. Register it
+    // explicitly so it cannot be disabled or lost when optional plugins are
+    // discovered dynamically.
+    this.register(ObjectMemberPlugin);
+  }
+
   register(plugin: AnalyzerPlugin) {
     this.plugins.push(plugin);
   }
@@ -45,6 +53,7 @@ export class PluginEngine {
       }
 
       for (const file of files) {
+        if (file === "object-member-plugin.ts" || file === "object-member-plugin.js") continue;
         if ((file.endsWith(".ts") || file.endsWith(".js")) && !file.endsWith(".d.ts")) {
           try {
             const pluginPath = pathToFileURL(path.join(pluginsDir, file)).href;
@@ -284,6 +293,25 @@ export class PluginEngine {
                 queue.push({ moduleId: targetId, name: current.name });
               }
             }
+          }
+        }
+        return false;
+      },
+      isEntryPoint: (fileId) => {
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        return (context.entryPoints?.has(absolutePath) ?? false) ||
+          (context.publicApiEntryPoints?.has(absolutePath) ?? false);
+      },
+      isDynamicallyImported: (fileId) => {
+        const absolutePath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        for (const module of context.modules.values()) {
+          if (module.edges.some((edge) => edge.target === absolutePath &&
+            (edge.kind === "dynamic-literal" || edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic"))) {
+            return true;
           }
         }
         return false;

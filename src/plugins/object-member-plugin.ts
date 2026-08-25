@@ -58,6 +58,11 @@ function isStorybookStory(fileId: string): boolean {
 function isExternalConfigContract(fileId: string, objectName: string): boolean {
   const normalized = fileId.replace(/\\/g, "/");
   const basename = normalized.split("/").pop() ?? "";
+  // Configuration modules are consumed by their host tool, not by local
+  // JavaScript member reads. Keep this policy built in rather than requiring a
+  // framework plugin to opt each config file out individually.
+  if (/(?:^|\/)(?:config|configs|configuration)(?:\/|$)/i.test(normalized)) return true;
+  if (/(?:^|\/)[^/]+\.config(?:\.[cm]?[jt]sx?)?$/i.test(normalized)) return true;
   if (basename.startsWith("stylelint.config.")) return true;
   if (normalized.includes("/.storybook/") && basename.startsWith("preview.")) return true;
   if (objectName === "metadata" && /(?:^|\/)app\/layout\.[cm]?[jt]sx?$/.test(normalized)) return true;
@@ -216,10 +221,15 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         if (isStorybookStory(def.fileId)) continue;
         if (isExternalConfigContract(def.fileId, objName)) continue;
 
-        // Package exports and low-confidence re-exports are externally
-        // consumable; their object members cannot be proven dead from the
-        // analyzed workspace alone.
-        if (adapter.isPublicExport(def.fileId, objName)) continue;
+        // A dynamically imported module is consumed as a namespace at runtime;
+        // static member reads in the importer do not describe the full contract.
+        if (adapter.isDynamicallyImported(def.fileId)) continue;
+
+        // Entry-point members are opt-in, independently of unused-export
+        // reporting. Other package exports remain externally consumable.
+        const isEntryPoint = adapter.isEntryPoint(def.fileId);
+        if (isEntryPoint && !adapter.getConfig().includeEntryMembers) continue;
+        if (!isEntryPoint && adapter.isPublicExport(def.fileId, objName)) continue;
 
         const aliases = state.resolveAliases(objName);
         const hasWildcardUsage = Array.from(aliases).some((name) => state.wildcardObjects.has(name));
