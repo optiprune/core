@@ -393,11 +393,9 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   if (cacheDirty) saveCache(resolvedOptions.rootDir, newCache);
 
   let entryPoints = new Set<string>();
-  // Tool configuration files are executable entry points even when no source
-  // file imports them directly.
-  for (const sourceFile of allSourceFiles) {
-    if (isConfigurationFile(sourceFile)) entryPoints.add(path.normalize(sourceFile));
-  }
+  // Tool configuration files are protected separately in the unreachable-file
+  // pass below; they are not synthetic entry points and must not change the
+  // public entry-point summary.
   // Existing public-entry behavior for conventional/package roots.
   const publicEntryPoints = new Set<string>();
   // Entries declared in package.json exports specifically describe public API.
@@ -881,6 +879,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const unreachableFileIgnorePatterns = compileGlobs(resolvedOptions.unreachableFileIgnorePatterns ?? []);
   for (const module of modules.values()) {
     if (
+      !isConfigurationFile(module.id) &&
       !matchesAnyGlob(module.id, unreachableFileIgnorePatterns, rootDir) &&
       ((!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) || fullyUnusedPureExportModules.has(module.id))
     ) {
