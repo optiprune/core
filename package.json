@@ -1,9 +1,12 @@
 {
   "name": "@optiprune/core",
-  "version": "1.14.1",
+  "version": "1.15.0",
   "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
   "type": "module",
   "main": "./dist/index.js",
+  "bin": {
+    "optiprune-language-server": "./dist/language-server.js"
+  },
   "types": "./dist/index.d.ts",
   "homepage": "https://opti.drml.int.yt/",
   "repository": {
@@ -34,6 +37,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism"
   },
   "keywords": [
@@ -80,6 +84,9 @@
     "jsonc-parser": "^3.3.1",
     "pathe": "2.0.3",
     "quickjs-emscripten": "^0.32.0",
+    "vscode-languageserver": "^10.1.0",
+    "vscode-languageserver-textdocument": "^1.0.14",
+    "vscode-uri": "^3.2.0",
     "yuku-ast": "^0.8.3",
     "yuku-codegen": "^0.8.3",
     "yuku-parser": "^0.8.3",

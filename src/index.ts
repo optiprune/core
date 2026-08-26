@@ -326,12 +326,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
       });
 
-  // Fast path: hashes cover every discovered source, so an imported/exported
-  // source change also invalidates the report without relying on timestamps.
-  const currentFileHashes: Record<string, string> = {};
+  // Fast path: use size + mtime first. This avoids rereading and hashing every
+  // source file on the common unchanged-workspace path. SHA-256 remains the
+  // fallback when metadata is unavailable or differs.
+  const currentFileStats: Record<string, { size: number; mtimeMs: number }> = {};
   for (const file of allSourceFiles) {
     try {
-      currentFileHashes[file] = getFileHash(await fsp.readFile(file, "utf8"));
+      const stat = await fsp.stat(file);
+      currentFileStats[file] = { size: stat.size, mtimeMs: stat.mtimeMs };
     } catch {
       // The normal parse loop handles files that disappear during analysis.
     }
@@ -354,13 +356,29 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     externalContracts: resolvedOptions.externalContracts,
     plugins: resolvedOptions.plugins,
   });
+    const sameStats = cache.fileStats
+    && Object.keys(cache.fileStats).length === Object.keys(currentFileStats).length
+    && Object.entries(currentFileStats).every(([file, stat]) => {
+      const cached = cache.fileStats?.[file];
+      return cached?.size === stat.size && cached.mtimeMs === stat.mtimeMs;
+    });
+  if (!resolvedOptions.fix && cache.version === "2.1" && cache.report && cache.analysisKey === analysisKey && sameStats) {
+    return cache.report;
+  }
+  const currentFileHashes: Record<string, string> = {};
+  for (const file of allSourceFiles) {
+    try {
+      currentFileHashes[file] = getFileHash(await fsp.readFile(file, "utf8"));
+    } catch {
+      // The normal parse loop handles files that disappear during analysis.
+    }
+  }
   const sameHashes = cache.fileHashes
     && Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length
     && Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
   if (!resolvedOptions.fix && cache.version === "2.1" && cache.report && cache.analysisKey === analysisKey && sameHashes) {
     return cache.report;
   }
-
   const modules = new Map<string, ModuleRecord>();
   const semanticGraph = new SemanticGraph();
   const topologyManager = new TopologyManager(semanticGraph);
@@ -1095,16 +1113,18 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   newCache.version = "2.1";
   newCache.analysisKey = analysisKey;
   newCache.fileHashes = currentFileHashes;
+  newCache.fileStats = currentFileStats;
   newCache.report = report;
   for (const [file, entry] of Object.entries(newCache.entries)) {
     const fileFindings = report.findings.filter((finding) => finding.file === file);
-    if (fileFindings.length > 0) {
-      entry.result = fileFindings.map((finding) => ({
-        ...(finding.location?.start.line !== undefined && { line: finding.location.start.line }),
-        rule: finding.rule,
-        message: finding.message,
-      }));
-    }
+    // Store the complete per-file result. An explicit empty array distinguishes
+    // a clean, analyzed file from a legacy entry without a cached result.
+    entry.findings = fileFindings;
+    entry.result = fileFindings.map((finding) => ({
+      ...(finding.location?.start.line !== undefined && { line: finding.location.start.line }),
+      rule: finding.rule,
+      message: finding.message,
+    }));
   }
   saveCache(resolvedOptions.rootDir, newCache);
 

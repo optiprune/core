@@ -20,6 +20,8 @@ export interface AnalysisCache {
   analysisKey?: string;
   /** SHA-256 fingerprints for every discovered source file. */
   fileHashes?: Record<string, string>;
+  /** Cheap filesystem metadata used to avoid rereading unchanged files. */
+  fileStats?: Record<string, { size: number; mtimeMs: number }>;
   /** Complete report, stored compactly enough for fast unchanged reruns. */
   report?: AnalysisReport;
 }

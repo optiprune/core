@@ -20,6 +20,7 @@ The package does not require the CLI. Import the analysis functions, reporters, 
 | Fixes | Confidence-aware file, export/member, dependency, development-dependency, and condition fixes with dry-run and force controls. |
 | Output | Structured `AnalysisReport`, terminal formatting, JSON serialization, and SARIF 2.1 formatting. |
 | Plugins | Source-aware adapters for framework, build, test, runtime, package-manager, and workspace conventions. |
+| Language Server | LSP server over stdio that publishes Core findings as editor diagnostics and reuses the Core cache. |
 
 ## Installation
 
@@ -204,6 +205,39 @@ await importCache(process.cwd(), "./.optiprune/cache.json");
 
 The cache module also exposes `getFileHash()` and `isCacheValid()` for integrations that need to inspect cache freshness.
 
+On an unchanged workspace, `analyze()` first compares the cached analysis key and inexpensive per-file filesystem metadata (`size` and `mtimeMs`). If both match, Core returns the persisted `AnalysisReport` directly without rereading or hashing source files. If metadata is unavailable or differs, Core falls back to SHA-256 content hashes. During an invalidated run, unchanged files reuse their cached module records, changed files are reparsed, and every file receives a persisted `findings` array, including an empty array for a clean file.
+
+## Language Server
+
+`@optiprune/core` includes a lightweight Language Server Protocol implementation for editor integrations. It communicates over standard input and output, detects the workspace from the LSP `rootUri` or workspace folders, runs the Core analyzer, and publishes findings as diagnostics. Diagnostics include the OptiPrune rule code, severity, confidence, source location, and message.
+
+Install the package and build it before starting the server:
+
+```bash
+npm install @optiprune/core
+npm run build
+npx optiprune-language-server
+```
+
+The equivalent repository development command is:
+
+```bash
+npm run language-server
+```
+
+The server reacts to document open, change, and save events. It uses the normal Core cache at `<workspace>/.optiprune/cache.json`, so repeated editor events on an unchanged workspace return the saved report immediately. When a source file changes, Core invalidates the affected cache state, reparses changed files, reuses unchanged module records, and writes the updated report back to the cache.
+
+A minimal VS Code client configuration can start the stdio server through an extension or another LSP client with the following command:
+
+```json
+{
+  "command": "npx",
+  "args": ["optiprune-language-server"]
+}
+```
+
+The current server focuses on diagnostics. Code actions, hover details, go-to-definition, and a dedicated VS Code extension can be added on top of the same Core report and cache APIs.
+
 ## Plugins
 
 Plugins implement the `AnalyzerPlugin` contract and can expose a `PluginAdapter` and lifecycle hooks. Plugins may add entry patterns, mark files or packages as used, interpret project metadata, and participate in file, AST, dependency, or analysis-complete phases.
@@ -236,6 +270,7 @@ The current built-in implementations live in [`src/plugins`](./src/plugins). The
 | `@optiprune/core/reporters` | `formatTerminal`, `formatSarif`. |
 | `@optiprune/core/types` | `AnalysisReport`, `AnalyzerOptions`, `Finding`, `FixConfig`, plugin contracts, configuration types, graph types, parser types, and result types. |
 | `@optiprune/core/fs-utils` | Filesystem helpers used by integrations that need Core path and file utilities. |
+| `optiprune-language-server` | Stdio Language Server Protocol process for editor diagnostics. |
 
 The package also exports `defineConfig`, `CONFIDENCE_RANK`, cache types, report types, module/edge types, monorepo types, and plugin lifecycle types.
 
@@ -247,6 +282,8 @@ Install dependencies and run the package checks from the repository root:
 npm install
 npm run build
 npm test
+# Run the Language Server regression tests only
+npm run test language-server
 ```
 
 The build uses TypeScript. The test suite uses Vitest without file-level parallelism.
