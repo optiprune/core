@@ -141,6 +141,8 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
   // Map top-level skip flags from CLI/Options to layers object
   if (options.skip3 !== undefined) merged.layers.skip3 = options.skip3;
   if (options.skip4 !== undefined) merged.layers.skip4 = options.skip4;
+  if (options.skipSmt !== undefined) merged.layers.skipSmt = options.skipSmt;
+  if (merged.layers.skipSmt) merged.layers.skip3 = true;
 
   // Sync the legacy `json` boolean with the `output` field so both are
   // always consistent regardless of which one the caller set.
@@ -250,7 +252,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     cache = loadCache(resolvedOptions.rootDir);
   }
 
-  const newCache = { version: "1.0", entries: {} as any };
+  const newCache: AnalysisCache = { version: "2.0", entries: {} };
   
   // Phase 1: Core Graph & AST (Instant)
   const { rootDir } = resolvedOptions;
@@ -322,6 +324,42 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           || matchesAnyGlob(file, compiledIncludedProjectPatterns, rootDir);
         return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
       });
+
+  // Fast path: hashes cover every discovered source, so an imported/exported
+  // source change also invalidates the report without relying on timestamps.
+  const currentFileHashes: Record<string, string> = {};
+  for (const file of allSourceFiles) {
+    try {
+      currentFileHashes[file] = getFileHash(await fsp.readFile(file, "utf8"));
+    } catch {
+      // The normal parse loop handles files that disappear during analysis.
+    }
+  }
+  const analysisKey = JSON.stringify({
+    version: VERSION,
+    entry: resolvedOptions.entry,
+    extensions: resolvedOptions.extensions,
+    ignore: resolvedOptions.ignore,
+    ignoreTests: resolvedOptions.ignoreTests,
+    ignoreUnknownImport: resolvedOptions.ignoreUnknownImport,
+    layers: resolvedOptions.layers,
+    rules: resolvedOptions.rules,
+    reportUnusedExports: resolvedOptions.reportUnusedExports,
+    reportUnusedExportsInUnreachableFiles: resolvedOptions.reportUnusedExportsInUnreachableFiles,
+    includeConventionalEntries: resolvedOptions.includeConventionalEntries,
+    includeEntryExports: resolvedOptions.includeEntryExports,
+    includeEntryMembers: resolvedOptions.includeEntryMembers,
+    cycles: resolvedOptions.cycles,
+    externalContracts: resolvedOptions.externalContracts,
+    plugins: resolvedOptions.plugins,
+  });
+  const sameHashes = cache.fileHashes
+    && Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length
+    && Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
+  if (!resolvedOptions.fix && cache.report && cache.analysisKey === analysisKey && sameHashes) {
+    return cache.report;
+  }
+
   const modules = new Map<string, ModuleRecord>();
   const semanticGraph = new SemanticGraph();
   const topologyManager = new TopologyManager(semanticGraph);
@@ -390,7 +428,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
   
   if (Object.keys(cache.entries).length !== allSourceFiles.length) cacheDirty = true;
-  if (cacheDirty) saveCache(resolvedOptions.rootDir, newCache);
 
   let entryPoints = new Set<string>();
   // Tool configuration files are protected separately in the unreachable-file
@@ -627,10 +664,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Layer 2: Control Flow Graph (CFG)
   const layer2Findings = analyzeLayer2(context);
-  findings.push(...layer2Findings);
+  const filteredLayer2Findings = resolvedOptions.layers.skipSmt
+    ? layer2Findings.filter((finding) => !["constant-condition", "contradictory-guard", "schema-impossible-guard"].includes(finding.rule))
+    : layer2Findings;
+  findings.push(...filteredLayer2Findings);
 
   // Phase 2: Layer 3 (Conditional Z3 SMT)
-  if (!resolvedOptions.layers.skip3) {
+  if (!resolvedOptions.layers.skip3 && !resolvedOptions.layers.skipSmt) {
     const layer3Findings = await analyzeLayer3(context);
     findings.push(...layer3Findings);
   }
@@ -1052,6 +1092,23 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       console.error(`[Fixer] Applied ${fixedCount} fixes.`);
     }
   }
+
+  // Persist the compact report only after all analysis layers have completed.
+  newCache.version = "2.0";
+  newCache.analysisKey = analysisKey;
+  newCache.fileHashes = currentFileHashes;
+  newCache.report = report;
+  for (const [file, entry] of Object.entries(newCache.entries)) {
+    const fileFindings = report.findings.filter((finding) => finding.file === file);
+    if (fileFindings.length > 0) {
+      entry.result = fileFindings.map((finding) => ({
+        ...(finding.location?.start.line !== undefined && { line: finding.location.start.line }),
+        rule: finding.rule,
+        message: finding.message,
+      }));
+    }
+  }
+  saveCache(resolvedOptions.rootDir, newCache);
 
   // Support external cache-to path
   if ((options as any).cacheTo) {

@@ -197,6 +197,8 @@ export interface AnalyzerOptions {
   ignoreUnknownImport?: boolean;
   skip3?: boolean;
   skip4?: boolean;
+  /** Skip SMT analysis and suppress impossible-condition findings from Layer 2. */
+  skipSmt?: boolean;
   verbose?: boolean;
   fix?: boolean | FixConfig;
   cacheFrom?: string;
@@ -333,6 +335,7 @@ export interface ResolvedOptions {
     enableConcolicProof: boolean;
     skip3: boolean;
     skip4: boolean;
+    skipSmt: boolean;
   };
   rules: Record<string, RuleSeverity>;
   /** Resolved plugin overrides. */

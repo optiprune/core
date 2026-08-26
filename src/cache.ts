@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "pathe";
 import crypto from "node:crypto";
-import type { ModuleRecord, Finding } from "./types.js";
+import type { ModuleRecord, Finding, AnalysisReport } from "./types.js";
 
 export interface CacheEntry {
   hash: string;
@@ -9,11 +9,19 @@ export interface CacheEntry {
   findings?: Finding[];
   isReachable?: boolean;
   timestamp: number;
+  /** Compact per-file analysis summary for tooling and diagnostics. */
+  result?: Array<{ line?: number; rule: string; message: string }>;
 }
 
 export interface AnalysisCache {
   version: string;
   entries: Record<string, CacheEntry>;
+  /** Fingerprint of options that affect analysis output. */
+  analysisKey?: string;
+  /** SHA-256 fingerprints for every discovered source file. */
+  fileHashes?: Record<string, string>;
+  /** Complete report, stored compactly enough for fast unchanged reruns. */
+  report?: AnalysisReport;
 }
 
 const CACHE_DIR = ".optiprune";
@@ -32,7 +40,7 @@ export function loadCache(rootDir: string): AnalysisCache {
       // Ignore
     }
   }
-  return { version: "1.0", entries: {} };
+  return { version: "2.0", entries: {} };
 }
 
 export function saveCache(rootDir: string, cache: AnalysisCache): void {

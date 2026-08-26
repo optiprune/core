@@ -61,6 +61,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
     enableConcolicProof: true,
     skip3: false,
     skip4: false,
+    skipSmt: false,
   },
   rules: {
     "unused-export": "warning",
