@@ -37,17 +37,26 @@ function isDevelopmentOnlySource(fileId: string): boolean {
  * Dynamically resolves a command token (e.g., "mocha" or "c8") to its providing npm package
  * by inspecting `node_modules/.bin` and package `package.json` manifests.
  */
+function packageNameFromResolvedPath(resolvedPath: string): string | null {
+  const segments = resolvedPath.replace(/\\/g, "/").split("/");
+  for (let index = segments.length - 1; index >= 0; index -= 1) {
+    if (segments[index] !== "node_modules" || index + 1 >= segments.length) continue;
+    const first = segments[index + 1];
+    if (!first || first === ".bin" || first === ".pnpm") continue;
+    if (first.startsWith("@") && segments[index + 2]) return `${first}/${segments[index + 2]}`;
+    return first;
+  }
+  return null;
+}
+
 function resolveBinaryDependency(token: string, projectRoot: string): string | null {
   // 1. Direct Binary Check: Check if `node_modules/.bin/<token>` exists
   const binPath = path.join(projectRoot, 'node_modules', '.bin', token);
   if (fs.existsSync(binPath)) {
     try {
       const realPath = fs.realpathSync(binPath);
-      // Extract package name from resolved path: node_modules/mocha/bin/mocha -> "mocha"
-      const match = realPath.match(/node_modules[/\\]((?:@[^/\\]+[/\\])?[^/\\]+)/);
-      if (match && match[1] && match[1] !== '.bin') {
-        return match[1];
-      }
+      const packageName = packageNameFromResolvedPath(realPath);
+      if (packageName) return packageName;
     } catch {
       // Fallback to manifest scanning if realpath fails
     }

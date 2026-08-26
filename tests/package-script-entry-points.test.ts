@@ -130,6 +130,35 @@ describe("package script entry points", () => {
     )).toBe(false);
   });
 
+  it("resolves pnpm store binaries to their real package names", async () => {
+    const typescriptBin = path.join(fixtureRoot, "node_modules", ".pnpm", "typescript@5.8.3", "node_modules", "typescript", "bin");
+    const vitestBin = path.join(fixtureRoot, "node_modules", ".pnpm", "vitest@3.2.7", "node_modules", "vitest", "vitest.mjs");
+    await fs.mkdir(typescriptBin, { recursive: true });
+    await fs.mkdir(path.dirname(vitestBin), { recursive: true });
+    await fs.mkdir(path.join(fixtureRoot, "node_modules", ".bin"), { recursive: true });
+    await fs.writeFile(path.join(typescriptBin, "tsc"), "#!/usr/bin/env node\\n");
+    await fs.writeFile(vitestBin, "#!/usr/bin/env node\\n");
+    await fs.symlink(path.join(typescriptBin, "tsc"), path.join(fixtureRoot, "node_modules", ".bin", "tsc"));
+    await fs.symlink(vitestBin, path.join(fixtureRoot, "node_modules", ".bin", "vitest"));
+    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
+      name: "pnpm-binary-resolution",
+      private: true,
+      scripts: { build: "tsc", test: "vitest" },
+      devDependencies: { typescript: "^5.8.3", vitest: "^3.2.7" },
+    }, null, 2));
+
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: [],
+      extensions: [".ts"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+    });
+
+    expect(report.findings.some((finding) => finding.rule === "missing-dependency" && finding.evidence?.package === ".pnpm")).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "missing-dev-dependency")).toBe(false);
+  });
+
   it("reports a high-confidence error when a concrete local Node script target is absent", async () => {
     await fs.mkdir(fixtureRoot, { recursive: true });
     await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
