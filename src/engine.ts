@@ -255,6 +255,7 @@ export class PluginEngine {
         projectFiles = (async () => {
           const ignoredDirectories = new Set([
             ".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".svelte-kit",
+            ...(context.options.ignoreTests ? ["test", "tests", "fixtures", "__tests__", "__mocks__"] : []),
           ]);
           const files: string[] = [];
           const visit = async (directory: string): Promise<void> => {
@@ -440,6 +441,16 @@ export class PluginEngine {
       },
       markPackageAsUsed: (packageName) => {
         context.usedPackages?.add(packageName);
+      },
+      markMissingDevDependency: (packageName, file, message) => {
+        this.findings.push({
+          rule: "missing-dev-dependency",
+          severity: "error",
+          confidence: "high",
+          message: message ?? `Package '${packageName}' is required by development tooling but is not declared in devDependencies.`,
+          file,
+          evidence: { package: packageName, type: "devDependency" },
+        });
       },
       attachMetadata: (node, key, value) => {
         (node as any).metadata = (node as any).metadata || {};

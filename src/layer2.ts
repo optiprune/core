@@ -13,14 +13,14 @@ export function analyzeLayer2(context: AnalysisContext): Finding[] {
       continue;
     }
 
-    const moduleFindings = analyzeModuleFlow(module);
+    const moduleFindings = analyzeModuleFlow(module, !context.options.layers.skipSmt);
     findings.push(...moduleFindings);
   }
 
   return findings;
 }
 
-function analyzeModuleFlow(module: ModuleRecord): Finding[] {
+function analyzeModuleFlow(module: ModuleRecord, detectImpossibleConditions = true): Finding[] {
   const findings: Finding[] = [];
   const ast = module.ast as any;
 
@@ -61,8 +61,9 @@ function analyzeModuleFlow(module: ModuleRecord): Finding[] {
       }
     }
 
-    // 2. Detect constant conditions
-    if (node.type === "IfStatement") {
+    // 2. Detect constant conditions. In skipSmt mode this branch is not
+    // inspected at all; Layer 2 still continues with ordinary CFG analysis.
+    if (detectImpossibleConditions && node.type === "IfStatement") {
       const condition = node.test;
       const result = evaluateStaticCondition(condition);
       if (result === false) {
@@ -90,7 +91,7 @@ function analyzeModuleFlow(module: ModuleRecord): Finding[] {
       }
     }
 
-    if (node.type === "WhileStatement" || node.type === "DoWhileStatement") {
+    if (detectImpossibleConditions && (node.type === "WhileStatement" || node.type === "DoWhileStatement")) {
       const result = evaluateStaticCondition(node.test);
       if (result === false && node.type === "WhileStatement") {
         const bodyLoc = (node.body as any)?.loc as Range | undefined;
@@ -107,7 +108,7 @@ function analyzeModuleFlow(module: ModuleRecord): Finding[] {
     }
 
     // 3. Simple Contradictory Guards (e.g., x === 1 && x === 2)
-    if (node.type === "LogicalExpression" && node.operator === "&&") {
+    if (detectImpossibleConditions && node.type === "LogicalExpression" && node.operator === "&&") {
       if (isContradictory(node.left, node.right)) {
         const logicalLoc = node.loc as Range | undefined;
         findings.push({

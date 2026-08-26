@@ -252,7 +252,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     cache = loadCache(resolvedOptions.rootDir);
   }
 
-  const newCache: AnalysisCache = { version: "2.0", entries: {} };
+  const newCache: AnalysisCache = { version: "2.1", entries: {} };
   
   // Phase 1: Core Graph & AST (Instant)
   const { rootDir } = resolvedOptions;
@@ -288,6 +288,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     resolvedOptions.monorepo = await buildMonorepoTopology(
       resolvedOptions.rootDir,
       resolvedOptions.workspaceGlobs,
+      resolvedOptions.ignoreTests ? TEST_IGNORE_PATTERNS : [],
     );
     hasMonorepo = resolvedOptions.monorepo.packageMap.size > 0;
   } catch (e) {
@@ -356,7 +357,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const sameHashes = cache.fileHashes
     && Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length
     && Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
-  if (!resolvedOptions.fix && cache.report && cache.analysisKey === analysisKey && sameHashes) {
+  if (!resolvedOptions.fix && cache.version === "2.1" && cache.report && cache.analysisKey === analysisKey && sameHashes) {
     return cache.report;
   }
 
@@ -664,10 +665,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Layer 2: Control Flow Graph (CFG)
   const layer2Findings = analyzeLayer2(context);
-  const filteredLayer2Findings = resolvedOptions.layers.skipSmt
-    ? layer2Findings.filter((finding) => !["constant-condition", "contradictory-guard", "schema-impossible-guard"].includes(finding.rule))
-    : layer2Findings;
-  findings.push(...filteredLayer2Findings);
+  findings.push(...layer2Findings);
 
   // Phase 2: Layer 3 (Conditional Z3 SMT)
   if (!resolvedOptions.layers.skip3 && !resolvedOptions.layers.skipSmt) {
@@ -1094,7 +1092,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   // Persist the compact report only after all analysis layers have completed.
-  newCache.version = "2.0";
+  newCache.version = "2.1";
   newCache.analysisKey = analysisKey;
   newCache.fileHashes = currentFileHashes;
   newCache.report = report;

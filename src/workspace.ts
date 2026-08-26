@@ -12,6 +12,7 @@ import type { WorkspacePackage, MonorepoGraph } from './types.js';
 export async function buildMonorepoTopology(
   rootPath: string,
   pluginWorkspaceGlobs: string[] = [],
+  discoveryIgnoreGlobs: string[] = [],
 ): Promise<MonorepoGraph> {
   const absoluteRoot = normalizeAbsolute(rootPath);
   const packageMap = new Map<string, WorkspacePackage>();
@@ -74,7 +75,7 @@ export async function buildMonorepoTopology(
   // 3. Find all package.json files matching the globs
   let manifestFiles = await fg(
     (uniquePackageGlobs.length > 0 ? uniquePackageGlobs : packageGlobs).map(g => path.posix.join(g, 'package.json')),
-    { cwd: absoluteRoot, absolute: true, ignore: ['**/node_modules/**'] }
+    { cwd: absoluteRoot, absolute: true, ignore: ['**/node_modules/**', ...discoveryIgnoreGlobs] }
   );
 
   // Auto-discovery: If no packages found via standard globs, search for any package.json
@@ -82,7 +83,7 @@ export async function buildMonorepoTopology(
     manifestFiles = await fg('**/package.json', {
       cwd: absoluteRoot,
       absolute: true,
-      ignore: ['**/node_modules/**', 'package.json']
+      ignore: ['**/node_modules/**', 'package.json', ...discoveryIgnoreGlobs]
     });
   }
 

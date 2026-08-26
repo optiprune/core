@@ -26,6 +26,13 @@ const OPTIPRUNE_PROTECTED_PACKAGES = new Set([
   "optiprune",
 ]);
 
+function isDevelopmentOnlySource(fileId: string): boolean {
+  const normalized = fileId.replace(/\\/g, "/");
+  return /(?:^|\/)(?:test|tests|fixtures|__tests__|__mocks__)(?:\/|$)/i.test(normalized)
+    || /\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(normalized)
+    || /(?:^|\/)(?:[^/]+\.)?config\.[cm]?[jt]sx?$/i.test(normalized);
+}
+
 /**
  * Dynamically resolves a command token (e.g., "mocha" or "c8") to its providing npm package
  * by inspecting `node_modules/.bin` and package `package.json` manifests.
@@ -595,14 +602,18 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           continue;
         }
 
+        const importFiles = importFilesFor(imp);
+        const isDevOnlyImport = importFiles.length > 0 && importFiles.every(isDevelopmentOnlySource);
         if (!allDeclaredDeps.has(imp) && !workspacePackageNames.has(imp) && !imp.startsWith('.') && !imp.startsWith('/') && !imp.includes(':') && hasReachableImport(imp)) {
           findings.push({
-            rule: 'missing-dependency',
+            rule: isDevOnlyImport ? 'missing-dev-dependency' : 'missing-dependency',
             severity: 'error',
             confidence: 'high',
             message: `Package '${imp}' is imported but not declared in package.json.`,
             file: relativeManifest,
-            evidence: { package: imp, type: 'import' }
+            evidence: { package: imp,               type: isDevOnlyImport ? 'devDependency' : 'dependency',
+              ...(importFiles.length > 0 && { importingFiles: importFiles }),
+            }
           });
         }
       }
@@ -615,12 +626,12 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           const COMMON_GLOBALS = ['sh', 'bash', 'zsh', 'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'curl', 'wget', 'git', 'sudo', 'chmod', 'chown', 'env', 'xargs'];
           if (!COMMON_GLOBALS.includes(bin)) {
             findings.push({
-              rule: 'missing-dependency',
+              rule: 'missing-dev-dependency',
               severity: 'error',
               confidence: 'high',
-              message: `Binary/Command '${bin}' (from package '${mappedPkg}') is used in scripts but not declared in package.json.`,
+              message: `Binary/Command '${bin}' (from package '${mappedPkg}') is used in scripts but not declared in devDependencies.`,
               file: relativeManifest,
-              evidence: { package: mappedPkg, type: 'binary' }
+              evidence: { package: mappedPkg, type: 'devDependency', source: 'script' }
             });
           }
         }

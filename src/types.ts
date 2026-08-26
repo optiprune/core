@@ -156,6 +156,7 @@ export interface Finding {
     | "unreachable-dynamic-path"
     | "protected-contract"
     | "missing-dependency"
+    | "missing-dev-dependency"
     | "unused-dependency"
     | "unused-dev-dependency"
     | "non-existent-dependency"
@@ -486,6 +487,8 @@ export interface PluginAdapter {
   /** Check a member read observed by a runtime registry or WASM sandbox. */
   isRuntimeMemberUsed(fileId: string, objectName: string, memberName: string): boolean;
   markPackageAsUsed(packageName: string): void; // Added for Plugin Priority
+  /** Emit a missing development-dependency finding from a plugin integration. */
+  markMissingDevDependency(packageName: string, file: string, message?: string): void;
   attachMetadata(node: any, key: string, value: any): void;
   setMonorepo(monorepo: MonorepoGraph): void;
   /** Add entry-point patterns discovered in a framework configuration. */
@@ -557,6 +560,7 @@ export interface OptiPruneUserConfig {
     enableConcolicProof?: boolean;
     skip3?: boolean;
     skip4?: boolean;
+    skipSmt?: boolean;
   };
   rules?: Record<string, "error" | "warning" | "off">;
   plugins?: PluginsConfig;

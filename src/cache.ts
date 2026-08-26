@@ -40,7 +40,7 @@ export function loadCache(rootDir: string): AnalysisCache {
       // Ignore
     }
   }
-  return { version: "2.0", entries: {} };
+  return { version: "2.1", entries: {} };
 }
 
 export function saveCache(rootDir: string, cache: AnalysisCache): void {

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "pathe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { analyze } from "../src/index.js";
 import { applyFixes } from "../src/fixer.js";
 import type { AnalysisReport, Finding } from "../src/types.js";
@@ -111,11 +111,16 @@ describe("new analysis options", () => {
       "src/helper.ts": "export const helper = true;\n",
       "src/foo.test.ts": "export const testOnly = true;\n",
       "src/__tests__/nested.ts": "export const nested = true;\n",
+      "tests/fixtures/ignored-package/package.json": "{\"name\":\"ignored-test-package\"}\n",
+      "tests/fixtures/ignored-package/optiprune.config.ts": "throw new Error('test config must not be loaded');\\n",
     });
     const normal = await analyze({ rootDir: root, entry: ["src/index.ts"], includeConventionalEntries: false, skip3: true, skip4: true });
     expect(normal.summary.filesDiscovered).toBeGreaterThan(2);
+    const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ignored = await analyze({ rootDir: root, entry: ["src/index.ts"], includeConventionalEntries: false, ignoreTests: true, skip3: true, skip4: true });
     expect(ignored.summary.filesDiscovered).toBe(2);
+    expect(warningSpy).not.toHaveBeenCalledWith(expect.stringContaining("test config must not be loaded"));
+    warningSpy.mockRestore();
     expect(ignored.modules.some((m) => m.path.includes("foo.test.ts"))).toBe(false);
   });
 });
