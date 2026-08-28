@@ -1,0 +1,22 @@
+# Exclude source files
+src/
+tests/
+vitest.config.ts
+tsconfig.json
+
+# Exclude documentation source (if using VitePress in a subfolder)
+docs/
+*.patch
+# Exclude development configs
+.github/
+.vscode/
+.optiprune/
+.nvmrc
+*.rej
+# Exclude logs and temp files
+*.log
+*.zip
+optiprune_final_clean.zip
+
+# Include build output (handled by package.json "files" usually, but good for safety)
+# !dist/
