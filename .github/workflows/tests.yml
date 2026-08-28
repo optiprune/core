@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - 'package.json'
       - 'src/**'
       - 'tests/**'
       - '!**/fixtures/**'
@@ -14,6 +15,7 @@ on:
     branches:
       - main
     paths:
+      - 'package.json'
       - 'src/**'
       - 'tests/**'
       - '!**/fixtures/**'
