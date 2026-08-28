@@ -62,7 +62,8 @@ jobs:
 
           if ! git diff --staged --quiet; then
             git commit -m "chore: auto-update test matrix in tests.yml [skip ci]"
-            git push
+            git pull --rebase origin main
+            git push origin main
           else
             echo "tests.yml is already up to date."
           fi

@@ -30,7 +30,7 @@ jobs:
           - Plugins
           - Functions
           - Framework-Lab
-          - Recover
+          - Recovery
           - Security
           - Language-Server
 
