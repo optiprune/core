@@ -14,7 +14,6 @@
  * All sources are normalised through `mergeConfig` so the rest of the
  * codebase only ever sees a fully-resolved `ResolvedOptions` object.
  */
-
 import path from "pathe";
 import fs from "node:fs";
 import { createJiti } from "jiti";
