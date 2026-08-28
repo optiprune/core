@@ -45,7 +45,6 @@ export default function Home() {
           </div>
           <div className="welcome-badges">
             <img src="https://img.shields.io/npm/v/%40optiprune%2Fcore?label=core&color=6d4aff" alt="Core npm version" />
-            <img src="https://img.shields.io/npm/v/%40optiprune%2Fcli?label=cli&color=6d4aff" alt="CLI npm version" />
             <img src="https://img.shields.io/npm/v/%40optiprune%2Fcli?label=CLI&color=6d4aff" alt="CLI npm version" />
           </div>
         </div>
