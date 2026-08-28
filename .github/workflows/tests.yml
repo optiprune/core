@@ -4,9 +4,23 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'tests/**'
+    paths-ignore:
+      - '**/fixtures/**'
+      - '**/fixture/**'
+      - '**/__fixtures__/**'
   pull_request:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'tests/**'
+    paths-ignore:
+      - '**/fixtures/**'
+      - '**/fixture/**'
+      - '**/__fixtures__/**'
 
 jobs:
   find-matrix:
@@ -15,37 +29,13 @@ jobs:
       folders: ${{ steps.set-matrix.outputs.folders }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get changed, added, or removed files
-        id: changed-files
-        uses: tj-actions/changed-files@v44
-        with:
-          files_yaml: |
-            relevant:
-              - src/**
-              - tests/**
-              - '!**/fixtures/**'
-              - '!**/fixture/**'
-              - '!**/__fixtures__/**'
 
       - name: Scan test directories
         id: set-matrix
-        env:
-          ANY_CHANGED: ${{ steps.changed-files.outputs.relevant_any_changed }}
         run: |
           node -e '
           const fs = require("fs");
           const path = require("path");
-
-          const anyChanged = process.env.ANY_CHANGED === "true";
-
-          if (!anyChanged) {
-            console.log("[SKIP] No files in src/ or tests/ were added, modified, or deleted (excluding fixtures).");
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `folders=[]\n`);
-            process.exit(0);
-          }
 
           const testsDir = path.join(process.cwd(), "tests");
           const IGNORED_NAMES = new Set([
@@ -107,7 +97,6 @@ jobs:
 
   test:
     needs: find-matrix
-    if: needs.find-matrix.outputs.folders != '[]' && needs.find-matrix.outputs.folders != ''
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
