@@ -44,3 +44,4 @@ all.txt
 # Versionierte Monorepo-Fixture; darf nicht durch die generische lib/-Regel verschwinden.
 !tests/fixtures/monorepo-config-layering/packages/lib/
 !tests/fixtures/monorepo-config-layering/packages/lib/**
+!wouter@3.7.1.patch
