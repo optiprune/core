@@ -25,15 +25,22 @@ jobs:
 
           const testsDir = path.join(process.cwd(), "tests");
 
-          function hasTestFile(dir) {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-            for (const entry of entries) {
-              const fullPath = path.join(dir, entry.name);
-              if (entry.isDirectory()) {
-                if (hasTestFile(fullPath)) return true;
-              } else if (entry.isFile() && entry.name.endsWith(".test.ts")) {
-                return true;
+          function containsTestTs(dir) {
+            try {
+              const entries = fs.readdirSync(dir, { withFileTypes: true });
+              for (const entry of entries) {
+                if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+
+                const fullPath = path.join(dir, entry.name);
+                
+                if (entry.isDirectory()) {
+                  if (containsTestTs(fullPath)) return true;
+                } else if (entry.isFile() && /\.test\.ts$/.test(entry.name)) {
+                  return true;
+                }
               }
+            } catch (err) {
+              // Ignore unreadable directories
             }
             return false;
           }
@@ -41,11 +48,12 @@ jobs:
           let folders = [];
           if (fs.existsSync(testsDir)) {
             folders = fs.readdirSync(testsDir, { withFileTypes: true })
-              .filter(d => d.isDirectory() && hasTestFile(path.join(testsDir, d.name)))
+              .filter(d => d.isDirectory() && !d.name.startsWith(".") && d.name !== "node_modules")
+              .filter(d => containsTestTs(path.join(testsDir, d.name)))
               .map(d => d.name);
           }
 
-          console.log("Discovered folders:", folders);
+          console.log("Discovered folders with active .test.ts files:", folders);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `folders=${JSON.stringify(folders)}\n`);
           '
 
