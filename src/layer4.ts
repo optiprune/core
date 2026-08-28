@@ -380,7 +380,7 @@ async function resolveDynamicImports(
           : [];
 
         // Strip the hint comment before compiling so it does not confuse esbuild.
-        const cleanedContextCode = candidate.contextCode
+        let cleanedContextCode = candidate.contextCode
           .replace(/\n\/\/ __optiprune_loop_vars__:[^\n]*/g, "");
 
         const processedContext = await compileForQuickJS(cleanedContextCode, file);

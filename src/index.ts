@@ -448,7 +448,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   
   if (Object.keys(cache.entries).length !== allSourceFiles.length) cacheDirty = true;
 
-  const entryPoints = new Set<string>();
+  let entryPoints = new Set<string>();
   // Tool configuration files are protected separately in the unreachable-file
   // pass below; they are not synthetic entry points and must not change the
   // public entry-point summary.

@@ -11,7 +11,7 @@ const TSX_PACKAGES = [
 function invokesTsx(script: string): boolean {
   const tokens = script.split(/\s+/).filter(Boolean);
   return tokens.some((token, index) => {
-    const normalized = token.replace(/^['"]|['"]$/g, "");
+    const normalized = token.replace(/^['\"]|['\"]$/g, "");
     if (normalized === "tsx" || normalized.endsWith("/tsx") || normalized.endsWith("\\\\tsx")) return true;
     return (normalized === "--import" || normalized === "-r" || normalized === "--require") && tokens[index + 1] === "tsx";
   });
@@ -19,7 +19,7 @@ function invokesTsx(script: string): boolean {
 
 function invokesEsbuildRegister(script: string): boolean {
   return script.split(/\s+/).some((token) => {
-    const normalized = token.replace(/^['"]|['"]$/g, "");
+    const normalized = token.replace(/^['\"]|['\"]$/g, "");
     return normalized === "esbuild-register" || normalized.endsWith("/esbuild-register");
   });
 }

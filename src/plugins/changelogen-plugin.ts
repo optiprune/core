@@ -45,7 +45,7 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
 
   detect: async (adapter) => {
     const packageJson = await adapter.readJson("package.json");
-    if (hasChangelogenDependency(packageJson) || packageJson?.changelog) return true;
+    if (hasChangelogenDependency(packageJson) || !!packageJson?.changelog) return true;
 
     for (const configFile of CHANGELOGEN_CONFIG_BASENAMES) {
       if (await adapter.folderExists(configFile)) return true;

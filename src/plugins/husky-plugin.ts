@@ -80,7 +80,7 @@ export const HuskyPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(hookPath);
 
           // Extract npx / pnpm dlx / yarn dlx / bun x commands (e.g., npx lint-staged, npx commitlint)
-          const runnerRegex = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-/]+)/gi;
+          const runnerRegex = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-\/]+)/gi;
           let match: RegExpExecArray | null;
           while ((match = runnerRegex.exec(content)) !== null) {
             const pkgName = match[1];

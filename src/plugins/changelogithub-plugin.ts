@@ -45,7 +45,7 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
 
   detect: async (adapter) => {
     const packageJson = await adapter.readJson("package.json");
-    if (hasChangelogithubDependency(packageJson) || packageJson?.changelogithub) return true;
+    if (hasChangelogithubDependency(packageJson) || !!packageJson?.changelogithub) return true;
 
     for (const configFile of CHANGELOGITHUB_CONFIG_BASENAMES) {
       if (await adapter.folderExists(configFile)) return true;

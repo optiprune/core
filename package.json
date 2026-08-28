@@ -38,8 +38,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "language-server": "node ./dist/language-server.js",
-    "test": "vitest run --no-file-parallelism",
-    "lint": "biome check"
+    "test": "vitest run --no-file-parallelism"
   },
   "keywords": [
     "analysis",
@@ -108,8 +107,7 @@
   "devDependencies": {
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4",
-    "@biomejs/biome": "2.5.11"
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20.0.0"

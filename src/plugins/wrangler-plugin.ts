@@ -127,7 +127,7 @@ function collectTomlConfig(content: string, info: WranglerConfigInfo): void {
     if (!assignment) continue;
     const key = assignment[1] ?? "";
     const rawValue = assignment[2]?.trim() ?? "";
-    const quoted = rawValue.match(/^['"]([^'"]*)['"](?:\s|$)/)?.[1];
+    const quoted = rawValue.match(/^['\"]([^'\"]*)['\"](?:\s|$)/)?.[1];
     if ((key === "main" || key === "entry-point") && quoted) info.entryPoints.push(quoted);
     if (key === "binding") addBinding(quoted, info.bindings);
     if ((section === "vars" || section.endsWith(".vars")) && /^[A-Za-z_$][\w$]*$/.test(key)) {
