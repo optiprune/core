@@ -24,36 +24,67 @@ jobs:
           const path = require("path");
 
           const testsDir = path.join(process.cwd(), "tests");
+          const IGNORED_NAMES = new Set([
+            "fixtures",
+            "fixture",
+            "__fixtures__",
+            "mocks",
+            "__mocks__",
+            "snapshots",
+            "__snapshots__",
+            "node_modules",
+            "utils",
+            "helpers"
+          ]);
 
-          function containsTestTs(dir) {
+          // Recursively find genuine *.test.ts files
+          function findTestFiles(dir) {
+            let matches = [];
             try {
               const entries = fs.readdirSync(dir, { withFileTypes: true });
               for (const entry of entries) {
-                if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+                if (entry.name.startsWith(".") || IGNORED_NAMES.has(entry.name.toLowerCase())) {
+                  continue;
+                }
 
                 const fullPath = path.join(dir, entry.name);
-                
                 if (entry.isDirectory()) {
-                  if (containsTestTs(fullPath)) return true;
-                } else if (entry.isFile() && /\.test\.ts$/.test(entry.name)) {
-                  return true;
+                  matches = matches.concat(findTestFiles(fullPath));
+                } else if (entry.isFile() && entry.name.endsWith(".test.ts")) {
+                  matches.push(fullPath);
                 }
               }
             } catch (err) {
-              // Ignore unreadable directories
+              // Ignore unreadable paths
             }
-            return false;
+            return matches;
           }
 
           let folders = [];
           if (fs.existsSync(testsDir)) {
-            folders = fs.readdirSync(testsDir, { withFileTypes: true })
-              .filter(d => d.isDirectory() && !d.name.startsWith(".") && d.name !== "node_modules")
-              .filter(d => containsTestTs(path.join(testsDir, d.name)))
-              .map(d => d.name);
+            const rootEntries = fs.readdirSync(testsDir, { withFileTypes: true });
+            
+            for (const entry of rootEntries) {
+              if (
+                entry.isDirectory() &&
+                !entry.name.startsWith(".") &&
+                !IGNORED_NAMES.has(entry.name.toLowerCase())
+              ) {
+                const fullFolderPath = path.join(testsDir, entry.name);
+                const matchedFiles = findTestFiles(fullFolderPath);
+
+                if (matchedFiles.length > 0) {
+                  console.log(`[MATCH] Folder "${entry.name}" contains ${matchedFiles.length} test file(s):`);
+                  matchedFiles.forEach(f => console.log(`   -> ${f}`));
+                  folders.push(entry.name);
+                } else {
+                  console.log(`[SKIP] Folder "${entry.name}" has no .test.ts files.`);
+                }
+              }
+            }
           }
 
-          console.log("Discovered folders with active .test.ts files:", folders);
+          console.log("Final matrix folders:", folders);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `folders=${JSON.stringify(folders)}\n`);
           '
 
@@ -72,7 +103,7 @@ jobs:
           - macos-latest
           - windows-latest
         node-version:
-          - 20
+          - 21
           - 22
           - 24
         folder: ${{ fromJSON(needs.find-matrix.outputs.folders) }}
@@ -97,4 +128,4 @@ jobs:
         with:
           timeout_minutes: 15
           max_attempts: 2
-          command: npm run test ${{ matrix.folder }}/
+          command: npm run test tests/${{ matrix.folder }}/
