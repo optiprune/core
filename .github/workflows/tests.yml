@@ -15,13 +15,37 @@ jobs:
       folders: ${{ steps.set-matrix.outputs.folders }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed, added, or removed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files_yaml: |
+            relevant:
+              - src/**
+              - tests/**
+              - '!**/fixtures/**'
+              - '!**/fixture/**'
+              - '!**/__fixtures__/**'
 
       - name: Scan test directories
         id: set-matrix
+        env:
+          ANY_CHANGED: ${{ steps.changed-files.outputs.relevant_any_changed }}
         run: |
           node -e '
           const fs = require("fs");
           const path = require("path");
+
+          const anyChanged = process.env.ANY_CHANGED === "true";
+
+          if (!anyChanged) {
+            console.log("[SKIP] No files in src/ or tests/ were added, modified, or deleted (excluding fixtures).");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `folders=[]\n`);
+            process.exit(0);
+          }
 
           const testsDir = path.join(process.cwd(), "tests");
           const IGNORED_NAMES = new Set([
@@ -37,7 +61,6 @@ jobs:
             "helpers"
           ]);
 
-          // Recursively find genuine *.test.ts files
           function findTestFiles(dir) {
             let matches = [];
             try {
@@ -54,16 +77,14 @@ jobs:
                   matches.push(fullPath);
                 }
               }
-            } catch (err) {
-              // Ignore unreadable paths
-            }
+            } catch (err) {}
             return matches;
           }
 
           let folders = [];
           if (fs.existsSync(testsDir)) {
             const rootEntries = fs.readdirSync(testsDir, { withFileTypes: true });
-            
+
             for (const entry of rootEntries) {
               if (
                 entry.isDirectory() &&
@@ -74,11 +95,7 @@ jobs:
                 const matchedFiles = findTestFiles(fullFolderPath);
 
                 if (matchedFiles.length > 0) {
-                  console.log(`[MATCH] Folder "${entry.name}" contains ${matchedFiles.length} test file(s):`);
-                  matchedFiles.forEach(f => console.log(`   -> ${f}`));
                   folders.push(entry.name);
-                } else {
-                  console.log(`[SKIP] Folder "${entry.name}" has no .test.ts files.`);
                 }
               }
             }
