@@ -9,13 +9,55 @@ on:
       - main
 
 jobs:
+  find-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      folders: ${{ steps.set-matrix.outputs.folders }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan test directories
+        id: set-matrix
+        run: |
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          const testsDir = path.join(process.cwd(), "tests");
+
+          function hasTestFile(dir) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry.name);
+              if (entry.isDirectory()) {
+                if (hasTestFile(fullPath)) return true;
+              } else if (entry.isFile() && entry.name.endsWith(".test.ts")) {
+                return true;
+              }
+            }
+            return false;
+          }
+
+          let folders = [];
+          if (fs.existsSync(testsDir)) {
+            folders = fs.readdirSync(testsDir, { withFileTypes: true })
+              .filter(d => d.isDirectory() && hasTestFile(path.join(testsDir, d.name)))
+              .map(d => d.name);
+          }
+
+          console.log("Discovered folders:", folders);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `folders=${JSON.stringify(folders)}\n`);
+          '
+
   test:
+    needs: find-matrix
+    if: needs.find-matrix.outputs.folders != '[]' && needs.find-matrix.outputs.folders != ''
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       id-token: write
     strategy:
-      fail-fast: false # Prevents any OS failure from cancelling runs on other OSes
+      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
@@ -25,14 +67,7 @@ jobs:
           - 21
           - 22
           - 24
-        folder:
-          - Layers
-          - Plugins
-          - Functions
-          - Framework-Lab
-          - Recovery
-          - Security
-          - Language-Server
+        folder: ${{ fromJSON(needs.find-matrix.outputs.folders) }}
 
     name: Test ${{ matrix.folder }} (${{ matrix.os }}, Node ${{ matrix.node-version }})
     steps:
