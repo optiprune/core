@@ -138,7 +138,7 @@ function escapeRegex(value: string): string {
  * 3. Normalizes trailing slashes to match both files and directories.
  */
 export function globToRegExp(pattern: string): RegExp {
-  let p = pattern.replace(/\\/g, "/");
+  const p = pattern.replace(/\\/g, "/");
   
   // Standard glob behavior: 
   // 1. If it contains no slash (other than a trailing one), it matches anywhere.
@@ -527,7 +527,7 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
       if (typeof command !== "string") continue;
             for (const rawTarget of extractScriptRunnerTargets(command)) {
         if (rawTarget.includes("$") || rawTarget.includes("`")) continue;
-        const hasGlob = /[*?{\[]/.test(rawTarget);
+        const hasGlob = /[*?{[]/.test(rawTarget);
         const expandedTargets = hasGlob
           ? await expandLocalScriptGlob(normalizedRoot, rawTarget)
           : [rawTarget];

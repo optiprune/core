@@ -66,7 +66,7 @@ export const JestPlugin: AnalyzerPlugin = {
   detect: async (adapter) => {
     const packageJson = await adapter.readJson("package.json");
     const dependencies = dependencyNames(packageJson);
-    if (JEST_CORE_PACKAGES.some((packageName) => dependencies.has(packageName)) || !!packageJson?.jest) return true;
+    if (JEST_CORE_PACKAGES.some((packageName) => dependencies.has(packageName)) || packageJson?.jest) return true;
 
     for (const configFile of JEST_CONFIG_BASENAMES) {
       if (await adapter.folderExists(configFile)) return true;

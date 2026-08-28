@@ -235,7 +235,7 @@ function parseSimpleEquality(node: any): { name: string, operator: string, value
     if (node.operator !== "===" && node.operator !== "==") return null;
 
     let identifier: string | null = null;
-    let value: any = undefined;
+    let value: any ;
 
     if (node.left.type === "Identifier") {
         identifier = node.left.name;

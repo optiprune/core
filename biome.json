@@ -4,18 +4,18 @@
     "ignoreUnknown": false,
     "includes": [
       "**",
-      "!**/dist/**",
-      "!dist/**",
-      "!**/fixtures/**",
-      "!fixtures/**",
-      "!**/test-repos/**",
-      "!test-repos/**",
-      "!**/.optiprune/**",
-      "!.optiprune/**",
+      "!**/dist",
+      "!dist",
+      "!**/fixtures",
+      "!fixtures",
+      "!**/test-repos",
+      "!test-repos",
+      "!**/.optiprune",
+      "!.optiprune",
       "!**/*.svg",
       "!**/*.json",
-      "!**/docs/**",
-      "!docs/**"
+      "!**/docs",
+      "!docs"
     ]
   },
   "linter": {

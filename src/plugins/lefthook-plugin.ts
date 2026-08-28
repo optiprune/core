@@ -94,7 +94,7 @@ export const LefthookPlugin: AnalyzerPlugin = {
           }
 
           // Extract CLI tool references: npx <tool> / pnpm dlx <tool> / direct CLI call
-          const cliMatch = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-\/]+)/i.exec(rawCmd);
+          const cliMatch = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-/]+)/i.exec(rawCmd);
           if (cliMatch?.[1] && !cliMatch[1].startsWith("-")) {
             adapter.markPackageAsUsed(cliMatch[1]);
           } else {

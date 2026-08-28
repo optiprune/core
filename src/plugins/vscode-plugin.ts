@@ -61,7 +61,7 @@ export const VsCodePlugin: AnalyzerPlugin = {
             }
 
             // Extract CLI package executions (e.g., "npx tsc", "pnpm dlx vite")
-            const cliMatch = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-\/]+)/i.exec(fullCmd);
+            const cliMatch = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-/]+)/i.exec(fullCmd);
             if (cliMatch?.[1] && !cliMatch[1].startsWith("-")) {
               adapter.markPackageAsUsed(cliMatch[1]);
             }

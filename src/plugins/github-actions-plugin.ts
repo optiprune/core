@@ -228,7 +228,7 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
         const usedActions = new Set<string>();
         const setupCommands = new Set<string>();
         const visitedLocalActions = new Set<string>();
-        const usesRegex = /uses:\s+([a-zA-Z0-9\-._\/]+)/gi;
+        const usesRegex = /uses:\s+([a-zA-Z0-9\-._/]+)/gi;
         let match: RegExpExecArray | null;
 
         while ((match = usesRegex.exec(content)) !== null) {
@@ -250,7 +250,7 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
         }
 
         // 3. Extract package usages from package-manager commands in run: steps.
-        const pmRegex = /(?:npm|pnpm|yarn|bun|npx)\s+(?:run\s+|exec\s+)?([@a-zA-Z0-9\-\/]+)/gi;
+        const pmRegex = /(?:npm|pnpm|yarn|bun|npx)\s+(?:run\s+|exec\s+)?([@a-zA-Z0-9\-/]+)/gi;
         while ((match = pmRegex.exec(content)) !== null) {
           const pkgName = match[1];
           if (pkgName && !pkgName.startsWith("-")) {
