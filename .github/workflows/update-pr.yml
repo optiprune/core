@@ -1,0 +1,66 @@
+name: Update PR Template on Main Push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tests/**'
+
+jobs:
+  update-template:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate PR Template from tests/
+        run: |
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          const testsDir = path.join(process.cwd(), "tests");
+          let checklist = "- [ ] No test suites found";
+
+          if (fs.existsSync(testsDir)) {
+            const folders = fs.readdirSync(testsDir, { withFileTypes: true })
+              .filter(d => d.isDirectory())
+              .map(d => "- [ ] `" + d.name + "/`")
+              .sort();
+
+            if (folders.length > 0) {
+              checklist = folders.join("\n");
+            }
+          }
+
+          const templateContent = [
+            "### Issue:",
+            "<!-- Describe the problem, bug, or limitation being addressed -->\n",
+            "### Fix:",
+            "<!-- Describe the changes made to resolve the issue -->\n",
+            "### Related Issues:",
+            "- Fixes #\n",
+            "### Test Suites Impacted / Created:",
+            checklist,
+            "- [ ] Other / New tests:"
+          ].join("\n");
+
+          const templatePath = path.join(process.cwd(), ".github", "pull_request_template.md");
+          fs.mkdirSync(path.dirname(templatePath), { recursive: true });
+          fs.writeFileSync(templatePath, templateContent, "utf8");
+          '
+
+      - name: Commit and Push if Changed
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/pull_request_template.md
+
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: auto-update PR template test suites checklist [skip ci]"
+            git push
+          else
+            echo "No new folders detected in tests/. Template is up-to-date."
+          fi

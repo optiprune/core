@@ -4,103 +4,54 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  Layers:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false # Prevents any OS failure from cancelling runs on other OSes
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        node-version:
+          - 21
+          - 22
+          - 24
+        folder:
+          - Layers
+          - Plugins
+          - Functions
+          - Framework-Lab
+          - Recover
+          - Security
+          - Language-Server
+
+    name: Test ${{ matrix.folder }} (${{ matrix.os }}, Node ${{ matrix.node-version }})
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 'latest'
+          node-version: ${{ matrix.node-version }}
           registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run test layer2 layer3 layer4 layer5 layer6 layer7 monorepo monorepo-config-layering v8
-  Plugins:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run test plugin css next nest package-script vite extension-framework github-actions script-source
-  Functions:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run test analyzer parser alias dynamic interpolation fix scc semantic ts-loc tscon ts_ty ignore-unknown-import config-loader config-loader-jiti false-positive-guardrails regressions package-script-entry-points
-  Framework-Lab:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
+      - name: Build Language Server (if required)
+        if: matrix.folder == 'Language-Server' || matrix.folder == 'language-server'
+        run: npm run build
 
-      - uses: actions/setup-node@v4
+      - name: Run Tests with Retry
+        uses: nick-fields/retry@v3
         with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run test framework-lab-stress
-  Recover:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run test json-recovery
-  Security:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run test security-
-
-  Language-Server:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test language-server
+          timeout_minutes: 15
+          max_attempts: 2
+          command: npm run test ${{ matrix.folder }}/

@@ -1,9 +1,8 @@
 name: Publish to npm
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -23,4 +22,4 @@ jobs:
 
       - run: tsc -p tsconfig.json
 
-      - run: npm publish --access public
+      - run: npm publish --access public --provenance

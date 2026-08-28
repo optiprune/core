@@ -1,0 +1,68 @@
+name: Update tests.yml Matrix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tests/**'
+
+jobs:
+  update-matrix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update tests.yml matrix list
+        run: |
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          const testsDir = path.join(process.cwd(), "tests");
+          const workflowPath = path.join(process.cwd(), ".github", "workflows", "tests.yml");
+
+          if (!fs.existsSync(testsDir) || !fs.existsSync(workflowPath)) {
+            console.log("Directory tests/ or tests.yml not found. Skipping.");
+            process.exit(0);
+          }
+
+          const folders = fs.readdirSync(testsDir, { withFileTypes: true })
+            .filter(d => d.isDirectory())
+            .map(d => "          - " + d.name)
+            .sort();
+
+          if (folders.length === 0) {
+            console.log("No subfolders found in tests/. Skipping.");
+            process.exit(0);
+          }
+
+          const matrixBlock = "        folder:\n" + folders.join("\n");
+          let content = fs.readFileSync(workflowPath, "utf8");
+
+          const regex = /([ \t]*folder:\r?\n)(?:[ \t]*- .+\r?\n?)+/;
+
+          if (regex.test(content)) {
+            content = content.replace(regex, matrixBlock + "\n");
+            fs.writeFileSync(workflowPath, content, "utf8");
+            console.log("Updated tests.yml folder matrix with:\n" + matrixBlock);
+          } else {
+            console.error("Could not find folder: block in tests.yml");
+            process.exit(1);
+          }
+          '
+
+      - name: Commit and Push if Changed
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/tests.yml
+
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: auto-update test matrix in tests.yml [skip ci]"
+            git push
+          else
+            echo "tests.yml is already up to date."
+          fi
