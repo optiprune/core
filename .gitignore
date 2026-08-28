@@ -45,3 +45,4 @@ all.txt
 !tests/fixtures/monorepo-config-layering/packages/lib/
 !tests/fixtures/monorepo-config-layering/packages/lib/**
 !wouter@3.7.1.patch
+!docs/client/src/lib/
