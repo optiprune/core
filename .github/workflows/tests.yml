@@ -7,20 +7,18 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
-    paths-ignore:
-      - '**/fixtures/**'
-      - '**/fixture/**'
-      - '**/__fixtures__/**'
+      - '!**/fixtures/**'
+      - '!**/fixture/**'
+      - '!**/__fixtures__/**'
   pull_request:
     branches:
       - main
     paths:
       - 'src/**'
       - 'tests/**'
-    paths-ignore:
-      - '**/fixtures/**'
-      - '**/fixture/**'
-      - '**/__fixtures__/**'
+      - '!**/fixtures/**'
+      - '!**/fixture/**'
+      - '!**/__fixtures__/**'
 
 jobs:
   find-matrix:
