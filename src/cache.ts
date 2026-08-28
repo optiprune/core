@@ -26,7 +26,6 @@ export interface AnalysisCache {
   report?: AnalysisReport;
 }
 
-
 const CACHE_DIR = ".optiprune";
 const CACHE_FILE = "cache.json";
 
