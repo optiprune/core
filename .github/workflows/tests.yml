@@ -128,7 +128,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           registry-url: 'https://registry.npmjs.org'
 
-      - run: npm ci
+      - run: npm ci --include=dev
 
       - name: Build Language Server (if required)
         if: matrix.folder == 'Language-Server' || matrix.folder == 'language-server'
