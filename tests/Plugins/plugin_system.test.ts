@@ -12,37 +12,39 @@ describe("Plugin Engine: Robust Loading & Execution", () => {
     const engine = new PluginEngine();
     const mockContext = {
       modules: new Map(),
-      options: { rootDir: process.cwd() }
+      options: { rootDir: process.cwd() },
     } as unknown as AnalysisContext;
 
     // The Svelte and Angular plugins we just created should be loaded
     await engine.run(mockContext);
-    
+
     // Accessing private plugins array via casting for verification
     const plugins = (engine as any).plugins as AnalyzerPlugin[];
-    
-    expect(plugins.some(p => p.name === "svelte-plugin")).toBe(true);
-    expect(plugins.some(p => p.name === "angular-plugin")).toBe(true);
+
+    expect(plugins.some((p) => p.name === "svelte-plugin")).toBe(true);
+    expect(plugins.some((p) => p.name === "angular-plugin")).toBe(true);
   });
 
   it("should catch errors in plugin lifecycle and continue", async () => {
     const engine = new PluginEngine();
-    
+
     const buggyPlugin: AnalyzerPlugin = {
       name: "buggy-plugin",
       version: "1.0.0",
       lifecycle: {
-        onProjectInit: () => { throw new Error("Boom!"); }
-      }
+        onProjectInit: () => {
+          throw new Error("Boom!");
+        },
+      },
     };
 
     engine.register(buggyPlugin);
 
     const mockContext = {
       modules: new Map([
-        ['test.js', { id: 'test.js', ast: { type: 'File', program: { body: [] } } }]
+        ["test.js", { id: "test.js", ast: { type: "File", program: { body: [] } } }],
       ]),
-      options: { rootDir: process.cwd() }
+      options: { rootDir: process.cwd() },
     } as unknown as AnalysisContext;
 
     // Should not throw

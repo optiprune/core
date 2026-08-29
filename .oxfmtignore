@@ -1,0 +1,4 @@
+**/fixtures/**
+**/test-repos/**
+tests/fixtures/**
+tests/test-repos/**

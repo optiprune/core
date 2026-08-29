@@ -11,7 +11,7 @@ const KARMA_CONFIG_FILES = [
   "karma.conf.cjs",
   "karma.conf.mjs",
   "karma.conf.coffee",
-  ".karmarc"
+  ".karmarc",
 ];
 
 const KARMA_PACKAGE_NAME = "karma";
@@ -19,7 +19,10 @@ const KARMA_PACKAGE_NAME = "karma";
 /**
  * Normalizes Karma plugin shorthands into full npm package names
  */
-function normalizeKarmaPlugin(type: "framework" | "launcher" | "preprocessor" | "reporter", name: string): string {
+function normalizeKarmaPlugin(
+  type: "framework" | "launcher" | "preprocessor" | "reporter",
+  name: string,
+): string {
   // Direct package name or scoped package
   if (name.startsWith("karma-") || name.startsWith("@")) return name;
 
@@ -51,10 +54,12 @@ export const KarmaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (Object.keys(allDeps).some((dep) => dep === KARMA_PACKAGE_NAME || dep.startsWith("karma-"))) {
+      if (
+        Object.keys(allDeps).some((dep) => dep === KARMA_PACKAGE_NAME || dep.startsWith("karma-"))
+      ) {
         return true;
       }
 
@@ -62,7 +67,7 @@ export const KarmaPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\bkarma\b/.test(s) || s.includes("karma start"))
+            (s) => typeof s === "string" && (/\bkarma\b/.test(s) || s.includes("karma start")),
           )
         ) {
           return true;
@@ -89,7 +94,7 @@ export const KarmaPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -203,7 +208,11 @@ export const KarmaPlugin: AnalyzerPlugin = {
             for (const el of prop.value.elements) {
               if (t.isStringLiteral(el)) {
                 adapter.markPackageAsUsed(el.value);
-              } else if (t.isCallExpression(el) && t.isIdentifier(el.callee) && el.callee.name === "require") {
+              } else if (
+                t.isCallExpression(el) &&
+                t.isIdentifier(el.callee) &&
+                el.callee.name === "require"
+              ) {
                 if (el.arguments[0] && t.isStringLiteral(el.arguments[0])) {
                   adapter.markPackageAsUsed(el.arguments[0].value);
                 }
@@ -212,8 +221,8 @@ export const KarmaPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default KarmaPlugin;

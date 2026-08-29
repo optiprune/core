@@ -9,7 +9,7 @@ const MDX_PROVIDER_FILES = [
   "mdx-components.tsx",
   "mdx-components.jsx",
   "mdx-components.js",
-  "mdx-components.ts"
+  "mdx-components.ts",
 ];
 
 const MDX_CORE_PACKAGES = [
@@ -21,7 +21,7 @@ const MDX_CORE_PACKAGES = [
   "@mdx-js/rollup",
   "@mdx-js/esbuild",
   "@next/mdx",
-  "@astrojs/mdx"
+  "@astrojs/mdx",
 ];
 
 /**
@@ -54,7 +54,7 @@ export const MdxPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => isMdxPackage(dep))) {
@@ -81,7 +81,7 @@ export const MdxPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -133,8 +133,8 @@ export const MdxPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MdxPlugin;

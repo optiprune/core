@@ -7,9 +7,7 @@ import { analyze } from "../../src/index.js";
 const roots: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(
-    roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })),
-  );
+  await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
 });
 
 async function fixture(files: Record<string, string>): Promise<string> {
@@ -26,10 +24,8 @@ async function fixture(files: Record<string, string>): Promise<string> {
 describe("OptiPrune regressions", () => {
   it("does not report members from a dynamically imported module", async () => {
     const root = await fixture({
-      "src/index.ts":
-        "const loaded = await import('./dynamic-module');\nconsole.log(loaded);\n",
-      "src/dynamic-module.ts":
-        "export const runtimeConfig = { onlyLoadedDynamically: true };\n",
+      "src/index.ts": "const loaded = await import('./dynamic-module');\nconsole.log(loaded);\n",
+      "src/dynamic-module.ts": "export const runtimeConfig = { onlyLoadedDynamically: true };\n",
     });
     const result = await analyze({
       rootDir: root,
@@ -54,15 +50,9 @@ describe("OptiPrune regressions", () => {
       skipSmt: true,
       skip4: true,
     });
-    expect(
-      result.findings.some((finding) => finding.rule === "constant-condition"),
-    ).toBe(false);
-    expect(
-      result.findings.some((finding) => finding.rule === "contradictory-guard"),
-    ).toBe(false);
-    expect(
-      result.findings.some((finding) => finding.rule === "unreachable-statement"),
-    ).toBe(true);
+    expect(result.findings.some((finding) => finding.rule === "constant-condition")).toBe(false);
+    expect(result.findings.some((finding) => finding.rule === "contradictory-guard")).toBe(false);
+    expect(result.findings.some((finding) => finding.rule === "unreachable-statement")).toBe(true);
   });
 
   it("resolves pnpm store binaries to their actual packages", async () => {
@@ -96,12 +86,10 @@ describe("OptiPrune regressions", () => {
       includeConventionalEntries: false,
       reportUnusedExports: false,
     });
-    expect(result.findings.some((finding) => finding.evidence?.package === ".pnpm")).toBe(
+    expect(result.findings.some((finding) => finding.evidence?.package === ".pnpm")).toBe(false);
+    expect(result.findings.some((finding) => finding.rule === "missing-dev-dependency")).toBe(
       false,
     );
-    expect(
-      result.findings.some((finding) => finding.rule === "missing-dev-dependency"),
-    ).toBe(false);
   });
 
   it("classifies missing script tools as missing devDependencies", async () => {

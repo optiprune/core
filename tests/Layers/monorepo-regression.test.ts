@@ -10,17 +10,21 @@ async function createProject(files: Record<string, string>): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "optiprune-nightmare-"));
   temporaryRoots.push(root);
 
-  await Promise.all(Object.entries(files).map(async ([relativePath, content]) => {
-    const target = path.join(root, relativePath);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, content, "utf8");
-  }));
+  await Promise.all(
+    Object.entries(files).map(async ([relativePath, content]) => {
+      const target = path.join(root, relativePath);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, content, "utf8");
+    }),
+  );
 
   return root;
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })),
+  );
 });
 
 describe("nightmare monorepo regressions", () => {
@@ -40,16 +44,20 @@ describe("nightmare monorepo regressions", () => {
         private: true,
         dependencies: { next: "1.0.0", react: "1.0.0" },
       }),
-      "apps/web/next.config.mjs": 'import withVanillaExtract from "@vanilla-extract/next-plugin"; export default withVanillaExtract({});\n',
+      "apps/web/next.config.mjs":
+        'import withVanillaExtract from "@vanilla-extract/next-plugin"; export default withVanillaExtract({});\n',
       "apps/web/tsconfig.json": JSON.stringify({
         compilerOptions: { paths: { "@/*": ["./src/*"] } },
       }),
-      "apps/web/src/app/page.tsx": 'import { active } from "@/lib/active"; export default function Page() { return active; }\n',
+      "apps/web/src/app/page.tsx":
+        'import { active } from "@/lib/active"; export default function Page() { return active; }\n',
       "apps/web/src/lib/active.ts": "export const active = 1;\n",
       "apps/web/src/middleware.ts": "export function middleware() { return undefined; }\n",
-      "apps/web/vitest.config.ts": "export default { test: { setupFiles: ['./src/test-setup.ts'] } };\n",
+      "apps/web/vitest.config.ts":
+        "export default { test: { setupFiles: ['./src/test-setup.ts'] } };\n",
       "apps/web/src/test-setup.ts": "export const setup = true;\n",
-      "apps/web/src/components/UnusedDashboardTile.tsx": "export default function UnusedDashboardTile() { return null; }\n",
+      "apps/web/src/components/UnusedDashboardTile.tsx":
+        "export default function UnusedDashboardTile() { return null; }\n",
     });
 
     const report = await analyze({
@@ -58,23 +66,33 @@ describe("nightmare monorepo regressions", () => {
       layers: { skip3: true, skip4: true },
     });
 
-    expect(report.findings.some((finding) =>
-      finding.rule === "unreachable-file" && finding.file.endsWith("apps/web/next.config.mjs"),
-    )).toBe(false);
-    expect(report.findings.some((finding) =>
-      finding.rule === "missing-dependency" && finding.message.includes("@/lib"),
-    )).toBe(false);
-    expect(report.findings.some((finding) =>
-      finding.rule === "@vanilla-extract/next-plugin",
-    )).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("apps/web/next.config.mjs"),
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) => finding.rule === "missing-dependency" && finding.message.includes("@/lib"),
+      ),
+    ).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "@vanilla-extract/next-plugin")).toBe(
+      false,
+    );
     for (const entryFile of ["apps/web/src/middleware.ts", "apps/web/src/test-setup.ts"]) {
-      expect(report.findings.some((finding) =>
-        finding.rule === "unreachable-file" && finding.file.endsWith(entryFile),
-      )).toBe(false);
+      expect(
+        report.findings.some(
+          (finding) => finding.rule === "unreachable-file" && finding.file.endsWith(entryFile),
+        ),
+      ).toBe(false);
     }
-    expect(report.findings.some((finding) =>
-      finding.rule === "unreachable-file" && finding.file.endsWith("UnusedDashboardTile.tsx"),
-    )).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("UnusedDashboardTile.tsx"),
+      ),
+    ).toBe(true);
   });
 
   it("protects exports in a GraphQL Code Generator target declared by the configuration", async () => {
@@ -100,11 +118,14 @@ describe("nightmare monorepo regressions", () => {
       layers: { skip3: true, skip4: true },
     });
 
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-export" &&
-      finding.file.endsWith("src/generated/graphql.ts") &&
-      finding.evidence?.exportName === "AccountDocument",
-    )).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-export" &&
+          finding.file.endsWith("src/generated/graphql.ts") &&
+          finding.evidence?.exportName === "AccountDocument",
+      ),
+    ).toBe(false);
     expect(report.findings.some((finding) => finding.rule === "graphql")).toBe(false);
   });
 
@@ -127,7 +148,8 @@ describe("nightmare monorepo regressions", () => {
         private: true,
         dependencies: { react: "1.0.0" },
       }),
-      "apps/web/src/main.test.tsx": 'import { render } from "@testing-library/react"; export const testView = render;\n',
+      "apps/web/src/main.test.tsx":
+        'import { render } from "@testing-library/react"; export const testView = render;\n',
     });
 
     const report = await analyze({
@@ -140,8 +162,19 @@ describe("nightmare monorepo regressions", () => {
     for (const dependency of ["@testing-library/react", "@types/react", "typescript"]) {
       expect(report.findings.some((finding) => finding.rule === dependency)).toBe(false);
     }
-    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "husky")).toBe(true);
-    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "eslint-plugin-import")).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" && finding.evidence.package === "husky",
+      ),
+    ).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" &&
+          finding.evidence.package === "eslint-plugin-import",
+      ),
+    ).toBe(true);
   });
 
   it("does not treat private workspace export maps as an external contract", async () => {
@@ -156,7 +189,8 @@ describe("nightmare monorepo regressions", () => {
         private: true,
         dependencies: { "@fixture/ui": "workspace:*" },
       }),
-      "apps/web/src/main.ts": 'import { Badge } from "@fixture/ui"; import { Chart } from "@fixture/ui/chart"; console.log(Badge, Chart);\n',
+      "apps/web/src/main.ts":
+        'import { Badge } from "@fixture/ui"; import { Chart } from "@fixture/ui/chart"; console.log(Badge, Chart);\n',
       "packages/ui/package.json": JSON.stringify({
         name: "@fixture/ui",
         private: true,
@@ -174,16 +208,22 @@ describe("nightmare monorepo regressions", () => {
       layers: { skip3: true, skip4: true },
     });
 
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-export" &&
-      finding.file.endsWith("packages/ui/src/Badge.ts") &&
-      finding.evidence?.exportName === "GhostBadge",
-    )).toBe(true);
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-export" &&
-      finding.file.endsWith("packages/ui/src/Chart.ts") &&
-      finding.evidence?.exportName === "Chart",
-    )).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-export" &&
+          finding.file.endsWith("packages/ui/src/Badge.ts") &&
+          finding.evidence?.exportName === "GhostBadge",
+      ),
+    ).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-export" &&
+          finding.file.endsWith("packages/ui/src/Chart.ts") &&
+          finding.evidence?.exportName === "Chart",
+      ),
+    ).toBe(false);
   });
 
   it("uses a workspace package source index when its dist main is not built", async () => {
@@ -212,7 +252,9 @@ describe("nightmare monorepo regressions", () => {
     });
 
     expect(report.findings.some((finding) => finding.rule === "no-entry-points")).toBe(false);
-    expect(report.entryPoints.some((entryPoint) => entryPoint.endsWith("packages/lib/src/index.ts"))).toBe(true);
+    expect(
+      report.entryPoints.some((entryPoint) => entryPoint.endsWith("packages/lib/src/index.ts")),
+    ).toBe(true);
   });
 
   it("keeps dependency ownership local while following workspace exports", async () => {
@@ -237,10 +279,13 @@ describe("nightmare monorepo regressions", () => {
         main: "dist/index.js",
         dependencies: { tinyglobby: "1.0.0" },
       }),
-      "packages/client/src/index.ts": 'import { usedFunction, someFunction } from "@fixture/shared"; usedFunction; someFunction;\n',
-      "packages/shared/src/index.ts": 'export * from "./exports.js"; export { usedFunction } from "./used-fn.js";\n',
-      "packages/shared/src/exports.ts": 'import { glob } from "tinyglobby"; glob; export const someFunction = () => "bar"; export const unusedFunction = () => "unused";\n',
-      "packages/shared/src/used-fn.ts": "export const usedFunction = () => \"bar\";\n",
+      "packages/client/src/index.ts":
+        'import { usedFunction, someFunction } from "@fixture/shared"; usedFunction; someFunction;\n',
+      "packages/shared/src/index.ts":
+        'export * from "./exports.js"; export { usedFunction } from "./used-fn.js";\n',
+      "packages/shared/src/exports.ts":
+        'import { glob } from "tinyglobby"; glob; export const someFunction = () => "bar"; export const unusedFunction = () => "unused";\n',
+      "packages/shared/src/used-fn.ts": 'export const usedFunction = () => "bar";\n',
     });
 
     const report = await analyze({
@@ -248,26 +293,35 @@ describe("nightmare monorepo regressions", () => {
       layers: { skip3: true, skip4: true },
     });
 
-    expect(report.findings.some((finding) =>
-      finding.rule === "no-entry-points",
-    )).toBe(false);
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-dependency" &&
-      finding.evidence?.package === "tinyglobby" &&
-      finding.file === "package.json",
-    )).toBe(true);
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-dependency" &&
-      finding.evidence?.package === "tinyglobby" &&
-      finding.file.endsWith("packages/shared/package.json"),
-    )).toBe(false);
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-export" &&
-      finding.evidence?.exportName === "unusedFunction",
-    )).toBe(true);
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-export" &&
-      ["someFunction", "usedFunction"].includes(String(finding.evidence?.exportName)),
-    )).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "no-entry-points")).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dependency" &&
+          finding.evidence?.package === "tinyglobby" &&
+          finding.file === "package.json",
+      ),
+    ).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dependency" &&
+          finding.evidence?.package === "tinyglobby" &&
+          finding.file.endsWith("packages/shared/package.json"),
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-export" && finding.evidence?.exportName === "unusedFunction",
+      ),
+    ).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-export" &&
+          ["someFunction", "usedFunction"].includes(String(finding.evidence?.exportName)),
+      ),
+    ).toBe(false);
   });
 });

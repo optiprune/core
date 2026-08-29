@@ -11,7 +11,7 @@ const LEFTHOOK_CONFIG_FILES = [
   "lefthook-local.yml",
   "lefthook-local.yaml",
   ".lefthook-local.yml",
-  ".lefthook-local.yaml"
+  ".lefthook-local.yaml",
 ];
 
 const LEFTHOOK_PACKAGES = ["lefthook", "@lefthook/lefthook"];
@@ -42,7 +42,7 @@ export const LefthookPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasLefthookDep = LEFTHOOK_PACKAGES.some((p) => p in allDeps);
@@ -100,7 +100,12 @@ export const LefthookPlugin: AnalyzerPlugin = {
           } else {
             // Direct tool invocation (e.g., "run: eslint {staged_files}")
             const firstToken = rawCmd.split(/\s+/)[0];
-            if (firstToken && !firstToken.startsWith(".") && !firstToken.startsWith("/") && !firstToken.startsWith("-")) {
+            if (
+              firstToken &&
+              !firstToken.startsWith(".") &&
+              !firstToken.startsWith("/") &&
+              !firstToken.startsWith("-")
+            ) {
               adapter.markPackageAsUsed(firstToken);
             }
           }
@@ -114,7 +119,7 @@ export const LefthookPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Lefthook configuration found but 'lefthook' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -127,8 +132,8 @@ export const LefthookPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("lefthook");
       }
-    }
-  }
+    },
+  },
 };
 
 export default LefthookPlugin;

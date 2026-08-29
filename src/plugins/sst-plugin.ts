@@ -9,23 +9,12 @@ const SST_CONFIG_FILES = [
   "sst.config.mjs",
   "sst.config.cts",
   "sst.config.cjs",
-  "sst-env.d.ts"
+  "sst-env.d.ts",
 ];
 
-const SST_PACKAGES = [
-  "sst",
-  "aws-cdk-lib",
-  "constructs",
-  "@aws-cdk/core",
-  "@sst-ion/aws"
-];
+const SST_PACKAGES = ["sst", "aws-cdk-lib", "constructs", "@aws-cdk/core", "@sst-ion/aws"];
 
-const SST_INFRA_PATTERNS = [
-  "/stacks/",
-  "/infra/",
-  "stacks/",
-  "infra/"
-];
+const SST_INFRA_PATTERNS = ["/stacks/", "/infra/", "stacks/", "infra/"];
 
 export const SstPlugin: AnalyzerPlugin = {
   name: "sst-plugin",
@@ -37,23 +26,17 @@ export const SstPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "sst" || dep.startsWith("@sst-ion/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "sst" || dep.startsWith("@sst-ion/"))) {
         return true;
       }
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("sst ") || s === "sst")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("sst ") || s === "sst"))
         ) {
           return true;
         }
@@ -77,12 +60,10 @@ export const SstPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasSst = Object.keys(allDeps).some(
-        (p) => p === "sst" || p.startsWith("@sst-ion/")
-      );
+      const hasSst = Object.keys(allDeps).some((p) => p === "sst" || p.startsWith("@sst-ion/"));
 
       // 1. Safeguard installed SST ecosystem packages in package.json
       if (hasSst) {
@@ -136,9 +117,8 @@ export const SstPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "SST configuration found, but 'sst' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "SST configuration found, but 'sst' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -207,8 +187,8 @@ export const SstPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("sst");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SstPlugin;

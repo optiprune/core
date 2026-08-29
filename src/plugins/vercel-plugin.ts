@@ -2,11 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const VERCEL_CONFIG_FILES = [
-  "vercel.json",
-  "now.json",
-  ".vercelignore"
-];
+const VERCEL_CONFIG_FILES = ["vercel.json", "now.json", ".vercelignore"];
 
 const VERCEL_PACKAGES = [
   "vercel",
@@ -18,7 +14,7 @@ const VERCEL_PACKAGES = [
   "@vercel/node",
   "@vercel/analytics",
   "@vercel/speed-insights",
-  "@vercel/flags"
+  "@vercel/flags",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -43,14 +39,10 @@ export const VercelPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "vercel" || dep.startsWith("@vercel/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "vercel" || dep.startsWith("@vercel/"))) {
         return true;
       }
 
@@ -58,8 +50,7 @@ export const VercelPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("vercel") || s.includes("now "))
+            (s) => typeof s === "string" && (s.includes("vercel") || s.includes("now ")),
           )
         ) {
           return true;
@@ -71,10 +62,7 @@ export const VercelPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("api")) ||
-      (await adapter.folderExists(".vercel"))
-    );
+    return (await adapter.folderExists("api")) || (await adapter.folderExists(".vercel"));
   },
 
   lifecycle: {
@@ -83,11 +71,11 @@ export const VercelPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasVercel = Object.keys(allDeps).some(
-        (p) => p === "vercel" || p.startsWith("@vercel/")
+        (p) => p === "vercel" || p.startsWith("@vercel/"),
       );
 
       // 1. Safeguard installed Vercel ecosystem packages in package.json
@@ -157,7 +145,7 @@ export const VercelPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Vercel configuration found, but 'vercel' or '@vercel/*' packages are not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -199,8 +187,8 @@ export const VercelPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default VercelPlugin;

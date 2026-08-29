@@ -101,9 +101,8 @@ export function normalizeCanonicalPath(filePath: string): string {
     posixPath = posixPath.charAt(0).toUpperCase() + posixPath.slice(1);
   }
   const normalized = normalize(posixPath);
-  const result = normalized.length > 1 && normalized.endsWith("/")
-    ? normalized.slice(0, -1)
-    : normalized;
+  const result =
+    normalized.length > 1 && normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
 
   if (normalizedPathCache.size >= NORMALIZED_PATH_CACHE_LIMIT) normalizedPathCache.clear();
   normalizedPathCache.set(filePath, result);
@@ -131,7 +130,7 @@ function escapeRegex(value: string): string {
 
 /**
  * Converts a glob pattern to a Regular Expression.
- * 
+ *
  * Improvements:
  * 1. If a pattern doesn't contain a slash, it's treated as a name match (matches anywhere).
  * 2. Handles ** correctly for recursive directory matching.
@@ -139,25 +138,25 @@ function escapeRegex(value: string): string {
  */
 export function globToRegExp(pattern: string): RegExp {
   let p = pattern.replace(/\\/g, "/");
-  
-  // Standard glob behavior: 
+
+  // Standard glob behavior:
   // 1. If it contains no slash (other than a trailing one), it matches anywhere.
   // 2. A trailing slash means it must be a directory.
   const hasInternalSlash = p.replace(/\/$/, "").includes("/");
   const isNameOnly = !hasInternalSlash;
 
   let source = "^";
-  
+
   if (isNameOnly) {
     source += "(?:.*/)?";
   }
 
   const cleanPattern = p.replace(/\/$/, "");
-  
+
   for (let index = 0; index < cleanPattern.length; index += 1) {
     const char = cleanPattern[index];
     const next = cleanPattern[index + 1];
-    
+
     if (char === "*" && next === "*") {
       const after = cleanPattern[index + 2];
       if (after === "/") {
@@ -175,10 +174,10 @@ export function globToRegExp(pattern: string): RegExp {
       source += escapeRegex(char ?? "");
     }
   }
-  
+
   // Match the file/directory itself OR anything inside it if it's a directory
   source += "(?:/.*)?$";
-  
+
   return new RegExp(source);
 }
 
@@ -191,22 +190,22 @@ export function compileGlobs(patterns: string[]): RegExp[] {
  * Automatically handles absolute paths by making them relative to root if possible.
  */
 export function matchesAnyGlob(
-  filePath: string, 
-  compiledPatterns: RegExp[], 
-  rootDir?: string
+  filePath: string,
+  compiledPatterns: RegExp[],
+  rootDir?: string,
 ): boolean {
   let target = toPosix(filePath);
-  
+
   if (rootDir) {
     const normalizedRoot = normalizeAbsolute(rootDir);
     if (target.startsWith(normalizedRoot)) {
       target = patheRelative(normalizedRoot, target);
     }
   }
-  
+
   // Strip leading ./ for clean matching
   const normalized = toPosix(target).replace(/^\.\//, "");
-  
+
   return compiledPatterns.some((pattern) => pattern.test(normalized));
 }
 
@@ -214,9 +213,9 @@ export function matchesAnyGlob(
  * Unified ignore check used across the codebase.
  */
 export function isIgnored(
-  filePath: string, 
-  ignorePatterns: string[] = [], 
-  rootDir?: string
+  filePath: string,
+  ignorePatterns: string[] = [],
+  rootDir?: string,
 ): boolean {
   if (!ignorePatterns || ignorePatterns.length === 0) return false;
   const compiled = compileGlobs(ignorePatterns);
@@ -277,11 +276,7 @@ export async function discoverSourceFiles(
 }
 
 export function isLikelyLocalSpecifier(specifier: string): boolean {
-  return (
-    specifier.startsWith(".") ||
-    specifier.startsWith("file:") ||
-    isAbsolute(specifier)
-  );
+  return specifier.startsWith(".") || specifier.startsWith("file:") || isAbsolute(specifier);
 }
 
 export function removeQueryAndHash(specifier: string): string {
@@ -297,9 +292,21 @@ export function resolveLocalSpecifier(
   rawSpecifier: string,
   knownFiles: Set<string> | Map<string, unknown>,
   extensions: string[] = [
-    ".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".astro",
-    ".css", ".scss", ".sass", ".less", ".styl", ".stylus", ".json"
-  ]
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".vue",
+    ".svelte",
+    ".astro",
+    ".css",
+    ".scss",
+    ".sass",
+    ".less",
+    ".styl",
+    ".stylus",
+    ".json",
+  ],
 ): string | undefined {
   const cleaned = removeQueryAndHash(rawSpecifier);
   if (!isLikelyLocalSpecifier(cleaned)) {
@@ -307,9 +314,7 @@ export function resolveLocalSpecifier(
   }
 
   const sourceDir = dirname(normalizeCanonicalPath(sourceFilePath));
-  const absoluteBasePath = normalizeCanonicalPath(
-    resolve(sourceDir, cleaned)
-  );
+  const absoluteBasePath = normalizeCanonicalPath(resolve(sourceDir, cleaned));
 
   const existsInKnown = (p: string) =>
     knownFiles instanceof Set ? knownFiles.has(p) : knownFiles.has(p);
@@ -355,15 +360,15 @@ export function resolveLocalSpecifier(
 function candidateSpecifiers(fromFile: string, candidate: string): string[] {
   const from = normalizeCanonicalPath(fromFile);
   const target = normalizeCanonicalPath(candidate);
-  
+
   const relPath = patheRelative(dirname(from), target);
   const withPrefix = relPath.startsWith(".") ? relPath : `./${relPath}`;
-  
+
   const extension = extname(withPrefix);
   const withoutExtension = extension ? withPrefix.slice(0, -extension.length) : withPrefix;
-  const aliases = extension ? SOURCE_EXTENSION_ALIASES.get(extension) ?? [extension] : [""];
+  const aliases = extension ? (SOURCE_EXTENSION_ALIASES.get(extension) ?? [extension]) : [""];
   const mapped = aliases.map((alias) => `${withoutExtension}${alias}`);
-  
+
   return [...new Set([withPrefix, withoutExtension, ...mapped])];
 }
 
@@ -402,12 +407,12 @@ export function expandEntryPatterns(
 ): string[] {
   const matches = new Set<string>();
   const normalizedRoot = normalizeAbsolute(rootDir);
-  const normalizedSourceFiles = sourceFiles.map(f => normalizeAbsolute(f));
+  const normalizedSourceFiles = sourceFiles.map((f) => normalizeAbsolute(f));
 
   for (const pattern of patterns) {
     // 1. Direct absolute or relative path resolution
     const direct = normalizeAbsolute(isAbsolute(pattern) ? pattern : resolve(rootDir, pattern));
-    
+
     if (normalizedSourceFiles.includes(direct)) {
       matches.add(direct);
       continue;
@@ -421,11 +426,11 @@ export function expandEntryPatterns(
     p = p.replace(/^\.\//, "");
 
     const matcher = globToRegExp(p);
-    
+
     for (const sourceFile of normalizedSourceFiles) {
       // Stripping leading ./ from relPath ensures "^src\/..." regex matches cleanly
       const relPath = toPosix(patheRelative(normalizedRoot, sourceFile)).replace(/^\.\//, "");
-      
+
       if (matcher.test(relPath)) {
         matches.add(sourceFile);
       }
@@ -441,7 +446,11 @@ export async function discoverPackageBinEntryPatterns(rootDir: string): Promise<
     if (!packageJson || typeof packageJson !== "object" || Array.isArray(packageJson)) return [];
     const entries = new Set<string>();
     if (typeof packageJson.bin === "string") entries.add(packageJson.bin);
-    else if (packageJson.bin && typeof packageJson.bin === "object" && !Array.isArray(packageJson.bin)) {
+    else if (
+      packageJson.bin &&
+      typeof packageJson.bin === "object" &&
+      !Array.isArray(packageJson.bin)
+    ) {
       for (const target of Object.values(packageJson.bin as Record<string, unknown>)) {
         if (typeof target === "string") entries.add(target);
       }
@@ -474,7 +483,12 @@ async function sourceCandidatesForScript(rootDir: string, relativePath: string):
   const normalized = relativePath.replace(/\\/g, "/");
   const extension = extname(normalized).toLowerCase();
   const sourceExtensions = SOURCE_EXTENSION_ALIASES.get(extension) ?? [extension];
-  const configs = ["tsconfig.json", "tsconfig.build.json", "tsconfig.app.json", "tsconfig.node.json"];
+  const configs = [
+    "tsconfig.json",
+    "tsconfig.build.json",
+    "tsconfig.app.json",
+    "tsconfig.node.json",
+  ];
 
   for (const configName of configs) {
     const config = await readJsonFile<ScriptPathConfig>(join(rootDir, configName));
@@ -488,13 +502,22 @@ async function sourceCandidatesForScript(rootDir: string, relativePath: string):
     const sourceRoot = normalizeAbsolute(resolve(rootDir, rootDirOption ?? "src"));
     const sourceStem = resolve(sourceRoot, relativeFromOutput);
     for (const sourceExtension of sourceExtensions) {
-      candidates.add(toPosix(patheRelative(normalizeAbsolute(rootDir), `${sourceStem.slice(0, -extension.length)}${sourceExtension}`)));
+      candidates.add(
+        toPosix(
+          patheRelative(
+            normalizeAbsolute(rootDir),
+            `${sourceStem.slice(0, -extension.length)}${sourceExtension}`,
+          ),
+        ),
+      );
     }
   }
 
   // Common convention fallback for projects that omit outDir/rootDir metadata.
   const segments = normalized.split("/");
-  const outputIndex = segments.findIndex((segment) => ["dist", "build", "out", "lib"].includes(segment));
+  const outputIndex = segments.findIndex((segment) =>
+    ["dist", "build", "out", "lib"].includes(segment),
+  );
   if (outputIndex >= 0) {
     const sourceSegments = [...segments];
     sourceSegments[outputIndex] = "src";
@@ -514,7 +537,9 @@ async function sourceCandidatesForScript(rootDir: string, relativePath: string):
  * intentionally out of scope: only a concrete local file path is promoted to an
  * analyzer entry point.
  */
-export async function discoverPackageScriptTargets(rootDir: string): Promise<PackageScriptTarget[]> {
+export async function discoverPackageScriptTargets(
+  rootDir: string,
+): Promise<PackageScriptTarget[]> {
   const packageFile = join(rootDir, "package.json");
   try {
     const packageJson = await readJsonFile<Record<string, unknown>>(packageFile);
@@ -525,7 +550,7 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
     const targets = new Map<string, PackageScriptTarget>();
     for (const [scriptName, command] of Object.entries(scripts as Record<string, unknown>)) {
       if (typeof command !== "string") continue;
-            for (const rawTarget of extractScriptRunnerTargets(command)) {
+      for (const rawTarget of extractScriptRunnerTargets(command)) {
         if (rawTarget.includes("$") || rawTarget.includes("`")) continue;
         const hasGlob = /[*?{\[]/.test(rawTarget);
         const expandedTargets = hasGlob
@@ -537,27 +562,42 @@ export async function discoverPackageScriptTargets(rootDir: string): Promise<Pac
         for (const target of expandedTargets) {
           const absolutePath = normalizeAbsolute(resolve(normalizedRoot, target));
           const relativePath = toPosix(patheRelative(normalizedRoot, absolutePath));
-          if (!relativePath || relativePath === ".." || relativePath.startsWith("../") || isAbsolute(relativePath)) continue;
+          if (
+            !relativePath ||
+            relativePath === ".." ||
+            relativePath.startsWith("../") ||
+            isAbsolute(relativePath)
+          )
+            continue;
           let exists = false;
           let resolvedRelativePath = relativePath;
-        try {
-          exists = (await fs.stat(absolutePath)).isFile();
-        } catch {
-          // A build output may be absent while its source entry is present.
-          for (const sourceCandidate of await sourceCandidatesForScript(normalizedRoot, relativePath)) {
-            try {
-              if ((await fs.stat(resolve(normalizedRoot, sourceCandidate))).isFile()) {
-                exists = true;
-                resolvedRelativePath = sourceCandidate;
-                break;
+          try {
+            exists = (await fs.stat(absolutePath)).isFile();
+          } catch {
+            // A build output may be absent while its source entry is present.
+            for (const sourceCandidate of await sourceCandidatesForScript(
+              normalizedRoot,
+              relativePath,
+            )) {
+              try {
+                if ((await fs.stat(resolve(normalizedRoot, sourceCandidate))).isFile()) {
+                  exists = true;
+                  resolvedRelativePath = sourceCandidate;
+                  break;
+                }
+              } catch {
+                // Continue checking source candidates.
               }
-            } catch {
-              // Continue checking source candidates.
             }
           }
-        }
           const key = `${scriptName}\u0000${relativePath}`;
-          targets.set(key, { scriptName, command, relativePath: resolvedRelativePath, requestedPath: relativePath, exists });
+          targets.set(key, {
+            scriptName,
+            command,
+            relativePath: resolvedRelativePath,
+            requestedPath: relativePath,
+            exists,
+          });
         }
       }
     }
@@ -572,7 +612,11 @@ async function expandLocalScriptGlob(rootDir: string, pattern: string): Promise<
   const matches: string[] = [];
   const visit = async (directory: string): Promise<void> => {
     let entries;
-    try { entries = await fs.readdir(directory, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const entry of entries) {
       if (["node_modules", ".git", "dist", "build"].includes(entry.name)) continue;
       const absolute = join(directory, entry.name);
@@ -603,7 +647,8 @@ function extractScriptRunnerTargets(command: string): string[] {
       if (token === "-e" || token === "--eval" || token === "-p" || token === "--print") break;
       if (token === "--") {
         const candidate = tokens[cursor + 1];
-        if (candidate && !candidate.startsWith("-") && (isNode || looksLikeScriptFile(candidate))) targets.push(candidate);
+        if (candidate && !candidate.startsWith("-") && (isNode || looksLikeScriptFile(candidate)))
+          targets.push(candidate);
         break;
       }
       if (isBun && (token === "run" || token === "x" || token === "exec")) continue;
@@ -611,7 +656,13 @@ function extractScriptRunnerTargets(command: string): string[] {
         cursor += 1;
         continue;
       }
-      if (token === "-r" || token === "--require" || token === "--loader" || token === "--import" || token === "--experimental-loader") {
+      if (
+        token === "-r" ||
+        token === "--require" ||
+        token === "--loader" ||
+        token === "--import" ||
+        token === "--experimental-loader"
+      ) {
         const preload = tokens[cursor + 1];
         // Local preloads execute before the main program and are genuine runtime
         // roots. Bare package preloads remain dependency evidence, not files.
@@ -639,7 +690,10 @@ function tokenizeShellCommand(command: string): string[] {
   const tokens: string[] = [];
   let token = "";
   let quote: "'" | '"' | undefined;
-  const push = () => { if (token) tokens.push(token); token = ""; };
+  const push = () => {
+    if (token) tokens.push(token);
+    token = "";
+  };
 
   for (let index = 0; index < command.length; index += 1) {
     const character = command[index];
@@ -649,15 +703,25 @@ function tokenizeShellCommand(command: string): string[] {
       else token += character;
       continue;
     }
-    if (character === "'" || character === '"') { quote = character; continue; }
-    if (/\s/.test(character)) { push(); continue; }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (/\s/.test(character)) {
+      push();
+      continue;
+    }
     if (character === "&" || character === "|") {
       push();
       if (command[index + 1] === character) index += 1;
       tokens.push(character === "&" ? "&&" : "||");
       continue;
     }
-    if (character === ";") { push(); tokens.push(";"); continue; }
+    if (character === ";") {
+      push();
+      tokens.push(";");
+      continue;
+    }
     token += character;
   }
   push();
@@ -679,7 +743,11 @@ export async function discoverPackageEntryPatterns(rootDir: string): Promise<str
     }
     if (typeof packageJson.bin === "string") {
       entries.add(packageJson.bin);
-    } else if (packageJson.bin && typeof packageJson.bin === "object" && !Array.isArray(packageJson.bin)) {
+    } else if (
+      packageJson.bin &&
+      typeof packageJson.bin === "object" &&
+      !Array.isArray(packageJson.bin)
+    ) {
       for (const target of Object.values(packageJson.bin as Record<string, unknown>)) {
         if (typeof target === "string") entries.add(target);
       }
@@ -713,11 +781,12 @@ export async function discoverPackageExportEntryPatterns(rootDir: string): Promi
 
 function normalizePackageEntryPatterns(entries: Set<string>): string[] {
   return [...entries]
-    .filter((entry) =>
-      entry.startsWith(".") ||
-      entry.startsWith("src/") ||
-      entry.startsWith("lib/") ||
-      entry.startsWith("dist/")
+    .filter(
+      (entry) =>
+        entry.startsWith(".") ||
+        entry.startsWith("src/") ||
+        entry.startsWith("lib/") ||
+        entry.startsWith("dist/"),
     )
     .map((entry) => entry.replace(/^\.\//, ""));
 }
@@ -779,7 +848,9 @@ export function normalizedConventionalEntryPatterns(): string[] {
  * unambiguous structural omissions are recovered; malformed values are never
  * exposed to analysis callers as partially parsed objects.
  */
-export async function readJsonFileWithDiagnostics<T>(candidate: string): Promise<JsonParseResult<T> | undefined> {
+export async function readJsonFileWithDiagnostics<T>(
+  candidate: string,
+): Promise<JsonParseResult<T> | undefined> {
   try {
     const rawContent = await fs.readFile(candidate, "utf8");
     return parseJsonDocument<T>(rawContent);
@@ -827,8 +898,13 @@ type PackageImportValue = string | { [condition: string]: PackageImportValue };
  */
 export async function ingestPackageImports(rootDir: string): Promise<Map<string, string[]>> {
   const aliases = new Map<string, string[]>();
-  const packageJson = await readJsonFile<{ imports?: Record<string, PackageImportValue> }>(join(rootDir, "package.json"));
-  const collectLocalTargets = (value: PackageImportValue | undefined, collected: string[]): void => {
+  const packageJson = await readJsonFile<{ imports?: Record<string, PackageImportValue> }>(
+    join(rootDir, "package.json"),
+  );
+  const collectLocalTargets = (
+    value: PackageImportValue | undefined,
+    collected: string[],
+  ): void => {
     if (typeof value === "string") {
       if (value.startsWith(".")) collected.push(normalizeAbsolute(resolve(rootDir, value)));
       return;
@@ -862,7 +938,10 @@ type TsConfigShape = {
  * its project references. Alias targets are normalized to absolute paths because
  * a referenced tsconfig can have a different base directory from the root config.
  */
-export async function ingestTsConfigPaths(rootDir: string, configPath: string = "tsconfig.json"): Promise<{ paths: Map<string, string[]>, baseUrl: string | undefined }> {
+export async function ingestTsConfigPaths(
+  rootDir: string,
+  configPath: string = "tsconfig.json",
+): Promise<{ paths: Map<string, string[]>; baseUrl: string | undefined }> {
   const pathAliases = new Map<string, string[]>();
   const visitedConfigs = new Set<string>();
 
@@ -870,7 +949,11 @@ export async function ingestTsConfigPaths(rootDir: string, configPath: string = 
     const normalizedCandidate = normalizeAbsolute(candidate);
     const candidates = normalizedCandidate.endsWith(".json")
       ? [normalizedCandidate]
-      : [normalizedCandidate, `${normalizedCandidate}.json`, join(normalizedCandidate, "tsconfig.json")];
+      : [
+          normalizedCandidate,
+          `${normalizedCandidate}.json`,
+          join(normalizedCandidate, "tsconfig.json"),
+        ];
     for (const possibleConfig of candidates) {
       if (await fileExists(possibleConfig)) return possibleConfig;
     }
@@ -889,10 +972,15 @@ export async function ingestTsConfigPaths(rootDir: string, configPath: string = 
     let inheritedBaseUrl: string | undefined;
 
     // Inherited compiler options are loaded first, so this config can override them.
-    for (const extension of tsconfig.extends ? (Array.isArray(tsconfig.extends) ? tsconfig.extends : [tsconfig.extends]) : []) {
-      const extensionPath = extension.startsWith(".") || isAbsolute(extension)
-        ? join(configDirectory, extension)
-        : join(rootDir, "node_modules", extension);
+    for (const extension of tsconfig.extends
+      ? Array.isArray(tsconfig.extends)
+        ? tsconfig.extends
+        : [tsconfig.extends]
+      : []) {
+      const extensionPath =
+        extension.startsWith(".") || isAbsolute(extension)
+          ? join(configDirectory, extension)
+          : join(rootDir, "node_modules", extension);
       const parentBaseUrl = await loadConfig(extensionPath);
       if (parentBaseUrl) inheritedBaseUrl = parentBaseUrl;
     }
@@ -912,7 +1000,10 @@ export async function ingestTsConfigPaths(rootDir: string, configPath: string = 
 
     for (const [alias, targets] of Object.entries(tsconfig.compilerOptions?.paths ?? {})) {
       if (Array.isArray(targets)) {
-        pathAliases.set(alias, targets.map((target) => normalizeAbsolute(resolve(aliasBaseDirectory, target))));
+        pathAliases.set(
+          alias,
+          targets.map((target) => normalizeAbsolute(resolve(aliasBaseDirectory, target))),
+        );
       }
     }
 
@@ -921,7 +1012,14 @@ export async function ingestTsConfigPaths(rootDir: string, configPath: string = 
 
   const discoverWorkspaceTsConfigs = async (): Promise<string[]> => {
     const ignoredDirectories = new Set([
-      ".git", "node_modules", "dist", "build", "coverage", ".next", ".turbo", ".cache",
+      ".git",
+      "node_modules",
+      "dist",
+      "build",
+      "coverage",
+      ".next",
+      ".turbo",
+      ".cache",
     ]);
     const discovered: string[] = [];
 

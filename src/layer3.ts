@@ -8,7 +8,7 @@ import { instrumentCode } from "./instrument.js";
  */
 export async function analyzeLayer3(context: AnalysisContext): Promise<Finding[]> {
   const findings: Finding[] = [];
-  
+
   // Quick scan to see if we even need Z3
   let needsZ3 = false;
   for (const module of context.modules.values()) {
@@ -31,9 +31,11 @@ export async function analyzeLayer3(context: AnalysisContext): Promise<Finding[]
   try {
     const { init } = await import("z3-solver");
     const { Context } = await init();
-    z3 = Context('main');
+    z3 = Context("main");
   } catch (e) {
-    console.warn(`[Layer 3] Failed to initialize Z3 solver: ${e instanceof Error ? e.message : String(e)}`);
+    console.warn(
+      `[Layer 3] Failed to initialize Z3 solver: ${e instanceof Error ? e.message : String(e)}`,
+    );
     return [];
   }
 
@@ -49,37 +51,51 @@ export async function analyzeLayer3(context: AnalysisContext): Promise<Finding[]
   return findings;
 }
 
-async function analyzeModuleLogic(module: ModuleRecord, z3: any, context: AnalysisContext): Promise<Finding[]> {
+async function analyzeModuleLogic(
+  module: ModuleRecord,
+  z3: any,
+  context: AnalysisContext,
+): Promise<Finding[]> {
   const findings: Finding[] = [];
   const ast = module.ast as any;
 
   const functionNodes: any[] = [];
   walkAst(ast, (node) => {
-    if (node.type === "FunctionDeclaration" || node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression") {
+    if (
+      node.type === "FunctionDeclaration" ||
+      node.type === "ArrowFunctionExpression" ||
+      node.type === "FunctionExpression"
+    ) {
       functionNodes.push(node);
     }
   });
 
   for (const node of functionNodes) {
-      const body = node.body;
-      if (body.type === "BlockStatement") {
-        const solver = new z3.Solver();
-        
-        // Apply SMT timeout from configuration
-        const timeout = context.options.layers.smtTimeoutMs;
-        if (timeout > 0) {
-          solver.set("timeout", timeout);
-        }
+    const body = node.body;
+    if (body.type === "BlockStatement") {
+      const solver = new z3.Solver();
 
-        const pathFindings = await analyzeFunctionPaths(body, z3, solver, module, context);
-        findings.push(...pathFindings);
+      // Apply SMT timeout from configuration
+      const timeout = context.options.layers.smtTimeoutMs;
+      if (timeout > 0) {
+        solver.set("timeout", timeout);
       }
+
+      const pathFindings = await analyzeFunctionPaths(body, z3, solver, module, context);
+      findings.push(...pathFindings);
+    }
   }
 
   return findings;
 }
 
-async function analyzeFunctionPaths(block: any, z3: any, solver: any, module: ModuleRecord, context: AnalysisContext): Promise<Finding[]> {
+async function analyzeFunctionPaths(
+  block: any,
+  z3: any,
+  solver: any,
+  module: ModuleRecord,
+  context: AnalysisContext,
+): Promise<Finding[]> {
   const findings: Finding[] = [];
   const body = block.body || [];
 
@@ -116,32 +132,87 @@ async function analyzeIfStatement(
   module: ModuleRecord,
   findings: Finding[],
   pathConditions: any[],
-  context: AnalysisContext
+  context: AnalysisContext,
 ) {
   const file = module.id;
   const condition = node.test;
   const predicate = encodePredicate(condition, z3, solver, module);
-  
-  if (predicate && typeof predicate !== 'string') {
+
+  if (predicate && typeof predicate !== "string") {
     // 1. Check if the 'then' branch is reachable
     solver.push();
     try {
-        for (const pc of pathConditions) {
-            if (pc) solver.add(pc);
+      for (const pc of pathConditions) {
+        if (pc) solver.add(pc);
+      }
+      solver.add(predicate);
+
+      const result = await solver.check();
+
+      if (result === "sat") {
+        // SAT -> Candidate for Layer 4 Proof
+        const seedInput = await extractModel(solver);
+        context.candidateBranches.push({
+          file: file,
+          line: node.consequent.loc?.start.line ?? 0,
+          instrumentedCode: instrumentCode(module.sourceText, file) ?? "",
+          seedInput,
+        });
+      }
+
+      if (result === "unsat") {
+        findings.push({
+          rule: "constant-condition",
+          severity: "warning",
+          confidence: "high",
+          message: "Logical path is mathematically unreachable (Always False).",
+          file: file,
+          location: node.consequent.loc,
+          evidence: { reason: "unsat-path-then" },
+        });
+      } else {
+        // Recurse into nested blocks if reachable
+        if (node.consequent.type === "BlockStatement") {
+          for (const stmt of node.consequent.body) {
+            if (stmt.type === "IfStatement") {
+              await analyzeIfStatement(
+                stmt,
+                z3,
+                solver,
+                module,
+                findings,
+                [...pathConditions, predicate],
+                context,
+              );
+            }
+          }
         }
-        solver.add(predicate);
-        
+      }
+    } catch (e) {
+      // Ignore
+    }
+    solver.pop();
+
+    // 2. Check if the 'else' branch is reachable
+    if (node.alternate) {
+      solver.push();
+      try {
+        for (const pc of pathConditions) {
+          if (pc) solver.add(pc);
+        }
+        solver.add(z3.Not(predicate));
+
         const result = await solver.check();
 
         if (result === "sat") {
-            // SAT -> Candidate for Layer 4 Proof
-            const seedInput = await extractModel(solver);
-            context.candidateBranches.push({
-                file: file,
-                line: node.consequent.loc?.start.line ?? 0,
-                instrumentedCode: instrumentCode(module.sourceText, file) ?? "",
-                seedInput
-            });
+          // SAT -> Candidate for Layer 4 Proof (Else branch)
+          const seedInput = await extractModel(solver);
+          context.candidateBranches.push({
+            file: file,
+            line: node.alternate.loc?.start.line ?? 0,
+            instrumentedCode: instrumentCode(module.sourceText, file) ?? "",
+            seedInput,
+          });
         }
 
         if (result === "unsat") {
@@ -149,81 +220,56 @@ async function analyzeIfStatement(
             rule: "constant-condition",
             severity: "warning",
             confidence: "high",
-            message: "Logical path is mathematically unreachable (Always False).",
+            message: "Logical path is mathematically unreachable (Always True).",
             file: file,
-            location: node.consequent.loc,
-            evidence: { reason: "unsat-path-then" },
+            location: node.alternate.loc,
+            evidence: { reason: "unsat-path-else" },
           });
         } else {
-            // Recurse into nested blocks if reachable
-            if (node.consequent.type === "BlockStatement") {
-                for (const stmt of node.consequent.body) {
-                    if (stmt.type === "IfStatement") {
-                        await analyzeIfStatement(stmt, z3, solver, module, findings, [...pathConditions, predicate], context);
-                    }
-                }
+          // Recurse into else branch
+          if (node.alternate.type === "BlockStatement") {
+            for (const stmt of node.alternate.body) {
+              if (stmt.type === "IfStatement") {
+                await analyzeIfStatement(
+                  stmt,
+                  z3,
+                  solver,
+                  module,
+                  findings,
+                  [...pathConditions, z3.Not(predicate)],
+                  context,
+                );
+              }
             }
+          } else if (node.alternate.type === "IfStatement") {
+            await analyzeIfStatement(
+              node.alternate,
+              z3,
+              solver,
+              module,
+              findings,
+              [...pathConditions, z3.Not(predicate)],
+              context,
+            );
+          }
         }
-    } catch (e) {
+      } catch (e) {
         // Ignore
-    }
-    solver.pop();
-
-    // 2. Check if the 'else' branch is reachable
-    if (node.alternate) {
-        solver.push();
-        try {
-            for (const pc of pathConditions) {
-                if (pc) solver.add(pc);
-            }
-            solver.add(z3.Not(predicate));
-            
-            const result = await solver.check();
-
-            if (result === "sat") {
-                // SAT -> Candidate for Layer 4 Proof (Else branch)
-                const seedInput = await extractModel(solver);
-                context.candidateBranches.push({
-                    file: file,
-                    line: node.alternate.loc?.start.line ?? 0,
-                    instrumentedCode: instrumentCode(module.sourceText, file) ?? "",
-                    seedInput
-                });
-            }
-
-            if (result === "unsat") {
-                findings.push({
-                    rule: "constant-condition",
-                    severity: "warning",
-                    confidence: "high",
-                    message: "Logical path is mathematically unreachable (Always True).",
-                    file: file,
-                    location: node.alternate.loc,
-                    evidence: { reason: "unsat-path-else" },
-                });
-            } else {
-                // Recurse into else branch
-                if (node.alternate.type === "BlockStatement") {
-                    for (const stmt of node.alternate.body) {
-                        if (stmt.type === "IfStatement") {
-                            await analyzeIfStatement(stmt, z3, solver, module, findings, [...pathConditions, z3.Not(predicate)], context);
-                        }
-                    }
-                } else if (node.alternate.type === "IfStatement") {
-                    await analyzeIfStatement(node.alternate, z3, solver, module, findings, [...pathConditions, z3.Not(predicate)], context);
-                }
-            }
-        } catch (e) {
-            // Ignore
-        }
-        solver.pop();
+      }
+      solver.pop();
     }
   }
 }
 
 function evaluateStaticExpression(node: any, module: ModuleRecord, depth = 0): any | null {
   if (!node || depth > 12) return null;
-  if (node.type === "Literal" || node.type === "NumericLiteral" || node.type === "StringLiteral" || node.type === "BooleanLiteral") return node.value;
+  if (
+    node.type === "Literal" ||
+    node.type === "NumericLiteral" ||
+    node.type === "StringLiteral" ||
+    node.type === "BooleanLiteral"
+  )
+    return node.value;
   if (node.type === "Identifier") return resolveFunctionLiteral(node.name, module, depth + 1);
   if (node.type === "UnaryExpression") {
     const value = evaluateStaticExpression(node.argument, module, depth + 1);
@@ -237,15 +283,24 @@ function evaluateStaticExpression(node: any, module: ModuleRecord, depth = 0): a
     const right = evaluateStaticExpression(node.right, module, depth + 1);
     if (left === null || right === null) return null;
     switch (node.operator) {
-      case "+": return left + right;
-      case "-": return left - right;
-      case "*": return left * right;
-      case "/": return left / right;
-      case "%": return left % right;
-      case "===": return left === right;
-      case "!==": return left !== right;
-      case "==": return left == right;
-      case "!=": return left != right;
+      case "+":
+        return left + right;
+      case "-":
+        return left - right;
+      case "*":
+        return left * right;
+      case "/":
+        return left / right;
+      case "%":
+        return left % right;
+      case "===":
+        return left === right;
+      case "!==":
+        return left !== right;
+      case "==":
+        return left == right;
+      case "!=":
+        return left != right;
     }
   }
   return null;
@@ -264,7 +319,10 @@ function resolveFunctionLiteral(name: string, module: ModuleRecord, depth = 0): 
       const body = node.body?.body ?? [];
       if (body.length === 1 && body[0].type === "ReturnStatement") {
         const evaluated = evaluateStaticExpression(body[0].argument, module, depth + 1);
-        if (evaluated !== null) { returnValue = evaluated; found = true; }
+        if (evaluated !== null) {
+          returnValue = evaluated;
+          found = true;
+        }
       }
     }
   });
@@ -272,11 +330,11 @@ function resolveFunctionLiteral(name: string, module: ModuleRecord, depth = 0): 
 }
 
 function encodeLiteral(value: any, z3: any): any {
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     // Always use Real for numbers to avoid sort mismatches when comparing with Real identifiers
     return z3.Real.val(value);
   }
-  if (typeof value === 'boolean') {
+  if (typeof value === "boolean") {
     return z3.Bool.val(value);
   }
   return null;
@@ -286,7 +344,11 @@ function flattenMemberExpression(node: any): string | null {
   if (node.type === "Identifier") return node.name;
   if (node.type === "MemberExpression") {
     const obj = flattenMemberExpression(node.object);
-    const prop = node.computed ? null : (node.property.type === "Identifier" ? node.property.name : null);
+    const prop = node.computed
+      ? null
+      : node.property.type === "Identifier"
+        ? node.property.name
+        : null;
     if (obj && prop) return `${obj}.${prop}`;
   }
   return null;
@@ -298,40 +360,40 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   if (node.type === "BinaryExpression") {
     const left = encodePredicate(node.left, z3, solver, module);
     const right = encodePredicate(node.right, z3, solver, module);
-    
-    if (left && right && typeof left !== 'string' && typeof right !== 'string') {
+
+    if (left && right && typeof left !== "string" && typeof right !== "string") {
       try {
-          switch (node.operator) {
-            case "===":
-            case "==":
-              return left.eq(right);
-            case "!==":
-            case "!=":
-              return z3.Not(left.eq(right));
-            case ">":
-              return left.gt(right);
-            case "<":
-              return left.lt(right);
-            case ">=":
-              return left.ge(right);
-            case "<=":
-              return left.le(right);
-          }
+        switch (node.operator) {
+          case "===":
+          case "==":
+            return left.eq(right);
+          case "!==":
+          case "!=":
+            return z3.Not(left.eq(right));
+          case ">":
+            return left.gt(right);
+          case "<":
+            return left.lt(right);
+          case ">=":
+            return left.ge(right);
+          case "<=":
+            return left.le(right);
+        }
       } catch (e) {
-          return null;
+        return null;
       }
     }
   }
-  
+
   if (node.type === "Identifier") {
     // Identifier binding is scope-sensitive. Without a lexical resolver, treating
     // a same-named function declaration as a constant is unsound under shadowing,
     // parameters, reassignment, and block scope. Keep the value symbolic instead.
     try {
-        // Use Real for identifiers to handle both integers and floats in JS
-        return z3.Real.const(node.name);
+      // Use Real for identifiers to handle both integers and floats in JS
+      return z3.Real.const(node.name);
     } catch (e) {
-        return null;
+      return null;
     }
   }
 
@@ -341,12 +403,18 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
       return z3.Real.const(name);
     }
   }
-  
-  if (node.type === "NumericLiteral" || (node.type === "Literal" && typeof node.value === 'number')) {
+
+  if (
+    node.type === "NumericLiteral" ||
+    (node.type === "Literal" && typeof node.value === "number")
+  ) {
     return encodeLiteral(node.value, z3);
   }
 
-  if (node.type === "BooleanLiteral" || (node.type === "Literal" && typeof node.value === 'boolean')) {
+  if (
+    node.type === "BooleanLiteral" ||
+    (node.type === "Literal" && typeof node.value === "boolean")
+  ) {
     return z3.Bool.val(node.value);
   }
 
@@ -370,10 +438,16 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   if (node.type === "CallExpression") {
     const callee = node.callee;
     // Handle Math.random()
-    if (callee.type === "MemberExpression" && 
-        callee.object.type === "Identifier" && callee.object.name === "Math" &&
-        callee.property.type === "Identifier" && callee.property.name === "random") {
-      const randVar = z3.Real.const(`math_random_${node.loc?.start.line}_${node.loc?.start.column}`);
+    if (
+      callee.type === "MemberExpression" &&
+      callee.object.type === "Identifier" &&
+      callee.object.name === "Math" &&
+      callee.property.type === "Identifier" &&
+      callee.property.name === "random"
+    ) {
+      const randVar = z3.Real.const(
+        `math_random_${node.loc?.start.line}_${node.loc?.start.column}`,
+      );
       if (solver) {
         solver.add(randVar.ge(z3.Real.val(0)));
         solver.add(randVar.lt(z3.Real.val(1)));
@@ -392,13 +466,13 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   if (node.type === "LogicalExpression") {
     const left = encodePredicate(node.left, z3, solver, module);
     const right = encodePredicate(node.right, z3, solver, module);
-    if (left && right && typeof left !== 'string' && typeof right !== 'string') {
-        try {
-            if (node.operator === "&&") return z3.And(left, right);
-            if (node.operator === "||") return z3.Or(left, right);
-        } catch (e) {
-            return null;
-        }
+    if (left && right && typeof left !== "string" && typeof right !== "string") {
+      try {
+        if (node.operator === "&&") return z3.And(left, right);
+        if (node.operator === "||") return z3.Or(left, right);
+      } catch (e) {
+        return null;
+      }
     }
   }
 

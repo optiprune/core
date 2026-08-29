@@ -15,15 +15,10 @@ const MDXLINT_CONFIG_FILES = [
   "mdxlint.config.js",
   "mdxlint.config.mjs",
   "mdxlint.config.cjs",
-  "mdxlint.config.ts"
+  "mdxlint.config.ts",
 ];
 
-const MDXLINT_PACKAGES = [
-  "mdxlint",
-  "@mdxlint/core",
-  "@mdxlint/cli",
-  "eslint-plugin-mdx"
-];
+const MDXLINT_PACKAGES = ["mdxlint", "@mdxlint/core", "@mdxlint/cli", "eslint-plugin-mdx"];
 
 /**
  * Helper to process mdxlint configuration objects and extract custom rules/plugins
@@ -35,9 +30,7 @@ function processMdxlintConfig(config: Record<string, any>, adapter: any): void {
   if (config.plugins && Array.isArray(config.plugins)) {
     for (const plugin of config.plugins) {
       if (typeof plugin === "string") {
-        const pkgName = plugin.startsWith("mdxlint-plugin-")
-          ? plugin
-          : `mdxlint-plugin-${plugin}`;
+        const pkgName = plugin.startsWith("mdxlint-plugin-") ? plugin : `mdxlint-plugin-${plugin}`;
         adapter.markPackageAsUsed(pkgName);
       }
     }
@@ -72,15 +65,13 @@ export const MdxlintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
           (dep) =>
-            dep === "mdxlint" ||
-            dep.startsWith("@mdxlint/") ||
-            dep.startsWith("mdxlint-plugin-")
+            dep === "mdxlint" || dep.startsWith("@mdxlint/") || dep.startsWith("mdxlint-plugin-"),
         )
       ) {
         return true;
@@ -90,9 +81,7 @@ export const MdxlintPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bmdxlint\b/.test(s) || s.includes("mdxlint "))
+            (s) => typeof s === "string" && (/\bmdxlint\b/.test(s) || s.includes("mdxlint ")),
           )
         ) {
           return true;
@@ -119,7 +108,7 @@ export const MdxlintPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -156,8 +145,8 @@ export const MdxlintPlugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists(".mdxlintrc.json"))
         ? ".mdxlintrc.json"
         : (await adapter.folderExists(".mdxlintrc"))
-        ? ".mdxlintrc"
-        : null;
+          ? ".mdxlintrc"
+          : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -182,10 +171,7 @@ export const MdxlintPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Inspect JS/TS config files (mdxlint.config.js, .mdxlintrc.js, etc.)
-      if (
-        basename.startsWith("mdxlint.config.") ||
-        basename.startsWith(".mdxlintrc.")
-      ) {
+      if (basename.startsWith("mdxlint.config.") || basename.startsWith(".mdxlintrc.")) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
         }
@@ -210,8 +196,8 @@ export const MdxlintPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MdxlintPlugin;

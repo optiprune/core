@@ -15,7 +15,7 @@ const POSTCSS_CONFIG_FILES = [
   ".postcssrc.yml",
   ".postcssrc.js",
   ".postcssrc.cjs",
-  ".postcssrc.mjs"
+  ".postcssrc.mjs",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -41,7 +41,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -51,7 +51,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
             dep.startsWith("postcss-") ||
             dep.startsWith("@postcss/") ||
             dep === "autoprefixer" ||
-            dep === "tailwindcss"
+            dep === "tailwindcss",
         ) ||
         pkg.postcss
       ) {
@@ -62,8 +62,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("postcss ") || s === "postcss")
+            (s) => typeof s === "string" && (s.includes("postcss ") || s === "postcss"),
           )
         ) {
           return true;
@@ -85,7 +84,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasPostCss = Object.keys(allDeps).some(
@@ -94,7 +93,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
           p.startsWith("postcss-") ||
           p.startsWith("@postcss/") ||
           p === "autoprefixer" ||
-          p === "tailwindcss"
+          p === "tailwindcss",
       );
 
       // 1. Safeguard all installed PostCSS packages and plugins in package.json
@@ -169,9 +168,8 @@ export const PostCSSPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "PostCSS configuration found, but 'postcss' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.postcss }
+          message: "PostCSS configuration found, but 'postcss' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.postcss },
         });
       }
     },
@@ -225,9 +223,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
 
         // Detect plugins in postcss.config.js / postcss.config.ts
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key)
-            ? node.key.name
-            : (node.key as any).value;
+          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
 
           if (keyName === "plugins") {
             const val = node.value;
@@ -265,8 +261,8 @@ export const PostCSSPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processPostCssConfigObj(config: any, adapter: any): void {

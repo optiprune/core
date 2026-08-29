@@ -14,7 +14,7 @@ const LINT_STAGED_CONFIG_FILES = [
   "lint-staged.config.js",
   "lint-staged.config.cjs",
   "lint-staged.config.mjs",
-  "lint-staged.config.ts"
+  "lint-staged.config.ts",
 ];
 
 export const LintStagedPlugin: AnalyzerPlugin = {
@@ -23,7 +23,13 @@ export const LintStagedPlugin: AnalyzerPlugin = {
 
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    if (pkg && (pkg.devDependencies?.["lint-staged"] || pkg.dependencies?.["lint-staged"] || pkg["lint-staged"] || pkg.lintstaged)) {
+    if (
+      pkg &&
+      (pkg.devDependencies?.["lint-staged"] ||
+        pkg.dependencies?.["lint-staged"] ||
+        pkg["lint-staged"] ||
+        pkg.lintstaged)
+    ) {
       return true;
     }
 
@@ -40,7 +46,7 @@ export const LintStagedPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasLintStagedDep = !!allDeps["lint-staged"];
@@ -78,8 +84,9 @@ export const LintStagedPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "lint-staged configuration found but 'lint-staged' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message:
+            "lint-staged configuration found but 'lint-staged' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -116,8 +123,8 @@ export const LintStagedPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default LintStagedPlugin;

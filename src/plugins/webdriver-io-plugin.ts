@@ -2,12 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const WDIO_CONFIG_FILES = [
-  "wdio.conf.js",
-  "wdio.conf.ts",
-  "wdio.conf.cjs",
-  "wdio.conf.mjs"
-];
+const WDIO_CONFIG_FILES = ["wdio.conf.js", "wdio.conf.ts", "wdio.conf.cjs", "wdio.conf.mjs"];
 
 const WDIO_PACKAGES = [
   "webdriverio",
@@ -16,7 +11,7 @@ const WDIO_PACKAGES = [
   "@wdio/mocha-framework",
   "@wdio/jasmine-framework",
   "@wdio/cucumber-framework",
-  "@wdio/spec-reporter"
+  "@wdio/spec-reporter",
 ];
 
 export const WebdriverIOPlugin: AnalyzerPlugin = {
@@ -34,7 +29,7 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
     const allDeps = {
       ...pkg.dependencies,
       ...pkg.devDependencies,
-      ...pkg.peerDependencies
+      ...pkg.peerDependencies,
     };
 
     return WDIO_PACKAGES.some((p) => p in allDeps);
@@ -63,10 +58,7 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
 
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\bwdio\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\bwdio\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -108,8 +100,8 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId, "config");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default WebdriverIOPlugin;

@@ -11,7 +11,7 @@ const TYPEORM_CONFIG_FILES = [
   "ormconfig.yml",
   "ormconfig.yaml",
   "data-source.ts",
-  "data-source.js"
+  "data-source.js",
 ];
 
 const TYPEORM_DRIVERS = [
@@ -25,7 +25,7 @@ const TYPEORM_DRIVERS = [
   "mssql",
   "oracledb",
   "mongodb",
-  "sql.js"
+  "sql.js",
 ];
 
 const TYPEORM_DECORATORS = new Set([
@@ -44,7 +44,7 @@ const TYPEORM_DECORATORS = new Set([
   "OneToOne",
   "ManyToMany",
   "JoinColumn",
-  "JoinTable"
+  "JoinTable",
 ]);
 
 export const TypeOrmPlugin: AnalyzerPlugin = {
@@ -57,14 +57,10 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "typeorm" || dep === "@nestjs/typeorm"
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "typeorm" || dep === "@nestjs/typeorm")) {
         return true;
       }
 
@@ -72,8 +68,7 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("typeorm ") || s === "typeorm")
+            (s) => typeof s === "string" && (s.includes("typeorm ") || s === "typeorm"),
           )
         ) {
           return true;
@@ -99,11 +94,11 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTypeOrm = Object.keys(allDeps).some(
-        (p) => p === "typeorm" || p === "@nestjs/typeorm"
+        (p) => p === "typeorm" || p === "@nestjs/typeorm",
       );
 
       // 1. Safeguard installed TypeORM core, NestJS integration, and drivers in package.json
@@ -127,7 +122,7 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
         "migration",
         "migrations",
         "src/entity",
-        "src/entities"
+        "src/entities",
       ]) {
         if (await adapter.folderExists(dir)) {
           adapter.markAsUsed(dir);
@@ -154,9 +149,8 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "TypeORM configuration found, but 'typeorm' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "TypeORM configuration found, but 'typeorm' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -198,7 +192,7 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect TypeORM Decorators (@Entity(), @Column(), etc.)
-// 2. Detect TypeORM Decorators (@Entity, @Column, @PrimaryGeneratedColumn, etc.)
+      // 2. Detect TypeORM Decorators (@Entity, @Column, @PrimaryGeneratedColumn, etc.)
       const decorators = (node as { decorators?: any[] }).decorators;
       if (Array.isArray(decorators) && decorators.length > 0) {
         for (const dec of decorators) {
@@ -254,8 +248,8 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TypeOrmPlugin;

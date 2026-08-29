@@ -20,17 +20,10 @@ const WORKBOX_PACKAGES = [
   "workbox-build",
   "workbox-cli",
   "vite-plugin-pwa",
-  "@ducanh2912/next-pwa"
+  "@ducanh2912/next-pwa",
 ];
 
-const SW_FILE_PATTERNS = [
-  "service-worker",
-  "serviceworker",
-  "sw.js",
-  "sw.ts",
-  "sw.mjs",
-  "sw.cjs"
-];
+const SW_FILE_PATTERNS = ["service-worker", "serviceworker", "sw.js", "sw.ts", "sw.mjs", "sw.cjs"];
 
 export const ServiceWorkerPlugin: AnalyzerPlugin = {
   name: "service-worker-plugin",
@@ -42,12 +35,12 @@ export const ServiceWorkerPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) => dep.startsWith("workbox-") || WORKBOX_PACKAGES.includes(dep)
+          (dep) => dep.startsWith("workbox-") || WORKBOX_PACKAGES.includes(dep),
         )
       ) {
         return true;
@@ -71,14 +64,14 @@ export const ServiceWorkerPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // Protect installed Workbox and PWA packages in package.json
       for (const depName of Object.keys(allDeps)) {
         if (depName.startsWith("workbox-") || WORKBOX_PACKAGES.includes(depName)) {
           // A manifest entry alone is not evidence that this package is used.
-            // Usage is marked by the config, script, import, or file hooks below.
+          // Usage is marked by the config, script, import, or file hooks below.
         }
       }
     },
@@ -88,11 +81,7 @@ export const ServiceWorkerPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized).toLowerCase();
 
       // Mark Service Worker files as active entry points
-      if (
-        SW_FILE_PATTERNS.some(
-          (pattern) => basename === pattern || basename.includes(pattern)
-        )
-      ) {
+      if (SW_FILE_PATTERNS.some((pattern) => basename === pattern || basename.includes(pattern))) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -101,7 +90,7 @@ export const ServiceWorkerPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized).toLowerCase();
       const isSwFile = SW_FILE_PATTERNS.some(
-        (pattern) => basename === pattern || basename.includes(pattern)
+        (pattern) => basename === pattern || basename.includes(pattern),
       );
 
       // 1. Detect Workbox ESM imports in any file
@@ -163,7 +152,7 @@ export const ServiceWorkerPlugin: AnalyzerPlugin = {
               "notificationclose",
               "sync",
               "periodicsync",
-              "message"
+              "message",
             ]);
 
             if (swEvents.has(firstArg.value)) {
@@ -172,8 +161,8 @@ export const ServiceWorkerPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ServiceWorkerPlugin;

@@ -15,7 +15,7 @@ const PRETTIER_CONFIG_FILES = [
   "prettier.config.js",
   "prettier.config.cjs",
   "prettier.config.mjs",
-  ".prettierignore"
+  ".prettierignore",
 ];
 
 const PRETTIER_FILE_REGEX = /^(\.)?prettier(rc|\.config)/;
@@ -43,7 +43,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -51,7 +51,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
           (dep) =>
             dep === "prettier" ||
             dep.startsWith("prettier-plugin-") ||
-            dep.startsWith("@prettier/")
+            dep.startsWith("@prettier/"),
         ) ||
         pkg.prettier
       ) {
@@ -62,9 +62,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("prettier ") || s === "prettier")
+            (s) => typeof s === "string" && (s.includes("prettier ") || s === "prettier"),
           )
         ) {
           return true;
@@ -86,14 +84,11 @@ export const PrettierPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasPrettier = Object.keys(allDeps).some(
-        (p) =>
-          p === "prettier" ||
-          p.startsWith("prettier-plugin-") ||
-          p.startsWith("@prettier/")
+        (p) => p === "prettier" || p.startsWith("prettier-plugin-") || p.startsWith("@prettier/"),
       );
 
       // 1. Safeguard all installed Prettier plugins and packages in package.json
@@ -142,11 +137,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
 
       // 5. Inspect JSON-based config files (.prettierrc, .prettierrc.json) for plugins
       if (!prettierConfig) {
-        for (const jsonConfigName of [
-          ".prettierrc",
-          ".prettierrc.json",
-          ".prettierrc.json5"
-        ]) {
+        for (const jsonConfigName of [".prettierrc", ".prettierrc.json", ".prettierrc.json5"]) {
           const content = await adapter.readFile(jsonConfigName);
           if (content) {
             const parsed = parseJsonc(content);
@@ -178,9 +169,8 @@ export const PrettierPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Prettier configuration found, but 'prettier' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.prettier }
+          message: "Prettier configuration found, but 'prettier' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.prettier },
         });
       }
     },
@@ -234,9 +224,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
 
         // Search for plugins in JS configuration objects
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key)
-            ? node.key.name
-            : (node.key as any).value;
+          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
 
           if (keyName === "plugins") {
             const val = node.value;
@@ -244,10 +232,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
               val.elements.forEach((el: any) => {
                 if (t.isStringLiteral(el)) {
                   const pluginName = el.value;
-                  if (
-                    pluginName.startsWith(".") ||
-                    pluginName.startsWith("/")
-                  ) {
+                  if (pluginName.startsWith(".") || pluginName.startsWith("/")) {
                     adapter.markAsUsed(pluginName);
                   } else {
                     adapter.markPackageAsUsed(pluginName);
@@ -258,8 +243,8 @@ export const PrettierPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default PrettierPlugin;

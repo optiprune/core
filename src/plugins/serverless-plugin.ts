@@ -13,7 +13,7 @@ const SERVERLESS_CONFIG_FILES = [
   "serverless.cts",
   "serverless.mts",
   "serverless-compose.yml",
-  "serverless-compose.yaml"
+  "serverless-compose.yaml",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -38,15 +38,13 @@ export const ServerlessPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
           (dep) =>
-            dep === "serverless" ||
-            dep.startsWith("@serverless/") ||
-            dep.startsWith("serverless-")
+            dep === "serverless" || dep.startsWith("@serverless/") || dep.startsWith("serverless-"),
         )
       ) {
         return true;
@@ -61,7 +59,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
               (s.includes("serverless ") ||
                 s === "serverless" ||
                 s.includes("sls ") ||
-                s === "sls")
+                s === "sls"),
           )
         ) {
           return true;
@@ -82,14 +80,11 @@ export const ServerlessPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasServerless = Object.keys(allDeps).some(
-        (p) =>
-          p === "serverless" ||
-          p.startsWith("@serverless/") ||
-          p.startsWith("serverless-")
+        (p) => p === "serverless" || p.startsWith("@serverless/") || p.startsWith("serverless-"),
       );
 
       // 1. Safeguard all installed Serverless ecosystem packages and plugins in package.json
@@ -120,8 +115,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("serverless") ||
-              scriptContent.includes("sls"))
+            (scriptContent.includes("serverless") || scriptContent.includes("sls"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("serverless");
@@ -147,7 +141,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Serverless Framework configuration found, but 'serverless' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -226,10 +220,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
                 // Protect function handlers: functions: { hello: { handler: 'src/handler.hello' } }
                 if (prop.key.name === "functions" && t.isObjectExpression(prop.value)) {
                   prop.value.properties.forEach((funcProp: any) => {
-                    if (
-                      t.isObjectProperty(funcProp) &&
-                      t.isObjectExpression(funcProp.value)
-                    ) {
+                    if (t.isObjectProperty(funcProp) && t.isObjectExpression(funcProp.value)) {
                       funcProp.value.properties.forEach((handlerProp: any) => {
                         if (
                           t.isObjectProperty(handlerProp) &&
@@ -255,8 +246,8 @@ export const ServerlessPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processServerlessConfigObj(config: any, adapter: any): void {

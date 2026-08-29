@@ -45,7 +45,8 @@ const SAFE_RECOVERY_CODES = new Set<ParseErrorCode>([
 ]);
 
 const ERROR_MESSAGES: Partial<Record<ParseErrorCode, string>> = {
-  [ParseErrorCode.InvalidSymbol]: "Unexpected symbol; JSON property names and string values must be quoted.",
+  [ParseErrorCode.InvalidSymbol]:
+    "Unexpected symbol; JSON property names and string values must be quoted.",
   [ParseErrorCode.InvalidNumberFormat]: "Invalid number format.",
   [ParseErrorCode.PropertyNameExpected]: "Expected a quoted property name.",
   [ParseErrorCode.ValueExpected]: "Expected a JSON value.",
@@ -107,9 +108,10 @@ function diagnosticFromToken(
   length: number,
 ): JsonDiagnostic {
   const end = offset + Math.max(length, 1);
-  const message = code === "CommentNotAllowed"
-    ? "Comments are not valid in strict JSON."
-    : "Trailing commas are not valid in strict JSON.";
+  const message =
+    code === "CommentNotAllowed"
+      ? "Comments are not valid in strict JSON."
+      : "Trailing commas are not valid in strict JSON.";
   return {
     code,
     message,
@@ -150,7 +152,14 @@ function findStrictJsonExtensionDiagnostics(text: string): JsonDiagnostic[] {
       (token === SyntaxKind.CloseBraceToken || token === SyntaxKind.CloseBracketToken) &&
       previousSignificantToken === SyntaxKind.CommaToken
     ) {
-      diagnostics.push(diagnosticFromToken(text, "TrailingComma", previousSignificantOffset, previousSignificantLength));
+      diagnostics.push(
+        diagnosticFromToken(
+          text,
+          "TrailingComma",
+          previousSignificantOffset,
+          previousSignificantLength,
+        ),
+      );
     }
 
     previousSignificantToken = token;
@@ -183,13 +192,13 @@ export function parseJsonDocument<T>(input: string): JsonParseResult<T> {
       allowTrailingComma: true,
     }) as T;
     const parserDiagnostics = parseErrors.map((error) => diagnosticFromParseError(text, error));
-    const extensionDiagnostics = parserDiagnostics.length === 0
-      ? findStrictJsonExtensionDiagnostics(text)
-      : [];
+    const extensionDiagnostics =
+      parserDiagnostics.length === 0 ? findStrictJsonExtensionDiagnostics(text) : [];
     const diagnostics = parserDiagnostics.length > 0 ? parserDiagnostics : extensionDiagnostics;
-    const repairable = diagnostics.length > 0 && (
-      parseErrors.length === 0 || parseErrors.every((error) => SAFE_RECOVERY_CODES.has(error.error))
-    );
+    const repairable =
+      diagnostics.length > 0 &&
+      (parseErrors.length === 0 ||
+        parseErrors.every((error) => SAFE_RECOVERY_CODES.has(error.error)));
 
     return {
       ...(repairable && { value: tolerantValue }),

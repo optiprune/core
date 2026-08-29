@@ -14,7 +14,7 @@ const POPULAR_UNPLUGINS = [
   "unplugin-turbo",
   "unplugin-element-plus",
   "unplugin-ast",
-  "unplugin-fonts"
+  "unplugin-fonts",
 ];
 
 function isUnpluginPackage(pkgName: string): boolean {
@@ -37,7 +37,7 @@ export const UnpluginPlugin: AnalyzerPlugin = {
     const allDeps = {
       ...pkg.dependencies,
       ...pkg.devDependencies,
-      ...pkg.peerDependencies
+      ...pkg.peerDependencies,
     };
 
     return Object.keys(allDeps).some((dep) => isUnpluginPackage(dep));
@@ -49,14 +49,14 @@ export const UnpluginPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // 1. Safeguard all installed unplugin packages in package.json
       for (const depName of Object.keys(allDeps)) {
         if (isUnpluginPackage(depName)) {
           // A manifest entry alone is not evidence that this package is used.
-            // Usage is marked by the config, script, import, or file hooks below.
+          // Usage is marked by the config, script, import, or file hooks below.
         }
       }
     },
@@ -122,10 +122,7 @@ export const UnpluginPlugin: AnalyzerPlugin = {
 
         if (t.isIdentifier(node.callee)) {
           calleeName = node.callee.name;
-        } else if (
-          t.isMemberExpression(node.callee) &&
-          t.isIdentifier(node.callee.object)
-        ) {
+        } else if (t.isMemberExpression(node.callee) && t.isIdentifier(node.callee.object)) {
           calleeName = node.callee.object.name;
         }
 
@@ -143,8 +140,8 @@ export const UnpluginPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default UnpluginPlugin;

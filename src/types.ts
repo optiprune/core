@@ -226,7 +226,7 @@ export interface FixConfig {
    * - 'low' or 'low+': Fix findings with low, medium, or high confidence.
    * - 'all': Fix all findings regardless of confidence.
    */
-  confidence?: 'high' | 'medium+' | 'low' | 'low+' | 'all';
+  confidence?: "high" | "medium+" | "low" | "low+" | "all";
   /**
    * Rules to fix. If omitted, dependency, development-dependency,
    * unreachable-file, and safely recoverable package.json fixes are enabled.
@@ -391,7 +391,7 @@ export interface AnalysisReport {
   findings: Finding[];
   /** Present only when verbose JSON output is requested. */
   debug?: AnalysisDebugInfo;
-    modules: Array<{
+  modules: Array<{
     path: string;
     parseStatus: ParseStatus;
     /** Parser diagnostics retain their source locations for JSON consumers. */
@@ -472,7 +472,7 @@ export interface PluginAdapter {
   findFiles(fileNames: string[]): Promise<string[]>;
   /** Find project files matching static glob patterns with the engine's standard project filtering. */
   findFilesByGlob(patterns: string[]): Promise<string[]>;
-  
+
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;
   markAsUsed(fileId: string, symbol?: string): void;

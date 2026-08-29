@@ -9,7 +9,7 @@ const QUASAR_CONFIG_FILES = [
   "quasar.config.ts",
   "quasar.config.cts",
   "quasar.config.mts",
-  "quasar.conf.js"
+  "quasar.conf.js",
 ];
 
 const QUASAR_CORE_PACKAGES = [
@@ -17,7 +17,7 @@ const QUASAR_CORE_PACKAGES = [
   "@quasar/app-vite",
   "@quasar/app-webpack",
   "@quasar/extras",
-  "@quasar/icongenie"
+  "@quasar/icongenie",
 ];
 
 export const QuasarPlugin: AnalyzerPlugin = {
@@ -31,14 +31,10 @@ export const QuasarPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "quasar" || dep.startsWith("@quasar/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "quasar" || dep.startsWith("@quasar/"))) {
         return true;
       }
 
@@ -46,8 +42,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("quasar ") || s === "quasar")
+            (s) => typeof s === "string" && (s.includes("quasar ") || s === "quasar"),
           )
         ) {
           return true;
@@ -61,10 +56,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
     }
 
     // 3. Check for Quasar project directories
-    return (
-      (await adapter.folderExists("src/boot")) ||
-      (await adapter.folderExists("src/layouts"))
-    );
+    return (await adapter.folderExists("src/boot")) || (await adapter.folderExists("src/layouts"));
   },
 
   lifecycle: {
@@ -73,11 +65,11 @@ export const QuasarPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasQuasar = Object.keys(allDeps).some(
-        (p) => p === "quasar" || p.startsWith("@quasar/")
+        (p) => p === "quasar" || p.startsWith("@quasar/"),
       );
 
       // 1. Safeguard all installed Quasar ecosystem packages in package.json
@@ -126,9 +118,8 @@ export const QuasarPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Quasar configuration found, but 'quasar' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Quasar configuration found, but 'quasar' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -144,10 +135,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
       }
 
       // Protect Quasar boot files (src/boot/*)
-      if (
-        normalized.includes("/src/boot/") ||
-        normalized.startsWith("src/boot/")
-      ) {
+      if (normalized.includes("/src/boot/") || normalized.startsWith("src/boot/")) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("quasar");
       }
@@ -180,11 +168,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
 
       // 2. Detect Quasar boot file defineBoot() helper or useQuasar() composable
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
-        if (
-          ["defineBoot", "useQuasar", "useMeta", "createQuasar"].includes(
-            node.callee.name
-          )
-        ) {
+        if (["defineBoot", "useQuasar", "useMeta", "createQuasar"].includes(node.callee.name)) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("quasar");
         }
@@ -219,10 +203,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
             objExpr.properties.forEach((prop: any) => {
               if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
                 // Extract declared boot files: boot: ['i18n', 'axios']
-                if (
-                  prop.key.name === "boot" &&
-                  t.isArrayExpression(prop.value)
-                ) {
+                if (prop.key.name === "boot" && t.isArrayExpression(prop.value)) {
                   prop.value.elements.forEach((el: any) => {
                     if (t.isStringLiteral(el)) {
                       adapter.markAsUsed(`src/boot/${el.value}`);
@@ -231,10 +212,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
                 }
 
                 // Extract Quasar plugins: framework: { plugins: ['Notify', 'Dialog'] }
-                if (
-                  prop.key.name === "framework" &&
-                  t.isObjectExpression(prop.value)
-                ) {
+                if (prop.key.name === "framework" && t.isObjectExpression(prop.value)) {
                   prop.value.properties.forEach((fProp: any) => {
                     if (
                       t.isObjectProperty(fProp) &&
@@ -254,19 +232,13 @@ export const QuasarPlugin: AnalyzerPlugin = {
           if (t.isCallExpression(configExpr)) {
             const firstArg = configExpr.arguments[0];
 
-            if (
-              t.isArrowFunctionExpression(firstArg) ||
-              t.isFunctionExpression(firstArg)
-            ) {
+            if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
               const body = (firstArg as any).body;
               if (t.isObjectExpression(body)) {
                 processObject(body);
               } else if (t.isBlockStatement(body)) {
                 body.body.forEach((stmt: any) => {
-                  if (
-                    t.isReturnStatement(stmt) &&
-                    t.isObjectExpression(stmt.argument)
-                  ) {
+                  if (t.isReturnStatement(stmt) && t.isObjectExpression(stmt.argument)) {
                     processObject(stmt.argument);
                   }
                 });
@@ -279,8 +251,8 @@ export const QuasarPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default QuasarPlugin;

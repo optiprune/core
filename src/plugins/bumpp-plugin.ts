@@ -9,7 +9,7 @@ const BUMPP_CONFIG_FILES = [
   "bumpp.config.ts",
   "bumpp.config.js",
   "bumpp.config.mjs",
-  "bumpp.config.cjs"
+  "bumpp.config.cjs",
 ];
 
 const BUMPP_PACKAGE_NAME = "bumpp";
@@ -66,7 +66,7 @@ export const BumppPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (BUMPP_PACKAGE_NAME in allDeps) {
@@ -77,9 +77,7 @@ export const BumppPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bbumpp\b/.test(s) || s.includes("bumpp "))
+            (s) => typeof s === "string" && (/\bbumpp\b/.test(s) || s.includes("bumpp ")),
           )
         ) {
           return true;
@@ -107,7 +105,7 @@ export const BumppPlugin: AnalyzerPlugin = {
         ? {
             ...pkg.dependencies,
             ...pkg.devDependencies,
-            ...pkg.peerDependencies
+            ...pkg.peerDependencies,
           }
         : {};
 
@@ -148,7 +146,7 @@ export const BumppPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Bumpp configuration found, but 'bumpp' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -223,8 +221,8 @@ export const BumppPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default BumppPlugin;

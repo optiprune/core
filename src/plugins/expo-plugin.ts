@@ -11,7 +11,7 @@ const EXPO_CONFIG_FILES = [
   "app.config.mjs",
   "app.config.cjs",
   "eas.json",
-  "expo-env.d.ts"
+  "expo-env.d.ts",
 ];
 
 const EXPO_CORE_PACKAGES = [
@@ -27,7 +27,7 @@ const EXPO_CORE_PACKAGES = [
   "@expo/config",
   "@expo/config-plugins",
   "@expo/metro-config",
-  "@expo/vector-icons"
+  "@expo/vector-icons",
 ];
 
 /**
@@ -111,7 +111,9 @@ export const ExpoPlugin: AnalyzerPlugin = {
       (dep) => dep === "expo" || dep.startsWith("expo-") || dep.startsWith("@expo/"),
     );
     const hasExpoScript = Object.values(pkg?.scripts ?? {}).some(
-      (script) => typeof script === "string" && /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?(?:expo|eas)(?:\s|$)/.test(script),
+      (script) =>
+        typeof script === "string" &&
+        /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?(?:expo|eas)(?:\s|$)/.test(script),
     );
 
     // An inline Expo block and an app.json with an `expo` object are
@@ -122,12 +124,20 @@ export const ExpoPlugin: AnalyzerPlugin = {
       if (isExpoAppJson(appJson)) return true;
     }
 
-    const dedicatedConfig = (await Promise.all(
-      EXPO_CONFIG_FILES.filter((file) => !file.startsWith("app.config")).map((file) => adapter.folderExists(file)),
-    )).some(Boolean);
-    const sharedAppConfig = (await Promise.all(
-      EXPO_CONFIG_FILES.filter((file) => file.startsWith("app.config")).map((file) => adapter.folderExists(file)),
-    )).some(Boolean);
+    const dedicatedConfig = (
+      await Promise.all(
+        EXPO_CONFIG_FILES.filter((file) => !file.startsWith("app.config")).map((file) =>
+          adapter.folderExists(file),
+        ),
+      )
+    ).some(Boolean);
+    const sharedAppConfig = (
+      await Promise.all(
+        EXPO_CONFIG_FILES.filter((file) => file.startsWith("app.config")).map((file) =>
+          adapter.folderExists(file),
+        ),
+      )
+    ).some(Boolean);
 
     if (dedicatedConfig) return true;
     return hasExpoScript || (hasExpoDependency && sharedAppConfig);
@@ -159,15 +169,11 @@ export const ExpoPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "expo" ||
-            depName.startsWith("expo-") ||
-            depName.startsWith("@expo/")
-          ) {
+          if (depName === "expo" || depName.startsWith("expo-") || depName.startsWith("@expo/")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -230,11 +236,7 @@ export const ExpoPlugin: AnalyzerPlugin = {
         }
 
         // Extract Config Plugins from AST property array
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "plugins"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "plugins") {
           if (t.isArrayExpression(node.value)) {
             for (const el of node.value.elements) {
               if (t.isStringLiteral(el)) {
@@ -255,8 +257,8 @@ export const ExpoPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ExpoPlugin;

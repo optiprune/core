@@ -43,7 +43,9 @@ describe("TypeScript config module resolution", () => {
       includeConventionalEntries: false,
       verbose: true,
     });
-    const temporaryBundles = (await fs.readdir(root)).filter((name) => name.startsWith(".optiprune.config.") && name.endsWith(".mjs"));
+    const temporaryBundles = (await fs.readdir(root)).filter(
+      (name) => name.startsWith(".optiprune.config.") && name.endsWith(".mjs"),
+    );
     expect(temporaryBundles).toEqual([]);
   });
 
@@ -55,8 +57,12 @@ describe("TypeScript config module resolution", () => {
 
     await expect(loadConfig(root)).resolves.toEqual({});
 
-    expect(warning).toHaveBeenCalledWith(expect.stringContaining("Failed to load optiprune.config.ts:"));
-    const temporaryBundles = (await fs.readdir(root)).filter((name) => name.startsWith(".optiprune.config.") && name.endsWith(".mjs"));
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to load optiprune.config.ts:"),
+    );
+    const temporaryBundles = (await fs.readdir(root)).filter(
+      (name) => name.startsWith(".optiprune.config.") && name.endsWith(".mjs"),
+    );
     expect(temporaryBundles).toEqual([]);
   });
 });

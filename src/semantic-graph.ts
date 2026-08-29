@@ -1,23 +1,23 @@
 import { createHash } from "node:crypto";
 import type { Range } from "./types.js";
 
-export type SemanticNodeType = 
-  | 'File' 
-  | 'Function' 
-  | 'Class' 
-  | 'Variable' 
-  | 'Export' 
-  | 'Import' 
-  | 'Dynamic'
-  | 'Unknown';
+export type SemanticNodeType =
+  | "File"
+  | "Function"
+  | "Class"
+  | "Variable"
+  | "Export"
+  | "Import"
+  | "Dynamic"
+  | "Unknown";
 
-export type ReferenceKind = 
-  | 'CALLS' 
-  | 'IMPORTS' 
-  | 'EXPORTS' 
-  | 'DEFINES' 
-  | 'USES' 
-  | 'TYPE_DEPENDENCY';
+export type ReferenceKind =
+  | "CALLS"
+  | "IMPORTS"
+  | "EXPORTS"
+  | "DEFINES"
+  | "USES"
+  | "TYPE_DEPENDENCY";
 
 export interface SemanticNode {
   id: string; // Stable Logical Entity Identifier (LEI)
@@ -47,7 +47,7 @@ export class SemanticGraph {
    * Generates a stable Logical Entity Identifier (LEI).
    */
   static generateLei(fileId: string, type: SemanticNodeType, name?: string): string {
-    return `symbol:${fileId}#${type}${name ? ':' + name : ''}`;
+    return `symbol:${fileId}#${type}${name ? ":" + name : ""}`;
   }
 
   /**
@@ -59,7 +59,7 @@ export class SemanticGraph {
 
   addNode(node: SemanticNode): void {
     this.nodes.set(node.id, node);
-    
+
     if (!this.fileToNodes.has(node.fileId)) {
       this.fileToNodes.set(node.fileId, new Set());
     }
@@ -79,7 +79,7 @@ export class SemanticGraph {
       const sourceNode = this.nodes.get(ref.sourceNodeId);
       if (sourceNode) {
         sourceNode.outgoingReferences = sourceNode.outgoingReferences.filter(
-          r => r.targetNodeId !== id
+          (r) => r.targetNodeId !== id,
         );
       }
     }
@@ -87,7 +87,7 @@ export class SemanticGraph {
       const targetNode = this.nodes.get(ref.targetNodeId);
       if (targetNode) {
         targetNode.incomingReferences = targetNode.incomingReferences.filter(
-          r => r.sourceNodeId !== id
+          (r) => r.sourceNodeId !== id,
         );
       }
     }
@@ -96,7 +96,12 @@ export class SemanticGraph {
     this.fileToNodes.get(node.fileId)?.delete(id);
   }
 
-  addReference(sourceId: string, targetId: string, kind: ReferenceKind, metadata?: Record<string, any>): void {
+  addReference(
+    sourceId: string,
+    targetId: string,
+    kind: ReferenceKind,
+    metadata?: Record<string, any>,
+  ): void {
     const sourceNode = this.nodes.get(sourceId);
     const targetNode = this.nodes.get(targetId);
 
@@ -110,7 +115,7 @@ export class SemanticGraph {
       sourceNodeId: sourceId,
       targetNodeId: targetId,
       kind,
-      metadata: metadata ?? undefined
+      metadata: metadata ?? undefined,
     };
 
     sourceNode.outgoingReferences.push(reference);
@@ -120,7 +125,9 @@ export class SemanticGraph {
   getNodesInFile(fileId: string): SemanticNode[] {
     const nodeIds = this.fileToNodes.get(fileId);
     if (!nodeIds) return [];
-    return Array.from(nodeIds).map(id => this.nodes.get(id)!).filter(Boolean);
+    return Array.from(nodeIds)
+      .map((id) => this.nodes.get(id)!)
+      .filter(Boolean);
   }
 
   getAllNodes(): SemanticNode[] {
@@ -132,13 +139,13 @@ export class SemanticGraph {
    * Useful for initial dead code detection.
    */
   getOrphanedNodes(kind?: ReferenceKind): SemanticNode[] {
-    return Array.from(this.nodes.values()).filter(node => {
-      if (node.type === 'File') return false; // Files are entry points or handled differently
-      
-      const refs = kind 
-        ? node.incomingReferences.filter(r => r.kind === kind)
+    return Array.from(this.nodes.values()).filter((node) => {
+      if (node.type === "File") return false; // Files are entry points or handled differently
+
+      const refs = kind
+        ? node.incomingReferences.filter((r) => r.kind === kind)
         : node.incomingReferences;
-        
+
       return refs.length === 0;
     });
   }

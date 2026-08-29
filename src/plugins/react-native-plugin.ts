@@ -8,7 +8,7 @@ const REACT_NATIVE_CONFIG_FILES = [
   "metro.config.mjs",
   "metro.config.ts",
   "react-native.config.js",
-  "react-native.config.ts"
+  "react-native.config.ts",
 ];
 
 const REACT_NATIVE_ENTRY_FILES = [
@@ -18,14 +18,14 @@ const REACT_NATIVE_ENTRY_FILES = [
   "index.jsx",
   "App.js",
   "App.tsx",
-  "App.jsx"
+  "App.jsx",
 ];
 
 const REACT_NATIVE_PACKAGES = [
   "react-native",
   "@react-native/babel-preset",
   "@react-native/metro-config",
-  "@react-native-community/cli"
+  "@react-native-community/cli",
 ];
 
 /**
@@ -53,25 +53,34 @@ export const ReactNativePlugin: AnalyzerPlugin = {
       ...pkg?.peerDependencies,
     };
     const hasReactNativeDependency = REACT_NATIVE_PACKAGES.some((pkgName) => pkgName in allDeps);
-    const hasUniqueConfig = (await Promise.all(
-      REACT_NATIVE_CONFIG_FILES.filter((file) => file.startsWith("react-native.config")).map((file) => adapter.folderExists(file)),
-    )).some(Boolean);
-    const hasNativePlatform = (await adapter.folderExists("android")) || (await adapter.folderExists("ios"));
-    const hasMetroConfig = (await Promise.all(
-      REACT_NATIVE_CONFIG_FILES.filter((file) => file.startsWith("metro.config")).map((file) => adapter.folderExists(file)),
-    )).some(Boolean);
-    const hasBareManifest = await adapter.folderExists("app.json")
-      && isBareReactNativeAppJson(await adapter.readJson("app.json"));
+    const hasUniqueConfig = (
+      await Promise.all(
+        REACT_NATIVE_CONFIG_FILES.filter((file) => file.startsWith("react-native.config")).map(
+          (file) => adapter.folderExists(file),
+        ),
+      )
+    ).some(Boolean);
+    const hasNativePlatform =
+      (await adapter.folderExists("android")) || (await adapter.folderExists("ios"));
+    const hasMetroConfig = (
+      await Promise.all(
+        REACT_NATIVE_CONFIG_FILES.filter((file) => file.startsWith("metro.config")).map((file) =>
+          adapter.folderExists(file),
+        ),
+      )
+    ).some(Boolean);
+    const hasBareManifest =
+      (await adapter.folderExists("app.json")) &&
+      isBareReactNativeAppJson(await adapter.readJson("app.json"));
 
     // app.config.* is deliberately not React Native evidence: it is shared by
     // Expo and Nuxt. The generic `name` field in app.json is also insufficient:
     // it must appear together with native platform directories. A dependency is
     // corroborating evidence only, never proof by itself.
     if (hasUniqueConfig) return true;
-    return hasReactNativeDependency && (
-      hasMetroConfig ||
-      hasNativePlatform ||
-      (hasBareManifest && hasNativePlatform)
+    return (
+      hasReactNativeDependency &&
+      (hasMetroConfig || hasNativePlatform || (hasBareManifest && hasNativePlatform))
     );
   },
 
@@ -107,7 +116,7 @@ export const ReactNativePlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -184,8 +193,8 @@ export const ReactNativePlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ReactNativePlugin;

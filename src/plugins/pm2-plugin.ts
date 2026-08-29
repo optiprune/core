@@ -15,7 +15,7 @@ const PM2_CONFIG_FILES = [
   "pm2.config.js",
   "pm2.config.cjs",
   "pm2.config.mjs",
-  "pm2.config.json"
+  "pm2.config.json",
 ];
 
 const PM2_PACKAGES = ["pm2", "pm2-io", "@pm2/io"];
@@ -52,7 +52,7 @@ export const Pm2Plugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => PM2_PACKAGES.includes(dep))) {
@@ -63,9 +63,7 @@ export const Pm2Plugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bpm2\b/.test(s) || s.includes("pm2 start"))
+            (s) => typeof s === "string" && (/\bpm2\b/.test(s) || s.includes("pm2 start")),
           )
         ) {
           return true;
@@ -92,7 +90,7 @@ export const Pm2Plugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -119,8 +117,8 @@ export const Pm2Plugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists("ecosystem.config.json"))
         ? "ecosystem.config.json"
         : (await adapter.folderExists("pm2.config.json"))
-        ? "pm2.config.json"
-        : null;
+          ? "pm2.config.json"
+          : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -147,10 +145,7 @@ export const Pm2Plugin: AnalyzerPlugin = {
 
       // 1. Inspect ecosystem.config.js / pm2.config.js AST for module.exports / export default
       if (PM2_CONFIG_FILES.includes(basename)) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("pm2");
         }
@@ -186,8 +181,8 @@ export const Pm2Plugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default Pm2Plugin;

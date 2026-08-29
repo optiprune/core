@@ -32,7 +32,8 @@ export const TsNodePlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("ts-node") || s.includes("ts-node/register"))
+            (s) =>
+              typeof s === "string" && (s.includes("ts-node") || s.includes("ts-node/register")),
           )
         ) {
           return true;
@@ -53,7 +54,7 @@ export const TsNodePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTsNodeDep = TS_NODE_PACKAGES.some((p) => p in allDeps);
@@ -153,7 +154,7 @@ export const TsNodePlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Scripts in package.json invoke 'ts-node', but 'ts-node' is not listed in dependencies or devDependencies.",
-          evidence: { isTsNodeUsedInScripts }
+          evidence: { isTsNodeUsedInScripts },
         });
       }
     },
@@ -183,13 +184,17 @@ export const TsNodePlugin: AnalyzerPlugin = {
         node.callee.name === "require"
       ) {
         const arg = node.arguments[0];
-        if (arg?.type === "Literal" && typeof arg.value === "string" && arg.value.startsWith("ts-node")) {
+        if (
+          arg?.type === "Literal" &&
+          typeof arg.value === "string" &&
+          arg.value.startsWith("ts-node")
+        ) {
           adapter.markPackageAsUsed("ts-node");
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TsNodePlugin;

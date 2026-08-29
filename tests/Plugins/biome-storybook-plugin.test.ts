@@ -9,12 +9,14 @@ type Captured = {
   projectPatterns: string[];
 };
 
-function createAdapter(options: {
-  packageJson?: any;
-  configFiles?: string[];
-  files?: Record<string, string>;
-  rootStorybookDirectory?: boolean;
-} = {}) {
+function createAdapter(
+  options: {
+    packageJson?: any;
+    configFiles?: string[];
+    files?: Record<string, string>;
+    rootStorybookDirectory?: boolean;
+  } = {},
+) {
   const captured: Captured = {
     usedFiles: [],
     usedPackages: [],
@@ -22,11 +24,11 @@ function createAdapter(options: {
     projectPatterns: [],
   };
   const adapter = {
-    readJson: async (file: string) => file === "package.json" ? (options.packageJson ?? {}) : null,
+    readJson: async (file: string) =>
+      file === "package.json" ? (options.packageJson ?? {}) : null,
     readFile: async (file: string) => options.files?.[file] ?? null,
-    folderExists: async (file: string) => file === ".storybook"
-      ? !!options.rootStorybookDirectory
-      : !!options.files?.[file],
+    folderExists: async (file: string) =>
+      file === ".storybook" ? !!options.rootStorybookDirectory : !!options.files?.[file],
     findFiles: async (_basenames: string[]) => options.configFiles ?? [],
     markAsUsed: (file: string, symbol?: string) => captured.usedFiles.push([file, symbol]),
     markPackageAsUsed: (packageName: string) => captured.usedPackages.push(packageName),
@@ -59,11 +61,9 @@ describe("StorybookPlugin configuration evidence", () => {
     await StorybookPlugin.lifecycle.onProjectInit!(adapter);
 
     expect(captured.usedFiles).toContainEqual(["packages/ui/.storybook/main.ts", undefined]);
-    expect(captured.usedPackages).toEqual(expect.arrayContaining([
-      "storybook",
-      "@storybook/react-vite",
-      "@storybook/addon-essentials",
-    ]));
+    expect(captured.usedPackages).toEqual(
+      expect.arrayContaining(["storybook", "@storybook/react-vite", "@storybook/addon-essentials"]),
+    );
     expect(captured.findings).toEqual([]);
   });
 
@@ -83,64 +83,87 @@ describe("StorybookPlugin configuration evidence", () => {
     const { adapter, captured } = createAdapter();
     const configFile = "/repo/packages/ui/.storybook/main.ts";
 
-    StorybookPlugin.lifecycle.onASTNode?.({
-      type: "Property",
-      computed: false,
-      key: { type: "Identifier", name: "framework" },
-      value: {
-        type: "ObjectExpression",
-        properties: [{
-          type: "Property",
-          computed: false,
-          key: { type: "Identifier", name: "name" },
-          value: { type: "Literal", value: "@storybook/react-vite" },
-        }],
+    StorybookPlugin.lifecycle.onASTNode?.(
+      {
+        type: "Property",
+        computed: false,
+        key: { type: "Identifier", name: "framework" },
+        value: {
+          type: "ObjectExpression",
+          properties: [
+            {
+              type: "Property",
+              computed: false,
+              key: { type: "Identifier", name: "name" },
+              value: { type: "Literal", value: "@storybook/react-vite" },
+            },
+          ],
+        },
       },
-    }, configFile, adapter);
+      configFile,
+      adapter,
+    );
 
-    StorybookPlugin.lifecycle.onASTNode?.({
-      type: "Property",
-      computed: false,
-      key: { type: "Identifier", name: "addons" },
-      value: {
-        type: "ArrayExpression",
-        elements: [{ type: "Literal", value: "@storybook/addon-a11y" }],
+    StorybookPlugin.lifecycle.onASTNode?.(
+      {
+        type: "Property",
+        computed: false,
+        key: { type: "Identifier", name: "addons" },
+        value: {
+          type: "ArrayExpression",
+          elements: [{ type: "Literal", value: "@storybook/addon-a11y" }],
+        },
       },
-    }, configFile, adapter);
+      configFile,
+      adapter,
+    );
 
-    expect(captured.usedPackages).toEqual(expect.arrayContaining([
-      "@storybook/react-vite",
-      "@storybook/addon-a11y",
-    ]));
+    expect(captured.usedPackages).toEqual(
+      expect.arrayContaining(["@storybook/react-vite", "@storybook/addon-a11y"]),
+    );
   });
 
   it("protects default, named function, and named class CSF exports", () => {
     const { adapter, captured } = createAdapter();
     const storyFile = "/repo/src/Button.stories.tsx";
 
-    StorybookPlugin.lifecycle.onASTNode?.({ type: "ExportDefaultDeclaration", declaration: {} }, storyFile, adapter);
-    StorybookPlugin.lifecycle.onASTNode?.({
-      type: "ExportNamedDeclaration",
-      declaration: {
-        type: "FunctionDeclaration",
-        id: { type: "Identifier", name: "Primary" },
-        params: [],
-        body: {},
+    StorybookPlugin.lifecycle.onASTNode?.(
+      { type: "ExportDefaultDeclaration", declaration: {} },
+      storyFile,
+      adapter,
+    );
+    StorybookPlugin.lifecycle.onASTNode?.(
+      {
+        type: "ExportNamedDeclaration",
+        declaration: {
+          type: "FunctionDeclaration",
+          id: { type: "Identifier", name: "Primary" },
+          params: [],
+          body: {},
+        },
       },
-    }, storyFile, adapter);
-    StorybookPlugin.lifecycle.onASTNode?.({
-      type: "ExportNamedDeclaration",
-      declaration: {
-        type: "ClassDeclaration",
-        id: { type: "Identifier", name: "Experimental" },
+      storyFile,
+      adapter,
+    );
+    StorybookPlugin.lifecycle.onASTNode?.(
+      {
+        type: "ExportNamedDeclaration",
+        declaration: {
+          type: "ClassDeclaration",
+          id: { type: "Identifier", name: "Experimental" },
+        },
       },
-    }, storyFile, adapter);
+      storyFile,
+      adapter,
+    );
 
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      [storyFile, "default"],
-      [storyFile, "Primary"],
-      [storyFile, "Experimental"],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        [storyFile, "default"],
+        [storyFile, "Primary"],
+        [storyFile, "Experimental"],
+      ]),
+    );
   });
 });
 
@@ -166,17 +189,18 @@ describe("BiomePlugin configuration evidence", () => {
 
     await BiomePlugin.lifecycle.onProjectInit!(adapter);
 
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      [configFile, undefined],
-      ["packages/ui/base.json", undefined],
-      ["packages/ui/rules.grit", undefined],
-      ["packages/ui/typed.grit", undefined],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        [configFile, undefined],
+        ["packages/ui/base.json", undefined],
+        ["packages/ui/rules.grit", undefined],
+        ["packages/ui/typed.grit", undefined],
+      ]),
+    );
     expect(captured.usedPackages).toContain("@biomejs/biome");
-    expect(captured.projectPatterns).toEqual(expect.arrayContaining([
-      "packages/ui/src/**/*.ts",
-      "packages/ui/!src/generated/**",
-    ]));
+    expect(captured.projectPatterns).toEqual(
+      expect.arrayContaining(["packages/ui/src/**/*.ts", "packages/ui/!src/generated/**"]),
+    );
     expect(captured.findings).toEqual([]);
   });
 
@@ -197,7 +221,6 @@ describe("BiomePlugin configuration evidence", () => {
   });
 });
 
-
 import { OxlintPlugin } from "../../src/plugins/oxlint-plugin.js";
 
 describe("OxlintPlugin configuration evidence", () => {
@@ -211,16 +234,20 @@ describe("OxlintPlugin configuration evidence", () => {
     const { adapter, captured } = createAdapter({
       packageJson: { devDependencies: { oxlint: "1.0.0" } },
       configFiles: [configFile],
-      files: { [configFile]: JSON.stringify({ extends: ["./base.json", "@company/oxlint-config"] }) },
+      files: {
+        [configFile]: JSON.stringify({ extends: ["./base.json", "@company/oxlint-config"] }),
+      },
     });
 
     await OxlintPlugin.lifecycle.onProjectInit!(adapter);
 
     expect(captured.usedPackages).toEqual(["oxlint"]);
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      [configFile, undefined],
-      ["packages/ui/base.json", undefined],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        [configFile, undefined],
+        ["packages/ui/base.json", undefined],
+      ]),
+    );
     expect(captured.findings).toEqual([]);
   });
 
@@ -232,24 +259,36 @@ describe("OxlintPlugin configuration evidence", () => {
       configFiles: [configFile, localPlugin],
       files: {
         [configFile]: JSON.stringify({
-          jsPlugins: ["eslint-plugin-security", "./scripts/oxlint-test-guidelines.js", "./scripts/oxlint-repo-guidelines.js"],
+          jsPlugins: [
+            "eslint-plugin-security",
+            "./scripts/oxlint-test-guidelines.js",
+            "./scripts/oxlint-repo-guidelines.js",
+          ],
         }),
       },
     });
 
     await OxlintPlugin.lifecycle.onProjectInit!(adapter);
 
-    expect(captured.usedPackages).toEqual(expect.arrayContaining(["oxlint", "eslint-plugin-security"]));
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      ["scripts/oxlint-test-guidelines.js", undefined],
-      [localPlugin, undefined],
-    ]));
+    expect(captured.usedPackages).toEqual(
+      expect.arrayContaining(["oxlint", "eslint-plugin-security"]),
+    );
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        ["scripts/oxlint-test-guidelines.js", undefined],
+        [localPlugin, undefined],
+      ]),
+    );
     expect(captured.findings).toEqual([]);
   });
 
   it("reports an undeclared OXLint dependency when config or command exists", async () => {
     const { adapter, captured } = createAdapter({
-      packageJson: { scripts: { lint: "oxlint -c tooling/lint.json --tsconfig tsconfig.lint.json --ignore-path .oxlintignore src" } },
+      packageJson: {
+        scripts: {
+          lint: "oxlint -c tooling/lint.json --tsconfig tsconfig.lint.json --ignore-path .oxlintignore src",
+        },
+      },
       configFiles: [".oxlintrc.json"],
       files: { ".oxlintrc.json": "{}" },
     });
@@ -257,17 +296,18 @@ describe("OxlintPlugin configuration evidence", () => {
     await OxlintPlugin.lifecycle.onProjectInit!(adapter);
 
     expect(captured.usedPackages).toEqual([]);
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      ["package.json", "scripts:lint"],
-      ["tooling/lint.json", undefined],
-      ["tsconfig.lint.json", undefined],
-      [".oxlintignore", undefined],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        ["package.json", "scripts:lint"],
+        ["tooling/lint.json", undefined],
+        ["tsconfig.lint.json", undefined],
+        [".oxlintignore", undefined],
+      ]),
+    );
     expect(captured.findings).toHaveLength(1);
     expect(captured.findings[0]).toMatchObject({ rule: "missing-dependency", severity: "error" });
   });
 });
-
 
 import { PayloadCMSPlugin } from "../../src/plugins/payload-cms-plugin.js";
 
@@ -298,11 +338,15 @@ describe("PayloadCMSPlugin configuration evidence", () => {
 
   it("marks an optional Payload package only when it is actually imported", () => {
     const { adapter, captured } = createAdapter();
-    PayloadCMSPlugin.lifecycle.onASTNode?.({
-      type: "ImportDeclaration",
-      source: { type: "Literal", value: "@payloadcms/plugin-seo" },
-      specifiers: [],
-    }, "/repo/apps/cms/payload.config.ts", adapter);
+    PayloadCMSPlugin.lifecycle.onASTNode?.(
+      {
+        type: "ImportDeclaration",
+        source: { type: "Literal", value: "@payloadcms/plugin-seo" },
+        specifiers: [],
+      },
+      "/repo/apps/cms/payload.config.ts",
+      adapter,
+    );
 
     expect(captured.usedPackages).toEqual(["@payloadcms/plugin-seo"]);
   });
@@ -319,7 +363,6 @@ describe("PayloadCMSPlugin configuration evidence", () => {
     });
   });
 });
-
 
 import { LintHtmlPlugin } from "../../src/plugins/lint-html-plugin.js";
 
@@ -340,10 +383,12 @@ describe("LintHtmlPlugin configuration evidence", () => {
 
     await LintHtmlPlugin.lifecycle.onProjectInit!(adapter);
 
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      ["packages/docs/.linthtmlrc", undefined],
-      ["package.json", "linthtml"],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        ["packages/docs/.linthtmlrc", undefined],
+        ["package.json", "linthtml"],
+      ]),
+    );
     expect(captured.usedPackages).toEqual(["@linthtml/linthtml"]);
     expect(captured.findings).toEqual([]);
   });
@@ -361,7 +406,6 @@ describe("LintHtmlPlugin configuration evidence", () => {
     expect(captured.findings[0]).toMatchObject({ rule: "missing-dependency", severity: "error" });
   });
 });
-
 
 import { ChangelogenPlugin } from "../../src/plugins/changelogen-plugin.js";
 import { ChangelogithubPlugin } from "../../src/plugins/changelogithub-plugin.js";
@@ -416,7 +460,6 @@ describe("ChangelogithubPlugin configuration evidence", () => {
   });
 });
 
-
 import { ChangesetsPlugin } from "../../src/plugins/changesets-plugin.js";
 
 describe("ChangesetsPlugin configuration evidence", () => {
@@ -428,7 +471,9 @@ describe("ChangesetsPlugin configuration evidence", () => {
 
   it("retains a declared CLI and custom changelog package, but never treats ignored workspace names as dependencies", async () => {
     const { adapter, captured } = createAdapter({
-      packageJson: { devDependencies: { "@changesets/cli": "2.0.0", "@changesets/changelog-github": "0.5.0" } },
+      packageJson: {
+        devDependencies: { "@changesets/cli": "2.0.0", "@changesets/changelog-github": "0.5.0" },
+      },
       files: {
         ".changeset/config.json": JSON.stringify({
           changelog: ["@changesets/changelog-github", { repo: "acme/core" }],
@@ -436,22 +481,26 @@ describe("ChangesetsPlugin configuration evidence", () => {
         }),
       },
     });
-    adapter.folderExists = async (file: string) => file === ".changeset" || file === ".changeset/config.json";
+    adapter.folderExists = async (file: string) =>
+      file === ".changeset" || file === ".changeset/config.json";
     adapter.readJson = async (file: string) => {
-      if (file === "package.json") return { devDependencies: { "@changesets/cli": "2.0.0", "@changesets/changelog-github": "0.5.0" } };
-      if (file === ".changeset/config.json") return {
-        changelog: ["@changesets/changelog-github", { repo: "acme/core" }],
-        ignore: ["@acme/internal-package"],
-      };
+      if (file === "package.json")
+        return {
+          devDependencies: { "@changesets/cli": "2.0.0", "@changesets/changelog-github": "0.5.0" },
+        };
+      if (file === ".changeset/config.json")
+        return {
+          changelog: ["@changesets/changelog-github", { repo: "acme/core" }],
+          ignore: ["@acme/internal-package"],
+        };
       return null;
     };
 
     await ChangesetsPlugin.lifecycle.onProjectInit!(adapter);
 
-    expect(captured.usedPackages).toEqual(expect.arrayContaining([
-      "@changesets/cli",
-      "@changesets/changelog-github",
-    ]));
+    expect(captured.usedPackages).toEqual(
+      expect.arrayContaining(["@changesets/cli", "@changesets/changelog-github"]),
+    );
     expect(captured.usedPackages).not.toContain("@acme/internal-package");
     expect(captured.findings).toEqual([]);
   });
@@ -461,7 +510,8 @@ describe("ChangesetsPlugin configuration evidence", () => {
       packageJson: { scripts: { version: "changeset version" } },
       files: { ".changeset/config.json": "{}" },
     });
-    adapter.folderExists = async (file: string) => file === ".changeset" || file === ".changeset/config.json";
+    adapter.folderExists = async (file: string) =>
+      file === ".changeset" || file === ".changeset/config.json";
 
     await ChangesetsPlugin.lifecycle.onProjectInit!(adapter);
 
@@ -470,7 +520,6 @@ describe("ChangesetsPlugin configuration evidence", () => {
     expect(captured.findings[0]).toMatchObject({ rule: "missing-dependency", severity: "error" });
   });
 });
-
 
 import { CypressPlugin } from "../../src/plugins/cypress-plugin.js";
 
@@ -489,10 +538,12 @@ describe("CypressPlugin configuration evidence", () => {
 
     await CypressPlugin.lifecycle.onProjectInit!(adapter);
 
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      [configFile, undefined],
-      ["package.json", "scripts:e2e"],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        [configFile, undefined],
+        ["package.json", "scripts:e2e"],
+      ]),
+    );
     expect(captured.usedPackages).toEqual(["cypress"]);
     expect(captured.findings).toEqual([]);
   });
@@ -511,7 +562,6 @@ describe("CypressPlugin configuration evidence", () => {
   });
 });
 
-
 import { JestPlugin } from "../../src/plugins/jest-plugin.js";
 
 describe("JestPlugin configuration evidence", () => {
@@ -529,10 +579,12 @@ describe("JestPlugin configuration evidence", () => {
 
     await JestPlugin.lifecycle.onProjectInit!(adapter);
 
-    expect(captured.usedFiles).toEqual(expect.arrayContaining([
-      [configFile, undefined],
-      ["package.json", "scripts:test"],
-    ]));
+    expect(captured.usedFiles).toEqual(
+      expect.arrayContaining([
+        [configFile, undefined],
+        ["package.json", "scripts:test"],
+      ]),
+    );
     expect(captured.usedPackages).toEqual(["jest"]);
     expect(captured.findings).toEqual([]);
   });

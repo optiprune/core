@@ -10,7 +10,7 @@ const MOCHA_CONFIG_FILES = [
   ".mocharc.cjs",
   ".mocharc.mjs",
   ".mocharc.yaml",
-  ".mocharc.yml"
+  ".mocharc.yml",
 ];
 
 const MOCHA_ECOSYSTEM_PACKAGES = [
@@ -19,7 +19,7 @@ const MOCHA_ECOSYSTEM_PACKAGES = [
   "sinon",
   "sinon-chai",
   "chai-as-promised",
-  "supertest"
+  "supertest",
 ];
 
 /**
@@ -44,7 +44,7 @@ export const MochaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if ("mocha" in allDeps || pkg.mocha) {
@@ -54,9 +54,7 @@ export const MochaPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("mocha") || s === "mocha")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("mocha") || s === "mocha"))
         ) {
           return true;
         }
@@ -76,7 +74,7 @@ export const MochaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasMochaDep = "mocha" in allDeps;
@@ -148,7 +146,7 @@ export const MochaPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Mocha configuration found, but 'mocha' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -278,7 +276,7 @@ export const MochaPlugin: AnalyzerPlugin = {
             "before",
             "after",
             "beforeEach",
-            "afterEach"
+            "afterEach",
           ]);
 
           if (mochaGlobals.has(node.callee.name)) {
@@ -286,8 +284,8 @@ export const MochaPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MochaPlugin;

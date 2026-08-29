@@ -33,7 +33,7 @@ export async function analyzeLayer4(context: AnalysisContext): Promise<Finding[]
         branch.instrumentedCode,
         branch.seedInput,
         context.options.layers.smtTimeoutMs,
-        context.options.layers.isolateMemoryLimitMb
+        context.options.layers.isolateMemoryLimitMb,
       );
 
       if (result.pathReached) {
@@ -49,13 +49,13 @@ export async function analyzeLayer4(context: AnalysisContext): Promise<Finding[]
         file: branch.file,
         location: {
           start: { line: branch.line, column: 0 },
-          end: { line: branch.line, column: 0 }
+          end: { line: branch.line, column: 0 },
         },
         evidence: {
           engine: "wasm-quickjs",
           executionTimeMs: result.executionTimeMs,
           seedInput: branch.seedInput,
-          status: "SUSPECT_UNREACHABLE"
+          status: "SUSPECT_UNREACHABLE",
         },
       });
     }
@@ -105,30 +105,32 @@ export async function analyzeLayer4(context: AnalysisContext): Promise<Finding[]
  *      are not needed for path-construction simulation.
  */
 function cleanForQuickJS(code: string): string {
-  return code
-    // Static ESM imports cannot be evaluated in a QuickJS script. Dynamic
-    // imports are intentionally preserved until they are replaced below.
-    .replace(/^\s*import(?!\s*\()\s+(?:type\s+)?[\s\S]*?\s+from\s+['"][^'"]+['"]\s*;?\s*$/gm, "")
-    .replace(/^\s*import(?!\s*\()\s*['"][^'"]+['"]\s*;?\s*$/gm, "")
-    // Re-exports are likewise irrelevant for path-construction simulation.
-    .replace(/^\s*export\s+type\s*\{[\s\S]*?\}\s*(?:from\s+['"][^'"]+['"])?\s*;?\s*$/gm, "")
-    .replace(/^\s*export\s*\{[\s\S]*?\}\s*(?:from\s+['"][^'"]+['"])?\s*;?\s*$/gm, "")
-    .replace(/^\s*export\s+\*\s+from\s+['"][^'"]+['"]\s*;?\s*$/gm, "")
-    .replace(/\bexport\s+(?=(?:const|let|var|function|class|async|type|interface|enum)\b)/g, "")
-    .replace(/\bexport\s+default\s+/g, "")
-    // Keep import.meta usable after the static import pre-processing. Build
-    // tools expose additional import.meta properties which must be modeled
-    // before esbuild sees the source.
-    .replace(/import\.meta\.env\.([A-Za-z_$][\w$]*)/g, '__optiprune_import_meta_env.$1')
-    .replace(/import\.meta\.glob\s*\(/g, '__optiprune_glob(')
-    .replace(/import\.meta\.url/g, '("file://" + __filename)')
-    // `new URL(..., import.meta.url)` is common for workers and WASM assets.
-    .replace(/new\s+URL\s*\(/g, '__optiprune_new_url(')
-    // CommonJS/Vite context helpers are represented by a deterministic
-    // virtual context instead of touching the host filesystem.
-    .replace(/\brequire\.context\s*\(/g, '__optiprune_require_context(')
-    // Record simulated dynamic-import targets instead of loading modules.
-    .replace(/\bimport\s*\(/g, "__optiprune_import(");
+  return (
+    code
+      // Static ESM imports cannot be evaluated in a QuickJS script. Dynamic
+      // imports are intentionally preserved until they are replaced below.
+      .replace(/^\s*import(?!\s*\()\s+(?:type\s+)?[\s\S]*?\s+from\s+['"][^'"]+['"]\s*;?\s*$/gm, "")
+      .replace(/^\s*import(?!\s*\()\s*['"][^'"]+['"]\s*;?\s*$/gm, "")
+      // Re-exports are likewise irrelevant for path-construction simulation.
+      .replace(/^\s*export\s+type\s*\{[\s\S]*?\}\s*(?:from\s+['"][^'"]+['"])?\s*;?\s*$/gm, "")
+      .replace(/^\s*export\s*\{[\s\S]*?\}\s*(?:from\s+['"][^'"]+['"])?\s*;?\s*$/gm, "")
+      .replace(/^\s*export\s+\*\s+from\s+['"][^'"]+['"]\s*;?\s*$/gm, "")
+      .replace(/\bexport\s+(?=(?:const|let|var|function|class|async|type|interface|enum)\b)/g, "")
+      .replace(/\bexport\s+default\s+/g, "")
+      // Keep import.meta usable after the static import pre-processing. Build
+      // tools expose additional import.meta properties which must be modeled
+      // before esbuild sees the source.
+      .replace(/import\.meta\.env\.([A-Za-z_$][\w$]*)/g, "__optiprune_import_meta_env.$1")
+      .replace(/import\.meta\.glob\s*\(/g, "__optiprune_glob(")
+      .replace(/import\.meta\.url/g, '("file://" + __filename)')
+      // `new URL(..., import.meta.url)` is common for workers and WASM assets.
+      .replace(/new\s+URL\s*\(/g, "__optiprune_new_url(")
+      // CommonJS/Vite context helpers are represented by a deterministic
+      // virtual context instead of touching the host filesystem.
+      .replace(/\brequire\.context\s*\(/g, "__optiprune_require_context(")
+      // Record simulated dynamic-import targets instead of loading modules.
+      .replace(/\bimport\s*\(/g, "__optiprune_import(")
+  );
 }
 
 function applyStaticDefines(code: string): string {
@@ -136,12 +138,11 @@ function applyStaticDefines(code: string): string {
   // Preserve explicit define assignments when present and provide safe
   // defaults for conventional compile-time tokens. This lets `TOKEN || ...`
   // and `TOKEN ? ... : ...` execute instead of throwing ReferenceError.
-  return code
-    .replace(/\\b(__DEV__|DEV|PROD|VERSION)\\b(?!\\s*:)/g, (token) => {
-      if (token === 'VERSION') return '__optiprune_define_VERSION';
-      if (token === 'PROD') return '__optiprune_define_PROD';
-      return token === '__DEV__' ? '__optiprune_define___DEV__' : '__optiprune_define_DEV';
-    });
+  return code.replace(/\\b(__DEV__|DEV|PROD|VERSION)\\b(?!\\s*:)/g, (token) => {
+    if (token === "VERSION") return "__optiprune_define_VERSION";
+    if (token === "PROD") return "__optiprune_define_PROD";
+    return token === "__DEV__" ? "__optiprune_define___DEV__" : "__optiprune_define_DEV";
+  });
 }
 
 type QuickJSSourceLoader = "ts" | "tsx" | "js" | "jsx";
@@ -237,7 +238,11 @@ function installGlobalResilience(vm: QuickJSContext): void {
   result.value.dispose();
 }
 
-function drainQuickJSPendingJobs(runtime: QuickJSRuntime, vm: QuickJSContext, maxJobs = 5000): void {
+function drainQuickJSPendingJobs(
+  runtime: QuickJSRuntime,
+  vm: QuickJSContext,
+  maxJobs = 5000,
+): void {
   let remainingJobs = maxJobs;
 
   while (runtime.hasPendingJob() && remainingJobs > 0) {
@@ -290,10 +295,10 @@ async function resolveDynamicImports(
     for (const candidate of candidates) {
       const runtime = quickJS.newRuntime();
       const vm = runtime.newContext();
-      
+
       try {
         runtime.setMemoryLimit(context.options.layers.isolateMemoryLimitMb * 1024 * 1024);
-        
+
         // Setup explicit runtime mocks first, then install the catch-all scope
         // that safely absorbs additional, unknown globals from application code.
         setupQuickJSMocks(vm, candidate, context, environmentMode);
@@ -373,15 +378,20 @@ async function resolveDynamicImports(
         // for-of loop over the mocked directory listing so that every file in
         // the directory is visited and its resolved path is captured.
         const loopVarMatch = candidate.contextCode.match(
-          /\/\/ __optiprune_loop_vars__: ([\w,$]+(?:,[\w,$]+)*)/
+          /\/\/ __optiprune_loop_vars__: ([\w,$]+(?:,[\w,$]+)*)/,
         );
         const loopVarNames: string[] = loopVarMatch
-          ? loopVarMatch[1].split(",").map((s: string) => s.trim()).filter(Boolean)
+          ? loopVarMatch[1]
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : [];
 
         // Strip the hint comment before compiling so it does not confuse esbuild.
-        let cleanedContextCode = candidate.contextCode
-          .replace(/\n\/\/ __optiprune_loop_vars__:[^\n]*/g, "");
+        let cleanedContextCode = candidate.contextCode.replace(
+          /\n\/\/ __optiprune_loop_vars__:[^\n]*/g,
+          "",
+        );
 
         const processedContext = await compileForQuickJS(cleanedContextCode, file);
 
@@ -394,7 +404,9 @@ async function resolveDynamicImports(
           // literal or a string-concatenation expression.
           const exprText: string = candidate.expression ?? "";
           const templateMatch = exprText.match(/`([^`$]*?)\$\{/);
-          const concatMatch = exprText.match(/import\s*\(\s*(['"])(.*?)\1\s*\+\s*[^+]+(?:\+\s*(['"])(.*?)\3)?\s*\)/);
+          const concatMatch = exprText.match(
+            /import\s*\(\s*(['"])(.*?)\1\s*\+\s*[^+]+(?:\+\s*(['"])(.*?)\3)?\s*\)/,
+          );
           const dynamicPrefix = templateMatch?.[1] ?? concatMatch?.[2] ?? "";
           const templateSuffixMatch = exprText.match(/\}([^`]*)`/);
           const dynamicSuffix = templateSuffixMatch?.[1] ?? concatMatch?.[4] ?? "";
@@ -410,8 +422,8 @@ async function resolveDynamicImports(
 
           // Collect all known modules that live in that directory.
           const dirFiles = Array.from(context.modules.keys())
-            .filter(f => path.dirname(f) === prefixDir)
-            .map(f => path.basename(f));
+            .filter((f) => path.dirname(f) === prefixDir)
+            .map((f) => path.basename(f));
 
           if (dirFiles.length > 0) {
             // Build a synthetic loop that calls __optiprune_import for each file.
@@ -465,7 +477,7 @@ async function resolveDynamicImports(
           // Flush promise continuations created by async path construction.
           drainQuickJSPendingJobs(runtime, vm);
         }
-        
+
         const finalGlobalHandle = vm.global;
         const finalTargetsHandle = vm.getProp(finalGlobalHandle, "__OPTIPRUNE_TARGETS__");
         const targets = vm.dump(finalTargetsHandle) as any[];
@@ -479,8 +491,9 @@ async function resolveDynamicImports(
         // `./commands/undefined.js`. These are simulation artifacts, not
         // concrete dynamic-import targets, and must not affect graph state.
         const concreteTargets = Array.isArray(targets)
-          ? targets.filter((target): target is string =>
-              typeof target === "string" && !isInvalidSimulatedSpecifier(target),
+          ? targets.filter(
+              (target): target is string =>
+                typeof target === "string" && !isInvalidSimulatedSpecifier(target),
             )
           : [];
 
@@ -494,26 +507,32 @@ async function resolveDynamicImports(
           const module = context.modules.get(file);
           if (module) {
             if (context.options.verbose) {
-              console.log(`[Layer 4] Searching for edge in ${file} at ${candidate.line}:${candidate.column}`);
-              module.edges.forEach(e => {
+              console.log(
+                `[Layer 4] Searching for edge in ${file} at ${candidate.line}:${candidate.column}`,
+              );
+              module.edges.forEach((e) => {
                 if (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") {
-                  console.log(`[Layer 4] Found ${e.kind} edge at ${e.location?.start.line}:${e.location?.start.column}`);
+                  console.log(
+                    `[Layer 4] Found ${e.kind} edge at ${e.location?.start.line}:${e.location?.start.column}`,
+                  );
                 }
               });
             }
 
             // Exact location match
-            let edge = module.edges.find(e => 
-              (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") && 
-              e.location?.start.line === candidate.line && 
-              e.location?.start.column === candidate.column
+            let edge = module.edges.find(
+              (e) =>
+                (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") &&
+                e.location?.start.line === candidate.line &&
+                e.location?.start.column === candidate.column,
             );
 
             // Line-only fallback (column may differ between parser passes)
             if (!edge) {
-              edge = module.edges.find(e =>
-                (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") &&
-                e.location?.start.line === candidate.line
+              edge = module.edges.find(
+                (e) =>
+                  (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") &&
+                  e.location?.start.line === candidate.line,
               );
             }
 
@@ -524,8 +543,10 @@ async function resolveDynamicImports(
               // This is safe because the simulation produced concrete targets,
               // so we know the import is genuinely reachable.
               for (const e of module.edges) {
-                if ((e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") &&
-                    e.resolution !== "resolved") {
+                if (
+                  (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") &&
+                  e.resolution !== "resolved"
+                ) {
                   e.resolution = "resolved";
                 }
               }
@@ -537,7 +558,10 @@ async function resolveDynamicImports(
               ? memberUses
                   .filter((use) => String(use?.target) === rawTarget)
                   .map((use) => String(use?.path ?? ""))
-                  .filter((value) => value.length > 0 && value !== "then" && value !== "default.lifecycle.then")
+                  .filter(
+                    (value) =>
+                      value.length > 0 && value !== "then" && value !== "default.lifecycle.then",
+                  )
               : [];
             resolveAndMarkTarget(rawTarget, file, context, candidate, runtimePaths);
           }
@@ -569,17 +593,20 @@ function setupQuickJSMocks(
   const processMock = vm.newObject();
   const envMock = vm.newObject();
   const envNames = new Set<string>();
-  for (const match of String(candidate.contextCode ?? "").matchAll(/\bprocess\.env\.([A-Za-z_$][\w$]*)/g)) {
+  for (const match of String(candidate.contextCode ?? "").matchAll(
+    /\bprocess\.env\.([A-Za-z_$][\w$]*)/g,
+  )) {
     const name = match[1];
     if (name) envNames.add(name);
   }
   for (const name of envNames) {
     const hostValue = process.env[name];
-    const value = environmentMode === "empty"
-      ? ""
-      : environmentMode === "host" && hostValue !== undefined
-        ? hostValue
-        : undefined;
+    const value =
+      environmentMode === "empty"
+        ? ""
+        : environmentMode === "host" && hostValue !== undefined
+          ? hostValue
+          : undefined;
     if (value !== undefined) {
       const valueHandle = vm.newString(value);
       vm.setProp(envMock, name, valueHandle);
@@ -600,16 +627,29 @@ function setupQuickJSMocks(
   // Vite-style import.meta.env and conventional esbuild/Webpack defines.
   const importMetaEnv = vm.newObject();
   const envKeys = new Set<string>();
-  for (const match of String(candidate.contextCode ?? '').matchAll(/import\.meta\.env\.([A-Za-z_$][\w$]*)/g)) { if (match[1]) envKeys.add(match[1]); }
+  for (const match of String(candidate.contextCode ?? "").matchAll(
+    /import\.meta\.env\.([A-Za-z_$][\w$]*)/g,
+  )) {
+    if (match[1]) envKeys.add(match[1]);
+  }
   for (const key of envKeys) {
     const value = process.env[key];
-    if (value !== undefined) { const h = vm.newString(value); vm.setProp(importMetaEnv, key, h); h.dispose(); }
+    if (value !== undefined) {
+      const h = vm.newString(value);
+      vm.setProp(importMetaEnv, key, h);
+      h.dispose();
+    }
   }
-  vm.setProp(globalHandle, '__optiprune_import_meta_env', importMetaEnv);
-  for (const [name, value] of [['__optiprune_define___DEV__', false], ['__optiprune_define_DEV', false], ['__optiprune_define_PROD', true], ['__optiprune_define_VERSION', '0.0.0']] as const) {
-    const h = typeof value === 'boolean' ? (value ? vm.true : vm.false) : vm.newString(value);
+  vm.setProp(globalHandle, "__optiprune_import_meta_env", importMetaEnv);
+  for (const [name, value] of [
+    ["__optiprune_define___DEV__", false],
+    ["__optiprune_define_DEV", false],
+    ["__optiprune_define_PROD", true],
+    ["__optiprune_define_VERSION", "0.0.0"],
+  ] as const) {
+    const h = typeof value === "boolean" ? (value ? vm.true : vm.false) : vm.newString(value);
     vm.setProp(globalHandle, name, h);
-    if (typeof value !== 'boolean') h.dispose();
+    if (typeof value !== "boolean") h.dispose();
   }
   importMetaEnv.dispose();
   envMock.dispose();
@@ -627,7 +667,7 @@ function setupQuickJSMocks(
   // 2. path mock using host's pathe
   const pathMock = vm.newObject();
   const joinFn = vm.newFunction("join", (...args: QuickJSHandle[]) => {
-    const parts = args.map(arg => vm.dump(arg));
+    const parts = args.map((arg) => vm.dump(arg));
     const result = vm.newString(path.join(...parts));
     return result;
   });
@@ -636,7 +676,7 @@ function setupQuickJSMocks(
     return result;
   });
   const resolveFn = vm.newFunction("resolve", (...args: QuickJSHandle[]) => {
-    const parts = args.map(arg => vm.dump(arg));
+    const parts = args.map((arg) => vm.dump(arg));
     const result = vm.newString(path.resolve(...parts));
     return result;
   });
@@ -677,7 +717,8 @@ function setupQuickJSMocks(
   });
   const fileURLToPathFn = vm.newFunction("fileURLToPath", (arg: QuickJSHandle) => {
     const urlStr = vm.dump(arg);
-    const p = typeof urlStr === 'string' && urlStr.startsWith('file://') ? urlStr.slice(7) : String(urlStr);
+    const p =
+      typeof urlStr === "string" && urlStr.startsWith("file://") ? urlStr.slice(7) : String(urlStr);
     return vm.newString(p);
   });
   vm.setProp(urlMock, "pathToFileURL", pathToFileURLFn);
@@ -698,7 +739,7 @@ function setupQuickJSMocks(
   const fsMock = vm.newObject();
 
   const buildFileList = (rawDir: unknown): string[] => {
-    const cleanPath = String(rawDir).replace(/^file:\/\//, '');
+    const cleanPath = String(rawDir).replace(/^file:\/\//, "");
     const dir = path.isAbsolute(cleanPath) ? cleanPath : path.resolve(fileDir, cleanPath);
 
     if (context.options.verbose) {
@@ -706,11 +747,11 @@ function setupQuickJSMocks(
     }
 
     const files = Array.from(context.modules.keys())
-      .filter(f => {
+      .filter((f) => {
         const parent = path.dirname(f);
-        return parent === dir || parent === dir.replace(/\/$/, '');
+        return parent === dir || parent === dir.replace(/\/$/, "");
       })
-      .map(f => path.basename(f));
+      .map((f) => path.basename(f));
 
     if (context.options.verbose) {
       console.log(`[QuickJS Mock] fs.readdir returned:`, files);
@@ -737,7 +778,10 @@ function setupQuickJSMocks(
       promiseResult.error.dispose();
       // Fallback: return empty resolved promise
       const fallback = vm.evalCode(`Promise.resolve([])`);
-      if (fallback.error) { fallback.error.dispose(); return vm.newArray(); }
+      if (fallback.error) {
+        fallback.error.dispose();
+        return vm.newArray();
+      }
       const val = fallback.value;
       fallback.value; // keep alive
       return val;
@@ -760,7 +804,7 @@ function setupQuickJSMocks(
 
   const existsSyncFn = vm.newFunction("existsSync", (arg: QuickJSHandle) => {
     const rawP = vm.dump(arg);
-    const cleanPath = String(rawP).replace(/^file:\/\//, '');
+    const cleanPath = String(rawP).replace(/^file:\/\//, "");
     const p = path.isAbsolute(cleanPath) ? cleanPath : path.resolve(fileDir, cleanPath);
     const exists = context.modules.has(p);
     if (context.options.verbose) {
@@ -791,82 +835,110 @@ function setupQuickJSMocks(
   const markGlobMatches = (rawPattern: unknown, recursive = true, rawRegex?: unknown): string[] => {
     const pattern = String(rawPattern);
     const baseDir = path.dirname(candidate.file);
-    const normalized = pattern.replace(/^\.\//, '');
+    const normalized = pattern.replace(/^\.\//, "");
     const regex = rawRegex instanceof RegExp ? rawRegex : undefined;
     const globRegex = globPatternToRegExp(normalized);
     const matches: string[] = [];
     for (const id of context.modules.keys()) {
-      const rel = path.relative(baseDir, id).replaceAll('\\\\', '/');
-      if ((!recursive && rel.includes('/')) || (regex ? regex.test(`./${rel}`) : globRegex.test(rel))) {
+      const rel = path.relative(baseDir, id).replaceAll("\\\\", "/");
+      if (
+        (!recursive && rel.includes("/")) ||
+        (regex ? regex.test(`./${rel}`) : globRegex.test(rel))
+      ) {
         matches.push(`./${rel}`);
         resolveAndMarkTarget(`./${rel}`, candidate.file, context);
       }
     }
     return matches;
   };
-  const globFn = vm.newFunction('__optiprune_glob', (patternHandle: QuickJSHandle) => {
+  const globFn = vm.newFunction("__optiprune_glob", (patternHandle: QuickJSHandle) => {
     const map = vm.newObject();
     for (const [index, target] of markGlobMatches(vm.dump(patternHandle)).entries()) {
       const fn = vm.newFunction(`glob_${index}`, () => vm.undefined);
-      vm.setProp(map, target, fn); fn.dispose();
+      vm.setProp(map, target, fn);
+      fn.dispose();
     }
     return map;
   });
-  vm.setProp(globalHandle, '__optiprune_glob', globFn); globFn.dispose();
-  const contextFn = vm.newFunction('__optiprune_require_context', (dirHandle: QuickJSHandle, recursiveHandle?: QuickJSHandle, regexHandle?: QuickJSHandle) => {
-    const dir = String(vm.dump(dirHandle)).replace(/^\.\//, '');
-    const map = vm.newObject();
-    for (const target of markGlobMatches(`${dir}/**`, Boolean(recursiveHandle ? vm.dump(recursiveHandle) : true), regexHandle ? vm.dump(regexHandle) : undefined)) {
-      const fn = vm.newFunction('context_module', () => vm.undefined);
-      vm.setProp(map, target, fn); fn.dispose();
-    }
-    return map;
-  });
-  vm.setProp(globalHandle, '__optiprune_require_context', contextFn); contextFn.dispose();
-  const newUrlFn = vm.newFunction('__optiprune_new_url', (specHandle: QuickJSHandle, baseHandle: QuickJSHandle) => {
-    const spec = String(vm.dump(specHandle));
-    const base = String(vm.dump(baseHandle));
-    const href = spec.startsWith('.') ? `file://${path.resolve(path.dirname(base.replace(/^file:\/\//, '')), spec)}` : spec;
-    const obj = vm.newObject(); const h = vm.newString(href); vm.setProp(obj, 'href', h); h.dispose();
-    const toString = vm.newFunction('toString', () => vm.newString(href)); vm.setProp(obj, 'toString', toString); toString.dispose();
-    return obj;
-  });
-  vm.setProp(globalHandle, '__optiprune_new_url', newUrlFn); newUrlFn.dispose();
+  vm.setProp(globalHandle, "__optiprune_glob", globFn);
+  globFn.dispose();
+  const contextFn = vm.newFunction(
+    "__optiprune_require_context",
+    (dirHandle: QuickJSHandle, recursiveHandle?: QuickJSHandle, regexHandle?: QuickJSHandle) => {
+      const dir = String(vm.dump(dirHandle)).replace(/^\.\//, "");
+      const map = vm.newObject();
+      for (const target of markGlobMatches(
+        `${dir}/**`,
+        Boolean(recursiveHandle ? vm.dump(recursiveHandle) : true),
+        regexHandle ? vm.dump(regexHandle) : undefined,
+      )) {
+        const fn = vm.newFunction("context_module", () => vm.undefined);
+        vm.setProp(map, target, fn);
+        fn.dispose();
+      }
+      return map;
+    },
+  );
+  vm.setProp(globalHandle, "__optiprune_require_context", contextFn);
+  contextFn.dispose();
+  const newUrlFn = vm.newFunction(
+    "__optiprune_new_url",
+    (specHandle: QuickJSHandle, baseHandle: QuickJSHandle) => {
+      const spec = String(vm.dump(specHandle));
+      const base = String(vm.dump(baseHandle));
+      const href = spec.startsWith(".")
+        ? `file://${path.resolve(path.dirname(base.replace(/^file:\/\//, "")), spec)}`
+        : spec;
+      const obj = vm.newObject();
+      const h = vm.newString(href);
+      vm.setProp(obj, "href", h);
+      h.dispose();
+      const toString = vm.newFunction("toString", () => vm.newString(href));
+      vm.setProp(obj, "toString", toString);
+      toString.dispose();
+      return obj;
+    },
+  );
+  vm.setProp(globalHandle, "__optiprune_new_url", newUrlFn);
+  newUrlFn.dispose();
   const wasmMock = vm.newObject();
-  const instantiateFn = vm.newFunction('instantiate', () => {
-    const p = vm.evalCode('Promise.resolve({ instance: { exports: {} }, module: {} })');
+  const instantiateFn = vm.newFunction("instantiate", () => {
+    const p = vm.evalCode("Promise.resolve({ instance: { exports: {} }, module: {} })");
     return p.error ? vm.undefined : p.value;
   });
-  vm.setProp(wasmMock, 'instantiate', instantiateFn); vm.setProp(wasmMock, 'instantiateStreaming', instantiateFn);
-  vm.setProp(globalHandle, 'WebAssembly', wasmMock); wasmMock.dispose(); instantiateFn.dispose();
+  vm.setProp(wasmMock, "instantiate", instantiateFn);
+  vm.setProp(wasmMock, "instantiateStreaming", instantiateFn);
+  vm.setProp(globalHandle, "WebAssembly", wasmMock);
+  wasmMock.dispose();
+  instantiateFn.dispose();
 
   // 6. console mock
   const consoleMock = vm.newObject();
   const logFn = vm.newFunction("log", (...args: QuickJSHandle[]) => {
     if (context.options.verbose) {
-      console.log(`[QuickJS Console]`, ...args.map(a => vm.dump(a)));
+      console.log(`[QuickJS Console]`, ...args.map((a) => vm.dump(a)));
     }
     return vm.undefined;
   });
   const warnFn = vm.newFunction("warn", (...args: QuickJSHandle[]) => {
     if (context.options.verbose) {
-      console.warn(`[QuickJS Console]`, ...args.map(a => vm.dump(a)));
+      console.warn(`[QuickJS Console]`, ...args.map((a) => vm.dump(a)));
     }
     return vm.undefined;
   });
   const errorFn = vm.newFunction("error", (...args: QuickJSHandle[]) => {
-    console.error(`[QuickJS Console Error]`, ...args.map(a => vm.dump(a)));
+    console.error(`[QuickJS Console Error]`, ...args.map((a) => vm.dump(a)));
     return vm.undefined;
   });
   vm.setProp(consoleMock, "log", logFn);
   vm.setProp(consoleMock, "warn", warnFn);
   vm.setProp(consoleMock, "error", errorFn);
   vm.setProp(globalHandle, "console", consoleMock);
-  
+
   if (context.options.verbose) {
     vm.setProp(globalHandle, "__VERBOSE__", vm.true);
   }
-  
+
   consoleMock.dispose();
   logFn.dispose();
   warnFn.dispose();
@@ -876,12 +948,22 @@ function setupQuickJSMocks(
 }
 
 function globPatternToRegExp(pattern: string): RegExp {
-  let source = '^';
+  let source = "^";
   for (let i = 0; i < pattern.length; i++) {
-    const ch = pattern[i] ?? '';
-    if (ch === '*' && pattern[i + 1] === '*') { source += '.*'; i++; continue; }
-    if (ch === '*') { source += '[^/]*'; continue; }
-    if (ch === '?') { source += '[^/]'; continue; }
+    const ch = pattern[i] ?? "";
+    if (ch === "*" && pattern[i + 1] === "*") {
+      source += ".*";
+      i++;
+      continue;
+    }
+    if (ch === "*") {
+      source += "[^/]*";
+      continue;
+    }
+    if (ch === "?") {
+      source += "[^/]";
+      continue;
+    }
     source += /[.+^${}()|[\]\\]/.test(ch) ? `\\\\${ch}` : ch;
   }
   return new RegExp(`${source}$`);
@@ -904,7 +986,7 @@ function resolveAndMarkTarget(
   if (context.options.ignoreUnknownImport) return;
 
   let cleanSpecifier = specifier;
-  if (specifier.startsWith('file://')) {
+  if (specifier.startsWith("file://")) {
     cleanSpecifier = specifier.slice(7);
   }
 
@@ -926,7 +1008,7 @@ function resolveAndMarkTarget(
   const absolutePath = path.isAbsolute(cleanSpecifier)
     ? cleanSpecifier
     : path.resolve(sourceDir, cleanSpecifier);
-  
+
   if (!targetModule) {
     for (const ext of context.options.extensions) {
       const withExt = absolutePath + ext;
@@ -939,19 +1021,26 @@ function resolveAndMarkTarget(
     if (context.options.verbose) {
       console.log(`[Layer 4] Marking reachable: ${targetModule.id}`);
     }
-        context.reachable.add(targetModule.id);
-    const normalizedRuntimePaths = new Set(runtimePaths.map((value) => value.replace(/^module\./, "")));
+    context.reachable.add(targetModule.id);
+    const normalizedRuntimePaths = new Set(
+      runtimePaths.map((value) => value.replace(/^module\./, "")),
+    );
     for (const exp of targetModule.exports) {
       const exportKey = `${targetModule.id}:${exp.exportedAs}`;
       const isDefault = exp.exportedAs === "default" || exp.isDefault;
-      const directExportUse = normalizedRuntimePaths.has(exp.exportedAs)
-        || (isDefault && normalizedRuntimePaths.has("default"));
+      const directExportUse =
+        normalizedRuntimePaths.has(exp.exportedAs) ||
+        (isDefault && normalizedRuntimePaths.has("default"));
       const memberUses = new Set<string>();
       for (const runtimePath of normalizedRuntimePaths) {
         const parts = runtimePath.split(".").filter(Boolean);
         const defaultOffset = parts[0] === "default" ? 1 : 0;
         const memberName = parts[defaultOffset];
-        if (memberName && parts.length > defaultOffset + 1 && (parts[0] === exp.exportedAs || (isDefault && parts[0] === "default"))) {
+        if (
+          memberName &&
+          parts.length > defaultOffset + 1 &&
+          (parts[0] === exp.exportedAs || (isDefault && parts[0] === "default"))
+        ) {
           memberUses.add(memberName);
         }
       }
@@ -971,16 +1060,19 @@ function resolveAndMarkTarget(
     // important when the graph could not infer a candidate from the symbolic
     // pattern alone (for example, when `suffix` is assigned at runtime).
     const sourceModule = context.modules.get(sourceFile);
-    const dynamicEdge = sourceModule?.edges.find((edge) =>
-      (edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic") &&
-      (!candidate || (
-        edge.location?.start.line === candidate.line &&
-        edge.location?.start.column === candidate.column
-      )),
+    const dynamicEdge = sourceModule?.edges.find(
+      (edge) =>
+        (edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic") &&
+        (!candidate ||
+          (edge.location?.start.line === candidate.line &&
+            edge.location?.start.column === candidate.column)),
     );
     if (dynamicEdge) {
       dynamicEdge.resolution = "resolved";
-      if (dynamicEdge.dynamicPattern && !dynamicEdge.dynamicPattern.candidates.includes(targetModule.id)) {
+      if (
+        dynamicEdge.dynamicPattern &&
+        !dynamicEdge.dynamicPattern.candidates.includes(targetModule.id)
+      ) {
         dynamicEdge.dynamicPattern.candidates.push(targetModule.id);
       }
       if (!dynamicEdge.dynamicPattern) {
@@ -999,15 +1091,15 @@ async function verifyPathInWasmSandbox(
   instrumentedCode: string,
   seedInput: Record<string, any>,
   timeoutMs = 50,
-  memoryLimitMb = 16
+  memoryLimitMb = 16,
 ): Promise<ConcolicVerificationResult> {
   const startTime = performance.now();
   const runtime = quickJS.newRuntime();
   const context = runtime.newContext();
-  
+
   try {
     runtime.setMemoryLimit(memoryLimitMb * 1024 * 1024);
-    
+
     // Install interrupt handler for timeout enforcement
     if (timeoutMs > 0) {
       const deadline = Date.now() + timeoutMs;
@@ -1027,14 +1119,14 @@ async function verifyPathInWasmSandbox(
       const seeds = ${JSON.stringify(seedInput)};
       Object.assign(globalThis, seeds);
     `;
-    
+
     const setupResult = context.evalCode(setupScript);
     setupResult.dispose();
-    
+
     const wrappedCode = `try { ${instrumentedCode} } catch (e) {}`;
     const evalResult = context.evalCode(wrappedCode);
     evalResult.dispose();
-    
+
     const globalHandle = context.global;
     const reachedHandle = context.getProp(globalHandle, "__PROVE_REACHED__");
     const pathReached = context.dump(reachedHandle);
@@ -1044,13 +1136,13 @@ async function verifyPathInWasmSandbox(
     return {
       pathReached: Boolean(pathReached),
       executionTimeMs: performance.now() - startTime,
-      logs: []
+      logs: [],
     };
   } catch (err) {
     return {
       pathReached: false,
       executionTimeMs: performance.now() - startTime,
-      logs: [(err as Error).message]
+      logs: [(err as Error).message],
     };
   } finally {
     context.dispose();

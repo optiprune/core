@@ -6,7 +6,7 @@ const JETBRAINS_FILES = [
   "workspace.xml",
   "modules.xml",
   "runConfigurations",
-  "externalDependencies.xml"
+  "externalDependencies.xml",
 ];
 
 export const JetBrainsPlugin: AnalyzerPlugin = {
@@ -66,8 +66,8 @@ export const JetBrainsPlugin: AnalyzerPlugin = {
       if (normalized.endsWith(".iml") || normalized.endsWith(".ipr")) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default JetBrainsPlugin;

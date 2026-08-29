@@ -13,22 +13,17 @@ const SPECIALIZED_VITE_PACKAGES = [
   "vite-plugin-vue-layouts",
   "vite-plugin-vue-layouts-next",
   "vite-plus",
-  "wxt"
+  "wxt",
 ];
 
 const ELECTRON_VITE_CONFIG_FILES = [
   "electron.vite.config.ts",
   "electron.vite.config.js",
   "electron.vite.config.mjs",
-  "electron.vite.config.cjs"
+  "electron.vite.config.cjs",
 ];
 
-const WXT_CONFIG_FILES = [
-  "wxt.config.ts",
-  "wxt.config.js",
-  "wxt.config.mjs",
-  "wxt.config.cjs"
-];
+const WXT_CONFIG_FILES = ["wxt.config.ts", "wxt.config.js", "wxt.config.mjs", "wxt.config.cjs"];
 
 const VITE_CONFIG_FILES = [
   "vite.config.ts",
@@ -36,7 +31,7 @@ const VITE_CONFIG_FILES = [
   "vite.config.mjs",
   "vite.config.cjs",
   "pwa-assets.config.ts",
-  "pwa-assets.config.js"
+  "pwa-assets.config.js",
 ];
 
 export const ViteSpecializedPlugin: AnalyzerPlugin = {
@@ -49,7 +44,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -57,8 +52,8 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           (pkgName) =>
             pkgName in allDeps ||
             Object.keys(allDeps).some(
-              (dep) => dep.startsWith("@wxt-dev/") || dep.startsWith("@vite-pwa/")
-            )
+              (dep) => dep.startsWith("@wxt-dev/") || dep.startsWith("@vite-pwa/"),
+            ),
         )
       ) {
         return true;
@@ -80,7 +75,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // 1. Protect installed specialized Vite & WXT packages in package.json
@@ -91,7 +86,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           depName.startsWith("@vite-pwa/")
         ) {
           // A manifest entry alone is not evidence that this package is used.
-            // Usage is marked by the config, script, import, or file hooks below.
+          // Usage is marked by the config, script, import, or file hooks below.
         }
       }
 
@@ -253,8 +248,8 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ViteSpecializedPlugin;

@@ -15,16 +15,16 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
     });
 
     const unreachable = report.findings.filter((f) => f.rule === "unreachable-statement");
-    
+
     // 1. after return in unreachableAfterReturn
     // 2. after throw in unreachableAfterThrow
     // 3. exhaustive check in exhaustiveCheck (default branch)
     expect(unreachable.length).toBeGreaterThanOrEqual(2);
-    
-    const returnUnreachable = unreachable.find(f => f.message.includes("ReturnStatement"));
+
+    const returnUnreachable = unreachable.find((f) => f.message.includes("ReturnStatement"));
     expect(returnUnreachable).toBeDefined();
-    
-    const throwUnreachable = unreachable.find(f => f.message.includes("ThrowStatement"));
+
+    const throwUnreachable = unreachable.find((f) => f.message.includes("ThrowStatement"));
     expect(throwUnreachable).toBeDefined();
   });
 
@@ -36,7 +36,7 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
     });
 
     const constantConditions = report.findings.filter((f) => f.rule === "constant-condition");
-    
+
     // Expected findings:
     // From Layer 2 (Syntax-based):
     // 1. if (false)
@@ -46,7 +46,7 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
     // 4. if (false) -> UNSAT then
     // 5. if (true) -> UNSAT else
     // 6. x === 1 && x === 2 -> SMT might also flag this if implemented
-    
+
     expect(constantConditions.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -69,7 +69,7 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
       includeConventionalEntries: false,
     });
 
-    const exhaustive = report.findings.find(f => f.evidence.type === "exhaustive-check");
+    const exhaustive = report.findings.find((f) => f.evidence.type === "exhaustive-check");
     expect(exhaustive).toBeDefined();
     expect(exhaustive?.rule).toBe("unreachable-statement");
   });

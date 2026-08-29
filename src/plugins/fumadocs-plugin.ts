@@ -12,7 +12,7 @@ const FUMADOCS_CONFIG_FILES = [
   "source.config.cjs",
   "mdx-components.tsx",
   "mdx-components.jsx",
-  "mdx-components.js"
+  "mdx-components.js",
 ];
 
 const FUMADOCS_PACKAGES = [
@@ -21,7 +21,7 @@ const FUMADOCS_PACKAGES = [
   "fumadocs-docgen",
   "fumadocs-openapi",
   "fumadocs-mdx",
-  "fumadocs-typescript"
+  "fumadocs-typescript",
 ];
 
 export const FumadocsPlugin: AnalyzerPlugin = {
@@ -34,17 +34,14 @@ export const FumadocsPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    if (
-      (await adapter.folderExists("content/docs")) ||
-      (await adapter.folderExists("content"))
-    ) {
+    if ((await adapter.folderExists("content/docs")) || (await adapter.folderExists("content"))) {
       // Verify fumadocs dependency in package.json to prevent false positives with generic content/ folders
       const pkg = await adapter.readJson("package.json");
       if (pkg) {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         if (FUMADOCS_PACKAGES.some((p) => p in allDeps)) {
@@ -59,14 +56,10 @@ export const FumadocsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep.startsWith("fumadocs-") || dep === "fumadocs"
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep.startsWith("fumadocs-") || dep === "fumadocs")) {
         return true;
       }
 
@@ -74,9 +67,7 @@ export const FumadocsPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bfumadocs-mdx\b/.test(s) || /\bfumadocs\b/.test(s))
+            (s) => typeof s === "string" && (/\bfumadocs-mdx\b/.test(s) || /\bfumadocs\b/.test(s)),
           )
         ) {
           return true;
@@ -110,7 +101,7 @@ export const FumadocsPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -154,10 +145,7 @@ export const FumadocsPlugin: AnalyzerPlugin = {
       }
 
       // Protect Fumadocs API routes (e.g. app/api/search/route.ts)
-      if (
-        normalized.includes("/app/api/search/") ||
-        normalized.includes("/api/search/")
-      ) {
+      if (normalized.includes("/app/api/search/") || normalized.includes("/api/search/")) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -185,8 +173,8 @@ export const FumadocsPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default FumadocsPlugin;

@@ -63,14 +63,20 @@ function getResource(state: FileState, name: string, scope: string): Resource | 
 }
 
 function inFinally(node: any, ancestors: any[]): boolean {
-  return ancestors.some((ancestor) => ancestor?.type === "TryStatement" && rangeContains(ancestor.finalizer, node));
+  return ancestors.some(
+    (ancestor) => ancestor?.type === "TryStatement" && rangeContains(ancestor.finalizer, node),
+  );
 }
 
 function recordImport(node: any, state: FileState, adapter: PluginAdapter): void {
   markPackageImport(node, PACKAGE_SET, adapter);
   if (!isPackageImport(node, PACKAGE_SET)) return;
   for (const specifier of node.specifiers ?? []) {
-    if (["ImportNamespaceSpecifier", "ImportDefaultSpecifier"].includes(specifier.type) && t.isIdentifier(specifier.local)) state.namespaceNames.add(specifier.local.name);
+    if (
+      ["ImportNamespaceSpecifier", "ImportDefaultSpecifier"].includes(specifier.type) &&
+      t.isIdentifier(specifier.local)
+    )
+      state.namespaceNames.add(specifier.local.name);
     const imported = nodeName(specifier.imported) ?? nodeName(specifier.local);
     const local = nodeName(specifier.local) ?? imported;
     if (imported === "InferenceSession" && local) state.sessionFactoryNames.add(local);
@@ -80,9 +86,14 @@ function recordImport(node: any, state: FileState, adapter: PluginAdapter): void
 
 function isSessionCreation(node: any, state: FileState): boolean {
   const call = getMemberCall(node);
-  return !!call && call.method === "create" && (
-    (t.isIdentifier(call.object) && state.sessionFactoryNames.has(call.object.name)) ||
-    (call.object?.type === "MemberExpression" && t.isIdentifier(call.object.object) && state.namespaceNames.has(call.object.object.name) && nodeName(call.object.property) === "InferenceSession")
+  return (
+    !!call &&
+    call.method === "create" &&
+    ((t.isIdentifier(call.object) && state.sessionFactoryNames.has(call.object.name)) ||
+      (call.object?.type === "MemberExpression" &&
+        t.isIdentifier(call.object.object) &&
+        state.namespaceNames.has(call.object.object.name) &&
+        nodeName(call.object.property) === "InferenceSession"))
   );
 }
 
@@ -90,21 +101,39 @@ function isTensorCreation(node: any, state: FileState): boolean {
   const expression = unwrapExpression(node);
   if (!t.isNewExpression(expression)) return false;
   if (t.isIdentifier(expression.callee)) return state.tensorNames.has(expression.callee.name);
-  return expression.callee?.type === "MemberExpression" && t.isIdentifier(expression.callee.object) && state.namespaceNames.has(expression.callee.object.name) && nodeName(expression.callee.property) === "Tensor";
+  return (
+    expression.callee?.type === "MemberExpression" &&
+    t.isIdentifier(expression.callee.object) &&
+    state.namespaceNames.has(expression.callee.object.name) &&
+    nodeName(expression.callee.property) === "Tensor"
+  );
 }
 
 function recordResource(node: any, file: string, ancestors: any[], state: FileState): void {
   if (node?.type !== "VariableDeclarator" || !t.isIdentifier(node.id)) return;
-  const kind: ResourceKind | undefined = isSessionCreation(node.init, state) ? "session" : isTensorCreation(node.init, state) ? "tensor" : undefined;
+  const kind: ResourceKind | undefined = isSessionCreation(node.init, state)
+    ? "session"
+    : isTensorCreation(node.init, state)
+      ? "tensor"
+      : undefined;
   if (!kind) return;
   const scope = functionScope(ancestors);
-  const resource: Resource = { key: keyFor(scope, node.id.name), kind, name: node.id.name, file, scope, released: false, releasedInFinally: false };
+  const resource: Resource = {
+    key: keyFor(scope, node.id.name),
+    kind,
+    name: node.id.name,
+    file,
+    scope,
+    released: false,
+    releasedInFinally: false,
+  };
   state.resources.set(resource.key, resource);
 }
 
 function recordRelease(node: any, ancestors: any[], state: FileState): void {
   const call = getMemberCall(node);
-  if (!call || !["release", "dispose"].includes(call.method) || !t.isIdentifier(call.object)) return;
+  if (!call || !["release", "dispose"].includes(call.method) || !t.isIdentifier(call.object))
+    return;
   const resource = getResource(state, call.object.name, functionScope(ancestors));
   if (!resource) return;
   resource.released = true;
@@ -121,7 +150,12 @@ function audit(adapter: PluginAdapter): void {
           confidence: "high",
           file: resource.file,
           message: `onnxruntime-node ${resource.kind} '${resource.name}' is not released. Release native resources explicitly when the owning scope finishes.`,
-          evidence: { resource: resource.name, resourceKind: resource.kind, scope: resource.scope, expectedRelease: `${resource.name}.release()` },
+          evidence: {
+            resource: resource.name,
+            resourceKind: resource.kind,
+            scope: resource.scope,
+            expectedRelease: `${resource.name}.release()`,
+          },
         });
       } else if (resource.kind === "session" && !resource.releasedInFinally) {
         emitOnce(state.emitted, adapter, `release-not-finally:${resource.file}:${resource.key}`, {

@@ -10,8 +10,8 @@ export class TopologyManager {
   updateFile(fileId: string, newNodes: SemanticNode[], parseSuccess: boolean = true): Set<string> {
     const affectedNodeIds = new Set<string>();
     const existingNodes = this.graph.getNodesInFile(fileId);
-    const existingNodeMap = new Map(existingNodes.map(n => [n.id, n]));
-    const newNodeMap = new Map(newNodes.map(n => [n.id, n]));
+    const existingNodeMap = new Map(existingNodes.map((n) => [n.id, n]));
+    const newNodeMap = new Map(newNodes.map((n) => [n.id, n]));
 
     if (!parseSuccess) {
       // If parse failed, mark all existing nodes as stale but don't purge them
@@ -72,18 +72,18 @@ export class TopologyManager {
   detectDeadCode(): SemanticNode[] {
     const allNodes = this.graph.getAllNodes();
     const deadNodes: SemanticNode[] = [];
-    
+
     // 1. Find all SCCs in the graph
     const sccs = this.findSCCs(allNodes);
 
     // 2. For each SCC, check if it has any incoming references from outside the SCC
     for (const scc of sccs) {
-      const sccNodeIds = new Set(scc.map(n => n.id));
+      const sccNodeIds = new Set(scc.map((n) => n.id));
       let hasExternalInflow = false;
 
       for (const node of scc) {
         // Files are considered entry points for now
-        if (node.type === 'File') {
+        if (node.type === "File") {
           hasExternalInflow = true;
           break;
         }

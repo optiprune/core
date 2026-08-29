@@ -7,7 +7,7 @@ const TASKFILE_CONFIG_FILES = [
   "Taskfile.dist.yml",
   "Taskfile.dist.yaml",
   "Taskfile.override.yml",
-  "Taskfile.override.yaml"
+  "Taskfile.override.yaml",
 ];
 
 export const TaskfilePlugin: AnalyzerPlugin = {
@@ -27,8 +27,7 @@ export const TaskfilePlugin: AnalyzerPlugin = {
       if (
         scriptValues.some(
           (s) =>
-            typeof s === "string" &&
-            (s.includes("task ") || s === "task" || s.includes("go-task"))
+            typeof s === "string" && (s.includes("task ") || s === "task" || s.includes("go-task")),
         )
       ) {
         return true;
@@ -68,14 +67,11 @@ export const TaskfilePlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Protect main Taskfile configs and sub-taskfiles (e.g. Taskfile_build.yml, Taskfile.dist.yaml)
-      if (
-        TASKFILE_CONFIG_FILES.includes(basename) ||
-        basename.startsWith("Taskfile")
-      ) {
+      if (TASKFILE_CONFIG_FILES.includes(basename) || basename.startsWith("Taskfile")) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default TaskfilePlugin;

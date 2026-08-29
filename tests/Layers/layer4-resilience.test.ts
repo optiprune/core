@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import path from "pathe";
 import { analyzeLayer4 } from "../../src/layer4.js";
-import type { AnalysisContext, DependencyEdge, ModuleRecord, ResolvedOptions } from "../../src/types.js";
+import type {
+  AnalysisContext,
+  DependencyEdge,
+  ModuleRecord,
+  ResolvedOptions,
+} from "../../src/types.js";
 
 function makeModule(id: string, overrides: Partial<ModuleRecord> = {}): ModuleRecord {
   return {
@@ -139,11 +144,22 @@ describe("Layer 4: resilient TypeScript dynamic-import simulation", () => {
     };
     const sourceModule = makeModule(sourceFile, { edges: [edge] });
     const targetModule = makeModule(targetFile, {
-      exports: [{ name: "resilientPlugin", exportedAs: "resilientPlugin", isDefault: false, isReExport: false, isWildcard: false }],
+      exports: [
+        {
+          name: "resilientPlugin",
+          exportedAs: "resilientPlugin",
+          isDefault: false,
+          isReExport: false,
+          isWildcard: false,
+        },
+      ],
     });
     const context: AnalysisContext = {
       options: makeOptions(rootDir),
-      modules: new Map([[sourceFile, sourceModule], [targetFile, targetModule]]),
+      modules: new Map([
+        [sourceFile, sourceModule],
+        [targetFile, targetModule],
+      ]),
       entryPoints: new Set([sourceFile]),
       reachable: new Set([sourceFile]),
       maybeReachable: new Set(),
@@ -151,17 +167,19 @@ describe("Layer 4: resilient TypeScript dynamic-import simulation", () => {
       components: [],
       usedExports: new Set(),
       candidateBranches: [],
-      dynamicImportCandidates: [{
-        file: sourceFile,
-        line: 3,
-        column: 6,
-        expression: "import('./plugins/' + suffix + '.ts')",
-        contextCode: `
+      dynamicImportCandidates: [
+        {
+          file: sourceFile,
+          line: 3,
+          column: 6,
+          expression: "import('./plugins/' + suffix + '.ts')",
+          contextCode: `
           let suffix;
           suffix = "resilient-plugin";
           await import('./plugins/' + suffix + '.ts');
         `,
-      }],
+        },
+      ],
     };
 
     const findings = await analyzeLayer4(context);

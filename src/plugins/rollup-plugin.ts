@@ -8,7 +8,7 @@ const ROLLUP_CONFIG_FILES = [
   "rollup.config.cjs",
   "rollup.config.ts",
   "rollup.config.mts",
-  "rollup.config.cts"
+  "rollup.config.cts",
 ];
 
 const ROLLUP_CORE_PACKAGES = [
@@ -21,7 +21,7 @@ const ROLLUP_CORE_PACKAGES = [
   "@rollup/plugin-terser",
   "@rollup/plugin-replace",
   "@rollup/plugin-alias",
-  "@rollup/plugin-url"
+  "@rollup/plugin-url",
 ];
 
 export const RollupPlugin: AnalyzerPlugin = {
@@ -34,15 +34,13 @@ export const RollupPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
           (dep) =>
-            dep === "rollup" ||
-            dep.startsWith("@rollup/") ||
-            dep.startsWith("rollup-plugin-")
+            dep === "rollup" || dep.startsWith("@rollup/") || dep.startsWith("rollup-plugin-"),
         )
       ) {
         return true;
@@ -52,7 +50,7 @@ export const RollupPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("rollup ") || s === "rollup")
+            (s) => typeof s === "string" && (s.includes("rollup ") || s === "rollup"),
           )
         ) {
           return true;
@@ -73,11 +71,11 @@ export const RollupPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRollup = Object.keys(allDeps).some(
-        (p) => p === "rollup" || p.startsWith("@rollup/") || p.startsWith("rollup-plugin-")
+        (p) => p === "rollup" || p.startsWith("@rollup/") || p.startsWith("rollup-plugin-"),
       );
 
       // 1. Safeguard all installed Rollup packages and plugins in package.json
@@ -123,9 +121,8 @@ export const RollupPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Rollup configuration found, but 'rollup' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Rollup configuration found, but 'rollup' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -270,19 +267,16 @@ export const RollupPlugin: AnalyzerPlugin = {
             t.isObjectProperty(p) &&
             t.isIdentifier(p.key) &&
             ["name", "resolveId", "load", "transform", "buildStart", "generateBundle"].includes(
-              p.key.name
-            )
+              p.key.name,
+            ),
         );
 
-        if (
-          hasPluginKeys &&
-          (normalized.includes("plugin") || normalized.includes("rollup"))
-        ) {
+        if (hasPluginKeys && (normalized.includes("plugin") || normalized.includes("rollup"))) {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RollupPlugin;

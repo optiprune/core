@@ -13,7 +13,7 @@ const BABEL_CONFIG_FILES = [
   ".babelrc.cjs",
   ".babelrc.mjs",
   ".babelrc.ts",
-  ".babelrc.json"
+  ".babelrc.json",
 ];
 
 const CORE_BABEL_PACKAGES = [
@@ -21,7 +21,7 @@ const CORE_BABEL_PACKAGES = [
   "@babel/cli",
   "@babel/runtime",
   "@babel/register",
-  "@babel/standalone"
+  "@babel/standalone",
 ];
 
 /**
@@ -92,7 +92,7 @@ export const BabelPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasBabelDep = CORE_BABEL_PACKAGES.some((p) => p in allDeps);
@@ -131,8 +131,9 @@ export const BabelPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Babel configuration found but '@babel/core' or '@babel/cli' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message:
+            "Babel configuration found but '@babel/core' or '@babel/cli' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -165,11 +166,17 @@ export const BabelPlugin: AnalyzerPlugin = {
           if (keyName === "presets" && t.isArrayExpression(node.value)) {
             node.value.elements.forEach((el: any) => {
               let presetName: string | null = null;
-              if (t.isStringLiteral(el) || (el.type === "Literal" && typeof el.value === "string")) {
+              if (
+                t.isStringLiteral(el) ||
+                (el.type === "Literal" && typeof el.value === "string")
+              ) {
                 presetName = el.value;
               } else if (t.isArrayExpression(el) && el.elements[0]) {
                 const first = el.elements[0];
-                if (t.isStringLiteral(first) || (first.type === "Literal" && typeof first.value === "string")) {
+                if (
+                  t.isStringLiteral(first) ||
+                  (first.type === "Literal" && typeof first.value === "string")
+                ) {
                   presetName = first.value;
                 }
               }
@@ -185,11 +192,17 @@ export const BabelPlugin: AnalyzerPlugin = {
           if (keyName === "plugins" && t.isArrayExpression(node.value)) {
             node.value.elements.forEach((el: any) => {
               let pluginName: string | null = null;
-              if (t.isStringLiteral(el) || (el.type === "Literal" && typeof el.value === "string")) {
+              if (
+                t.isStringLiteral(el) ||
+                (el.type === "Literal" && typeof el.value === "string")
+              ) {
                 pluginName = el.value;
               } else if (t.isArrayExpression(el) && el.elements[0]) {
                 const first = el.elements[0];
-                if (t.isStringLiteral(first) || (first.type === "Literal" && typeof first.value === "string")) {
+                if (
+                  t.isStringLiteral(first) ||
+                  (first.type === "Literal" && typeof first.value === "string")
+                ) {
                   pluginName = first.value;
                 }
               }
@@ -213,7 +226,11 @@ export const BabelPlugin: AnalyzerPlugin = {
       }
 
       // 3. Detect require('@babel/*')
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg) && arg.value.startsWith("@babel/")) {
           adapter.markPackageAsUsed(arg.value);
@@ -233,7 +250,7 @@ export const BabelPlugin: AnalyzerPlugin = {
               "parseSync",
               "transformFile",
               "transform",
-              "parse"
+              "parse",
             ];
             if (babelMethods.includes(prop.name)) {
               adapter.markAsUsed(fileId);
@@ -245,7 +262,11 @@ export const BabelPlugin: AnalyzerPlugin = {
         // Direct Babel function calls
         if (t.isIdentifier(node.callee)) {
           const funcName = node.callee.name;
-          if (["transformFileSync", "transformSync", "parseSync", "transform", "parse"].includes(funcName)) {
+          if (
+            ["transformFileSync", "transformSync", "parseSync", "transform", "parse"].includes(
+              funcName,
+            )
+          ) {
             adapter.markAsUsed(fileId);
             adapter.markPackageAsUsed("@babel/core");
           }
@@ -253,7 +274,11 @@ export const BabelPlugin: AnalyzerPlugin = {
       }
 
       // 5. Detect @babel/traverse usage
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "traverse") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "traverse"
+      ) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@babel/traverse");
       }
@@ -270,8 +295,8 @@ export const BabelPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default BabelPlugin;

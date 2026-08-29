@@ -14,7 +14,7 @@ const COMMON_CLI_BINARIES = [
   "webpack",
   "tsup",
   "swc",
-  "babel"
+  "babel",
 ];
 
 export const WireitPlugin: AnalyzerPlugin = {
@@ -28,7 +28,7 @@ export const WireitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if ("wireit" in allDeps || pkg.wireit) {
@@ -39,8 +39,7 @@ export const WireitPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("wireit ") || s === "wireit")
+            (s) => typeof s === "string" && (s.includes("wireit ") || s === "wireit"),
           )
         ) {
           return true;
@@ -57,7 +56,7 @@ export const WireitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasWireitDep = "wireit" in allDeps;
@@ -101,7 +100,7 @@ export const WireitPlugin: AnalyzerPlugin = {
                 ) {
                   adapter.markAsUsed(
                     "package.json",
-                    `scripts:${(dep as { script: string }).script}`
+                    `scripts:${(dep as { script: string }).script}`,
                   );
                 }
               });
@@ -155,7 +154,7 @@ export const WireitPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "wireit task configuration found in package.json, but 'wireit' is not listed under devDependencies.",
-          evidence: { hasWireitConfig: true }
+          evidence: { hasWireitConfig: true },
         });
       }
     },
@@ -167,8 +166,8 @@ export const WireitPlugin: AnalyzerPlugin = {
       if (basename === "package.json") {
         adapter.markPackageAsUsed("wireit");
       }
-    }
-  }
+    },
+  },
 };
 
 function parseWireitCommand(commandStr: string, adapter: any): void {
@@ -190,14 +189,8 @@ function parseWireitCommand(commandStr: string, adapter: any): void {
   }
 
   // 3. Extract npm run / yarn / pnpm script invocations: "npm run lint"
-  if (
-    trimmed.includes("npm run ") ||
-    trimmed.includes("pnpm run ") ||
-    trimmed.includes("yarn ")
-  ) {
-    const match = trimmed.match(
-      /(?:npm run|pnpm run|yarn)\s+([a-zA-Z0-9_:-]+)/
-    );
+  if (trimmed.includes("npm run ") || trimmed.includes("pnpm run ") || trimmed.includes("yarn ")) {
+    const match = trimmed.match(/(?:npm run|pnpm run|yarn)\s+([a-zA-Z0-9_:-]+)/);
     if (match && match[1]) {
       adapter.markAsUsed("package.json", `scripts:${match[1]}`);
     }

@@ -9,7 +9,7 @@ const EXPRESSIVE_CODE_CONFIG_FILES = [
   "ec.config.cjs",
   "expressive-code.config.mjs",
   "expressive-code.config.js",
-  "expressive-code.config.ts"
+  "expressive-code.config.ts",
 ];
 
 function isExpressiveCodePackage(source: string): boolean {
@@ -50,11 +50,7 @@ function extractConfigProperties(objectExpr: any, adapter: any): void {
         adapter.markPackageAsUsed(prop.value.value);
       } else if (t.isArrayExpression(prop.value)) {
         for (const el of prop.value.elements) {
-          if (
-            t.isStringLiteral(el) &&
-            !el.value.startsWith(".") &&
-            !el.value.startsWith("/")
-          ) {
+          if (t.isStringLiteral(el) && !el.value.startsWith(".") && !el.value.startsWith("/")) {
             adapter.markPackageAsUsed(el.value);
           }
         }
@@ -79,7 +75,7 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => isExpressiveCodePackage(dep))) {
@@ -105,7 +101,7 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -200,8 +196,8 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ExpressiveCodePlugin;

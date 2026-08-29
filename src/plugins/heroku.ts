@@ -9,14 +9,10 @@ const HEROKU_CONFIG_FILES = [
   "Procfile.dev",
   "Procfile.options",
   "static.json",
-  "heroku.yml"
+  "heroku.yml",
 ];
 
-const HEROKU_PACKAGES = [
-  "heroku",
-  "heroku-cli",
-  "@heroku-cli/command"
-];
+const HEROKU_PACKAGES = ["heroku", "heroku-cli", "@heroku-cli/command"];
 
 /**
  * Helper to check if an app.json is specifically a Heroku App Manifest.
@@ -28,13 +24,7 @@ function isHerokuAppJson(appJsonData: any): boolean {
   }
 
   // Common keys in a Heroku app.json manifest
-  const herokuKeys = [
-    "buildpacks",
-    "formation",
-    "addons",
-    "environments",
-    "stack"
-  ];
+  const herokuKeys = ["buildpacks", "formation", "addons", "environments", "stack"];
 
   const hasHerokuKey = herokuKeys.some((key) => key in appJsonData);
 
@@ -96,7 +86,7 @@ export const HerokuPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (HEROKU_PACKAGES.some((p) => p in allDeps)) {
@@ -107,9 +97,7 @@ export const HerokuPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bheroku\b/.test(s) || s.includes("heroku local"))
+            (s) => typeof s === "string" && (/\bheroku\b/.test(s) || s.includes("heroku local")),
           )
         ) {
           return true;
@@ -145,7 +133,7 @@ export const HerokuPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -181,8 +169,8 @@ export const HerokuPlugin: AnalyzerPlugin = {
       if (HEROKU_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default HerokuPlugin;

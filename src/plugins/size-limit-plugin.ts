@@ -13,7 +13,7 @@ const SIZE_LIMIT_CONFIG_FILES = [
   "size-limit.ts",
   "size-limit.mjs",
   "size-limit.cjs",
-  "size-limit.config.js"
+  "size-limit.config.js",
 ];
 
 const SIZE_LIMIT_PACKAGE_NAME = "size-limit";
@@ -60,7 +60,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -68,7 +68,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
           (dep) =>
             dep === SIZE_LIMIT_PACKAGE_NAME ||
             dep.startsWith("@size-limit/") ||
-            dep.startsWith("size-limit-")
+            dep.startsWith("size-limit-"),
         )
       ) {
         return true;
@@ -78,9 +78,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bsize-limit\b/.test(s) || s.includes("size-limit"))
+            (s) => typeof s === "string" && (/\bsize-limit\b/.test(s) || s.includes("size-limit")),
           )
         ) {
           return true;
@@ -107,7 +105,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -144,8 +142,8 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists(".size-limit.json"))
         ? ".size-limit.json"
         : (await adapter.folderExists("size-limit.json"))
-        ? "size-limit.json"
-        : null;
+          ? "size-limit.json"
+          : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -172,10 +170,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
 
       // Inspect JS/TS config files (size-limit.js, .size-limit.js, etc.)
       if (SIZE_LIMIT_CONFIG_FILES.includes(basename)) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed(SIZE_LIMIT_PACKAGE_NAME);
         }
@@ -218,8 +213,8 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SizeLimitPlugin;

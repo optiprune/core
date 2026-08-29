@@ -2,11 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const MARKO_CONFIG_FILES = [
-  "marko.json",
-  "marko-taglib.json",
-  "marko-tag.json"
-];
+const MARKO_CONFIG_FILES = ["marko.json", "marko-taglib.json", "marko-tag.json"];
 
 const MARKO_ECOSYSTEM_PACKAGES = [
   "@marko/run",
@@ -15,7 +11,7 @@ const MARKO_ECOSYSTEM_PACKAGES = [
   "@marko/fastify",
   "@marko/vite",
   "@marko/compiler",
-  "@marko/webpack"
+  "@marko/webpack",
 ];
 
 export const MarkoPlugin: AnalyzerPlugin = {
@@ -48,10 +44,14 @@ export const MarkoPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasMarkoDep = !!(allDeps["marko"] || allDeps["@marko-js/marko"] || allDeps["@marko/run"]);
+      const hasMarkoDep = !!(
+        allDeps["marko"] ||
+        allDeps["@marko-js/marko"] ||
+        allDeps["@marko/run"]
+      );
       const markoFiles = await adapter.findFilesByGlob(["**/*.marko"]);
       for (const file of markoFiles) {
         adapter.markAsUsed(file);
@@ -93,7 +93,7 @@ export const MarkoPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Marko configuration found but 'marko' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -119,7 +119,10 @@ export const MarkoPlugin: AnalyzerPlugin = {
       }
 
       // 4. Mark Marko Run convention route files (+page.marko, +layout.marko, +handler.ts, +middleware.ts)
-      if (fileName.startsWith("+") && (fileName.endsWith(".marko") || /\.[jt]sx?$/.test(fileName))) {
+      if (
+        fileName.startsWith("+") &&
+        (fileName.endsWith(".marko") || /\.[jt]sx?$/.test(fileName))
+      ) {
         adapter.markAsUsed(fileId);
       }
 
@@ -144,7 +147,10 @@ export const MarkoPlugin: AnalyzerPlugin = {
             // Handle ArrayExpression -> "taglib-imports": ["./my-taglib.json", "some-package"]
             if (t.isArrayExpression(node.value)) {
               node.value.elements.forEach((el: any) => {
-                if (t.isStringLiteral(el) || (el.type === "Literal" && typeof el.value === "string")) {
+                if (
+                  t.isStringLiteral(el) ||
+                  (el.type === "Literal" && typeof el.value === "string")
+                ) {
                   const val = el.value;
                   if (val.startsWith(".")) {
                     adapter.markAsUsed(val);
@@ -158,7 +164,10 @@ export const MarkoPlugin: AnalyzerPlugin = {
             else if (t.isObjectExpression(node.value)) {
               node.value.properties.forEach((prop: any) => {
                 const val = prop.value;
-                if (t.isStringLiteral(val) || (val.type === "Literal" && typeof val.value === "string")) {
+                if (
+                  t.isStringLiteral(val) ||
+                  (val.type === "Literal" && typeof val.value === "string")
+                ) {
                   const tagPath = val.value;
                   if (tagPath.startsWith(".")) {
                     adapter.markAsUsed(tagPath);
@@ -171,8 +180,8 @@ export const MarkoPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MarkoPlugin;

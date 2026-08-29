@@ -47,14 +47,23 @@ function extractRunCommands(content: string): string[] {
 }
 
 function commandTokens(command: string): string[] {
-  return command.match(/"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|[^\s]+/g)
-    ?.map((token) => token.replace(/^['"]|['"]$/g, "")) ?? [];
+  return (
+    command
+      .match(/"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|[^\s]+/g)
+      ?.map((token) => token.replace(/^['"]|['"]$/g, "")) ?? []
+  );
 }
 
 async function markLocalScript(rawPath: string, adapter: any): Promise<void> {
   const value = rawPath.replace(/[;,]+$/, "");
   if (!value || value.startsWith("-") || value.startsWith("$")) return;
-  if (!value.startsWith(".") && !value.startsWith("/") && !value.includes("/") && !/\.[cm]?[jt]sx?$/.test(value)) return;
+  if (
+    !value.startsWith(".") &&
+    !value.startsWith("/") &&
+    !value.includes("/") &&
+    !/\.[cm]?[jt]sx?$/.test(value)
+  )
+    return;
 
   const rootDir = adapter.getConfig().rootDir;
   const absolute = path.isAbsolute(value) ? value : path.resolve(rootDir, value);
@@ -89,7 +98,9 @@ async function collectLocalActionSetup(
   const rootDir = adapter.getConfig().rootDir;
   const actionRoot = path.resolve(rootDir, rawPath);
   const actionFile = (await adapter.folderExists(actionRoot))
-    ? (await adapter.folderExists(path.join(actionRoot, "action.yml")) ? path.join(actionRoot, "action.yml") : path.join(actionRoot, "action.yaml"))
+    ? (await adapter.folderExists(path.join(actionRoot, "action.yml")))
+      ? path.join(actionRoot, "action.yml")
+      : path.join(actionRoot, "action.yaml")
     : actionRoot;
   if (visited.has(actionFile)) return;
   visited.add(actionFile);
@@ -118,7 +129,11 @@ async function markRunCommand(command: string, adapter: any): Promise<void> {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
-    if (!token || (!/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(token) && token !== "sudo" && token !== "command")) break;
+    if (
+      !token ||
+      (!/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(token) && token !== "sudo" && token !== "command")
+    )
+      break;
     index += 1;
   }
   const executable = tokens[index]?.split("/").pop()?.toLowerCase();
@@ -164,38 +179,48 @@ const KNOWN_CLI_TOOLS: Record<string, ToolSetupConfig> = {
   pnpm: {
     name: "pnpm",
     actions: ["pnpm/action-setup", "setup-pnpm"],
-    setupCommands: ["corepack enable pnpm", "corepack enable", "npm i -g pnpm", "npm install -g pnpm"]
+    setupCommands: [
+      "corepack enable pnpm",
+      "corepack enable",
+      "npm i -g pnpm",
+      "npm install -g pnpm",
+    ],
   },
   bun: {
     name: "bun",
     actions: ["oven-sh/setup-bun", "setup-bun"],
-    setupCommands: ["npm i -g bun", "npm install -g bun", "curl -fsSL https://bun.sh/install"]
+    setupCommands: ["npm i -g bun", "npm install -g bun", "curl -fsSL https://bun.sh/install"],
   },
   yarn: {
     name: "yarn",
     actions: ["setup-yarn", "actions/setup-node"],
-    setupCommands: ["corepack enable yarn", "corepack enable", "npm i -g yarn", "npm install -g yarn"]
+    setupCommands: [
+      "corepack enable yarn",
+      "corepack enable",
+      "npm i -g yarn",
+      "npm install -g yarn",
+    ],
   },
   deno: {
     name: "deno",
-    actions: ["denoland/setup-deno", "setup-deno"]
+    actions: ["denoland/setup-deno", "setup-deno"],
   },
   cargo: {
     name: "cargo",
-    actions: ["actions-rs/toolchain", "dtolnay/rust-toolchain"]
+    actions: ["actions-rs/toolchain", "dtolnay/rust-toolchain"],
   },
   go: {
     name: "go",
-    actions: ["actions/setup-go"]
+    actions: ["actions/setup-go"],
   },
   python: {
     name: "python",
-    actions: ["actions/setup-python"]
+    actions: ["actions/setup-python"],
   },
   poetry: {
     name: "poetry",
-    actions: ["snok/install-poetry"]
-  }
+    actions: ["snok/install-poetry"],
+  },
 };
 
 export const GithubActionsPlugin: AnalyzerPlugin = {
@@ -238,7 +263,13 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
             usedActions.add(normalizedAction);
             adapter.markPackageAsUsed(action);
             if (normalizedAction.startsWith("./")) {
-              await collectLocalActionSetup(action, adapter, visitedLocalActions, usedActions, setupCommands);
+              await collectLocalActionSetup(
+                action,
+                adapter,
+                visitedLocalActions,
+                usedActions,
+                setupCommands,
+              );
             }
           }
         }
@@ -270,15 +301,14 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
 
           // Verify if the tool is set up via an action
           const hasSetupAction = config.actions.some((actionPattern) =>
-            [...usedActions].some((action) => action.includes(actionPattern.toLowerCase()))
+            [...usedActions].some((action) => action.includes(actionPattern.toLowerCase())),
           );
 
           // Verify if the tool is set up via a setup command in this workflow or a
           // local composite action invoked by it.
           const setupText = [content.toLowerCase(), ...setupCommands].join("\n");
-          const hasSetupCommand = config.setupCommands?.some((cmd) =>
-            setupText.includes(cmd.toLowerCase())
-          ) ?? false;
+          const hasSetupCommand =
+            config.setupCommands?.some((cmd) => setupText.includes(cmd.toLowerCase())) ?? false;
 
           // If used but not setup via action or setup command -> emit finding
           if (!hasSetupAction && !hasSetupCommand) {
@@ -290,8 +320,8 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
               message: `Workflow invokes '${config.name}' CLI tool, but no setup action (or inline installation command) was detected.`,
               evidence: {
                 tool: config.name,
-                expectedActions: config.actions
-              }
+                expectedActions: config.actions,
+              },
             });
           }
         }
@@ -300,11 +330,15 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
 
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
-      if (normalized.includes(".github/workflows/") || normalized.endsWith("action.yml") || normalized.endsWith("action.yaml")) {
+      if (
+        normalized.includes(".github/workflows/") ||
+        normalized.endsWith("action.yml") ||
+        normalized.endsWith("action.yaml")
+      ) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default GithubActionsPlugin;

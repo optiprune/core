@@ -7,7 +7,7 @@ const PNPM_CONFIG_FILES = [
   "pnpm-lock.yaml",
   ".npmrc",
   "pnpmfile.js",
-  ".pnpmfile.cjs"
+  ".pnpmfile.cjs",
 ];
 
 export const PnpmPlugin: AnalyzerPlugin = {
@@ -23,19 +23,14 @@ export const PnpmPlugin: AnalyzerPlugin = {
     // 2. Check package.json packageManager field or CLI scripts
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
-      if (
-        typeof pkg.packageManager === "string" &&
-        pkg.packageManager.startsWith("pnpm")
-      ) {
+      if (typeof pkg.packageManager === "string" && pkg.packageManager.startsWith("pnpm")) {
         return true;
       }
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("pnpm ") || s === "pnpm")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("pnpm ") || s === "pnpm"))
         ) {
           return true;
         }
@@ -87,11 +82,11 @@ export const PnpmPlugin: AnalyzerPlugin = {
             if (trimmed.startsWith("-")) {
               let globPath = trimmed.replace(/^-/, "").trim();
               globPath = globPath.replace(/^['"]|['"]$/g, "");
-                if (globPath) {
-                  hasDeclaredWorkspaces = true;
-                  adapter.setWorkspaceGlobs([globPath]);
-                  adapter.markAsUsed(globPath);
-                }
+              if (globPath) {
+                hasDeclaredWorkspaces = true;
+                adapter.setWorkspaceGlobs([globPath]);
+                adapter.markAsUsed(globPath);
+              }
             } else if (trimmed && !trimmed.startsWith("#")) {
               capturingPackages = false;
             }
@@ -136,8 +131,8 @@ export const PnpmPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default PnpmPlugin;

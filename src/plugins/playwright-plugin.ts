@@ -6,14 +6,10 @@ const PLAYWRIGHT_CONFIG_FILES = [
   "playwright.config.js",
   "playwright.config.ts",
   "playwright.config.mjs",
-  "playwright.config.cjs"
+  "playwright.config.cjs",
 ];
 
-const PLAYWRIGHT_PACKAGES = [
-  "@playwright/test",
-  "playwright",
-  "playwright-core"
-];
+const PLAYWRIGHT_PACKAGES = ["@playwright/test", "playwright", "playwright-core"];
 
 export const PlaywrightPlugin: AnalyzerPlugin = {
   name: "playwright-plugin",
@@ -30,7 +26,7 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
     const allDeps = {
       ...pkg.dependencies,
       ...pkg.devDependencies,
-      ...pkg.peerDependencies
+      ...pkg.peerDependencies,
     };
 
     return PLAYWRIGHT_PACKAGES.some((p) => p in allDeps);
@@ -60,10 +56,7 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
 
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\bplaywright\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\bplaywright\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -104,11 +97,7 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
       }
 
       // Track reporter packages or testDir properties referenced in playwright.config.ts
-      if (
-        t.isObjectProperty(node) &&
-        t.isIdentifier(node.key) &&
-        node.key.name === "reporter"
-      ) {
+      if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "reporter") {
         if (t.isStringLiteral(node.value)) {
           adapter.markPackageAsUsed(node.value.value);
         } else if (t.isArrayExpression(node.value)) {
@@ -119,8 +108,8 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default PlaywrightPlugin;

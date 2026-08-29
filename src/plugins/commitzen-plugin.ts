@@ -13,7 +13,7 @@ const COMMITIZEN_CONFIG_FILES = [
   "cz.config.js",
   "cz.config.cjs",
   "cz.config.mjs",
-  "cz.config.ts"
+  "cz.config.ts",
 ];
 
 const COMMITIZEN_CORE_PACKAGES = ["commitizen", "cz-cli"];
@@ -63,15 +63,13 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
           (dep) =>
-            COMMITIZEN_CORE_PACKAGES.includes(dep) ||
-            dep.startsWith("cz-") ||
-            dep.includes("/cz-")
+            COMMITIZEN_CORE_PACKAGES.includes(dep) || dep.startsWith("cz-") || dep.includes("/cz-"),
         )
       ) {
         return true;
@@ -83,7 +81,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (/\bcz\b/.test(s) || /\bgit-cz\b/.test(s) || s.includes("commitizen"))
+              (/\bcz\b/.test(s) || /\bgit-cz\b/.test(s) || s.includes("commitizen")),
           )
         ) {
           return true;
@@ -110,7 +108,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -149,8 +147,8 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists(".cz.json"))
         ? ".cz.json"
         : (await adapter.folderExists(".czrc"))
-        ? ".czrc"
-        : null;
+          ? ".czrc"
+          : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -176,10 +174,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
 
       // Inspect JS/TS config files (cz.config.js, cz.config.ts, etc.)
       if (basename.startsWith("cz.config.")) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
         }
 
@@ -208,17 +203,13 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       // Retain imports from commitizen or cz-* adapter packages
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source === "commitizen" ||
-          source.startsWith("cz-") ||
-          source.includes("/cz-")
-        ) {
+        if (source === "commitizen" || source.startsWith("cz-") || source.includes("/cz-")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default CommitizenPlugin;

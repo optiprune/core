@@ -8,7 +8,7 @@ const RSBUILD_CONFIG_FILES = [
   "rsbuild.config.mjs",
   "rsbuild.config.cjs",
   "rsbuild.config.mts",
-  "rsbuild.config.cts"
+  "rsbuild.config.cts",
 ];
 
 const RSBUILD_PACKAGES = [
@@ -25,7 +25,7 @@ const RSBUILD_PACKAGES = [
   "@rsbuild/plugin-stylus",
   "@rsbuild/plugin-type-check",
   "@rsbuild/plugin-eslint",
-  "@rsbuild/plugin-node"
+  "@rsbuild/plugin-node",
 ];
 
 export const RsbuildPlugin: AnalyzerPlugin = {
@@ -38,23 +38,17 @@ export const RsbuildPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "@rsbuild/core" || dep.startsWith("@rsbuild/")
-        )
+        Object.keys(allDeps).some((dep) => dep === "@rsbuild/core" || dep.startsWith("@rsbuild/"))
       ) {
         return true;
       }
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("rsbuild")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("rsbuild"))) {
           return true;
         }
       }
@@ -73,11 +67,11 @@ export const RsbuildPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRsbuild = Object.keys(allDeps).some(
-        (p) => p === "@rsbuild/core" || p.startsWith("@rsbuild/")
+        (p) => p === "@rsbuild/core" || p.startsWith("@rsbuild/"),
       );
 
       // 1. Safeguard installed @rsbuild/* packages in package.json
@@ -121,7 +115,7 @@ export const RsbuildPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Rsbuild configuration file found, but '@rsbuild/core' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -173,11 +167,7 @@ export const RsbuildPlugin: AnalyzerPlugin = {
         }
 
         // Detect source.entry configuration option
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "entry"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "entry") {
           const val = node.value;
           if (t.isStringLiteral(val)) {
             adapter.markAsUsed(val.value);
@@ -197,17 +187,10 @@ export const RsbuildPlugin: AnalyzerPlugin = {
         }
 
         // Detect plugins array in rsbuild config
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "plugins"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "plugins") {
           if (t.isArrayExpression(node.value)) {
             node.value.elements.forEach((pluginCall: any) => {
-              if (
-                t.isCallExpression(pluginCall) &&
-                t.isIdentifier(pluginCall.callee)
-              ) {
+              if (t.isCallExpression(pluginCall) && t.isIdentifier(pluginCall.callee)) {
                 adapter.markAsUsed(fileId);
                 adapter.markPackageAsUsed("@rsbuild/core");
               }
@@ -215,8 +198,8 @@ export const RsbuildPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RsbuildPlugin;

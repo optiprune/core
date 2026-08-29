@@ -8,7 +8,7 @@ const KNEX_CONFIG_FILES = [
   "knexfile.mjs",
   "knexfile.ts",
   "knexfile.cts",
-  "knexfile.mts"
+  "knexfile.mts",
 ];
 
 const KNEX_DRIVERS = [
@@ -20,7 +20,7 @@ const KNEX_DRIVERS = [
   "better-sqlite3",
   "oracledb",
   "tedious",
-  "mariasql"
+  "mariasql",
 ];
 
 export const KnexPlugin: AnalyzerPlugin = {
@@ -33,23 +33,17 @@ export const KnexPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "knex" || dep.startsWith("@knex/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "knex" || dep.startsWith("@knex/"))) {
         return true;
       }
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("knex ") || s === "knex")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("knex ") || s === "knex"))
         ) {
           return true;
         }
@@ -60,10 +54,7 @@ export const KnexPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("migrations")) ||
-      (await adapter.folderExists("seeds"))
-    );
+    return (await adapter.folderExists("migrations")) || (await adapter.folderExists("seeds"));
   },
 
   lifecycle: {
@@ -72,12 +63,10 @@ export const KnexPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasKnex = Object.keys(allDeps).some(
-        (p) => p === "knex" || p.startsWith("@knex/")
-      );
+      const hasKnex = Object.keys(allDeps).some((p) => p === "knex" || p.startsWith("@knex/"));
 
       // 1. Safeguard installed Knex core and driver dependencies in package.json
       if (hasKnex) {
@@ -123,9 +112,8 @@ export const KnexPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Knex configuration found, but 'knex' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Knex configuration found, but 'knex' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -173,10 +161,7 @@ export const KnexPlugin: AnalyzerPlugin = {
         node.callee.name === "require"
       ) {
         const arg = node.arguments[0];
-        if (
-          t.isStringLiteral(arg) &&
-          (arg.value === "knex" || arg.value.startsWith("@knex/"))
-        ) {
+        if (t.isStringLiteral(arg) && (arg.value === "knex" || arg.value.startsWith("@knex/"))) {
           adapter.markPackageAsUsed(arg.value);
           adapter.markAsUsed(fileId);
         }
@@ -216,10 +201,7 @@ export const KnexPlugin: AnalyzerPlugin = {
                   envObj.properties.forEach((envProp: any) => {
                     if (t.isObjectProperty(envProp) && t.isIdentifier(envProp.key)) {
                       // Detect database client driver (e.g. client: 'pg' or client: 'better-sqlite3')
-                      if (
-                        envProp.key.name === "client" &&
-                        t.isStringLiteral(envProp.value)
-                      ) {
+                      if (envProp.key.name === "client" && t.isStringLiteral(envProp.value)) {
                         adapter.markPackageAsUsed(envProp.value.value);
                       }
 
@@ -258,8 +240,8 @@ export const KnexPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default KnexPlugin;

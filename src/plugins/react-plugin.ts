@@ -9,16 +9,10 @@ const REACT_PACKAGES = [
   "react-router-dom",
   "react-is",
   "@types/react",
-  "@types/react-dom"
+  "@types/react-dom",
 ];
 
-const REACT_HOC_NAMES = new Set([
-  "memo",
-  "forwardRef",
-  "lazy",
-  "connect",
-  "withRouter"
-]);
+const REACT_HOC_NAMES = new Set(["memo", "forwardRef", "lazy", "connect", "withRouter"]);
 
 export const ReactPlugin: AnalyzerPlugin = {
   name: "react-plugin",
@@ -30,7 +24,7 @@ export const ReactPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (REACT_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -48,7 +42,7 @@ export const ReactPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasReactDep = REACT_PACKAGES.some((p) => p in allDeps);
@@ -60,8 +54,7 @@ export const ReactPlugin: AnalyzerPlugin = {
       }
 
       const config =
-        (await adapter.readJson("tsconfig.json")) ||
-        (await adapter.readJson("jsconfig.json"));
+        (await adapter.readJson("tsconfig.json")) || (await adapter.readJson("jsconfig.json"));
 
       if (config?.compilerOptions?.jsx && !hasReactDep) {
         adapter.emitFinding({
@@ -71,7 +64,7 @@ export const ReactPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "JSX support is enabled in tsconfig/jsconfig, but 'react' is not listed in package.json dependencies.",
-          evidence: { jsxEnabled: true }
+          evidence: { jsxEnabled: true },
         });
       }
     },
@@ -208,8 +201,8 @@ export const ReactPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ReactPlugin;

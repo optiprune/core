@@ -12,7 +12,7 @@ const STRYKER_CONFIG_FILES = [
   "stryker.config.json",
   "stryker.conf.js",
   "stryker.conf.json",
-  ".stryker.conf.json"
+  ".stryker.conf.json",
 ];
 
 const STRYKER_CORE_PACKAGE = "@stryker-mutator/core";
@@ -69,7 +69,10 @@ function processStrykerConfig(config: Record<string, any>, adapter: any): void {
   // Process reporters array: reporters: ['html', 'clear-text', 'progress', 'dashboard']
   if (config.reporters && Array.isArray(config.reporters)) {
     for (const reporter of config.reporters) {
-      if (typeof reporter === "string" && (reporter.startsWith("@") || reporter.startsWith("stryker-"))) {
+      if (
+        typeof reporter === "string" &&
+        (reporter.startsWith("@") || reporter.startsWith("stryker-"))
+      ) {
         adapter.markPackageAsUsed(reporter);
       }
     }
@@ -94,7 +97,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -103,7 +106,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
             dep === STRYKER_CORE_PACKAGE ||
             dep === STRYKER_CLI_PACKAGE ||
             dep.startsWith("@stryker-mutator/") ||
-            dep.startsWith("stryker-")
+            dep.startsWith("stryker-"),
         )
       ) {
         return true;
@@ -113,9 +116,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bstryker\b/.test(s) || s.includes("stryker run"))
+            (s) => typeof s === "string" && (/\bstryker\b/.test(s) || s.includes("stryker run")),
           )
         ) {
           return true;
@@ -142,7 +143,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -180,10 +181,10 @@ export const StrykerPlugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists("stryker.config.json"))
         ? "stryker.config.json"
         : (await adapter.folderExists("stryker.conf.json"))
-        ? "stryker.conf.json"
-        : (await adapter.folderExists(".stryker.conf.json"))
-        ? ".stryker.conf.json"
-        : null;
+          ? "stryker.conf.json"
+          : (await adapter.folderExists(".stryker.conf.json"))
+            ? ".stryker.conf.json"
+            : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -208,10 +209,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Inspect JS/TS configuration files (stryker.config.js, stryker.conf.js, etc.)
-      if (
-        basename.startsWith("stryker.config.") ||
-        basename.startsWith("stryker.conf.")
-      ) {
+      if (basename.startsWith("stryker.config.") || basename.startsWith("stryker.conf.")) {
         // Mark ES module default export / CommonJS module.exports
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -260,8 +258,8 @@ export const StrykerPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default StrykerPlugin;

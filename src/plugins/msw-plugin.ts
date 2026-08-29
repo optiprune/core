@@ -5,18 +5,18 @@ export const MswPlugin: AnalyzerPlugin = {
   name: "msw-plugin",
   version: "1.1.0",
   detect: async (adapter) => {
-    const pkg = await adapter.readJson('package.json');
-    return !!(pkg?.devDependencies?.['msw'] || pkg?.dependencies?.['msw']);
+    const pkg = await adapter.readJson("package.json");
+    return !!(pkg?.devDependencies?.["msw"] || pkg?.dependencies?.["msw"]);
   },
   lifecycle: {
     onFileStart: (fileId, adapter) => {
       // Common entry points and file conventions for MSW setup
       if (
-        fileId.includes('handlers') || 
-        fileId.includes('mocks/') || 
-        fileId.includes('msw/') ||
-        fileId.includes('browser.') ||
-        fileId.includes('server.')
+        fileId.includes("handlers") ||
+        fileId.includes("mocks/") ||
+        fileId.includes("msw/") ||
+        fileId.includes("browser.") ||
+        fileId.includes("server.")
       ) {
         adapter.markAsUsed(fileId);
       }
@@ -25,7 +25,7 @@ export const MswPlugin: AnalyzerPlugin = {
       // 1. Detect http/rest/graphql request handlers (e.g. http.get, rest.post, graphql.query)
       if (t.isCallExpression(node) && t.isMemberExpression(node.callee)) {
         const objName = (node.callee.object as any)?.name;
-        if (['rest', 'http', 'graphql', 'ws'].includes(objName)) {
+        if (["rest", "http", "graphql", "ws"].includes(objName)) {
           // Mark second argument if it's an identifier (named resolver function)
           const handler = node.arguments[1];
           if (t.isIdentifier(handler)) {
@@ -36,7 +36,7 @@ export const MswPlugin: AnalyzerPlugin = {
 
       // 2. Detect setupServer / setupWorker calls
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
-        if (['setupServer', 'setupWorker'].includes(node.callee.name)) {
+        if (["setupServer", "setupWorker"].includes(node.callee.name)) {
           // Mark arguments passed into setupServer/setupWorker as used
           node.arguments.forEach((arg) => {
             if (t.isIdentifier(arg)) {
@@ -47,8 +47,8 @@ export const MswPlugin: AnalyzerPlugin = {
           });
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MswPlugin;

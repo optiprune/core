@@ -12,13 +12,10 @@ const TEMPORAL_PACKAGES = [
   "@temporalio/testing",
   "@temporalio/envconfig",
   "@temporalio/interceptors",
-  "temporalio"
+  "temporalio",
 ];
 
-const TEMPORAL_CONFIG_FILES = [
-  "temporal.toml",
-  ".config/temporalio/temporal.toml"
-];
+const TEMPORAL_CONFIG_FILES = ["temporal.toml", ".config/temporalio/temporal.toml"];
 
 const TEMPORAL_WORKFLOW_APIS = new Set([
   "proxyActivities",
@@ -30,7 +27,7 @@ const TEMPORAL_WORKFLOW_APIS = new Set([
   "sleep",
   "condition",
   "executeChild",
-  "getParentClosePolicy"
+  "getParentClosePolicy",
 ]);
 
 export const TemporalPlugin: AnalyzerPlugin = {
@@ -44,13 +41,11 @@ export const TemporalPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "temporalio" || dep.startsWith("@temporalio/")
-        )
+        Object.keys(allDeps).some((dep) => dep === "temporalio" || dep.startsWith("@temporalio/"))
       ) {
         return true;
       }
@@ -61,9 +56,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("temporal ") ||
-                s.includes("worker") ||
-                s.includes("workflows"))
+              (s.includes("temporal ") || s.includes("worker") || s.includes("workflows")),
           )
         ) {
           return true;
@@ -91,11 +84,11 @@ export const TemporalPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTemporalDep = Object.keys(allDeps).some(
-        (p) => p === "temporalio" || p.startsWith("@temporalio/")
+        (p) => p === "temporalio" || p.startsWith("@temporalio/"),
       );
 
       // 1. Safeguard installed @temporalio/* packages in package.json
@@ -118,12 +111,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
       }
 
       // 3. Protect conventional workflow & activity directories
-      for (const dir of [
-        "src/workflows",
-        "src/activities",
-        "workflows",
-        "activities"
-      ]) {
+      for (const dir of ["src/workflows", "src/activities", "workflows", "activities"]) {
         if (await adapter.folderExists(dir)) {
           adapter.markAsUsed(dir);
         }
@@ -134,8 +122,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("temporal") ||
-              scriptContent.includes("worker"))
+            (scriptContent.includes("temporal") || scriptContent.includes("worker"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@temporalio/worker");
@@ -145,8 +132,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
 
       // 5. Report missing dependency if configuration or workflows exist without temporal packages
       const hasWorkflowDir =
-        (await adapter.folderExists("src/workflows")) ||
-        (await adapter.folderExists("workflows"));
+        (await adapter.folderExists("src/workflows")) || (await adapter.folderExists("workflows"));
 
       if ((hasConfigFile || hasWorkflowDir) && !hasTemporalDep) {
         adapter.emitFinding({
@@ -156,7 +142,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Temporal configuration or workflows directory found, but '@temporalio/workflow' or '@temporalio/worker' is not listed in package.json.",
-          evidence: { hasConfigFile, hasWorkflowDir }
+          evidence: { hasConfigFile, hasWorkflowDir },
         });
       }
     },
@@ -274,8 +260,8 @@ export const TemporalPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TemporalPlugin;

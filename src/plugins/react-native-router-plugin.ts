@@ -8,7 +8,7 @@ const ROUTER_PACKAGES = [
   "@react-navigation/bottom-tabs",
   "@react-navigation/drawer",
   "@react-navigation/native-stack",
-  "expo-router"
+  "expo-router",
 ];
 
 export const ReactNativeRouterPlugin: AnalyzerPlugin = {
@@ -22,7 +22,7 @@ export const ReactNativeRouterPlugin: AnalyzerPlugin = {
     const allDeps = {
       ...pkg.dependencies,
       ...pkg.devDependencies,
-      ...pkg.peerDependencies
+      ...pkg.peerDependencies,
     };
 
     // Strictly check if navigation or expo-router packages exist in package.json
@@ -37,15 +37,12 @@ export const ReactNativeRouterPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         // Retain navigation packages
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName.startsWith("@react-navigation/") ||
-            depName === "expo-router"
-          ) {
+          if (depName.startsWith("@react-navigation/") || depName === "expo-router") {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -95,10 +92,7 @@ export const ReactNativeRouterPlugin: AnalyzerPlugin = {
         const elementName = node.openingElement.name;
 
         if (elementName?.type === "JSXMemberExpression") {
-          if (
-            t.isJSXIdentifier(elementName.property) &&
-            elementName.property.name === "Screen"
-          ) {
+          if (t.isJSXIdentifier(elementName.property) && elementName.property.name === "Screen") {
             for (const attr of node.openingElement.attributes) {
               if (
                 t.isJSXAttribute(attr) &&
@@ -117,8 +111,8 @@ export const ReactNativeRouterPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ReactNativeRouterPlugin;

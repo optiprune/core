@@ -14,7 +14,7 @@ const LIT_CONFIG_FILES = [
   "web-dev-server.config.cjs",
   "wds.config.mjs",
   "wds.config.js",
-  "wds.config.cjs"
+  "wds.config.cjs",
 ];
 
 const LIT_PACKAGES = [
@@ -26,7 +26,7 @@ const LIT_PACKAGES = [
   "@lit/context",
   "@lit/react",
   "@lit/localize",
-  "@lit/localize-tools"
+  "@lit/localize-tools",
 ];
 
 /**
@@ -59,7 +59,7 @@ export const LitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => isLitPackage(dep))) {
@@ -72,7 +72,7 @@ export const LitPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (/\bwds\b/.test(s) || /\bweb-dev-server\b/.test(s) || /\blit-localize\b/.test(s))
+              (/\bwds\b/.test(s) || /\bweb-dev-server\b/.test(s) || /\blit-localize\b/.test(s)),
           )
         ) {
           return true;
@@ -99,7 +99,7 @@ export const LitPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -209,10 +209,7 @@ export const LitPlugin: AnalyzerPlugin = {
       }
 
       // 4. Protect dev server configuration ASTs (web-dev-server.config.mjs, etc.)
-      if (
-        basename.startsWith("web-dev-server.config.") ||
-        basename.startsWith("wds.config.")
-      ) {
+      if (basename.startsWith("web-dev-server.config.") || basename.startsWith("wds.config.")) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
         }
@@ -228,8 +225,8 @@ export const LitPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default LitPlugin;

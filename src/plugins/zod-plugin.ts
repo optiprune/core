@@ -27,7 +27,7 @@ export const ZodPlugin: AnalyzerPlugin = {
     const allDeps = {
       ...pkg?.dependencies,
       ...pkg?.devDependencies,
-      ...pkg?.peerDependencies
+      ...pkg?.peerDependencies,
     };
     return "zod" in allDeps;
   },
@@ -38,7 +38,7 @@ export const ZodPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // A package.json declaration alone is not usage evidence. Zod imports
@@ -61,8 +61,8 @@ export const ZodPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("zod");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ZodPlugin;

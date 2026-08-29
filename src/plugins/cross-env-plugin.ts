@@ -18,7 +18,7 @@ export const CrossEnvPlugin: AnalyzerPlugin = {
     // Check if cross-env is invoked inside any npm script
     if (pkg.scripts) {
       return Object.values(pkg.scripts).some(
-        (script) => typeof script === "string" && script.includes("cross-env")
+        (script) => typeof script === "string" && script.includes("cross-env"),
       );
     }
 
@@ -56,19 +56,14 @@ export const CrossEnvPlugin: AnalyzerPlugin = {
 
           // 3. Extract target CLI command executed AFTER environment variables
           // Example: "cross-env NODE_ENV=production FOO=bar vite build" -> target CLI is "vite"
-          const tokens = scriptContent
-            .split(/\s+/)
-            .filter((t) => t.trim().length > 0);
+          const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
 
           const crossEnvIndex = tokens.findIndex((t) => t.includes("cross-env"));
           if (crossEnvIndex !== -1) {
             let commandIndex = crossEnvIndex + 1;
 
             // Skip environment variable assignments like VAR=value or VAR="value with spaces"
-            while (
-              commandIndex < tokens.length &&
-              tokens[commandIndex]?.includes("=")
-            ) {
+            while (commandIndex < tokens.length && tokens[commandIndex]?.includes("=")) {
               commandIndex++;
             }
             const targetCommand = tokens[commandIndex];

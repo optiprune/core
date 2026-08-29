@@ -21,7 +21,7 @@ const SENTRY_PACKAGES = [
   "@sentry/babel-plugin",
   "@sentry/cli",
   "@sentry/tracing",
-  "@sentry/profiling-node"
+  "@sentry/profiling-node",
 ];
 
 const SENTRY_CONFIG_FILES = [
@@ -32,7 +32,7 @@ const SENTRY_CONFIG_FILES = [
   "sentry.edge.config.ts",
   "sentry.edge.config.js",
   "sentry.properties",
-  ".sentryclirc"
+  ".sentryclirc",
 ];
 
 export const SentryPlugin: AnalyzerPlugin = {
@@ -45,14 +45,10 @@ export const SentryPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "@sentry/cli" || dep.startsWith("@sentry/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "@sentry/cli" || dep.startsWith("@sentry/"))) {
         return true;
       }
     }
@@ -70,11 +66,11 @@ export const SentryPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasSentry = Object.keys(allDeps).some(
-        (p) => p === "@sentry/cli" || p.startsWith("@sentry/")
+        (p) => p === "@sentry/cli" || p.startsWith("@sentry/"),
       );
 
       let hasConfigFile = false;
@@ -100,8 +96,7 @@ export const SentryPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("sentry-cli") ||
-              scriptContent.includes("@sentry/"))
+            (scriptContent.includes("sentry-cli") || scriptContent.includes("@sentry/"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@sentry/cli");
@@ -117,7 +112,7 @@ export const SentryPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Sentry configuration files found, but '@sentry/*' packages are not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -182,8 +177,8 @@ export const SentryPlugin: AnalyzerPlugin = {
       if (isConfigFile && t.isExportDefaultDeclaration(node)) {
         adapter.markAsUsed(fileId, "default");
       }
-    }
-  }
+    },
+  },
 };
 
 export default SentryPlugin;

@@ -31,7 +31,7 @@ describe("PluginEngine Security - Path Traversal Boundary Tests", () => {
     await fs.writeFile(
       path.join(rootDir, "project.json"),
       JSON.stringify({ name: "my-app", status: "ok" }),
-      "utf8"
+      "utf8",
     );
 
     engine = new PluginEngine();

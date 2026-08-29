@@ -7,7 +7,7 @@ const DEPENDENCY_CRUISER_CONFIG_FILES = [
   ".dependency-cruiser.cjs",
   ".dependency-cruiser.mjs",
   ".dependency-cruiser.ts",
-  ".dependency-cruiser.json"
+  ".dependency-cruiser.json",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -33,7 +33,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if ("dependency-cruiser" in allDeps || pkg.depcruise) {
@@ -46,7 +46,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("depcruise") || s.includes("dependency-cruiser"))
+              (s.includes("depcruise") || s.includes("dependency-cruiser")),
           )
         ) {
           return true;
@@ -68,7 +68,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasDepCruise = "dependency-cruiser" in allDeps;
@@ -98,8 +98,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("depcruise") ||
-              scriptContent.includes("dependency-cruiser"))
+            (scriptContent.includes("depcruise") || scriptContent.includes("dependency-cruiser"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("dependency-cruiser");
@@ -130,7 +129,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "dependency-cruiser configuration found, but 'dependency-cruiser' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.depcruise }
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.depcruise },
         });
       }
     },
@@ -181,9 +180,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
         // Parse referenced configuration files like tsConfig or webpackConfig options
         if (t.isObjectProperty(node) && t.isIdentifier(node.key)) {
           if (
-            ["tsConfig", "webpackConfig", "babelConfig"].includes(
-              node.key.name
-            ) &&
+            ["tsConfig", "webpackConfig", "babelConfig"].includes(node.key.name) &&
             t.isObjectExpression(node.value)
           ) {
             node.value.properties.forEach((prop: any) => {
@@ -199,8 +196,8 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default DependencyCruiserPlugin;

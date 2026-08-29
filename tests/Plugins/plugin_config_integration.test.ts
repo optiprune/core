@@ -19,16 +19,20 @@ const temporaryRoots: string[] = [];
 async function createProject(files: Record<string, string>): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "optiprune-plugin-config-"));
   temporaryRoots.push(root);
-  await Promise.all(Object.entries(files).map(async ([relativePath, content]) => {
-    const target = path.join(root, relativePath);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, content);
-  }));
+  await Promise.all(
+    Object.entries(files).map(async ([relativePath, content]) => {
+      const target = path.join(root, relativePath);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, content);
+    }),
+  );
   return root;
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })),
+  );
 });
 
 describe("Plugin configuration integration", () => {
@@ -47,7 +51,8 @@ describe("Plugin configuration integration", () => {
           },
         },
       }),
-      "src/main.ts": "import { helper } from './helper'; import './suppressed'; console.log(helper);\n",
+      "src/main.ts":
+        "import { helper } from './helper'; import './suppressed'; console.log(helper);\n",
       "src/helper.ts": "export const helper = 1;\n",
       "src/suppressed.ts": "export const intentionallyExposed = 1;\n",
       "src/generated.ts": "export const generatedOnly = 1;\n",
@@ -64,8 +69,17 @@ describe("Plugin configuration integration", () => {
 
     expect(report.entryPoints).toContain("src/main.ts");
     expect(report.entryPoints).toContain("packages/lib/src/index.ts");
-    expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("src/generated.ts"))).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "unused-export" && finding.file.endsWith("src/suppressed.ts"))).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("src/generated.ts"),
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) => finding.rule === "unused-export" && finding.file.endsWith("src/suppressed.ts"),
+      ),
+    ).toBe(false);
   });
 
   it("uses Yarn workspaces as genuine monorepo metadata", async () => {
@@ -95,9 +109,8 @@ describe("Plugin configuration integration", () => {
 
   it("does not classify a next dependency alone as a Next.js application", async () => {
     const nextOnlyAdapter = {
-      readJson: async (file: string) => file === "package.json"
-        ? { dependencies: { next: "1.0.0", react: "1.0.0" } }
-        : null,
+      readJson: async (file: string) =>
+        file === "package.json" ? { dependencies: { next: "1.0.0", react: "1.0.0" } } : null,
       folderExists: async () => false,
     } as any;
 
@@ -106,9 +119,8 @@ describe("Plugin configuration integration", () => {
 
   it("classifies a Next.js app only when a next dependency is corroborated by route evidence", async () => {
     const nextAppAdapter = {
-      readJson: async (file: string) => file === "package.json"
-        ? { dependencies: { next: "1.0.0", react: "1.0.0" } }
-        : null,
+      readJson: async (file: string) =>
+        file === "package.json" ? { dependencies: { next: "1.0.0", react: "1.0.0" } } : null,
       folderExists: async (file: string) => file === "src/app/page.tsx",
     } as any;
 
@@ -117,9 +129,8 @@ describe("Plugin configuration integration", () => {
 
   it("does not classify a JSX compiler setting as React framework ownership", async () => {
     const jsxOnlyAdapter = {
-      readJson: async (file: string) => file === "tsconfig.json"
-        ? { compilerOptions: { jsx: "preserve" } }
-        : {},
+      readJson: async (file: string) =>
+        file === "tsconfig.json" ? { compilerOptions: { jsx: "preserve" } } : {},
     } as any;
 
     await expect(ReactPlugin.detect!(jsxOnlyAdapter)).resolves.toBe(false);
@@ -127,7 +138,8 @@ describe("Plugin configuration integration", () => {
 
   it("does not classify an Expo dependency alone as an Expo application", async () => {
     const adapter = {
-      readJson: async (file: string) => file === "package.json" ? { dependencies: { expo: "1.0.0" } } : null,
+      readJson: async (file: string) =>
+        file === "package.json" ? { dependencies: { expo: "1.0.0" } } : null,
       folderExists: async () => false,
     } as any;
 
@@ -136,9 +148,12 @@ describe("Plugin configuration integration", () => {
 
   it("does not classify a React Native dependency plus a generic manifest as React Native", async () => {
     const adapter = {
-      readJson: async (file: string) => file === "package.json"
-        ? { dependencies: { "react-native": "1.0.0" } }
-        : file === "app.json" ? { name: "generic-web-tool" } : null,
+      readJson: async (file: string) =>
+        file === "package.json"
+          ? { dependencies: { "react-native": "1.0.0" } }
+          : file === "app.json"
+            ? { name: "generic-web-tool" }
+            : null,
       folderExists: async (file: string) => file === "app.json",
     } as any;
 
@@ -147,7 +162,8 @@ describe("Plugin configuration integration", () => {
 
   it("does not classify a Nuxt dependency alone as a Nuxt application", async () => {
     const adapter = {
-      readJson: async (file: string) => file === "package.json" ? { dependencies: { nuxt: "1.0.0" } } : null,
+      readJson: async (file: string) =>
+        file === "package.json" ? { dependencies: { nuxt: "1.0.0" } } : null,
       folderExists: async () => false,
     } as any;
 
@@ -157,7 +173,8 @@ describe("Plugin configuration integration", () => {
   it("does not claim a generic app.json as an Expo configuration", async () => {
     const adapter = {
       folderExists: async (file: string) => file === "app.json",
-      readJson: async (file: string) => file === "app.json" ? { name: "unrelated-tool", version: "1.0.0" } : {},
+      readJson: async (file: string) =>
+        file === "app.json" ? { name: "unrelated-tool", version: "1.0.0" } : {},
     } as any;
 
     await expect(ExpoPlugin.detect!(adapter)).resolves.toBe(false);
@@ -181,11 +198,14 @@ describe("Plugin configuration integration", () => {
       layers: { skip3: true, skip4: true },
     });
 
-    expect(report.findings.some((finding) =>
-      finding.rule === "missing-dependency" &&
-      finding.message.includes("jsdom") &&
-      finding.message.includes("vitest.config.ts")
-    )).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "missing-dependency" &&
+          finding.message.includes("jsdom") &&
+          finding.message.includes("vitest.config.ts"),
+      ),
+    ).toBe(true);
   });
 
   it("does not retain tsx, esbuild, or vite merely because Vitest is configured", async () => {
@@ -201,7 +221,8 @@ describe("Plugin configuration integration", () => {
         scripts: { test: "vitest run" },
       }),
       "src/index.ts": "export const value = 1;\n",
-      "src/index.test.ts": "import { describe, it, expect } from 'vitest'; describe('value', () => it('works', () => expect(1).toBe(1)));\n",
+      "src/index.test.ts":
+        "import { describe, it, expect } from 'vitest'; describe('value', () => it('works', () => expect(1).toBe(1)));\n",
       "vitest.config.ts": "export default { test: { environment: 'node' } };\n",
     });
 
@@ -212,7 +233,10 @@ describe("Plugin configuration integration", () => {
       layers: { skip3: true, skip4: true },
     });
     const unusedDependencies = report.findings
-      .filter((finding) => finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency")
+      .filter(
+        (finding) =>
+          finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency",
+      )
       .map((finding) => String(finding.evidence.package));
 
     expect(unusedDependencies).not.toContain("vitest");
@@ -222,7 +246,8 @@ describe("Plugin configuration integration", () => {
   it("claims a Knip configuration only through a Knip-specific location or package key", async () => {
     const adapter = {
       folderExists: async (file: string) => file === "knip.json",
-      readFile: async (file: string) => file === "knip.json" ? JSON.stringify({ entry: ["src/main.ts"] }) : null,
+      readFile: async (file: string) =>
+        file === "knip.json" ? JSON.stringify({ entry: ["src/main.ts"] }) : null,
       readJson: async () => ({}),
       markAsUsed: () => undefined,
     } as any;

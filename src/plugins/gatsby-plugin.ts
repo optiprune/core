@@ -14,15 +14,10 @@ const GATSBY_CONFIG_FILES = [
   "gatsby-browser.js",
   "gatsby-browser.ts",
   "gatsby-ssr.js",
-  "gatsby-ssr.ts"
+  "gatsby-ssr.ts",
 ];
 
-const GATSBY_CORE_PACKAGES = [
-  "gatsby",
-  "gatsby-cli",
-  "gatsby-script",
-  "gatsby-link"
-];
+const GATSBY_CORE_PACKAGES = ["gatsby", "gatsby-cli", "gatsby-script", "gatsby-link"];
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -47,14 +42,10 @@ export const GatsbyPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "gatsby" || dep.startsWith("gatsby-")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "gatsby" || dep.startsWith("gatsby-"))) {
         return true;
       }
 
@@ -62,7 +53,7 @@ export const GatsbyPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("gatsby ") || s === "gatsby")
+            (s) => typeof s === "string" && (s.includes("gatsby ") || s === "gatsby"),
           )
         ) {
           return true;
@@ -84,12 +75,10 @@ export const GatsbyPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasGatsby = Object.keys(allDeps).some(
-        (p) => p === "gatsby" || p.startsWith("gatsby-")
-      );
+      const hasGatsby = Object.keys(allDeps).some((p) => p === "gatsby" || p.startsWith("gatsby-"));
 
       // 1. Safeguard all installed Gatsby core, plugin, source, and transformer packages in package.json
       if (hasGatsby) {
@@ -138,9 +127,8 @@ export const GatsbyPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Gatsby configuration files found, but 'gatsby' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Gatsby configuration files found, but 'gatsby' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -188,10 +176,7 @@ export const GatsbyPlugin: AnalyzerPlugin = {
         node.callee.name === "require"
       ) {
         const arg = node.arguments[0];
-        if (
-          t.isStringLiteral(arg) &&
-          (arg.value === "gatsby" || arg.value.startsWith("gatsby-"))
-        ) {
+        if (t.isStringLiteral(arg) && (arg.value === "gatsby" || arg.value.startsWith("gatsby-"))) {
           adapter.markPackageAsUsed(arg.value);
           adapter.markAsUsed(fileId);
         }
@@ -285,8 +270,8 @@ export const GatsbyPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default GatsbyPlugin;

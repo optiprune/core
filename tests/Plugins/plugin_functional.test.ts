@@ -13,28 +13,32 @@ describe("Plugin Functional Verification", () => {
       rootDir,
       entry: [], // Empty entry
       includeConventionalEntries: false,
-      reportUnusedExports: true
+      reportUnusedExports: true,
     });
 
     // Svelte file itself should be reachable because of onFileStart
-    const svelteFile = report.findings.find(f => f.file.includes("svelte-component.svelte") && f.rule === "unreachable-file");
+    const svelteFile = report.findings.find(
+      (f) => f.file.includes("svelte-component.svelte") && f.rule === "unreachable-file",
+    );
     expect(svelteFile).toBeUndefined();
   });
 
   it("should protect Angular components and decorators", async () => {
     // We create a dummy angular.json to trigger detection in the test
-    const angularJsonPath = path.join(rootDir, 'angular.json');
-    await fs.writeFile(angularJsonPath, '{}');
+    const angularJsonPath = path.join(rootDir, "angular.json");
+    await fs.writeFile(angularJsonPath, "{}");
 
     try {
       const report = await analyze({
         rootDir,
-        entry: [], 
+        entry: [],
         includeConventionalEntries: false,
-        reportUnusedExports: true
+        reportUnusedExports: true,
       });
 
-      const unreachableFile = report.findings.find(f => f.rule === "unreachable-file" && f.file.includes("angular-component.ts"));
+      const unreachableFile = report.findings.find(
+        (f) => f.rule === "unreachable-file" && f.file.includes("angular-component.ts"),
+      );
       expect(unreachableFile).toBeUndefined();
     } finally {
       await fs.unlink(angularJsonPath).catch(() => {});

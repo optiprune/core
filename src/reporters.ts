@@ -2,7 +2,10 @@ import type { AnalysisReport, Finding } from "./types.js";
 import path from "pathe";
 import fs from "node:fs";
 
-export function formatTerminal(report: AnalysisReport, options: { showCycles?: boolean } = {}): string {
+export function formatTerminal(
+  report: AnalysisReport,
+  options: { showCycles?: boolean } = {},
+): string {
   const lines: string[] = [];
   lines.push(`\x1b[1mOptiprune Analysis Report v${report.version}\x1b[0m`);
   lines.push(`Root: ${report.rootDir}`);
@@ -11,7 +14,9 @@ export function formatTerminal(report: AnalysisReport, options: { showCycles?: b
   const summary = report.summary;
   lines.push(`\x1b[1mSummary:\x1b[0m`);
   lines.push(`  Files: ${summary.filesDiscovered} discovered, ${summary.filesParsed} parsed`);
-  lines.push(`  Findings: ${summary.findings} total (\x1b[31m${summary.errors} errors\x1b[0m, \x1b[33m${summary.warnings} warnings\x1b[0m)`);
+  lines.push(
+    `  Findings: ${summary.findings} total (\x1b[31m${summary.errors} errors\x1b[0m, \x1b[33m${summary.warnings} warnings\x1b[0m)`,
+  );
   if (options.showCycles) {
     const cycles = report.components.filter((component) => component.isCycle);
     lines.push(`  Cycles: ${cycles.length}`);
@@ -34,12 +39,16 @@ export function formatTerminal(report: AnalysisReport, options: { showCycles?: b
     }
 
     const severityColor = finding.severity === "error" ? "\x1b[31m" : "\x1b[33m";
-    const loc = finding.location ? `:${finding.location.start.line}:${finding.location.start.column}` : "";
-    lines.push(`  ${severityColor}${finding.severity.toUpperCase()}\x1b[0m [${finding.rule}] ${finding.message}`);
-    
+    const loc = finding.location
+      ? `:${finding.location.start.line}:${finding.location.start.column}`
+      : "";
+    lines.push(
+      `  ${severityColor}${finding.severity.toUpperCase()}\x1b[0m [${finding.rule}] ${finding.message}`,
+    );
+
     if (finding.location) {
-        // Simple snippet display (in a real CLI, we'd read the file and show the line)
-        lines.push(`    at ${finding.file}${loc} (Confidence: ${finding.confidence})`);
+      // Simple snippet display (in a real CLI, we'd read the file and show the line)
+      lines.push(`    at ${finding.file}${loc} (Confidence: ${finding.confidence})`);
     }
   }
 
@@ -57,13 +66,13 @@ export function formatSarif(report: AnalysisReport): string {
             name: "Optiprune",
             version: report.version,
             informationUri: "https://github.com/optiprune/core",
-            rules: Array.from(new Set(report.findings.map(f => f.rule))).map(ruleId => ({
+            rules: Array.from(new Set(report.findings.map((f) => f.rule))).map((ruleId) => ({
               id: ruleId,
-              shortDescription: { text: `Optiprune rule: ${ruleId}` }
-            }))
-          }
+              shortDescription: { text: `Optiprune rule: ${ruleId}` },
+            })),
+          },
         },
-        results: report.findings.map(finding => ({
+        results: report.findings.map((finding) => ({
           ruleId: finding.rule,
           level: finding.severity === "error" ? "error" : "warning",
           message: { text: finding.message },
@@ -71,22 +80,24 @@ export function formatSarif(report: AnalysisReport): string {
             {
               physicalLocation: {
                 artifactLocation: { uri: finding.file },
-                region: finding.location ? {
-                  startLine: finding.location.start.line,
-                  startColumn: finding.location.start.column,
-                  endLine: finding.location.end.line,
-                  endColumn: finding.location.end.column
-                } : undefined
-              }
-            }
+                region: finding.location
+                  ? {
+                      startLine: finding.location.start.line,
+                      startColumn: finding.location.start.column,
+                      endLine: finding.location.end.line,
+                      endColumn: finding.location.end.column,
+                    }
+                  : undefined,
+              },
+            },
           ],
           properties: {
             confidence: finding.confidence,
-            evidence: finding.evidence
-          }
-        }))
-      }
-    ]
+            evidence: finding.evidence,
+          },
+        })),
+      },
+    ],
   };
 
   return JSON.stringify(sarif, null, 2);

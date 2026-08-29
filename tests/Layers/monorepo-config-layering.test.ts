@@ -13,14 +13,19 @@ describe("monorepo configuration layering", () => {
       layers: { skip3: true, skip4: true },
     });
 
-    expect(report.entryPoints).toEqual(expect.arrayContaining([
-      "src/index.ts",
-      "packages/app/src/main.ts",
-      "packages/lib/src/index.ts",
-    ]));
+    expect(report.entryPoints).toEqual(
+      expect.arrayContaining([
+        "src/index.ts",
+        "packages/app/src/main.ts",
+        "packages/lib/src/index.ts",
+      ]),
+    );
 
     const unusedPackages = report.findings
-      .filter((finding) => finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency")
+      .filter(
+        (finding) =>
+          finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency",
+      )
       .map((finding) => String(finding.evidence.package))
       .sort();
     expect(unusedPackages).toEqual(["app-unused", "lib-unused", "root-unused"]);
@@ -29,7 +34,11 @@ describe("monorepo configuration layering", () => {
       .filter((finding) => finding.rule === "unreachable-file")
       .map((finding) => String(finding.file));
     expect(unreachableFiles.some((file) => file.endsWith("root-generated/dead.ts"))).toBe(false);
-    expect(unreachableFiles.some((file) => file.endsWith("packages/app/generated/dead.ts"))).toBe(false);
-    expect(unreachableFiles.some((file) => file.endsWith("packages/lib/generated/dead.ts"))).toBe(true);
+    expect(unreachableFiles.some((file) => file.endsWith("packages/app/generated/dead.ts"))).toBe(
+      false,
+    );
+    expect(unreachableFiles.some((file) => file.endsWith("packages/lib/generated/dead.ts"))).toBe(
+      true,
+    );
   });
 });

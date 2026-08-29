@@ -9,7 +9,12 @@ const PACKAGE_CACHE = new Map<string, boolean>();
  *   "lodash/get"         -> "lodash"
  */
 export function extractBasePackageName(specifier: string): string | null {
-  if (!specifier || specifier.startsWith(".") || specifier.startsWith("/") || specifier.startsWith("#")) {
+  if (
+    !specifier ||
+    specifier.startsWith(".") ||
+    specifier.startsWith("/") ||
+    specifier.startsWith("#")
+  ) {
     return null;
   }
   if (specifier.startsWith("@")) {
@@ -41,7 +46,7 @@ export async function verifyPackageExists(pkgName: string, adapter: any): Promis
     const encoded = pkgName.replace("/", "%2f");
     const response = await fetch(`https://registry.npmjs.org/${encoded}`, {
       method: "HEAD",
-      headers: { "Accept": "application/vnd.npm.install-v1+json" }
+      headers: { Accept: "application/vnd.npm.install-v1+json" },
     });
 
     const exists = response.status === 200;

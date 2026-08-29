@@ -2,18 +2,9 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const AVA_CONFIG_FILES = [
-  "ava.config.js",
-  "ava.config.cjs",
-  "ava.config.mjs",
-  "ava.config.ts"
-];
+const AVA_CONFIG_FILES = ["ava.config.js", "ava.config.cjs", "ava.config.mjs", "ava.config.ts"];
 
-const AVA_ECOSYSTEM_PACKAGES = [
-  "ava",
-  "@ava/typescript",
-  "@ava/babel"
-];
+const AVA_ECOSYSTEM_PACKAGES = ["ava", "@ava/typescript", "@ava/babel"];
 
 /**
  * Normalizes package names from import/require specs (handles scoped packages)
@@ -37,7 +28,7 @@ export const AvaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if ("ava" in allDeps || pkg.ava) {
         return true;
@@ -45,11 +36,7 @@ export const AvaPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("ava") || s === "ava")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && (s.includes("ava") || s === "ava"))) {
           return true;
         }
       }
@@ -68,7 +55,7 @@ export const AvaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasAvaDep = "ava" in allDeps;
@@ -132,7 +119,7 @@ export const AvaPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Ava configuration found, but 'ava' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -243,8 +230,8 @@ export const AvaPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default AvaPlugin;

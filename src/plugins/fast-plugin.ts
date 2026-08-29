@@ -5,11 +5,7 @@ import path from "pathe";
 /**
  * Recognized FAST configuration and manifest files
  */
-const FAST_CONFIG_FILES = [
-  "custom-elements.json",
-  "fast-cli.config.json",
-  ".fast-cli.json"
-];
+const FAST_CONFIG_FILES = ["custom-elements.json", "fast-cli.config.json", ".fast-cli.json"];
 
 /**
  * Helper to check if an import source is part of the Microsoft FAST ecosystem
@@ -41,7 +37,7 @@ export const FastPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => isFastPackage(dep))) {
@@ -68,7 +64,7 @@ export const FastPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -144,11 +140,7 @@ export const FastPlugin: AnalyzerPlugin = {
         const obj = node.callee.object;
         const prop = node.callee.property;
 
-        if (
-          t.isIdentifier(prop) &&
-          prop.name === "define" &&
-          t.isIdentifier(obj)
-        ) {
+        if (t.isIdentifier(prop) && prop.name === "define" && t.isIdentifier(obj)) {
           if (obj.name === "FASTElement") {
             adapter.markAsUsed(fileId);
             adapter.markPackageAsUsed("@microsoft/fast-element");
@@ -158,8 +150,8 @@ export const FastPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default FastPlugin;

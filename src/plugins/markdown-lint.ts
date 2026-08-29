@@ -14,14 +14,14 @@ const MARKDOWNLINT_CONFIG_FILES = [
   ".markdownlint-cli2.yaml",
   ".markdownlint-cli2.cjs",
   ".markdownlint-cli2.mjs",
-  ".markdownlint-cli2.js"
+  ".markdownlint-cli2.js",
 ];
 
 const MARKDOWNLINT_PACKAGES = [
   "markdownlint",
   "markdownlint-cli",
   "markdownlint-cli2",
-  "markdownlint-rule-helpers"
+  "markdownlint-rule-helpers",
 ];
 
 export const MarkdownlintPlugin: AnalyzerPlugin = {
@@ -34,7 +34,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (MARKDOWNLINT_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -46,7 +46,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("markdownlint") || s.includes("markdownlint-cli2"))
+              (s.includes("markdownlint") || s.includes("markdownlint-cli2")),
           )
         ) {
           return true;
@@ -67,7 +67,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasMarkdownlintDep = MARKDOWNLINT_PACKAGES.some((p) => p in allDeps);
@@ -107,12 +107,10 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
             }
 
             // Extract target markdown files/globs (e.g., "markdownlint '**/*.md'")
-            const tokens = scriptContent
-              .split(/\s+/)
-              .filter((t) => t.trim().length > 0);
+            const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
 
             const mlIndex = tokens.findIndex(
-              (t) => t.includes("markdownlint") || t.includes("markdownlint-cli2")
+              (t) => t.includes("markdownlint") || t.includes("markdownlint-cli2"),
             );
 
             if (mlIndex !== -1) {
@@ -123,11 +121,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
                 if (!token) break;
 
                 if (token.startsWith("-")) {
-                  if (
-                    ["-c", "--config", "-i", "--ignore", "-r", "--rules"].includes(
-                      token
-                    )
-                  ) {
+                  if (["-c", "--config", "-i", "--ignore", "-r", "--rules"].includes(token)) {
                     argIdx += 2;
                   } else {
                     argIdx += 1;
@@ -160,7 +154,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Markdownlint configuration file found, but 'markdownlint' / 'markdownlint-cli' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -184,10 +178,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
       // 1. Detect ESM imports for markdownlint / custom rule helpers
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          MARKDOWNLINT_PACKAGES.includes(source) ||
-          source.startsWith("markdownlint-rule-")
-        ) {
+        if (MARKDOWNLINT_PACKAGES.includes(source) || source.startsWith("markdownlint-rule-")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
@@ -202,8 +193,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
         const arg = node.arguments[0];
         if (
           t.isStringLiteral(arg) &&
-          (MARKDOWNLINT_PACKAGES.includes(arg.value) ||
-            arg.value.startsWith("markdownlint-rule-"))
+          (MARKDOWNLINT_PACKAGES.includes(arg.value) || arg.value.startsWith("markdownlint-rule-"))
         ) {
           adapter.markPackageAsUsed(arg.value);
           adapter.markAsUsed(fileId);
@@ -228,8 +218,8 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("markdownlint");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MarkdownlintPlugin;

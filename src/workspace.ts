@@ -1,9 +1,9 @@
-import path from 'pathe';
-import fs from 'node:fs';
-import fg from 'fast-glob';
-import * as yaml from 'js-yaml';
-import { normalizeAbsolute, normalizeCanonicalPath, readJsonFile } from './fs-utils.js';
-import type { WorkspacePackage, MonorepoGraph } from './types.js';
+import path from "pathe";
+import fs from "node:fs";
+import fg from "fast-glob";
+import * as yaml from "js-yaml";
+import { normalizeAbsolute, normalizeCanonicalPath, readJsonFile } from "./fs-utils.js";
+import type { WorkspacePackage, MonorepoGraph } from "./types.js";
 
 /**
  * Resolves all sub-packages in a Monorepo workspace.
@@ -16,14 +16,14 @@ export async function buildMonorepoTopology(
 ): Promise<MonorepoGraph> {
   const absoluteRoot = normalizeAbsolute(rootPath);
   const packageMap = new Map<string, WorkspacePackage>();
-  
+
   const packageGlobs: string[] = [...pluginWorkspaceGlobs];
 
   // 1. Detect pnpm-workspace.yaml
-  const pnpmWorkspacePath = path.join(absoluteRoot, 'pnpm-workspace.yaml');
+  const pnpmWorkspacePath = path.join(absoluteRoot, "pnpm-workspace.yaml");
   if (fs.existsSync(pnpmWorkspacePath)) {
     try {
-      const content = fs.readFileSync(pnpmWorkspacePath, 'utf-8');
+      const content = fs.readFileSync(pnpmWorkspacePath, "utf-8");
       const doc = yaml.load(content) as any;
       if (doc?.packages && Array.isArray(doc.packages)) {
         packageGlobs.push(...doc.packages);
@@ -33,27 +33,30 @@ export async function buildMonorepoTopology(
     }
   }
 
-    // 2. Detect Yarn/NPM workspaces in package.json
-  const rootPackageJsonPath = path.join(absoluteRoot, 'package.json');
+  // 2. Detect Yarn/NPM workspaces in package.json
+  const rootPackageJsonPath = path.join(absoluteRoot, "package.json");
   if (fs.existsSync(rootPackageJsonPath)) {
     const rootManifest = await readJsonFile<Record<string, any>>(rootPackageJsonPath);
     if (rootManifest) {
       if (Array.isArray(rootManifest.workspaces)) {
         packageGlobs.push(...rootManifest.workspaces);
-      } else if (rootManifest.workspaces?.packages && Array.isArray(rootManifest.workspaces.packages)) {
+      } else if (
+        rootManifest.workspaces?.packages &&
+        Array.isArray(rootManifest.workspaces.packages)
+      ) {
         packageGlobs.push(...rootManifest.workspaces.packages);
       }
     }
   }
 
   // 3. Detect Bun workspaces from bun.lock (text version)
-  const bunLockPath = path.join(absoluteRoot, 'bun.lock');
+  const bunLockPath = path.join(absoluteRoot, "bun.lock");
   if (fs.existsSync(bunLockPath)) {
     try {
-      const lockContent = fs.readFileSync(bunLockPath, 'utf-8');
-      const cleanJson = lockContent.replace(/,(\s*[\]}])/g, '$1');
+      const lockContent = fs.readFileSync(bunLockPath, "utf-8");
+      const cleanJson = lockContent.replace(/,(\s*[\]}])/g, "$1");
       const lock = JSON.parse(cleanJson);
-      if (lock.workspaces && typeof lock.workspaces === 'object') {
+      if (lock.workspaces && typeof lock.workspaces === "object") {
         for (const relPath of Object.keys(lock.workspaces)) {
           if (relPath !== "") {
             packageGlobs.push(relPath);
@@ -65,25 +68,29 @@ export async function buildMonorepoTopology(
     }
   }
 
-  const uniquePackageGlobs = Array.from(new Set(packageGlobs.filter((glob) => typeof glob === "string" && glob.trim().length > 0)));
+  const uniquePackageGlobs = Array.from(
+    new Set(packageGlobs.filter((glob) => typeof glob === "string" && glob.trim().length > 0)),
+  );
 
   // Default to common patterns if nothing found
   if (uniquePackageGlobs.length === 0) {
-    packageGlobs.push('packages/*', 'apps/*');
+    packageGlobs.push("packages/*", "apps/*");
   }
 
   // 3. Find all package.json files matching the globs
   let manifestFiles = await fg(
-    (uniquePackageGlobs.length > 0 ? uniquePackageGlobs : packageGlobs).map(g => path.posix.join(g, 'package.json')),
-    { cwd: absoluteRoot, absolute: true, ignore: ['**/node_modules/**', ...discoveryIgnoreGlobs] }
+    (uniquePackageGlobs.length > 0 ? uniquePackageGlobs : packageGlobs).map((g) =>
+      path.posix.join(g, "package.json"),
+    ),
+    { cwd: absoluteRoot, absolute: true, ignore: ["**/node_modules/**", ...discoveryIgnoreGlobs] },
   );
 
   // Auto-discovery: If no packages found via standard globs, search for any package.json
   if (manifestFiles.length === 0) {
-    manifestFiles = await fg('**/package.json', {
+    manifestFiles = await fg("**/package.json", {
       cwd: absoluteRoot,
       absolute: true,
-      ignore: ['**/node_modules/**', 'package.json', ...discoveryIgnoreGlobs]
+      ignore: ["**/node_modules/**", "package.json", ...discoveryIgnoreGlobs],
     });
   }
 
@@ -125,7 +132,7 @@ export async function buildMonorepoTopology(
   const visiting = new Set<string>();
 
   function visit(name: string) {
-    if (visiting.has(name)) return; 
+    if (visiting.has(name)) return;
     if (visited.has(name)) return;
 
     visiting.add(name);

@@ -2,10 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const NODEMON_CONFIG_FILES = [
-  "nodemon.json",
-  ".nodemonignore"
-];
+const NODEMON_CONFIG_FILES = ["nodemon.json", ".nodemonignore"];
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -30,7 +27,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if ("nodemon" in allDeps || pkg.nodemonConfig) {
@@ -41,8 +38,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("nodemon ") || s === "nodemon")
+            (s) => typeof s === "string" && (s.includes("nodemon ") || s === "nodemon"),
           )
         ) {
           return true;
@@ -64,7 +60,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasNodemonDep = "nodemon" in allDeps;
@@ -140,9 +136,8 @@ export const NodemonPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Nodemon configuration found, but 'nodemon' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.nodemonConfig }
+          message: "Nodemon configuration found, but 'nodemon' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.nodemonConfig },
         });
       }
     },
@@ -180,8 +175,8 @@ export const NodemonPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processNodemonConfigObj(configObj: Record<string, any>, adapter: any): void {

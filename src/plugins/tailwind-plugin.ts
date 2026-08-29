@@ -6,7 +6,7 @@ const TAILWIND_CONFIG_FILES = [
   "tailwind.config.js",
   "tailwind.config.ts",
   "tailwind.config.cjs",
-  "tailwind.config.mjs"
+  "tailwind.config.mjs",
 ];
 
 const TAILWIND_PACKAGES = [
@@ -18,7 +18,7 @@ const TAILWIND_PACKAGES = [
   "@tailwindcss/forms",
   "@tailwindcss/aspect-ratio",
   "@tailwindcss/container-queries",
-  "tailwindcss-animate"
+  "tailwindcss-animate",
 ];
 
 export const TailwindPlugin: AnalyzerPlugin = {
@@ -47,7 +47,7 @@ export const TailwindPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTailwindDep = TAILWIND_PACKAGES.some((p) => p in allDeps);
@@ -90,7 +90,7 @@ export const TailwindPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Tailwind configuration found but 'tailwindcss' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -146,21 +146,28 @@ export const TailwindPlugin: AnalyzerPlugin = {
         if (keyName === "plugins" && t.isArrayExpression(node.value)) {
           node.value.elements.forEach((el: any) => {
             // Case A: require('@tailwindcss/typography')
-            if (t.isCallExpression(el) && t.isIdentifier(el.callee) && el.callee.name === "require") {
+            if (
+              t.isCallExpression(el) &&
+              t.isIdentifier(el.callee) &&
+              el.callee.name === "require"
+            ) {
               const arg = el.arguments[0];
               if (t.isStringLiteral(arg)) {
                 adapter.markPackageAsUsed(arg.value);
               }
-            } 
+            }
             // Case B: '@tailwindcss/typography' string literal
-            else if (t.isStringLiteral(el) || (el.type === "Literal" && typeof el.value === "string")) {
+            else if (
+              t.isStringLiteral(el) ||
+              (el.type === "Literal" && typeof el.value === "string")
+            ) {
               adapter.markPackageAsUsed(el.value);
             }
           });
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TailwindPlugin;

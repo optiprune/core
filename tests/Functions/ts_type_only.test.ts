@@ -1,6 +1,6 @@
 /**
  * Regression tests: TypeScript type-only exports are now reported if truly unused.
- * 
+ *
  * Fix 3 Update:
  * Previously, all type-only exports were unconditionally skipped to avoid false positives
  * because local references were not tracked. Now that we track local references,

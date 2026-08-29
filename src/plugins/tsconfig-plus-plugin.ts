@@ -11,15 +11,10 @@ const DEFAULT_TSCONFIG_VARIANTS = [
   "tsconfig.node.json",
   "tsconfig.base.json",
   "tsconfig.lib.json",
-  "tsconfig.eslint.json"
+  "tsconfig.eslint.json",
 ];
 
-const TYPESCRIPT_PACKAGES = [
-  "typescript",
-  "ts-node",
-  "tsx",
-  "@types/node"
-];
+const TYPESCRIPT_PACKAGES = ["typescript", "ts-node", "tsx", "@types/node"];
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -49,7 +44,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => TYPESCRIPT_PACKAGES.includes(dep))) {
@@ -61,8 +56,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
         if (
           scriptValues.some(
             (s) =>
-              typeof s === "string" &&
-              (s.includes("tsc ") || s === "tsc" || s.includes("tsc--"))
+              typeof s === "string" && (s.includes("tsc ") || s === "tsc" || s.includes("tsc--")),
           )
         ) {
           return true;
@@ -79,7 +73,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTs = "typescript" in allDeps;
@@ -135,7 +129,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "TypeScript configuration file found, but 'typescript' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -160,8 +154,8 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 /**

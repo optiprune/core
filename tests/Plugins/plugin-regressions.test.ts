@@ -34,10 +34,13 @@ afterEach(async () => {
 describe("OptiPrune regressions", () => {
   it("does not let knip.json project patterns shrink Core discovery", async () => {
     await writePackage({ name: "knip-isolation", private: true });
-    await writeFixture("knip.json", JSON.stringify({
-      entry: ["src/main.ts"],
-      project: ["src/main.ts"],
-    }));
+    await writeFixture(
+      "knip.json",
+      JSON.stringify({
+        entry: ["src/main.ts"],
+        project: ["src/main.ts"],
+      }),
+    );
     await writeFixture("src/main.ts", "export const main = true;\n");
     await writeFixture("src/also-discoverable.ts", "export const extra = true;\n");
 
@@ -60,29 +63,34 @@ describe("OptiPrune regressions", () => {
         "typescript-eslint": "8.0.0",
       },
     });
-    await writeFixture("eslint.config.mjs", [
-      "import eslint from '@eslint/js';",
-      "import importPlugin from 'eslint-plugin-import';",
-      "import react from 'eslint-plugin-react';",
-      "import tseslint from 'typescript-eslint';",
-      "export default [{ plugins: { import: importPlugin, react },",
-      "  languageOptions: { parser: tseslint.parser },",
-      "  settings: { 'import/resolver': { typescript: true } },",
-      "  rules: eslint.configs.recommended.rules }];",
-    ].join("\n"));
+    await writeFixture(
+      "eslint.config.mjs",
+      [
+        "import eslint from '@eslint/js';",
+        "import importPlugin from 'eslint-plugin-import';",
+        "import react from 'eslint-plugin-react';",
+        "import tseslint from 'typescript-eslint';",
+        "export default [{ plugins: { import: importPlugin, react },",
+        "  languageOptions: { parser: tseslint.parser },",
+        "  settings: { 'import/resolver': { typescript: true } },",
+        "  rules: eslint.configs.recommended.rules }];",
+      ].join("\n"),
+    );
 
     const report = await analyzeFixture({ entry: ["eslint.config.mjs"], extensions: [".mjs"] });
     const unused = report.findings
       .filter((finding) => finding.rule === "unused-dev-dependency")
       .map((finding) => finding.evidence.package);
 
-    expect(unused).not.toEqual(expect.arrayContaining([
-      "@eslint/js",
-      "eslint-plugin-import",
-      "eslint-plugin-react",
-      "eslint-import-resolver-typescript",
-      "typescript-eslint",
-    ]));
+    expect(unused).not.toEqual(
+      expect.arrayContaining([
+        "@eslint/js",
+        "eslint-plugin-import",
+        "eslint-plugin-react",
+        "eslint-import-resolver-typescript",
+        "typescript-eslint",
+      ]),
+    );
   });
 
   it("resolves a binary from a same-named npm script through a dependency bin field", async () => {
@@ -92,19 +100,28 @@ describe("OptiPrune regressions", () => {
       scripts: { optiprune: "optiprune" },
       devDependencies: { "@optiprune/cli": "1.2.23" },
     });
-    await writeFixture("node_modules/@optiprune/cli/package.json", JSON.stringify({
-      name: "@optiprune/cli",
-      bin: { optiprune: "dist/cli.js" },
-    }));
+    await writeFixture(
+      "node_modules/@optiprune/cli/package.json",
+      JSON.stringify({
+        name: "@optiprune/cli",
+        bin: { optiprune: "dist/cli.js" },
+      }),
+    );
 
     const report = await analyzeFixture();
 
-    expect(report.findings.some((finding) =>
-      finding.rule === "unused-dev-dependency" && finding.evidence.package === "@optiprune/cli"
-    )).toBe(false);
-    expect(report.findings.some((finding) =>
-      finding.rule === "missing-dependency" && finding.evidence.package === "optiprune"
-    )).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" && finding.evidence.package === "@optiprune/cli",
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "missing-dependency" && finding.evidence.package === "optiprune",
+      ),
+    ).toBe(false);
   });
 
   it("protects the OptiPrune Core, CLI, and binary package names", async () => {
@@ -123,27 +140,35 @@ describe("OptiPrune regressions", () => {
       .filter((finding) => finding.rule === "unused-dev-dependency")
       .map((finding) => finding.evidence.package);
 
-    expect(unused).not.toEqual(expect.arrayContaining([
-      "@optiprune/core",
-      "@optiprune/cli",
-      "optiprune",
-    ]));
+    expect(unused).not.toEqual(
+      expect.arrayContaining(["@optiprune/core", "@optiprune/cli", "optiprune"]),
+    );
   });
 
   it("does not report members read from an imported factory return type or typed destructuring", async () => {
     await writePackage({ name: "member-usage", private: true });
-    await writeFixture("src/config.ts", [
-      "export interface Config { name: string; color: string }",
-      "export function createConfig(): Config { return { name: 'demo', color: 'blue' }; }",
-    ].join("\n"));
-    await writeFixture("src/app.ts", [
-      "import { createConfig } from './config';",
-      "import type { Config } from './config';",
-      "const config = createConfig();",
-      "export function render({ name, color }: Config): string { return `${name}:${color}:${config.name}:${config.color}`; }",
-    ].join("\n"));
+    await writeFixture(
+      "src/config.ts",
+      [
+        "export interface Config { name: string; color: string }",
+        "export function createConfig(): Config { return { name: 'demo', color: 'blue' }; }",
+      ].join("\n"),
+    );
+    await writeFixture(
+      "src/app.ts",
+      [
+        "import { createConfig } from './config';",
+        "import type { Config } from './config';",
+        "const config = createConfig();",
+        "export function render({ name, color }: Config): string { return `${name}:${color}:${config.name}:${config.color}`; }",
+      ].join("\n"),
+    );
 
-    const report = await analyzeFixture({ entry: ["src/app.ts"], extensions: [".ts"], reportUnusedExports: true });
+    const report = await analyzeFixture({
+      entry: ["src/app.ts"],
+      extensions: [".ts"],
+      reportUnusedExports: true,
+    });
 
     expect(report.findings.some((finding) => finding.rule === "unused-member")).toBe(false);
   });

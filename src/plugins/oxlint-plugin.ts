@@ -30,14 +30,17 @@ function hasOxlintDependency(packageJson: any): boolean {
 }
 
 function isOxlintScript(script: string): boolean {
-  return /(?:^|[\s&|;])oxlint(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?oxlint\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?oxlint\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?oxlint\b/.test(script);
+  return (
+    /(?:^|[\s&|;])oxlint(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?oxlint\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?oxlint\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?oxlint\b/.test(script)
+  );
 }
 
 function referencedOptionPaths(script: string, option: string, shortOption?: string): string[] {
-  const alternatives = [option, shortOption].filter((value): value is string => !!value)
+  const alternatives = [option, shortOption]
+    .filter((value): value is string => !!value)
     .map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   if (alternatives.length === 0) return [];
   const matcher = new RegExp(`(?:${alternatives.join("|")})(?:=|\\s+)([^\\s]+)`, "g");
@@ -75,7 +78,9 @@ export const OxlintPlugin: AnalyzerPlugin = {
     }
 
     if ((await adapter.findFiles(OXLINT_CONFIG_BASENAMES)).length > 0) return true;
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isOxlintScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isOxlintScript(script),
+    );
   },
 
   lifecycle: {
@@ -115,7 +120,8 @@ export const OxlintPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "OXLint configuration or command found, but 'oxlint' is not listed in package.json.",
+          message:
+            "OXLint configuration or command found, but 'oxlint' is not listed in package.json.",
           evidence: { configFiles, hasScriptInvocation },
         });
       }

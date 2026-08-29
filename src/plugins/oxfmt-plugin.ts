@@ -8,7 +8,7 @@ const OXFMT_CONFIG_FILES = [
   ".oxfmtrc.jsonc",
   "oxfmt.json",
   "oxfmt.jsonc",
-  ".oxfmtignore"
+  ".oxfmtignore",
 ];
 
 const OXFMT_PACKAGE_NAME = "oxfmt";
@@ -41,7 +41,7 @@ export const OxfmtPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("oxfmt") || s.includes("npx oxfmt") || s.includes("bunx oxfmt"))
+              (s.includes("oxfmt") || s.includes("npx oxfmt") || s.includes("bunx oxfmt")),
           )
         ) {
           return true;
@@ -125,8 +125,8 @@ export const OxfmtPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default OxfmtPlugin;

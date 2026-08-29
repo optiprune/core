@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const fixturesDir = path.resolve(__dirname,"..", "fixtures");
+const fixturesDir = path.resolve(__dirname, "..", "fixtures");
 
 describe("Optiprune Analyzer", () => {
   it("should handle circular dependencies and report unused exports within a cycle", async () => {
@@ -26,11 +26,15 @@ describe("Optiprune Analyzer", () => {
     const unreachableFileFinding = report.findings.find((f) => f.rule === "unreachable-file");
     expect(unreachableFileFinding).toBeUndefined(); // Both files are reachable from each other
 
-    const unusedA = report.findings.find((f) => f.rule === "unused-export" && f.evidence.exportName === "unusedA");
+    const unusedA = report.findings.find(
+      (f) => f.rule === "unused-export" && f.evidence.exportName === "unusedA",
+    );
     expect(unusedA).toBeDefined();
     expect(unusedA?.confidence).toBe("high");
 
-    const unusedB = report.findings.find((f) => f.rule === "unused-export" && f.evidence.exportName === "unusedB");
+    const unusedB = report.findings.find(
+      (f) => f.rule === "unused-export" && f.evidence.exportName === "unusedB",
+    );
     expect(unusedB).toBeDefined();
     expect(unusedB?.confidence).toBe("high");
     expect(shouldFail(report, "none")).toBe(false);
@@ -39,14 +43,16 @@ describe("Optiprune Analyzer", () => {
 
   it("does not fail when the only finding is an unresolved import", () => {
     const report = {
-      findings: [{
-        rule: "unresolved-import",
-        severity: "info",
-        confidence: "high",
-        message: "Unresolved import specifier: 'missing-package'",
-        file: "src/main.ts",
-        evidence: {},
-      }],
+      findings: [
+        {
+          rule: "unresolved-import",
+          severity: "info",
+          confidence: "high",
+          message: "Unresolved import specifier: 'missing-package'",
+          file: "src/main.ts",
+          evidence: {},
+        },
+      ],
     } as any;
     expect(shouldFail(report, "high")).toBe(false);
   });
@@ -96,7 +102,9 @@ describe("Optiprune Analyzer", () => {
     expect(parseError?.severity).toBe("error"); // Expecting an error for unrecoverable syntax
     expect(parseError?.message).toContain("Parse failed");
 
-    const validExport = report.findings.find((f) => f.rule === "unused-export" && f.evidence.exportName === "validExport");
+    const validExport = report.findings.find(
+      (f) => f.rule === "unused-export" && f.evidence.exportName === "validExport",
+    );
     expect(validExport).toBeDefined(); // Fallback parsing should detect this unused export.
     expect(validExport?.confidence).toBe("low");
   });
@@ -115,7 +123,6 @@ describe("Optiprune Analyzer", () => {
       reportUnusedExports: false,
       includeConventionalEntries: false,
     });
-
 
     expect(report).toBeDefined();
     expect(report.summary).toBeDefined();
@@ -140,7 +147,10 @@ describe("Optiprune Analyzer", () => {
 
     await fs.promises.writeFile(
       path.join(testDir, "package.json"),
-      JSON.stringify({ name: "dependency-audit-no-dts-test", dependencies: { "unused-pkg": "1.0.0" } }),
+      JSON.stringify({
+        name: "dependency-audit-no-dts-test",
+        dependencies: { "unused-pkg": "1.0.0" },
+      }),
     );
     await fs.promises.writeFile(path.join(testDir, "entry.ts"), "console.log('entry');\n");
 
@@ -154,7 +164,8 @@ describe("Optiprune Analyzer", () => {
       });
 
       const unusedDependency = report.findings.find(
-        (finding) => finding.evidence?.package === "unused-pkg" && finding.evidence?.type === "dependency",
+        (finding) =>
+          finding.evidence?.package === "unused-pkg" && finding.evidence?.type === "dependency",
       );
       expect(unusedDependency).toBeDefined();
       expect(unusedDependency?.message).toContain("never imported or used in scripts");
@@ -173,22 +184,25 @@ describe("Optiprune Analyzer", () => {
       version: "1.0.0",
       type: "module",
       exports: {
-        ".": "./src/api.ts"
-      }
+        ".": "./src/api.ts",
+      },
     };
-    await fs.promises.writeFile(path.join(testDir, "package.json"), JSON.stringify(pkgJson, null, 2));
+    await fs.promises.writeFile(
+      path.join(testDir, "package.json"),
+      JSON.stringify(pkgJson, null, 2),
+    );
 
     // 2. Create src/api.ts with a public function
     await fs.promises.mkdir(path.join(testDir, "src"), { recursive: true });
     await fs.promises.writeFile(
       path.join(testDir, "src", "api.ts"),
-      "export function publicFeature() { return 42; }\n"
+      "export function publicFeature() { return 42; }\n",
     );
 
     // 3. Create optiprune.config.ts with defineConfig
     await fs.promises.writeFile(
       path.join(testDir, "optiprune.config.ts"),
-      "import { defineConfig } from '../../src/index.js';\nexport default defineConfig({ rootDir: '.', reportUnusedExports: true });\n"
+      "import { defineConfig } from '../../src/index.js';\nexport default defineConfig({ rootDir: '.', reportUnusedExports: true });\n",
     );
 
     const report = await analyze({
@@ -200,12 +214,12 @@ describe("Optiprune Analyzer", () => {
 
     expect(report).toBeDefined();
     // The public export should be retained with low confidence (not reported as unused)
-    const unusedExport = report.findings.find(f => f.rule === "unused-export");
+    const unusedExport = report.findings.find((f) => f.rule === "unused-export");
     expect(unusedExport).toBeUndefined();
 
-    const moduleRecord = report.modules.find(m => m.path.includes("api.ts"));
+    const moduleRecord = report.modules.find((m) => m.path.includes("api.ts"));
     expect(moduleRecord).toBeDefined();
-    const exp = moduleRecord?.exports.find(e => e.exportedAs === "publicFeature");
+    const exp = moduleRecord?.exports.find((e) => e.exportedAs === "publicFeature");
     expect(exp).toBeDefined();
     expect(exp?.usageConfidence).toBe("low");
   });
@@ -244,9 +258,7 @@ describe("Optiprune Analyzer", () => {
       });
 
       const unusedStatusMembers = report.findings.filter(
-        (finding) =>
-          finding.rule === "unused-member" &&
-          finding.evidence?.exportName === "Status",
+        (finding) => finding.rule === "unused-member" && finding.evidence?.exportName === "Status",
       );
       expect(unusedStatusMembers).toEqual([]);
     } finally {

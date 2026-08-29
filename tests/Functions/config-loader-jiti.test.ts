@@ -70,7 +70,11 @@ describe("Jiti configuration loading", () => {
 
   it("loads and resolves every public Config field", async () => {
     const rootDir = await createProject("all-config-fields");
-    await write(rootDir, "package.json", JSON.stringify({ name: "all-config-fields", private: true }));
+    await write(
+      rootDir,
+      "package.json",
+      JSON.stringify({ name: "all-config-fields", private: true }),
+    );
     await write(
       rootDir,
       "optiprune.config.ts",
@@ -135,7 +139,13 @@ describe("Jiti configuration loading", () => {
       output: "sarif",
       verbose: true,
       fix: { confidence: "medium+", rules: ["files", "dependencies"], force: true, dryRun: true },
-      layers: { smtTimeoutMs: 250, isolateMemoryLimitMb: 48, enableConcolicProof: false, skip3: true, skip4: true },
+      layers: {
+        smtTimeoutMs: 250,
+        isolateMemoryLimitMb: 48,
+        enableConcolicProof: false,
+        skip3: true,
+        skip4: true,
+      },
       rules: { "unused-export": "off", "unreachable-file": "error" },
       plugins: { "vitest-plugin": false, "nextjs-plugin": true },
     });
@@ -157,7 +167,13 @@ describe("Jiti configuration loading", () => {
       output: "sarif",
       verbose: true,
       fix: { confidence: "medium+", rules: ["files", "dependencies"], force: true, dryRun: true },
-      layers: { smtTimeoutMs: 250, isolateMemoryLimitMb: 48, enableConcolicProof: false, skip3: true, skip4: true },
+      layers: {
+        smtTimeoutMs: 250,
+        isolateMemoryLimitMb: 48,
+        enableConcolicProof: false,
+        skip3: true,
+        skip4: true,
+      },
       rules: expect.objectContaining({ "unused-export": "off", "unreachable-file": "error" }),
       plugins: { "vitest-plugin": false, "nextjs-plugin": true },
     });
@@ -166,7 +182,11 @@ describe("Jiti configuration loading", () => {
 
   it("ignores every file below test-like directories, including package.json", async () => {
     const rootDir = await createProject("ignore-tests-complete");
-    await write(rootDir, "package.json", JSON.stringify({ name: "ignore-tests-complete", private: true }));
+    await write(
+      rootDir,
+      "package.json",
+      JSON.stringify({ name: "ignore-tests-complete", private: true }),
+    );
     await write(rootDir, "src/index.ts", "export const live = true;\n");
     await write(rootDir, "tests/nested/dead.ts", "export const dead = true;\n");
     await write(
@@ -192,14 +212,24 @@ describe("Jiti configuration loading", () => {
       ),
     ).toBe(false);
     expect(
-      report.findings.some((finding) => String(finding.evidence?.package) === "unused-test-dependency"),
+      report.findings.some(
+        (finding) => String(finding.evidence?.package) === "unused-test-dependency",
+      ),
     ).toBe(false);
   });
 
   it("treats dynamically registered AnalyzerPlugin object members as used", async () => {
     const rootDir = await createProject("plugin-contract-members");
-    await write(rootDir, "package.json", JSON.stringify({ name: "plugin-contract-members", private: true }));
-    await write(rootDir, "src/index.ts", "import { XoPlugin } from './plugins/xo-plugin';\nvoid XoPlugin;\n");
+    await write(
+      rootDir,
+      "package.json",
+      JSON.stringify({ name: "plugin-contract-members", private: true }),
+    );
+    await write(
+      rootDir,
+      "src/index.ts",
+      "import { XoPlugin } from './plugins/xo-plugin';\nvoid XoPlugin;\n",
+    );
     await write(
       rootDir,
       "src/plugins/xo-plugin.ts",
@@ -261,10 +291,15 @@ describe("Jiti configuration loading", () => {
 
     const report = await analyze({ rootDir, layers: { skip3: true, skip4: true } });
     const unusedPackages = report.findings
-      .filter((finding) => finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency")
+      .filter(
+        (finding) =>
+          finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency",
+      )
       .map((finding) => String(finding.evidence.package));
 
     assert.deepEqual(unusedPackages, ["unused-lib"]);
-    expect(report.findings.some((finding) => String(finding.file).includes("ignored-folder"))).toBe(false);
+    expect(report.findings.some((finding) => String(finding.file).includes("ignored-folder"))).toBe(
+      false,
+    );
   });
 });

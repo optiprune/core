@@ -4,10 +4,34 @@ import path from "pathe";
 
 const STORY_FILE_REGEX = /\.(?:stories|story)\.[cm]?[jt]sx?$/i;
 const STORYBOOK_CONFIG_BASENAMES = [
-  "main.js", "main.jsx", "main.mjs", "main.cjs", "main.ts", "main.tsx", "main.mts", "main.cts",
-  "preview.js", "preview.jsx", "preview.mjs", "preview.cjs", "preview.ts", "preview.tsx", "preview.mts", "preview.cts",
-  "manager.js", "manager.jsx", "manager.mjs", "manager.cjs", "manager.ts", "manager.tsx", "manager.mts", "manager.cts",
-  "test-runner.js", "test-runner.ts", "test-runner.mjs", "test-runner.cjs",
+  "main.js",
+  "main.jsx",
+  "main.mjs",
+  "main.cjs",
+  "main.ts",
+  "main.tsx",
+  "main.mts",
+  "main.cts",
+  "preview.js",
+  "preview.jsx",
+  "preview.mjs",
+  "preview.cjs",
+  "preview.ts",
+  "preview.tsx",
+  "preview.mts",
+  "preview.cts",
+  "manager.js",
+  "manager.jsx",
+  "manager.mjs",
+  "manager.cjs",
+  "manager.ts",
+  "manager.tsx",
+  "manager.mts",
+  "manager.cts",
+  "test-runner.js",
+  "test-runner.ts",
+  "test-runner.mjs",
+  "test-runner.cjs",
 ];
 
 function normalize(fileId: string): string {
@@ -21,8 +45,12 @@ function isStorybookPackage(packageName: string): boolean {
 function isStorybookConfigFile(fileId: string): boolean {
   const normalized = normalize(fileId);
   const basename = path.basename(normalized);
-  return (normalized.includes("/.storybook/") || normalized.startsWith(".storybook/"))
-    && (STORYBOOK_CONFIG_BASENAMES.includes(basename) || normalized.includes("/.storybook/") || normalized.startsWith(".storybook/"));
+  return (
+    (normalized.includes("/.storybook/") || normalized.startsWith(".storybook/")) &&
+    (STORYBOOK_CONFIG_BASENAMES.includes(basename) ||
+      normalized.includes("/.storybook/") ||
+      normalized.startsWith(".storybook/"))
+  );
 }
 
 function declaredStorybookPackages(packageJson: any): string[] {
@@ -35,10 +63,12 @@ function declaredStorybookPackages(packageJson: any): string[] {
 }
 
 function isStorybookScript(script: string): boolean {
-  return /(?:^|[\s&|;])(?:storybook|build-storybook)(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?storybook\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?storybook\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?storybook\b/.test(script);
+  return (
+    /(?:^|[\s&|;])(?:storybook|build-storybook)(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?storybook\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?storybook\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?storybook\b/.test(script)
+  );
 }
 
 function propertyName(node: any): string | undefined {
@@ -51,14 +81,21 @@ function packageNameFromConfigValue(value: any): string | undefined {
   if (t.isStringLiteral(value) && isStorybookPackage(value.value)) return value.value;
   if (!t.isObjectExpression(value)) return undefined;
   for (const property of value.properties ?? []) {
-    if (propertyName(property) === "name" && t.isStringLiteral(property.value) && isStorybookPackage(property.value.value)) {
+    if (
+      propertyName(property) === "name" &&
+      t.isStringLiteral(property.value) &&
+      isStorybookPackage(property.value.value)
+    ) {
       return property.value.value;
     }
   }
   return undefined;
 }
 
-function markConfiguredPackage(value: any, adapter: Parameters<NonNullable<AnalyzerPlugin["lifecycle"]["onASTNode"]>>[2]): void {
+function markConfiguredPackage(
+  value: any,
+  adapter: Parameters<NonNullable<AnalyzerPlugin["lifecycle"]["onASTNode"]>>[2],
+): void {
   const packageName = packageNameFromConfigValue(value);
   if (packageName) adapter.markPackageAsUsed(packageName);
 }
@@ -85,7 +122,9 @@ export const StorybookPlugin: AnalyzerPlugin = {
     onProjectInit: async (adapter) => {
       const packageJson = await adapter.readJson("package.json");
       const packages = declaredStorybookPackages(packageJson);
-      const configFiles = (await adapter.findFiles(STORYBOOK_CONFIG_BASENAMES)).filter(isStorybookConfigFile);
+      const configFiles = (await adapter.findFiles(STORYBOOK_CONFIG_BASENAMES)).filter(
+        isStorybookConfigFile,
+      );
       const rootConfigDirectory = await adapter.folderExists(".storybook");
       const hasConfiguration = rootConfigDirectory || configFiles.length > 0;
 
@@ -117,7 +156,8 @@ export const StorybookPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Storybook configuration or command found, but no 'storybook' or '@storybook/*' package is listed in package.json.",
+          message:
+            "Storybook configuration or command found, but no 'storybook' or '@storybook/*' package is listed in package.json.",
           evidence: { configFiles, hasScriptInvocation },
         });
       }

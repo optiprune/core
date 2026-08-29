@@ -5,11 +5,7 @@ import path from "pathe";
 /**
  * Recognized TanStack Router configuration and generated manifest files
  */
-const TANSTACK_ROUTER_CONFIG_FILES = [
-  "tsr.config.json",
-  "routeTree.gen.ts",
-  "routeTree.gen.js"
-];
+const TANSTACK_ROUTER_CONFIG_FILES = ["tsr.config.json", "routeTree.gen.ts", "routeTree.gen.js"];
 
 const TANSTACK_ROUTER_PACKAGES = [
   "@tanstack/react-router",
@@ -19,7 +15,7 @@ const TANSTACK_ROUTER_PACKAGES = [
   "@tanstack/router-plugin",
   "@tanstack/router-devtools",
   "@tanstack/react-router-devtools",
-  "@tanstack/solid-router-devtools"
+  "@tanstack/solid-router-devtools",
 ];
 
 const TANSTACK_ROUTER_ROUTE_EXPORTS = new Set([
@@ -29,7 +25,7 @@ const TANSTACK_ROUTER_ROUTE_EXPORTS = new Set([
   "action",
   "pendingComponent",
   "errorComponent",
-  "notFoundComponent"
+  "notFoundComponent",
 ]);
 
 /**
@@ -70,14 +66,11 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) =>
-            dep.startsWith("@tanstack/") && dep.includes("router")
-        )
+        Object.keys(allDeps).some((dep) => dep.startsWith("@tanstack/") && dep.includes("router"))
       ) {
         return true;
       }
@@ -88,7 +81,7 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (/\btsr\b/.test(s) || s.includes("tsr generate") || s.includes("tsr watch"))
+              (/\btsr\b/.test(s) || s.includes("tsr generate") || s.includes("tsr watch")),
           )
         ) {
           return true;
@@ -123,7 +116,7 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -179,10 +172,7 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
 
           if (t.isVariableDeclaration(decl)) {
             decl.declarations.forEach((vDecl: any) => {
-              if (
-                t.isIdentifier(vDecl.id) &&
-                TANSTACK_ROUTER_ROUTE_EXPORTS.has(vDecl.id.name)
-              ) {
+              if (t.isIdentifier(vDecl.id) && TANSTACK_ROUTER_ROUTE_EXPORTS.has(vDecl.id.name)) {
                 adapter.markAsUsed(fileId, vDecl.id.name);
               }
             });
@@ -200,9 +190,13 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
       if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
         const fnName = node.callee.name;
         if (
-          ["createFileRoute", "createRootRoute", "createRoute", "createLazyRoute", "createLazyFileRoute"].includes(
-            fnName
-          )
+          [
+            "createFileRoute",
+            "createRootRoute",
+            "createRoute",
+            "createLazyRoute",
+            "createLazyFileRoute",
+          ].includes(fnName)
         ) {
           adapter.markAsUsed(fileId);
         }
@@ -216,8 +210,8 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TanStackRouterPlugin;

@@ -5,12 +5,7 @@ import path from "pathe";
 /**
  * Recognized Plop configuration files
  */
-const PLOP_CONFIG_FILES = [
-  "plopfile.js",
-  "plopfile.ts",
-  "plopfile.mjs",
-  "plopfile.cjs"
-];
+const PLOP_CONFIG_FILES = ["plopfile.js", "plopfile.ts", "plopfile.mjs", "plopfile.cjs"];
 
 const PLOP_PACKAGES = ["plop", "node-plop"];
 
@@ -25,10 +20,7 @@ export const PlopPlugin: AnalyzerPlugin = {
     }
 
     // 2. Check for common Plop template directories
-    if (
-      (await adapter.folderExists("plop-templates")) ||
-      (await adapter.folderExists(".plop"))
-    ) {
+    if ((await adapter.folderExists("plop-templates")) || (await adapter.folderExists(".plop"))) {
       return true;
     }
 
@@ -38,7 +30,7 @@ export const PlopPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => PLOP_PACKAGES.includes(dep))) {
@@ -49,9 +41,7 @@ export const PlopPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bplop\b/.test(s) || s.includes("plop "))
+            (s) => typeof s === "string" && (/\bplop\b/.test(s) || s.includes("plop ")),
           )
         ) {
           return true;
@@ -86,7 +76,7 @@ export const PlopPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -139,10 +129,7 @@ export const PlopPlugin: AnalyzerPlugin = {
 
       // 1. Inspect plopfile.js / plopfile.ts AST for export default function(plop)
       if (PLOP_CONFIG_FILES.includes(basename)) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("plop");
         }
@@ -178,16 +165,13 @@ export const PlopPlugin: AnalyzerPlugin = {
       // 2. Retain imports from plop, node-plop, or plop-pack-*
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          PLOP_PACKAGES.includes(source) ||
-          source.startsWith("plop-pack-")
-        ) {
+        if (PLOP_PACKAGES.includes(source) || source.startsWith("plop-pack-")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default PlopPlugin;

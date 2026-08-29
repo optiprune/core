@@ -10,7 +10,7 @@ const RSTEST_CONFIG_FILES = [
   "rstest.config.js",
   "rstest.config.mjs",
   "rstest.config.cjs",
-  "rstest.config.json"
+  "rstest.config.json",
 ];
 
 const RSTEST_PACKAGES = ["rstest", "@rstest/core", "@rstest/cli"];
@@ -45,7 +45,7 @@ export const RstestPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => dep === "rstest" || dep.startsWith("@rstest/"))) {
@@ -56,7 +56,7 @@ export const RstestPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\brstest\b/.test(s) || s.includes("rstest "))
+            (s) => typeof s === "string" && (/\brstest\b/.test(s) || s.includes("rstest ")),
           )
         ) {
           return true;
@@ -88,7 +88,7 @@ export const RstestPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -156,7 +156,18 @@ export const RstestPlugin: AnalyzerPlugin = {
       // 2. Detect global test function invocations inside test files (test, it, describe, expect)
       if (isRstestFile(normalized, basename)) {
         if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
-          if (["describe", "test", "it", "beforeEach", "afterEach", "beforeAll", "afterAll", "expect"].includes(node.callee.name)) {
+          if (
+            [
+              "describe",
+              "test",
+              "it",
+              "beforeEach",
+              "afterEach",
+              "beforeAll",
+              "afterAll",
+              "expect",
+            ].includes(node.callee.name)
+          ) {
             adapter.markAsUsed(fileId);
             adapter.markPackageAsUsed("rstest");
           }
@@ -171,8 +182,8 @@ export const RstestPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RstestPlugin;

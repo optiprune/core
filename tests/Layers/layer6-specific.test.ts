@@ -14,15 +14,22 @@ afterEach(async () => {
 describe("Layer 6 tool-specific development dependency evidence", () => {
   it("does not let an ESLint script suppress an unused Prettier finding", async () => {
     await fs.mkdir(path.join(fixtureRoot, "src"), { recursive: true });
-    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
-      name: "layer6-tool-specific-dev-dependency",
-      private: true,
-      scripts: { lint: "eslint ." },
-      devDependencies: {
-        eslint: "^9.0.0",
-        prettier: "^3.0.0"
-      }
-    }, null, 2));
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify(
+        {
+          name: "layer6-tool-specific-dev-dependency",
+          private: true,
+          scripts: { lint: "eslint ." },
+          devDependencies: {
+            eslint: "^9.0.0",
+            prettier: "^3.0.0",
+          },
+        },
+        null,
+        2,
+      ),
+    );
     await fs.writeFile(path.join(fixtureRoot, "src", "main.ts"), "export const value = 1;\n");
 
     const report = await analyze({
@@ -33,7 +40,17 @@ describe("Layer 6 tool-specific development dependency evidence", () => {
       reportUnusedExports: false,
     });
 
-    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "prettier")).toBe(true);
-    expect(report.findings.some((finding) => finding.rule === "unused-dev-dependency" && finding.evidence.package === "eslint")).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" && finding.evidence.package === "prettier",
+      ),
+    ).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" && finding.evidence.package === "eslint",
+      ),
+    ).toBe(false);
   });
 });

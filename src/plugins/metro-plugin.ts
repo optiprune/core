@@ -7,7 +7,7 @@ const METRO_CONFIG_FILES = [
   "metro.config.cjs",
   "metro.config.mjs",
   "metro.config.ts",
-  "metro.config.json"
+  "metro.config.json",
 ];
 
 const METRO_PACKAGES = [
@@ -15,7 +15,7 @@ const METRO_PACKAGES = [
   "metro-config",
   "@react-native/metro-config",
   "@expo/metro-config",
-  "react-native"
+  "react-native",
 ];
 
 export const MetroPlugin: AnalyzerPlugin = {
@@ -44,7 +44,7 @@ export const MetroPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasMetroDep = METRO_PACKAGES.some((p) => p in allDeps);
@@ -84,7 +84,7 @@ export const MetroPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Metro configuration found but 'metro' or 'react-native' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -111,7 +111,7 @@ export const MetroPlugin: AnalyzerPlugin = {
         "App.tsx",
         "index.share.js",
         "index.android.js",
-        "index.ios.js"
+        "index.ios.js",
       ];
 
       if (entryPoints.includes(basename)) {
@@ -170,8 +170,8 @@ export const MetroPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("react-native");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default MetroPlugin;

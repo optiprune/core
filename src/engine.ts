@@ -44,7 +44,7 @@ export class PluginEngine {
     try {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const pluginsDir = path.join(__dirname, "plugins");
-      
+
       let files: string[] = [];
       try {
         files = (await fs.readdir(pluginsDir)).sort((left, right) => left.localeCompare(right));
@@ -61,7 +61,7 @@ export class PluginEngine {
             const keys = Object.keys(module);
             const firstKey = keys[0];
             const plugin = module.default || (firstKey ? (module as any)[firstKey] : null);
-            
+
             if (plugin && typeof plugin === "object") {
               // These property reads are the real dynamic registry contract.
               // Forward the observed reads to the analysis graph rather than
@@ -74,10 +74,12 @@ export class PluginEngine {
                 const stem = file.replace(/\.(?:[cm]?js|ts)$/i, "");
                 const sourceModule = [...context.modules.values()].find((candidate) => {
                   const normalized = candidate.id.replace(/\\/g, "/");
-                  return normalized.endsWith(`/src/plugins/${stem}.ts`)
-                    || normalized.endsWith(`/src/plugins/${stem}.js`)
-                    || normalized.endsWith(`/plugins/${stem}.ts`)
-                    || normalized.endsWith(`/plugins/${stem}.js`);
+                  return (
+                    normalized.endsWith(`/src/plugins/${stem}.ts`) ||
+                    normalized.endsWith(`/src/plugins/${stem}.js`) ||
+                    normalized.endsWith(`/plugins/${stem}.ts`) ||
+                    normalized.endsWith(`/plugins/${stem}.js`)
+                  );
                 });
                 if (sourceModule && firstKey) {
                   for (const memberName of ["name", "version", "detect", "lifecycle"]) {
@@ -97,7 +99,10 @@ export class PluginEngine {
     } catch (err) {}
   }
 
-  async run(context: AnalysisContext, runOptions: { skipDetection?: boolean } = {}): Promise<Finding[]> {
+  async run(
+    context: AnalysisContext,
+    runOptions: { skipDetection?: boolean } = {},
+  ): Promise<Finding[]> {
     // Each pass owns its findings. The analyzer calls the engine twice: once for
     // early project configuration and once after source discovery. Keeping a
     // shared array makes the second pass re-return findings from the first pass.
@@ -107,7 +112,7 @@ export class PluginEngine {
     const adapter = this.createAdapter(context);
     // Compile ignore globs once per engine pass instead of once per module.
     const compiledIgnorePatterns = compileGlobs(context.options?.ignore ?? []);
-    
+
     if (!runOptions.skipDetection) {
       this.findings = [];
       await this.loadDynamicPlugins(context, true);
@@ -155,7 +160,10 @@ export class PluginEngine {
             dbg(verbose, `[Plugin Engine] ${plugin.name}: ENABLED (config override)`);
           } else if (plugin.detect) {
             plugin.enabled = await plugin.detect(adapter);
-            dbg(verbose, `[Plugin Engine] ${plugin.name}: ${plugin.enabled ? "ENABLED" : "DISABLED"} (detect())`);
+            dbg(
+              verbose,
+              `[Plugin Engine] ${plugin.name}: ${plugin.enabled ? "ENABLED" : "DISABLED"} (detect())`,
+            );
           } else {
             plugin.enabled = true;
             dbg(verbose, `[Plugin Engine] ${plugin.name}: ENABLED (no detect hook)`);
@@ -172,8 +180,8 @@ export class PluginEngine {
 
       // ── Engine Debug: enabled plugins summary ──────────────────────────────
       if (verbose) {
-        const enabled = this.plugins.filter(p => p.enabled).map(p => p.name);
-        const disabled = this.plugins.filter(p => !p.enabled).map(p => p.name);
+        const enabled = this.plugins.filter((p) => p.enabled).map((p) => p.name);
+        const disabled = this.plugins.filter((p) => !p.enabled).map((p) => p.name);
         dbg(verbose, `[Plugin Engine] ── Detection complete ──`);
         dbg(verbose, `  Enabled  (${enabled.length}): ${enabled.join(", ") || "(none)"}`);
         dbg(verbose, `  Disabled (${disabled.length}): ${disabled.join(", ") || "(none)"}`);
@@ -206,7 +214,10 @@ export class PluginEngine {
           try {
             await plugin.lifecycle.onFileStart(module.id, adapter);
           } catch (err) {
-            console.error(`[Plugin Engine] Error in onFileStart for ${plugin.name} on ${module.id}:`, err);
+            console.error(
+              `[Plugin Engine] Error in onFileStart for ${plugin.name} on ${module.id}:`,
+              err,
+            );
           }
         }
       }
@@ -242,7 +253,10 @@ export class PluginEngine {
       dbg(verbose, `[Plugin Engine] ── Post-run state ──`);
       dbg(verbose, `  context.reachable size    : ${context.reachable?.size ?? 0}`);
       dbg(verbose, `  context.usedPackages size : ${context.usedPackages?.size ?? 0}`);
-      dbg(verbose, `  context.enabledPlugins    : ${[...(context.enabledPlugins ?? [])].join(", ") || "(none)"}`);
+      dbg(
+        verbose,
+        `  context.enabledPlugins    : ${[...(context.enabledPlugins ?? [])].join(", ") || "(none)"}`,
+      );
     }
 
     return this.findings;
@@ -254,8 +268,17 @@ export class PluginEngine {
       if (!projectFiles) {
         projectFiles = (async () => {
           const ignoredDirectories = new Set([
-            ".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".svelte-kit",
-            ...(context.options.ignoreTests ? ["test", "tests", "fixtures", "__tests__", "__mocks__"] : []),
+            ".git",
+            "node_modules",
+            "dist",
+            "build",
+            "coverage",
+            ".next",
+            ".nuxt",
+            ".svelte-kit",
+            ...(context.options.ignoreTests
+              ? ["test", "tests", "fixtures", "__tests__", "__mocks__"]
+              : []),
           ]);
           const files: string[] = [];
           const visit = async (directory: string): Promise<void> => {
@@ -267,11 +290,16 @@ export class PluginEngine {
             }
             for (const entry of entries) {
               if (entry.isDirectory()) {
-                if (!ignoredDirectories.has(entry.name)) await visit(path.join(directory, entry.name));
+                if (!ignoredDirectories.has(entry.name))
+                  await visit(path.join(directory, entry.name));
                 continue;
               }
               if (entry.isFile()) {
-                files.push(path.relative(context.options.rootDir, path.join(directory, entry.name)).replace(/\\/g, "/"));
+                files.push(
+                  path
+                    .relative(context.options.rootDir, path.join(directory, entry.name))
+                    .replace(/\\/g, "/"),
+                );
               }
             }
           };
@@ -285,27 +313,33 @@ export class PluginEngine {
       getAst: (fileId) => context.modules.get(fileId)?.ast,
       getSymbol: (name, fileId) => {
         const module = context.modules.get(fileId);
-        return module?.exports.find(e => e.name === name || e.exportedAs === name);
+        return module?.exports.find((e) => e.name === name || e.exportedAs === name);
       },
       getType: (node) => {
-        if (t.isStringLiteral(node)) return 'string';
-        if (t.isNumericLiteral(node)) return 'number';
-        if (t.isBooleanLiteral(node)) return 'boolean';
+        if (t.isStringLiteral(node)) return "string";
+        if (t.isNumericLiteral(node)) return "number";
+        if (t.isBooleanLiteral(node)) return "boolean";
         return undefined;
       },
       getDependencies: (fileId) => {
         const module = context.modules.get(fileId);
-        return module?.edges.map(e => e.target).filter(Boolean) as string[] || [];
+        return (module?.edges.map((e) => e.target).filter(Boolean) as string[]) || [];
       },
       isPublicExport: (fileId, exportName) => {
         const module = context.modules.get(fileId);
-        const exportRecord = module?.exports.find((exp) => exp.exportedAs === exportName || exp.name === exportName);
+        const exportRecord = module?.exports.find(
+          (exp) => exp.exportedAs === exportName || exp.name === exportName,
+        );
         if (!exportRecord) return false;
         if (context.publicApiEntryPoints?.has(fileId)) return true;
-        if (context.usedExportConfidence.get(`${fileId}:${exportRecord.exportedAs}`) === "low") return true;
+        if (context.usedExportConfidence.get(`${fileId}:${exportRecord.exportedAs}`) === "low")
+          return true;
 
         const visited = new Set<string>();
-        const queue = Array.from(context.publicApiEntryPoints ?? [], (entry) => ({ moduleId: entry, name: exportName }));
+        const queue = Array.from(context.publicApiEntryPoints ?? [], (entry) => ({
+          moduleId: entry,
+          name: exportName,
+        }));
         while (queue.length > 0) {
           const current = queue.shift()!;
           const visitKey = `${current.moduleId}:${current.name}`;
@@ -314,15 +348,23 @@ export class PluginEngine {
           if (current.moduleId === fileId && current.name === exportName) return true;
           const currentModule = context.modules.get(current.moduleId);
           if (!currentModule) continue;
-          const currentExport = currentModule.exports.find((exp) => exp.exportedAs === current.name || exp.name === current.name);
+          const currentExport = currentModule.exports.find(
+            (exp) => exp.exportedAs === current.name || exp.name === current.name,
+          );
           for (const edge of currentModule.edges) {
             const isReExportEdge = edge.kind === "export-all" || edge.kind === "export-from";
-            const isLocalImportReExport = edge.kind === "import" && currentExport &&
+            const isLocalImportReExport =
+              edge.kind === "import" &&
+              currentExport &&
               (edge.importedNames.includes("*") || edge.importedNames.includes(current.name));
             if (!isReExportEdge && !isLocalImportReExport) continue;
             const targetIds = edge.target ? [edge.target] : [];
             for (const targetId of targetIds) {
-              if (edge.kind === "export-all" || edge.importedNames.includes("*") || edge.importedNames.includes(current.name)) {
+              if (
+                edge.kind === "export-all" ||
+                edge.importedNames.includes("*") ||
+                edge.importedNames.includes(current.name)
+              ) {
                 queue.push({ moduleId: targetId, name: current.name });
               }
             }
@@ -334,16 +376,25 @@ export class PluginEngine {
         const absolutePath = path.isAbsolute(fileId)
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
-        return (context.entryPoints?.has(absolutePath) ?? false) ||
-          (context.publicApiEntryPoints?.has(absolutePath) ?? false);
+        return (
+          (context.entryPoints?.has(absolutePath) ?? false) ||
+          (context.publicApiEntryPoints?.has(absolutePath) ?? false)
+        );
       },
       isDynamicallyImported: (fileId) => {
         const absolutePath = path.isAbsolute(fileId)
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
         for (const module of context.modules.values()) {
-          if (module.edges.some((edge) => edge.target === absolutePath &&
-            (edge.kind === "dynamic-literal" || edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic"))) {
+          if (
+            module.edges.some(
+              (edge) =>
+                edge.target === absolutePath &&
+                (edge.kind === "dynamic-literal" ||
+                  edge.kind === "dynamic-pattern" ||
+                  edge.kind === "unknown-dynamic"),
+            )
+          ) {
             return true;
           }
         }
@@ -354,7 +405,7 @@ export class PluginEngine {
         const safePath = safeResolve(context.options.rootDir, filename);
         if (!safePath) return null;
         try {
-          return await fs.readFile(safePath, 'utf8');
+          return await fs.readFile(safePath, "utf8");
         } catch {
           return null;
         }
@@ -363,7 +414,7 @@ export class PluginEngine {
         const safePath = safeResolve(context.options.rootDir, filename);
         if (!safePath) return null;
         try {
-          const content = await fs.readFile(safePath, 'utf8');
+          const content = await fs.readFile(safePath, "utf8");
           return JSON.parse(content);
         } catch {
           return null;
@@ -390,9 +441,9 @@ export class PluginEngine {
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({
           ...finding,
-          rule: finding.rule ?? 'plugin-finding',
-          confidence: finding.confidence ?? 'high',
-          severity: finding.severity ?? 'warning',
+          rule: finding.rule ?? "plugin-finding",
+          confidence: finding.confidence ?? "high",
+          severity: finding.severity ?? "warning",
         } as Finding);
       },
       markAsUsed: (fileId, symbol) => {
@@ -406,7 +457,10 @@ export class PluginEngine {
         }
       },
       markRelativeFileAsUsed: (sourceFileId, referencedPath) => {
-        if (!referencedPath || (!referencedPath.startsWith(".") && !referencedPath.startsWith("/"))) {
+        if (
+          !referencedPath ||
+          (!referencedPath.startsWith(".") && !referencedPath.startsWith("/"))
+        ) {
           return;
         }
         const absolutePath = path.isAbsolute(referencedPath)
@@ -425,7 +479,9 @@ export class PluginEngine {
         const absolutePath = path.isAbsolute(fileId)
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
-        return context.semanticConfigMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false;
+        return (
+          context.semanticConfigMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false
+        );
       },
       markRuntimeMemberAsUsed: (fileId, objectName, memberName) => {
         const absolutePath = path.isAbsolute(fileId)
@@ -437,7 +493,9 @@ export class PluginEngine {
         const absolutePath = path.isAbsolute(fileId)
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
-        return context.runtimeUsedMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false;
+        return (
+          context.runtimeUsedMembers?.has(`${absolutePath}:${objectName}:${memberName}`) ?? false
+        );
       },
       markPackageAsUsed: (packageName) => {
         context.usedPackages?.add(packageName);
@@ -447,7 +505,9 @@ export class PluginEngine {
           rule: "missing-dev-dependency",
           severity: "error",
           confidence: "high",
-          message: message ?? `Package '${packageName}' is required by development tooling but is not declared in devDependencies.`,
+          message:
+            message ??
+            `Package '${packageName}' is required by development tooling but is not declared in devDependencies.`,
           file,
           evidence: { package: packageName, type: "devDependency" },
         });
@@ -462,53 +522,80 @@ export class PluginEngine {
       },
       addEntryPatterns: (patterns) => {
         const normalized = patterns
-          .filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0)
-          .map((pattern) => path.isAbsolute(pattern) ? pattern : path.resolve(context.options.rootDir, pattern));
+          .filter(
+            (pattern): pattern is string =>
+              typeof pattern === "string" && pattern.trim().length > 0,
+          )
+          .map((pattern) =>
+            path.isAbsolute(pattern) ? pattern : path.resolve(context.options.rootDir, pattern),
+          );
         context.options.entry = Array.from(new Set([...context.options.entry, ...normalized]));
         for (const entry of normalized) context.entryPoints?.add(entry);
       },
       addIgnorePatterns: (patterns) => {
-        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
+        const validPatterns = patterns.filter(
+          (pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0,
+        );
         context.options.ignore = Array.from(new Set([...context.options.ignore, ...validPatterns]));
       },
       addProjectPatterns: (patterns) => {
-        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
-        context.options.projectPatterns = Array.from(new Set([...(context.options.projectPatterns ?? []), ...validPatterns]));
+        const validPatterns = patterns.filter(
+          (pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0,
+        );
+        context.options.projectPatterns = Array.from(
+          new Set([...(context.options.projectPatterns ?? []), ...validPatterns]),
+        );
       },
       addUnreachableFileIgnorePatterns: (patterns) => {
-        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
-        context.options.unreachableFileIgnorePatterns = Array.from(new Set([
-          ...(context.options.unreachableFileIgnorePatterns ?? []),
-          ...validPatterns,
-        ]));
+        const validPatterns = patterns.filter(
+          (pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0,
+        );
+        context.options.unreachableFileIgnorePatterns = Array.from(
+          new Set([...(context.options.unreachableFileIgnorePatterns ?? []), ...validPatterns]),
+        );
       },
       addIgnoredDependencies: (names) => {
-        const validNames = names.filter((name): name is string => typeof name === "string" && name.trim().length > 0);
-        context.options.ignoreDependencies = Array.from(new Set([...context.options.ignoreDependencies, ...validNames]));
+        const validNames = names.filter(
+          (name): name is string => typeof name === "string" && name.trim().length > 0,
+        );
+        context.options.ignoreDependencies = Array.from(
+          new Set([...context.options.ignoreDependencies, ...validNames]),
+        );
       },
       addProtectedExportPatterns: (patterns) => {
-        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
-        context.options.protectedExportPatterns = Array.from(new Set([
-          ...(context.options.protectedExportPatterns ?? []),
-          ...validPatterns,
-        ]));
+        const validPatterns = patterns.filter(
+          (pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0,
+        );
+        context.options.protectedExportPatterns = Array.from(
+          new Set([...(context.options.protectedExportPatterns ?? []), ...validPatterns]),
+        );
       },
       addExternalContracts: (names) => {
-        const validNames = names.filter((name): name is string => typeof name === "string" && name.trim().length > 0);
-        context.options.externalContracts = Array.from(new Set([...context.options.externalContracts, ...validNames]));
+        const validNames = names.filter(
+          (name): name is string => typeof name === "string" && name.trim().length > 0,
+        );
+        context.options.externalContracts = Array.from(
+          new Set([...context.options.externalContracts, ...validNames]),
+        );
       },
       setWorkspaceGlobs: (patterns) => {
-        const validPatterns = patterns.filter((pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0);
-        context.options.workspaceGlobs = Array.from(new Set([...(context.options.workspaceGlobs ?? []), ...validPatterns]));
+        const validPatterns = patterns.filter(
+          (pattern): pattern is string => typeof pattern === "string" && pattern.trim().length > 0,
+        );
+        context.options.workspaceGlobs = Array.from(
+          new Set([...(context.options.workspaceGlobs ?? []), ...validPatterns]),
+        );
       },
       setRepoType: (type) => {
         context.options.repositoryType = type;
       },
       declareFramework: (name) => {
         if (typeof name !== "string" || name.trim().length === 0) return;
-        context.options.frameworks = Array.from(new Set([...(context.options.frameworks ?? []), name]));
+        context.options.frameworks = Array.from(
+          new Set([...(context.options.frameworks ?? []), name]),
+        );
       },
-      hasFramework: (name) => context.options.frameworks?.includes(name) ?? false
+      hasFramework: (name) => context.options.frameworks?.includes(name) ?? false,
     };
   }
 }

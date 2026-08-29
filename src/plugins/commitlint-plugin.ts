@@ -16,7 +16,7 @@ const COMMITLINT_CONFIG_FILES = [
   "commitlint.config.cjs",
   "commitlint.config.mjs",
   "commitlint.config.ts",
-  "commitlint.config.cts"
+  "commitlint.config.cts",
 ];
 
 const COMMITLINT_CORE_PACKAGES = [
@@ -25,7 +25,7 @@ const COMMITLINT_CORE_PACKAGES = [
   "@commitlint/config-angular",
   "@commitlint/config-lerna",
   "@commitlint/prompt-cli",
-  "@commitlint/cz-commitlint"
+  "@commitlint/cz-commitlint",
 ];
 
 export const CommitlintPlugin: AnalyzerPlugin = {
@@ -38,12 +38,12 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) => dep === "commitlint" || dep.startsWith("@commitlint/")
+          (dep) => dep === "commitlint" || dep.startsWith("@commitlint/"),
         ) ||
         pkg.commitlint
       ) {
@@ -52,11 +52,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("commitlint")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("commitlint"))) {
           return true;
         }
       }
@@ -75,11 +71,11 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasCommitlint = Object.keys(allDeps).some(
-        (p) => p === "commitlint" || p.startsWith("@commitlint/")
+        (p) => p === "commitlint" || p.startsWith("@commitlint/"),
       );
 
       // 1. Safeguard installed @commitlint/* packages in package.json
@@ -100,9 +96,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
         if (Array.isArray(pkg.commitlint.extends)) {
           pkg.commitlint.extends.forEach((extPkg: string) => {
             if (typeof extPkg === "string") {
-              const fullPkg = extPkg.startsWith("@")
-                ? extPkg
-                : `@commitlint/config-${extPkg}`;
+              const fullPkg = extPkg.startsWith("@") ? extPkg : `@commitlint/config-${extPkg}`;
               adapter.markPackageAsUsed(fullPkg);
             }
           });
@@ -121,10 +115,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking commitlint CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("commitlint")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("commitlint")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@commitlint/cli");
           }
@@ -140,7 +131,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Commitlint configuration found, but '@commitlint/cli' or configuration preset is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.commitlint }
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.commitlint },
         });
       }
     },
@@ -218,9 +209,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
             });
           } else if (t.isStringLiteral(node.value)) {
             const extValue = node.value.value;
-            const fullPkg = extValue.startsWith("@")
-              ? extValue
-              : `@commitlint/config-${extValue}`;
+            const fullPkg = extValue.startsWith("@") ? extValue : `@commitlint/config-${extValue}`;
             adapter.markPackageAsUsed(fullPkg);
           }
         }
@@ -240,8 +229,8 @@ export const CommitlintPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default CommitlintPlugin;

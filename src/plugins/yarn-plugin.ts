@@ -2,19 +2,9 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const YARN_CONFIG_FILES = [
-  "yarn.lock",
-  ".yarnrc",
-  ".yarnrc.yml",
-  ".yarnrc.yaml"
-];
+const YARN_CONFIG_FILES = ["yarn.lock", ".yarnrc", ".yarnrc.yml", ".yarnrc.yaml"];
 
-const YARN_SPECIAL_DIRS = [
-  ".yarn/plugins",
-  ".yarn/releases",
-  ".yarn/sdks",
-  ".yarn/versions"
-];
+const YARN_SPECIAL_DIRS = [".yarn/plugins", ".yarn/releases", ".yarn/sdks", ".yarn/versions"];
 
 export const YarnPlugin: AnalyzerPlugin = {
   name: "yarn-plugin",
@@ -34,10 +24,7 @@ export const YarnPlugin: AnalyzerPlugin = {
     // 3. Check package.json packageManager field ("packageManager": "yarn@4.0.0") or "workspaces"
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
-      if (
-        typeof pkg.packageManager === "string" &&
-        pkg.packageManager.startsWith("yarn")
-      ) {
+      if (typeof pkg.packageManager === "string" && pkg.packageManager.startsWith("yarn")) {
         return true;
       }
 
@@ -48,9 +35,7 @@ export const YarnPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("yarn ") || s === "yarn")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("yarn ") || s === "yarn"))
         ) {
           return true;
         }
@@ -103,17 +88,15 @@ export const YarnPlugin: AnalyzerPlugin = {
 
         if (Array.isArray(pkg.workspaces)) {
           workspaceGlobs = pkg.workspaces.filter(
-            (item: unknown): item is string => typeof item === "string"
+            (item: unknown): item is string => typeof item === "string",
           );
         } else if (
           typeof pkg.workspaces === "object" &&
           pkg.workspaces !== null &&
           Array.isArray((pkg.workspaces as { packages?: unknown[] }).packages)
         ) {
-          workspaceGlobs = (
-            pkg.workspaces as { packages: unknown[] }
-          ).packages.filter(
-            (item: unknown): item is string => typeof item === "string"
+          workspaceGlobs = (pkg.workspaces as { packages: unknown[] }).packages.filter(
+            (item: unknown): item is string => typeof item === "string",
           );
         }
 
@@ -140,10 +123,7 @@ export const YarnPlugin: AnalyzerPlugin = {
       }
 
       // Protect Yarn Berry internal files (.yarn/plugins/**, .yarn/sdks/**)
-      if (
-        normalized.includes("/.yarn/") ||
-        normalized.startsWith(".yarn/")
-      ) {
+      if (normalized.includes("/.yarn/") || normalized.startsWith(".yarn/")) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -168,8 +148,8 @@ export const YarnPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default YarnPlugin;

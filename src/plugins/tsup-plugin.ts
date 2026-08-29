@@ -9,7 +9,7 @@ const TSUP_CONFIG_FILES = [
   "tsup.config.cjs",
   "tsup.config.mts",
   "tsup.config.cts",
-  "tsup.config.json"
+  "tsup.config.json",
 ];
 
 const TSUP_PACKAGES = ["tsup", "esbuild", "typescript"];
@@ -24,15 +24,11 @@ export const TsupPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) =>
-            dep === "tsup" ||
-            dep.startsWith("tsup-plugin-")
-        ) ||
+        Object.keys(allDeps).some((dep) => dep === "tsup" || dep.startsWith("tsup-plugin-")) ||
         pkg.tsup
       ) {
         return true;
@@ -41,9 +37,7 @@ export const TsupPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("tsup ") || s === "tsup")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("tsup ") || s === "tsup"))
         ) {
           return true;
         }
@@ -63,21 +57,17 @@ export const TsupPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTsup = Object.keys(allDeps).some(
-        (p) => p === "tsup" || p.startsWith("tsup-plugin-")
+        (p) => p === "tsup" || p.startsWith("tsup-plugin-"),
       );
 
       // 1. Safeguard tsup ecosystem packages in package.json
       if (hasTsup) {
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "tsup" ||
-            depName === "esbuild" ||
-            depName.startsWith("tsup-plugin-")
-          ) {
+          if (depName === "tsup" || depName === "esbuild" || depName.startsWith("tsup-plugin-")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -135,9 +125,8 @@ export const TsupPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "tsup configuration found, but 'tsup' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.tsup }
+          message: "tsup configuration found, but 'tsup' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.tsup },
         });
       }
     },
@@ -210,10 +199,7 @@ export const TsupPlugin: AnalyzerPlugin = {
                   });
                 } else if (t.isObjectExpression(val)) {
                   val.properties.forEach((p: any) => {
-                    if (
-                      t.isObjectProperty(p) &&
-                      t.isStringLiteral(p.value)
-                    ) {
+                    if (t.isObjectProperty(p) && t.isStringLiteral(p.value)) {
                       adapter.markAsUsed(p.value.value);
                     }
                   });
@@ -235,10 +221,7 @@ export const TsupPlugin: AnalyzerPlugin = {
               firstArg.elements.forEach((el: any) => processObject(el));
             }
             // defineConfig((overrideOptions) => ({ entry: ... }))
-            else if (
-              t.isArrowFunctionExpression(firstArg) ||
-              t.isFunctionExpression(firstArg)
-            ) {
+            else if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
               const body = firstArg.body;
               if (t.isObjectExpression(body)) {
                 processObject(body);
@@ -251,8 +234,8 @@ export const TsupPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TsupPlugin;

@@ -3,7 +3,14 @@ import { promises as fsp } from "node:fs";
 import path from "pathe";
 import { fileURLToPath } from "node:url";
 import { parseModule, walkAst } from "./parser.js";
-import { buildGraph, contextWithGraph, buildImportUsage, calculateReachability, calculateComponentReachability, edgeTargets } from "./graph.js";
+import {
+  buildGraph,
+  contextWithGraph,
+  buildImportUsage,
+  calculateReachability,
+  calculateComponentReachability,
+  edgeTargets,
+} from "./graph.js";
 import { analyzeLayer2 } from "./layer2.js";
 import { analyzeLayer3 } from "./layer3.js";
 import { analyzeLayer4 } from "./layer4.js";
@@ -51,7 +58,9 @@ import type {
 import { CONFIDENCE_RANK } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pkg = (await readJsonFile(path.join(__dirname, "..", "package.json"))) as { version?: string } | null;
+const pkg = (await readJsonFile(path.join(__dirname, "..", "package.json"))) as {
+  version?: string;
+} | null;
 const VERSION = pkg?.version ?? "1.8.2";
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
@@ -73,7 +82,11 @@ function isPureStaticExpression(node: any): boolean {
     case "LogicalExpression":
       return isPureStaticExpression(node.left) && isPureStaticExpression(node.right);
     case "ConditionalExpression":
-      return isPureStaticExpression(node.test) && isPureStaticExpression(node.consequent) && isPureStaticExpression(node.alternate);
+      return (
+        isPureStaticExpression(node.test) &&
+        isPureStaticExpression(node.consequent) &&
+        isPureStaticExpression(node.alternate)
+      );
     case "ArrayExpression":
       return (node.elements ?? []).every((element: any) => isPureStaticExpression(element));
     case "ObjectExpression":
@@ -83,7 +96,9 @@ function isPureStaticExpression(node: any): boolean {
         return isPureStaticExpression(property.value);
       });
     case "TemplateLiteral":
-      return (node.expressions ?? []).every((expression: any) => isPureStaticExpression(expression));
+      return (node.expressions ?? []).every((expression: any) =>
+        isPureStaticExpression(expression),
+      );
     case "TSAsExpression":
     case "TSTypeAssertion":
     case "TypeCastExpression":
@@ -99,7 +114,9 @@ function isPureStaticExpression(node: any): boolean {
 function isPureExportDeclaration(node: any): boolean {
   if (!node) return true;
   if (node.type === "VariableDeclaration") {
-    return (node.declarations ?? []).every((declaration: any) => isPureStaticExpression(declaration.init));
+    return (node.declarations ?? []).every((declaration: any) =>
+      isPureStaticExpression(declaration.init),
+    );
   }
   if (node.type === "FunctionDeclaration") return true;
   // Classes may execute computed keys or static blocks at module evaluation.
@@ -116,7 +133,10 @@ function isPureExportOnlyModule(module: ModuleRecord): boolean {
       return isPureExportDeclaration(statement.declaration);
     }
     if (statement.type === "ExportDefaultDeclaration") {
-      return isPureStaticExpression(statement.declaration) || isPureExportDeclaration(statement.declaration);
+      return (
+        isPureStaticExpression(statement.declaration) ||
+        isPureExportDeclaration(statement.declaration)
+      );
     }
     return false;
   });
@@ -136,7 +156,7 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
     ...fileConfig,
     ...options,
     rootDir,
-  } as import('./types.js').Config);
+  } as import("./types.js").Config);
 
   // Map top-level skip flags from CLI/Options to layers object
   if (options.skip3 !== undefined) merged.layers.skip3 = options.skip3;
@@ -169,9 +189,7 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
 }
 /** Rebase a package-local path or glob so root-level discovery can match it. */
 function rebaseWorkspacePattern(rootDir: string, packageRoot: string, pattern: string): string {
-  const absolutePattern = path.isAbsolute(pattern)
-    ? pattern
-    : path.resolve(packageRoot, pattern);
+  const absolutePattern = path.isAbsolute(pattern) ? pattern : path.resolve(packageRoot, pattern);
   return path.relative(rootDir, absolutePattern).replace(/\\/g, "/");
 }
 
@@ -216,10 +234,15 @@ async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<v
       }
     }
 
-    const ignoredDependencies = (packageConfig.ignoreDependencies ?? [])
-      .filter((dependency): dependency is string => typeof dependency === "string" && dependency.trim().length > 0);
+    const ignoredDependencies = (packageConfig.ignoreDependencies ?? []).filter(
+      (dependency): dependency is string =>
+        typeof dependency === "string" && dependency.trim().length > 0,
+    );
     if (ignoredDependencies.length > 0) {
-      packageIgnoreDependencies.set(workspacePackage.manifestPath, Array.from(new Set(ignoredDependencies)));
+      packageIgnoreDependencies.set(
+        workspacePackage.manifestPath,
+        Array.from(new Set(ignoredDependencies)),
+      );
     }
   }
 
@@ -235,11 +258,13 @@ export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["fail
     return false;
   }
   const failThreshold = CONFIDENCE_RANK[failOn];
-  return report.findings.some((f) => f.severity !== "info" && CONFIDENCE_RANK[f.confidence] >= failThreshold);
+  return report.findings.some(
+    (f) => f.severity !== "info" && CONFIDENCE_RANK[f.confidence] >= failThreshold,
+  );
 }
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
-  
+
   // Support external cache-from path
   let cache: AnalysisCache;
   if ((options as any).cacheFrom && fs.existsSync((options as any).cacheFrom)) {
@@ -253,7 +278,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   const newCache: AnalysisCache = { version: "2.1", entries: {} };
-  
+
   // Phase 1: Core Graph & AST (Instant)
   const { rootDir } = resolvedOptions;
 
@@ -265,7 +290,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // recovery keeps dependency analysis available while preserving actionable
   // errors for malformed manifests.
   const packageJsonPath = path.join(rootDir, "package.json");
-  const packageJsonRead = await readJsonFileWithDiagnostics<Record<string, unknown>>(packageJsonPath);
+  const packageJsonRead =
+    await readJsonFileWithDiagnostics<Record<string, unknown>>(packageJsonPath);
   const packageJsonDiagnostics = packageJsonRead?.diagnostics ?? [];
   const packageJsonRecovered = packageJsonRead?.recovered ?? false;
   const packageJsonRepairable = packageJsonRead?.repairable ?? false;
@@ -275,7 +301,12 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // resolvedOptions.ignore / entry / failOn BEFORE discoverSourceFiles is called.
   const initialModules = new Map<string, ModuleRecord>();
   const initialEntryPoints = new Set<string>();
-  const earlyContext = contextWithGraph(initialModules, initialEntryPoints, resolvedOptions, new Set());
+  const earlyContext = contextWithGraph(
+    initialModules,
+    initialEntryPoints,
+    resolvedOptions,
+    new Set(),
+  );
 
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
@@ -310,7 +341,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     : resolvedOptions.ignore;
   const compiledIgnorePatterns = compileGlobs(ignore);
 
-  const discoveredSourceFiles = await discoverSourceFiles(rootDir, extensions, compiledIgnorePatterns);
+  const discoveredSourceFiles = await discoverSourceFiles(
+    rootDir,
+    extensions,
+    compiledIgnorePatterns,
+  );
   const projectPatterns = resolvedOptions.projectPatterns ?? [];
   const includedProjectPatterns = projectPatterns.filter((pattern) => !pattern.startsWith("!"));
   const excludedProjectPatterns = projectPatterns
@@ -318,13 +353,15 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     .map((pattern) => pattern.slice(1));
   const compiledIncludedProjectPatterns = compileGlobs(includedProjectPatterns);
   const compiledExcludedProjectPatterns = compileGlobs(excludedProjectPatterns);
-  const allSourceFiles = projectPatterns.length === 0
-    ? discoveredSourceFiles
-    : discoveredSourceFiles.filter((file) => {
-        const included = includedProjectPatterns.length === 0
-          || matchesAnyGlob(file, compiledIncludedProjectPatterns, rootDir);
-        return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
-      });
+  const allSourceFiles =
+    projectPatterns.length === 0
+      ? discoveredSourceFiles
+      : discoveredSourceFiles.filter((file) => {
+          const included =
+            includedProjectPatterns.length === 0 ||
+            matchesAnyGlob(file, compiledIncludedProjectPatterns, rootDir);
+          return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
+        });
 
   // Fast path: use size + mtime first. This avoids rereading and hashing every
   // source file on the common unchanged-workspace path. SHA-256 remains the
@@ -356,13 +393,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     externalContracts: resolvedOptions.externalContracts,
     plugins: resolvedOptions.plugins,
   });
-    const sameStats = cache.fileStats
-    && Object.keys(cache.fileStats).length === Object.keys(currentFileStats).length
-    && Object.entries(currentFileStats).every(([file, stat]) => {
+  const sameStats =
+    cache.fileStats &&
+    Object.keys(cache.fileStats).length === Object.keys(currentFileStats).length &&
+    Object.entries(currentFileStats).every(([file, stat]) => {
       const cached = cache.fileStats?.[file];
       return cached?.size === stat.size && cached.mtimeMs === stat.mtimeMs;
     });
-  if (!resolvedOptions.fix && cache.version === "2.1" && cache.report && cache.analysisKey === analysisKey && sameStats) {
+  if (
+    !resolvedOptions.fix &&
+    cache.version === "2.1" &&
+    cache.report &&
+    cache.analysisKey === analysisKey &&
+    sameStats
+  ) {
     return cache.report;
   }
   const currentFileHashes: Record<string, string> = {};
@@ -373,10 +417,17 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       // The normal parse loop handles files that disappear during analysis.
     }
   }
-  const sameHashes = cache.fileHashes
-    && Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length
-    && Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
-  if (!resolvedOptions.fix && cache.version === "2.1" && cache.report && cache.analysisKey === analysisKey && sameHashes) {
+  const sameHashes =
+    cache.fileHashes &&
+    Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length &&
+    Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
+  if (
+    !resolvedOptions.fix &&
+    cache.version === "2.1" &&
+    cache.report &&
+    cache.analysisKey === analysisKey &&
+    sameHashes
+  ) {
     return cache.report;
   }
   const modules = new Map<string, ModuleRecord>();
@@ -396,16 +447,16 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       // BOM-safe file reader to prevent Babel/TS AST parse recovery warnings
       rawText = await fsp.readFile(file, "utf8");
     } catch (e: any) {
-      if (e.code === 'ENOENT') continue;
+      if (e.code === "ENOENT") continue;
       throw e;
     }
-    const sourceText = rawText.charCodeAt(0) === 0xFEFF ? rawText.slice(1) : rawText;
+    const sourceText = rawText.charCodeAt(0) === 0xfeff ? rawText.slice(1) : rawText;
 
     const currentHash = getFileHash(sourceText);
-    
+
     let moduleRecord: ModuleRecord;
     const cached = cache.entries[file];
-    
+
     if (cached && isCacheValid(cached, sourceText)) {
       moduleRecord = cached.moduleRecord;
       newCache.entries[file] = cached;
@@ -415,23 +466,28 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       newCache.entries[file] = {
         hash: currentHash,
         moduleRecord,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
-    
+
     modules.set(file, moduleRecord);
-    
+
     if (moduleRecord.parseStatus === "parsed") {
       filesParsed += 1;
       // Quick framework detection for Layer 5 gating
       if (!hasFrameworkNodes && moduleRecord.ast) {
         walkAst(moduleRecord.ast, (rawNode) => {
           const node = rawNode as any;
-          const isDecorator = !!node.decorators || (Array.isArray(node.modifiers) && node.modifiers.some((m: any) => m.type === 'Decorator' || m.kind === 'Decorator'));
-          const isZodCall = node.type === "CallExpression" && (
-            (node.callee?.type === "MemberExpression" && (node.callee.object?.name === "z" || node.callee.object?.name === "zod")) ||
-            (node.callee?.type === "Identifier" && (node.callee.name === "z" || node.callee.name.startsWith("zod")))
-          );
+          const isDecorator =
+            !!node.decorators ||
+            (Array.isArray(node.modifiers) &&
+              node.modifiers.some((m: any) => m.type === "Decorator" || m.kind === "Decorator"));
+          const isZodCall =
+            node.type === "CallExpression" &&
+            ((node.callee?.type === "MemberExpression" &&
+              (node.callee.object?.name === "z" || node.callee.object?.name === "zod")) ||
+              (node.callee?.type === "Identifier" &&
+                (node.callee.name === "z" || node.callee.name.startsWith("zod"))));
 
           if (isDecorator || isZodCall) {
             hasFrameworkNodes = true;
@@ -445,7 +501,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       filesFallback += 1;
     }
   }
-  
+
   if (Object.keys(cache.entries).length !== allSourceFiles.length) cacheDirty = true;
 
   let entryPoints = new Set<string>();
@@ -459,7 +515,12 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // Private workspace barrels are locally reachable, but their re-exports do
   // not become external contracts without an actual consuming import.
   const privateWorkspaceEntryPoints = new Set<string>();
-  const missingScriptTargets: Array<{ scriptName: string; command: string; targetPath: string; manifestPath: string }> = [];
+  const missingScriptTargets: Array<{
+    scriptName: string;
+    command: string;
+    targetPath: string;
+    manifestPath: string;
+  }> = [];
 
   // 1. Explicit Entry Points
   if (entry.length > 0) {
@@ -473,19 +534,35 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // 2. Conventional Entry Points (Public)
   // Helper to add patterns relative to a base directory
-  const addPatterns = async (baseDir: string, relativeToRoot: string = "", isRoot: boolean = false) => {
-    const expandBuildEntryToSourceCandidates = (entries: string[]) => entries.flatMap(entry => {
-      if (entry.startsWith('dist/')) {
-        const srcEntry = entry.replace('dist/', 'src/').replace(/\.js$/, '.ts').replace(/\.jsx$/, '.tsx');
-        return [entry, srcEntry];
-      }
-      return [entry];
-    });
+  const addPatterns = async (
+    baseDir: string,
+    relativeToRoot: string = "",
+    isRoot: boolean = false,
+  ) => {
+    const expandBuildEntryToSourceCandidates = (entries: string[]) =>
+      entries.flatMap((entry) => {
+        if (entry.startsWith("dist/")) {
+          const srcEntry = entry
+            .replace("dist/", "src/")
+            .replace(/\.js$/, ".ts")
+            .replace(/\.jsx$/, ".tsx");
+          return [entry, srcEntry];
+        }
+        return [entry];
+      });
 
-    const packageManifest = await readJsonFile<{ private?: boolean }>(path.join(baseDir, "package.json"));
-    const rawEntries = expandBuildEntryToSourceCandidates(await discoverPackageEntryPatterns(baseDir));
-    const binEntries = expandBuildEntryToSourceCandidates(await discoverPackageBinEntryPatterns(baseDir));
-    const publicExportEntries = expandBuildEntryToSourceCandidates(await discoverPackageExportEntryPatterns(baseDir));
+    const packageManifest = await readJsonFile<{ private?: boolean }>(
+      path.join(baseDir, "package.json"),
+    );
+    const rawEntries = expandBuildEntryToSourceCandidates(
+      await discoverPackageEntryPatterns(baseDir),
+    );
+    const binEntries = expandBuildEntryToSourceCandidates(
+      await discoverPackageBinEntryPatterns(baseDir),
+    );
+    const publicExportEntries = expandBuildEntryToSourceCandidates(
+      await discoverPackageExportEntryPatterns(baseDir),
+    );
     const scriptTargets = await discoverPackageScriptTargets(baseDir);
 
     for (const scriptTarget of scriptTargets) {
@@ -510,9 +587,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
 
     for (const binPattern of binEntries) {
-      const adjustedPattern = (relativeToRoot && !binPattern.startsWith('/'))
-        ? path.posix.join(relativeToRoot, binPattern)
-        : binPattern;
+      const adjustedPattern =
+        relativeToRoot && !binPattern.startsWith("/")
+          ? path.posix.join(relativeToRoot, binPattern)
+          : binPattern;
       for (const binFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
         entryPoints.add(path.normalize(binFile));
       }
@@ -521,9 +599,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     // An exports map declares package entry points that external consumers may
     // import. Analyze them as roots regardless of conventional-entry settings.
     for (const entryPattern of publicExportEntries) {
-      const adjustedPattern = (relativeToRoot && !entryPattern.startsWith('/'))
-        ? path.posix.join(relativeToRoot, entryPattern)
-        : entryPattern;
+      const adjustedPattern =
+        relativeToRoot && !entryPattern.startsWith("/")
+          ? path.posix.join(relativeToRoot, entryPattern)
+          : entryPattern;
       for (const entryFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
         const normalized = path.normalize(entryFile);
         entryPoints.add(normalized);
@@ -537,10 +616,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
 
     for (const pattern of [...rawEntries, ...conventionalEntryPatterns()]) {
-      const adjustedPattern = (relativeToRoot && !pattern.startsWith('/')) 
-        ? path.posix.join(relativeToRoot, pattern) 
-        : pattern;
-      
+      const adjustedPattern =
+        relativeToRoot && !pattern.startsWith("/")
+          ? path.posix.join(relativeToRoot, pattern)
+          : pattern;
+
       const expanded = expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern]);
       for (const e of expanded) {
         const normalized = path.normalize(e);
@@ -607,7 +687,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       },
     });
   }
-  
+
   if (entryPoints.size === 0) {
     findings.push({
       rule: "no-entry-points",
@@ -640,14 +720,18 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // 2. Run full plugin execution (File Hooks + AST Nodes + Analysis Complete)
   // We skip detection as it was already handled in earlyContext.
   const finalPluginFindings = await pluginEngine.run(context, { skipDetection: true });
-  
+
   // 3. Combine findings from both runs (init-time + execution-time)
   findings.push(...pluginFindings);
   findings.push(...finalPluginFindings);
 
   // --- RE-CALCULATE REACHABILITY ---
   // Ensure that plugin marks (reachable files) are propagated through the graph
-  const newReachability = calculateReachability(modules, context.reachable, resolvedOptions.ignoreUnknownImport);
+  const newReachability = calculateReachability(
+    modules,
+    context.reachable,
+    resolvedOptions.ignoreUnknownImport,
+  );
   for (const r of newReachability.reachable) context.reachable.add(r);
   for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
   calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
@@ -655,14 +739,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // Headless Living Graph Engine: Initial Ingestion
   for (const module of modules.values()) {
     const fileNode = {
-      id: SemanticGraph.generateLei(module.id, 'File'),
+      id: SemanticGraph.generateLei(module.id, "File"),
       contentHash: SemanticGraph.generateContentHash(module.sourceText),
-      type: 'File' as const,
+      type: "File" as const,
       name: module.id,
       fileId: module.id,
       metadata: {},
       incomingReferences: [],
-      outgoingReferences: []
+      outgoingReferences: [],
     };
     semanticGraph.addNode(fileNode);
   }
@@ -671,7 +755,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   if (hasFrameworkNodes || resolvedOptions.externalContracts?.length) {
     await analyzeLayer5(context);
   }
-  
+
   // Layer 6: Dependency & Boundary Engine.
   // Dependency auditing must not depend on monorepo, declaration-file, or
   // framework-contract detection: every workspace has a package manifest that
@@ -690,13 +774,13 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     const layer3Findings = await analyzeLayer3(context);
     findings.push(...layer3Findings);
   }
-  
+
   // Phase 3: Layer 4 (node:vm sandbox)
   if (!resolvedOptions.layers.skip4) {
     const layer4Findings = await analyzeLayer4(context);
     findings.push(...layer4Findings);
   }
-  
+
   // Phase 4: Layer 7 (Non-Standard Entry & Implicit Binding Engine)
   const layer7Findings = await analyzeLayer7(context);
   findings.push(...layer7Findings);
@@ -712,7 +796,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         rule: "parse-recovery",
         severity: diagnostic.recovered ? "info" : "error",
         confidence: diagnostic.recovered ? "low" : "high",
-        message: "Parse " + (diagnostic.recovered ? "recovered with errors" : "failed") + ": " + diagnostic.message,
+        message:
+          "Parse " +
+          (diagnostic.recovered ? "recovered with errors" : "failed") +
+          ": " +
+          diagnostic.message,
         file: diagnostic.file,
         ...(diagnostic.location && { location: diagnostic.location }),
         evidence: {},
@@ -731,12 +819,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           evidence: {},
         });
       }
-      if (!resolvedOptions.ignoreUnknownImport && edge.kind === "unknown-dynamic" && edge.resolution !== "resolved") {
+      if (
+        !resolvedOptions.ignoreUnknownImport &&
+        edge.kind === "unknown-dynamic" &&
+        edge.resolution !== "resolved"
+      ) {
         findings.push({
           rule: "unknown-dynamic-import",
           severity: "warning",
           confidence: "medium",
-          message: "Unknown dynamic import pattern: '" + edge.rawSpecifier + "'. This may hide reachable code.",
+          message:
+            "Unknown dynamic import pattern: '" +
+            edge.rawSpecifier +
+            "'. This may hide reachable code.",
           file: edge.source,
           ...(edge.location && { location: edge.location }),
           evidence: {},
@@ -786,19 +881,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           const isExportUsed =
             context.usedExports.has(`${module.id}:${exp.exportedAs}`) ||
             context.usedExports.has(`${module.id}:*`);
-          
-          let confidence: import('./types.js').Confidence = "high";
+
+          let confidence: import("./types.js").Confidence = "high";
           if (context.maybeReachable.has(module.id)) confidence = "medium";
           if (context.hasReachableUnknownDynamicBoundary) confidence = "low";
-          if (context.usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low") confidence = "low";
+          if (context.usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low")
+            confidence = "low";
 
           if (context.hasReachableUnknownDynamicBoundary && isExportUsed) {
             allExportsUnused = false;
             continue;
           }
-          
+
           let isEffectivelyUsed = isExportUsed;
-          
+
           // PUBLIC ENTRY POINT & BARREL PROTECTION
           // PUBLIC ENTRY POINT & BARREL PROTECTION (symbol-aware)
           // Protect only the export that is actually re-exported through a
@@ -806,12 +902,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           // export in a re-exported JSX/TSX/SFC file, including unrelated
           // dead exports.
           const visited = new Set<string>();
-          const checkPublicReachability = (moduleId: string, exportName: string, packageOnly = false): boolean => {
+          const checkPublicReachability = (
+            moduleId: string,
+            exportName: string,
+            packageOnly = false,
+          ): boolean => {
             const visitKey = `${packageOnly ? "package" : "workspace"}:${moduleId}:${exportName}`;
             if (visited.has(visitKey)) return false;
             visited.add(visitKey);
 
-            if (!resolvedOptions.includeEntryExports && (packageOnly ? packagePublicModules : publicEntryPoints).has(moduleId)) return true;
+            if (
+              !resolvedOptions.includeEntryExports &&
+              (packageOnly ? packagePublicModules : publicEntryPoints).has(moduleId)
+            )
+              return true;
 
             const usage = importUsage.get(moduleId);
             if (!usage) return false;
@@ -821,16 +925,28 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             // requested name (or a wildcard), not every export in the module.
             if (!usage.reExportOnly) {
               if (packageOnly) {
-                const requested = usage.wildcard || usage.names.has(exportName) || (exportName === "default" && usage.names.has("default"));
-                return requested && Array.from(usage.consumers).some((consumerId) => packagePublicModules.has(consumerId));
+                const requested =
+                  usage.wildcard ||
+                  usage.names.has(exportName) ||
+                  (exportName === "default" && usage.names.has("default"));
+                return (
+                  requested &&
+                  Array.from(usage.consumers).some((consumerId) =>
+                    packagePublicModules.has(consumerId),
+                  )
+                );
               }
-              return usage.wildcard || usage.names.has(exportName) || (exportName === "default" && usage.names.has("default"));
+              return (
+                usage.wildcard ||
+                usage.names.has(exportName) ||
+                (exportName === "default" && usage.names.has("default"))
+              );
             }
 
             const module = modules.get(moduleId);
             if (!module) return false;
 
-            return Array.from(usage.consumers).some(consumerId => {
+            return Array.from(usage.consumers).some((consumerId) => {
               const consumer = modules.get(consumerId);
               if (!consumer) return false;
 
@@ -846,7 +962,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
                 if (edge.kind === "export-all" && exportName !== "default") {
                   if (checkPublicReachability(consumerId, exportName, packageOnly)) return true;
                 }
-                if (edge.kind === "export-from" && (edge.importedNames.includes(exportName) || edge.importedNames.includes("*"))) {
+                if (
+                  edge.kind === "export-from" &&
+                  (edge.importedNames.includes(exportName) || edge.importedNames.includes("*"))
+                ) {
                   if (checkPublicReachability(consumerId, exportName, packageOnly)) return true;
                 }
               }
@@ -863,18 +982,18 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
               const checkConsumer = (consumerId: string): boolean => {
                 if (deepVisited.has(consumerId)) return false;
                 deepVisited.add(consumerId);
-                
+
                 if (context.entryPoints.has(consumerId)) return true;
                 if (publicEntryPoints.has(consumerId)) return true;
-                
+
                 const consumerUsage = importUsage.get(consumerId);
                 if (!consumerUsage) return false;
                 if (!consumerUsage.reExportOnly) return true;
-                
-                return Array.from(consumerUsage.consumers).some(c => checkConsumer(c));
+
+                return Array.from(consumerUsage.consumers).some((c) => checkConsumer(c));
               };
-              
-              const hasRealConsumer = Array.from(usage.consumers).some(c => checkConsumer(c));
+
+              const hasRealConsumer = Array.from(usage.consumers).some((c) => checkConsumer(c));
               if (!hasRealConsumer) {
                 isEffectivelyUsed = false;
               }
@@ -902,7 +1021,12 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
               ...(exp.location && { location: exp.location }),
               evidence: { exportName: exp.exportedAs },
             });
-          } else if (isEffectivelyUsed && !checkPublicReachability(module.id, exp.exportedAs, true) && exp.members && exp.members.length > 0) {
+          } else if (
+            isEffectivelyUsed &&
+            !checkPublicReachability(module.id, exp.exportedAs, true) &&
+            exp.members &&
+            exp.members.length > 0
+          ) {
             for (const member of exp.members) {
               const memberKey = `${module.id}:${exp.exportedAs}:${member.name}`;
               const internalKey = `${module.id}:${exp.name}:${member.name}`;
@@ -932,15 +1056,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
 
-  const unreachableFileIgnorePatterns = compileGlobs(resolvedOptions.unreachableFileIgnorePatterns ?? []);
+  const unreachableFileIgnorePatterns = compileGlobs(
+    resolvedOptions.unreachableFileIgnorePatterns ?? [],
+  );
   for (const module of modules.values()) {
     if (
       !isConfigurationFile(module.id) &&
       !matchesAnyGlob(module.id, unreachableFileIgnorePatterns, rootDir) &&
-      ((!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) || fullyUnusedPureExportModules.has(module.id))
+      ((!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) ||
+        fullyUnusedPureExportModules.has(module.id))
     ) {
       const fileComponent = context.components.find((c) => c.modules.includes(module.id));
-      const isIsolatedComponent = fileComponent && !fileComponent.isReachable && !fileComponent.isMaybeReachable;
+      const isIsolatedComponent =
+        fileComponent && !fileComponent.isReachable && !fileComponent.isMaybeReachable;
       findings.push({
         rule: "unreachable-file",
         severity: "warning",
@@ -948,7 +1076,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         message: fullyUnusedPureExportModules.has(module.id)
           ? "File contains only exports that are unused and has no top-level runtime logic."
           : isIsolatedComponent
-            ? `File is part of an isolated ${fileComponent.isCycle ? 'cycle' : 'component'} (#${fileComponent.id}) that is unreachable from any entry point.`
+            ? `File is part of an isolated ${fileComponent.isCycle ? "cycle" : "component"} (#${fileComponent.id}) that is unreachable from any entry point.`
             : "File is not reachable from any entry point.",
         file: module.id,
         evidence: {
@@ -969,7 +1097,9 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // redundant and misleading; keeping only unreachable-file makes the report
   // actionable and prevents follow-up edits against a file that will disappear.
   const unreachableFiles = new Set(
-    findings.filter((finding) => finding.rule === "unreachable-file").map((finding) => finding.file),
+    findings
+      .filter((finding) => finding.rule === "unreachable-file")
+      .map((finding) => finding.file),
   );
   for (let index = findings.length - 1; index >= 0; index--) {
     const finding = findings[index];
@@ -977,7 +1107,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       finding &&
       unreachableFiles.has(finding.file) &&
       (finding.rule === "unused-member" || finding.rule === "unreachable-statement") &&
-      !(finding.rule === "unused-member" && resolvedOptions.includeEntryMembers && context.entryPoints.has(finding.file))
+      !(
+        finding.rule === "unused-member" &&
+        resolvedOptions.includeEntryMembers &&
+        context.entryPoints.has(finding.file)
+      )
     ) {
       findings.splice(index, 1);
     }
@@ -1041,7 +1175,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     findings: findings.sort((a, b) => {
       if (a.file !== b.file) return a.file.localeCompare(b.file);
       if (a.location && b.location) {
-        if (a.location.start.line !== b.location.start.line) return a.location.start.line - b.location.start.line;
+        if (a.location.start.line !== b.location.start.line)
+          return a.location.start.line - b.location.start.line;
         return a.location.start.column - b.location.start.column;
       }
       return 0;
@@ -1055,7 +1190,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       })),
       exports: module.exports.map((e) => {
         const confidence = context.usedExportConfidence.get(`${module.id}:${e.exportedAs}`);
-        const isUsed = context.usedExports.has(`${module.id}:${e.exportedAs}`) || confidence !== undefined;
+        const isUsed =
+          context.usedExports.has(`${module.id}:${e.exportedAs}`) || confidence !== undefined;
         return {
           name: e.name,
           exportedAs: e.exportedAs,
@@ -1104,7 +1240,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   // Support automated fixes
   if (resolvedOptions.fix) {
     const fixedCount = await runFixes(report, resolvedOptions.rootDir, resolvedOptions.fix);
-    if (resolvedOptions.verbose || (typeof resolvedOptions.fix === 'object' && resolvedOptions.fix.dryRun)) {
+    if (
+      resolvedOptions.verbose ||
+      (typeof resolvedOptions.fix === "object" && resolvedOptions.fix.dryRun)
+    ) {
       console.error(`[Fixer] Applied ${fixedCount} fixes.`);
     }
   }
@@ -1143,7 +1282,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 /**
  * Headless API: Cache Management
  */
-export { exportCache, importCache } from './cache.js';
+export { exportCache, importCache } from "./cache.js";
 
 /**
  * Headless API: Automated Fixes
@@ -1151,7 +1290,7 @@ export { exportCache, importCache } from './cache.js';
 export { applyFixes } from "./fixer.js";
 
 // Fix für CLI-Imports
-export { exportCache as exportCacheAlias, importCache as importCacheAlias } from './cache.js';
+export { exportCache as exportCacheAlias, importCache as importCacheAlias } from "./cache.js";
 
 /**
  * Headless API: Configuration loading and resolution.

@@ -6,7 +6,7 @@ const QWIK_CONFIG_FILES = [
   "vite.config.ts",
   "vite.config.js",
   "vite.config.mjs",
-  "vite.config.cjs"
+  "vite.config.cjs",
 ];
 
 const QWIK_PACKAGES = [
@@ -14,7 +14,7 @@ const QWIK_PACKAGES = [
   "@builder.io/qwik-city",
   "@builder.io/qwik-react",
   "@builder.io/qwik-tailwind",
-  "@builder.io/qwik-auth"
+  "@builder.io/qwik-auth",
 ];
 
 const QWIK_CITY_EXPORTS = new Set([
@@ -27,7 +27,7 @@ const QWIK_CITY_EXPORTS = new Set([
   "onPut",
   "onDelete",
   "onPatch",
-  "head"
+  "head",
 ]);
 
 export const QwikPlugin: AnalyzerPlugin = {
@@ -41,14 +41,12 @@ export const QwikPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep === "@builder.io/qwik" ||
-            dep.startsWith("@builder.io/qwik-")
+          (dep) => dep === "@builder.io/qwik" || dep.startsWith("@builder.io/qwik-"),
         )
       ) {
         return true;
@@ -57,10 +55,7 @@ export const QwikPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("qwik ") || s === "qwik")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("qwik ") || s === "qwik"))
         ) {
           return true;
         }
@@ -68,8 +63,7 @@ export const QwikPlugin: AnalyzerPlugin = {
     }
 
     return (
-      (await adapter.folderExists("src/routes")) ||
-      (await adapter.folderExists("src/components"))
+      (await adapter.folderExists("src/routes")) || (await adapter.folderExists("src/components"))
     );
   },
 
@@ -79,20 +73,17 @@ export const QwikPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasQwik = Object.keys(allDeps).some(
-        (p) => p === "@builder.io/qwik" || p.startsWith("@builder.io/qwik-")
+        (p) => p === "@builder.io/qwik" || p.startsWith("@builder.io/qwik-"),
       );
 
       // 1. Safeguard all installed Qwik ecosystem packages in package.json
       if (hasQwik) {
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "@builder.io/qwik" ||
-            depName.startsWith("@builder.io/qwik-")
-          ) {
+          if (depName === "@builder.io/qwik" || depName.startsWith("@builder.io/qwik-")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -131,7 +122,7 @@ export const QwikPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Qwik City routes directory found, but '@builder.io/qwik' or '@builder.io/qwik-city' is not listed in package.json.",
-          evidence: { hasRoutesDir }
+          evidence: { hasRoutesDir },
         });
       }
     },
@@ -140,19 +131,13 @@ export const QwikPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
 
       // Protect all route files inside src/routes/
-      if (
-        normalized.includes("/src/routes/") ||
-        normalized.startsWith("src/routes/")
-      ) {
+      if (normalized.includes("/src/routes/") || normalized.startsWith("src/routes/")) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@builder.io/qwik-city");
       }
 
       // Protect adapter entry files inside src/adapters/
-      if (
-        normalized.includes("/src/adapters/") ||
-        normalized.startsWith("src/adapters/")
-      ) {
+      if (normalized.includes("/src/adapters/") || normalized.startsWith("src/adapters/")) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@builder.io/qwik-city");
       }
@@ -161,8 +146,7 @@ export const QwikPlugin: AnalyzerPlugin = {
     onASTNode: (node: any, fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const isRouteFile =
-        normalized.includes("/src/routes/") ||
-        normalized.startsWith("src/routes/");
+        normalized.includes("/src/routes/") || normalized.startsWith("src/routes/");
 
       // 1. Detect ESM imports for @builder.io/qwik packages
       if (t.isImportDeclaration(node)) {
@@ -173,9 +157,7 @@ export const QwikPlugin: AnalyzerPlugin = {
           source.startsWith("@builder.io/qwik-")
         ) {
           adapter.markPackageAsUsed(
-            source.startsWith("@builder.io/qwik-")
-              ? source
-              : "@builder.io/qwik"
+            source.startsWith("@builder.io/qwik-") ? source : "@builder.io/qwik",
           );
           adapter.markAsUsed(fileId);
         }
@@ -221,18 +203,15 @@ export const QwikPlugin: AnalyzerPlugin = {
           if (Array.isArray(node.specifiers)) {
             for (const spec of node.specifiers) {
               const exportName = spec.exported?.name || spec.exported?.value;
-              if (
-                typeof exportName === "string" &&
-                QWIK_CITY_EXPORTS.has(exportName)
-              ) {
+              if (typeof exportName === "string" && QWIK_CITY_EXPORTS.has(exportName)) {
                 adapter.markAsUsed(fileId, exportName);
               }
             }
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default QwikPlugin;

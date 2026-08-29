@@ -11,7 +11,7 @@ const OPENAPI_TS_CONFIG_FILES = [
   "openapi-ts.config.cts",
   ".openapitsrc",
   ".openapitsrc.json",
-  ".openapitsrc.js"
+  ".openapitsrc.js",
 ];
 
 const OPENAPI_TS_PACKAGES = [
@@ -20,7 +20,7 @@ const OPENAPI_TS_PACKAGES = [
   "@hey-api/client-axios",
   "@hey-api/client-nuxt",
   "openapi-typescript",
-  "openapi-fetch"
+  "openapi-fetch",
 ];
 
 export const OpenApiTsPlugin: AnalyzerPlugin = {
@@ -33,15 +33,13 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
           (dep) =>
-            dep.startsWith("@hey-api/") ||
-            dep === "openapi-typescript" ||
-            dep === "openapi-fetch"
+            dep.startsWith("@hey-api/") || dep === "openapi-typescript" || dep === "openapi-fetch",
         )
       ) {
         return true;
@@ -53,7 +51,7 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("openapi-ts") || s.includes("openapi-typescript"))
+              (s.includes("openapi-ts") || s.includes("openapi-typescript")),
           )
         ) {
           return true;
@@ -74,14 +72,11 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasOpenApiTs = Object.keys(allDeps).some(
-        (p) =>
-          p.startsWith("@hey-api/") ||
-          p === "openapi-typescript" ||
-          p === "openapi-fetch"
+        (p) => p.startsWith("@hey-api/") || p === "openapi-typescript" || p === "openapi-fetch",
       );
 
       // 1. Safeguard installed OpenAPI-TS packages in package.json
@@ -108,8 +103,7 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("openapi-ts") ||
-              scriptContent.includes("openapi-typescript"))
+            (scriptContent.includes("openapi-ts") || scriptContent.includes("openapi-typescript"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             if (scriptContent.includes("openapi-ts")) {
@@ -130,7 +124,7 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "OpenAPI-TS configuration found, but '@hey-api/openapi-ts' or 'openapi-typescript' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -182,11 +176,7 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
         }
 
         // Extract output directory / file target in config: output: 'src/client' or output: { path: 'src/client' }
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "output"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "output") {
           const val = node.value;
           if (t.isStringLiteral(val)) {
             adapter.markAsUsed(val.value);
@@ -205,18 +195,14 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
         }
 
         // Extract client plugin choice: client: '@hey-api/client-fetch'
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "client"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "client") {
           if (t.isStringLiteral(node.value)) {
             adapter.markPackageAsUsed(node.value.value);
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default OpenApiTsPlugin;

@@ -15,7 +15,7 @@ const ESLINT_CONFIG_FILES = [
   ".eslintrc.yml",
   ".eslintrc.json",
   ".eslintrc",
-  ".eslintignore"
+  ".eslintignore",
 ];
 
 /**
@@ -83,7 +83,14 @@ export const EslintPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
-      const hasEslintDep = pkg ? !!(pkg.dependencies?.["eslint"] || pkg.devDependencies?.["eslint"] || pkg.dependencies?.["@nx/eslint"] || pkg.devDependencies?.["@nx/eslint"]) : false;
+      const hasEslintDep = pkg
+        ? !!(
+            pkg.dependencies?.["eslint"] ||
+            pkg.devDependencies?.["eslint"] ||
+            pkg.dependencies?.["@nx/eslint"] ||
+            pkg.devDependencies?.["@nx/eslint"]
+          )
+        : false;
 
       let hasConfigFile = false;
       for (const file of ESLINT_CONFIG_FILES) {
@@ -118,7 +125,7 @@ export const EslintPlugin: AnalyzerPlugin = {
 
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
-      
+
       if (ESLINT_CONFIG_FILES.some((f) => normalized.endsWith(f))) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("eslint");
@@ -133,7 +140,7 @@ export const EslintPlugin: AnalyzerPlugin = {
     onASTNode: (node, fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const matchedConfig = ESLINT_CONFIG_FILES.find((f) => normalized.endsWith(f));
-      
+
       if (!matchedConfig) return;
 
       const isLegacyConfig = matchedConfig.startsWith(".eslintrc");
@@ -148,7 +155,11 @@ export const EslintPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect require("...") calls in CJS ESLint configs
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg)) {
           const val = arg.value;
@@ -163,7 +174,8 @@ export const EslintPlugin: AnalyzerPlugin = {
       // rather than string literals. Map those keys to resolver packages too.
       if ((node.type === "ObjectProperty" || node.type === "Property") && !node.computed) {
         const keyName = node.key?.name ?? node.key?.value;
-        if (keyName === "typescript") adapter.markPackageAsUsed("eslint-import-resolver-typescript");
+        if (keyName === "typescript")
+          adapter.markPackageAsUsed("eslint-import-resolver-typescript");
         if (keyName === "node") adapter.markPackageAsUsed("eslint-import-resolver-node");
         if (keyName === "webpack") adapter.markPackageAsUsed("eslint-import-resolver-webpack");
       }
@@ -176,7 +188,8 @@ export const EslintPlugin: AnalyzerPlugin = {
           node: "eslint-import-resolver-node",
           webpack: "eslint-import-resolver-webpack",
         };
-        const resolverPackage = resolverPackages[node.value] ??
+        const resolverPackage =
+          resolverPackages[node.value] ??
           (node.value.startsWith("eslint-import-resolver-") ? node.value : undefined);
         if (resolverPackage) adapter.markPackageAsUsed(resolverPackage);
       }
@@ -211,14 +224,14 @@ export const EslintPlugin: AnalyzerPlugin = {
           // Attempt resolving bare shorthands (e.g. "airbnb", "react", "@typescript-eslint")
           const pluginPkg = resolvePluginPackage(val);
           const configPkg = resolveConfigPackage(val);
-          
+
           if (pluginPkg) adapter.markPackageAsUsed(pluginPkg);
           if (configPkg) adapter.markPackageAsUsed(configPkg);
           adapter.markPackageAsUsed("eslint");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default EslintPlugin;

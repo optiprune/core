@@ -89,12 +89,16 @@ function parseConfigJson<T = unknown>(label: string, raw: string): T | null {
   const parsed = parseJsonDocument<T>(raw);
   if (parsed.value === undefined) {
     const primary = parsed.diagnostics[0];
-    console.warn(`[Config] ${label} could not be parsed: ${primary ? formatJsonDiagnostic(primary) : "unknown JSON error"} – skipping.`);
+    console.warn(
+      `[Config] ${label} could not be parsed: ${primary ? formatJsonDiagnostic(primary) : "unknown JSON error"} – skipping.`,
+    );
     return null;
   }
   if (!parsed.valid) {
     const primary = parsed.diagnostics[0];
-    console.warn(`[Config] ${label} is not strict JSON: ${primary ? formatJsonDiagnostic(primary) : "recoverable JSON syntax"} – using a safe recovered value.`);
+    console.warn(
+      `[Config] ${label} is not strict JSON: ${primary ? formatJsonDiagnostic(primary) : "recoverable JSON syntax"} – using a safe recovered value.`,
+    );
   }
   return parsed.value;
 }
@@ -218,9 +222,7 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
 
   // ── entry ────────────────────────────────────────────────────────────────
   const hasUserEntries = Array.isArray(userConfig.entry) && userConfig.entry.length > 0;
-  const rawEntries = hasUserEntries
-    ? userConfig.entry!
-    : (userConfig.entry ?? base.entry);
+  const rawEntries = hasUserEntries ? userConfig.entry! : (userConfig.entry ?? base.entry);
   const entry = rawEntries.map((e) => normalizeAbsolute(path.resolve(rootDir, e)));
 
   // ── includeConventionalEntries ───────────────────────────────────────────
@@ -229,9 +231,10 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     : (userConfig.includeConventionalEntries ?? base.includeConventionalEntries);
 
   // ── extensions ───────────────────────────────────────────────────────────
-  const extensions = Array.isArray(userConfig.extensions) && userConfig.extensions.length > 0
-    ? userConfig.extensions
-    : base.extensions;
+  const extensions =
+    Array.isArray(userConfig.extensions) && userConfig.extensions.length > 0
+      ? userConfig.extensions
+      : base.extensions;
 
   // ── ignore ───────────────────────────────────────────────────────────────
   const userIgnore = Array.isArray(userConfig.ignore) ? userConfig.ignore : [];

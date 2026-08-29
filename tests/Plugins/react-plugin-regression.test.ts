@@ -16,9 +16,7 @@ afterEach(async () => {
 
 describe("react-plugin reachability", () => {
   it("does not promote an unimported React component to reachable", async () => {
-    const rootDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), "optiprune-react-"),
-    );
+    const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), "optiprune-react-"));
     temporaryDirectories.push(rootDir);
 
     await fs.writeFile(
@@ -52,16 +50,12 @@ describe("react-plugin reachability", () => {
 
     expect(
       report.findings.some(
-        (finding) =>
-          finding.rule === "unreachable-file" &&
-          finding.file.endsWith("accordion.tsx"),
+        (finding) => finding.rule === "unreachable-file" && finding.file.endsWith("accordion.tsx"),
       ),
     ).toBe(true);
     expect(
       report.findings.some(
-        (finding) =>
-          finding.rule === "unused-export" &&
-          finding.file.endsWith("accordion.tsx"),
+        (finding) => finding.rule === "unused-export" && finding.file.endsWith("accordion.tsx"),
       ),
     ).toBe(false);
   });

@@ -16,10 +16,12 @@ function directoryOf(fileId: string): string {
 }
 
 function isBiomeScript(script: string): boolean {
-  return /(?:^|[\s&|;])biome(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?@biomejs\/biome\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?biome\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?biome\b/.test(script);
+  return (
+    /(?:^|[\s&|;])biome(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?@biomejs\/biome\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?biome\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?biome\b/.test(script)
+  );
 }
 
 function hasBiomeDependency(packageJson: any): boolean {
@@ -31,7 +33,8 @@ function hasBiomeDependency(packageJson: any): boolean {
 }
 
 function resolveRelativeConfigPath(configFile: string, referencedPath: string): string | undefined {
-  if (!referencedPath || referencedPath.startsWith("@") || referencedPath === "//") return undefined;
+  if (!referencedPath || referencedPath.startsWith("@") || referencedPath === "//")
+    return undefined;
   const directory = directoryOf(configFile);
   const candidate = path.normalize(path.join(directory || ".", referencedPath)).replace(/\\/g, "/");
   if (!candidate.startsWith("..")) return candidate;
@@ -52,8 +55,12 @@ export const BiomePlugin: AnalyzerPlugin = {
     const packageJson = await adapter.readJson("package.json");
     if (hasBiomeDependency(packageJson)) return true;
 
-    if (await adapter.folderExists("biome.json") || await adapter.folderExists("biome.jsonc")
-      || await adapter.folderExists(".biome.json") || await adapter.folderExists(".biome.jsonc")) {
+    if (
+      (await adapter.folderExists("biome.json")) ||
+      (await adapter.folderExists("biome.jsonc")) ||
+      (await adapter.folderExists(".biome.json")) ||
+      (await adapter.folderExists(".biome.jsonc"))
+    ) {
       return true;
     }
 
@@ -90,7 +97,8 @@ export const BiomePlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Biome configuration or command found, but '@biomejs/biome' is not listed in package.json.",
+          message:
+            "Biome configuration or command found, but '@biomejs/biome' is not listed in package.json.",
           evidence: { configFiles, hasScriptInvocation },
         });
       }
@@ -123,11 +131,10 @@ export const BiomePlugin: AnalyzerPlugin = {
         // describe tool scope, not runtime entry points, so register them as
         // project patterns rather than incorrectly making every matching file public.
         const files = stringRecord(loaded.config.files);
-        const includes = stringArray(files.includes)
-          .map((pattern) => {
-            const directory = directoryOf(configFile);
-            return directory ? `${directory}/${pattern}` : pattern;
-          });
+        const includes = stringArray(files.includes).map((pattern) => {
+          const directory = directoryOf(configFile);
+          return directory ? `${directory}/${pattern}` : pattern;
+        });
         if (includes.length > 0) adapter.addProjectPatterns(includes);
       }
     },

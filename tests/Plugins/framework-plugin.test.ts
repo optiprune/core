@@ -89,7 +89,7 @@ describe("extractSfcScript", () => {
     // The script content should have leading newlines matching the preceding lines
     const lines = result.scriptContent.split("\n");
     // First non-empty line should be at line 5 (1-indexed)
-    const firstCodeLine = lines.findIndex(l => l.trim().length > 0) + 1;
+    const firstCodeLine = lines.findIndex((l) => l.trim().length > 0) + 1;
     expect(firstCodeLine).toBeGreaterThanOrEqual(4);
   });
 });
@@ -108,7 +108,7 @@ describe("parseModule – Vue (.vue)", () => {
   it("extracts imports from <script setup>", () => {
     const source = fixture("vue-component.vue");
     const mod = parseModule(source, "/project/src/vue-component.vue");
-    const specifiers = mod.edges.map(e => e.rawSpecifier);
+    const specifiers = mod.edges.map((e) => e.rawSpecifier);
     expect(specifiers).toContain("vue");
     expect(specifiers).toContain("vue-router");
   });
@@ -134,7 +134,7 @@ describe("parseModule – Svelte (.svelte)", () => {
   it("extracts imports from the <script> block", () => {
     const source = fixture("svelte-component.svelte");
     const mod = parseModule(source, "/project/src/svelte-component.svelte");
-    const specifiers = mod.edges.map(e => e.rawSpecifier);
+    const specifiers = mod.edges.map((e) => e.rawSpecifier);
     expect(specifiers).toContain("svelte");
   });
 
@@ -148,7 +148,7 @@ describe("parseModule – Svelte (.svelte)", () => {
   it("extracts exports from Svelte component", () => {
     const source = fixture("svelte-runes.svelte");
     const mod = parseModule(source, "/project/src/svelte-runes.svelte");
-    const exportNames = mod.exports.map(e => e.name);
+    const exportNames = mod.exports.map((e) => e.name);
     expect(exportNames).toContain("reset");
   });
 });
@@ -186,7 +186,7 @@ describe("parseModule – TSX (.tsx)", () => {
   it("extracts named exports from TSX", () => {
     const source = fixture("react-component.tsx");
     const mod = parseModule(source, "/project/src/react-component.tsx");
-    const exportNames = mod.exports.map(e => e.name);
+    const exportNames = mod.exports.map((e) => e.name);
     expect(exportNames).toContain("Button");
     expect(exportNames).toContain("Counter");
     expect(exportNames).toContain("default");
@@ -195,7 +195,7 @@ describe("parseModule – TSX (.tsx)", () => {
   it("extracts React import", () => {
     const source = fixture("react-component.tsx");
     const mod = parseModule(source, "/project/src/react-component.tsx");
-    const specifiers = mod.edges.map(e => e.rawSpecifier);
+    const specifiers = mod.edges.map((e) => e.rawSpecifier);
     expect(specifiers).toContain("react");
   });
 
@@ -225,7 +225,7 @@ describe("parseModule – JSX (.jsx)", () => {
   it("extracts exports from JSX", () => {
     const source = fixture("react-component.jsx");
     const mod = parseModule(source, "/project/src/react-component.jsx");
-    const exportNames = mod.exports.map(e => e.name);
+    const exportNames = mod.exports.map((e) => e.name);
     expect(exportNames).toContain("Greeting");
     expect(exportNames).toContain("default");
   });
@@ -259,7 +259,7 @@ const x = ref(0);
 </script>`;
     const mod = parseModule(source, "/project/src/Plain.vue");
     expect(mod.hasParseError).toBe(false);
-    const specifiers = mod.edges.map(e => e.rawSpecifier);
+    const specifiers = mod.edges.map((e) => e.rawSpecifier);
     expect(specifiers).toContain("vue");
   });
 
@@ -283,7 +283,7 @@ const count = ref(0);
     const mod = parseModule(source, "/project/src/Mixed.vue");
     // Should parse the <script setup> block (preferred)
     expect(mod.hasParseError).toBe(false);
-    const specifiers = mod.edges.map(e => e.rawSpecifier);
+    const specifiers = mod.edges.map((e) => e.rawSpecifier);
     expect(specifiers).toContain("vue");
   });
 });

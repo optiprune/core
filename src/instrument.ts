@@ -9,15 +9,15 @@ let codegenLoadError: Error | undefined;
 async function loadCodegenBackend(): Promise<CodegenBackend> {
   try {
     const native = await import("yuku-codegen");
-    return { print: (native.print as CodegenBackend["print"]), kind: "node" };
+    return { print: native.print as CodegenBackend["print"], kind: "node" };
   } catch (nativeError) {
     try {
       const wasm = await import(/* @vite-ignore */ "@yuku-codegen/wasm");
-      return { print: (wasm.print as CodegenBackend["print"]), kind: "wasm" };
+      return { print: wasm.print as CodegenBackend["print"], kind: "wasm" };
     } catch (wasmError) {
       codegenLoadError = new Error(
         "Yuku could not load its native yuku-codegen binding and @yuku-codegen/wasm is not installed. " +
-        "Install the optional peer dependency with `npm install @yuku-codegen/wasm` to instrument code in this environment.",
+          "Install the optional peer dependency with `npm install @yuku-codegen/wasm` to instrument code in this environment.",
         { cause: new AggregateError([nativeError, wasmError]) },
       );
       throw codegenLoadError;
@@ -26,7 +26,7 @@ async function loadCodegenBackend(): Promise<CodegenBackend> {
 }
 
 const codegenBackend = await loadCodegenBackend();
-import {walk as yukuWalk} from "yuku-ast";
+import { walk as yukuWalk } from "yuku-ast";
 import { isSfcPath, extractSfcScript } from "./parser.js";
 /**
  * Instruments code for concolic execution using yuku-parser and yuku-codegen.
@@ -53,7 +53,8 @@ export function instrumentCode(code: string, filename: string): string | null {
       lang = (yukuLangFromPath(filename) as typeof lang) ?? "tsx";
     }
 
-    const sourceType = (yukuSourceTypeFromPath(filename) as "module" | "script" | "commonjs") ?? "module";
+    const sourceType =
+      (yukuSourceTypeFromPath(filename) as "module" | "script" | "commonjs") ?? "module";
     const result = parseWithYukuBackend(codeToParse, { lang, sourceType });
     const ast = result.program;
     const coverageVariable = "__coverage__";
@@ -65,11 +66,27 @@ export function instrumentCode(code: string, filename: string): string | null {
     };
 
     // Helper to create AST nodes (ESTree compatible)
-    const createLiteral = (val: string | number | boolean) => ({ type: "Literal", value: val, raw: JSON.stringify(val) });
+    const createLiteral = (val: string | number | boolean) => ({
+      type: "Literal",
+      value: val,
+      raw: JSON.stringify(val),
+    });
     const createIdentifier = (name: string) => ({ type: "Identifier", name });
-    const createMemberExpression = (obj: any, prop: any) => ({ type: "MemberExpression", object: obj, property: prop, computed: false });
-    const createCallExpression = (callee: any, args: any[]) => ({ type: "CallExpression", callee, arguments: args });
-    const createExpressionStatement = (exp: any) => ({ type: "ExpressionStatement", expression: exp });
+    const createMemberExpression = (obj: any, prop: any) => ({
+      type: "MemberExpression",
+      object: obj,
+      property: prop,
+      computed: false,
+    });
+    const createCallExpression = (callee: any, args: any[]) => ({
+      type: "CallExpression",
+      callee,
+      arguments: args,
+    });
+    const createExpressionStatement = (exp: any) => ({
+      type: "ExpressionStatement",
+      expression: exp,
+    });
 
     // Mark injected nodes to avoid re-instrumentation
     const markInjected = (node: any) => {
@@ -84,9 +101,9 @@ export function instrumentCode(code: string, filename: string): string | null {
       markInjected(
         createCallExpression(
           createMemberExpression(createIdentifier(coverageVariable), createIdentifier("init")),
-          [createLiteral(filename)]
-        )
-      )
+          [createLiteral(filename)],
+        ),
+      ),
     );
     (ast.body as any[]).unshift(initCoverage);
 
@@ -104,27 +121,37 @@ export function instrumentCode(code: string, filename: string): string | null {
         if (node.type === "IfStatement") {
           const traceCall = markInjected(
             createCallExpression(
-              createMemberExpression(createIdentifier(coverageVariable), createIdentifier("traceBranch")),
-              [createLiteral(filename), createLiteral(line), node.test]
-            )
+              createMemberExpression(
+                createIdentifier(coverageVariable),
+                createIdentifier("traceBranch"),
+              ),
+              [createLiteral(filename), createLiteral(line), node.test],
+            ),
           );
           // Wrap test with sequence expression: (traceBranch(...), originalTest)
           node.test = {
             type: "SequenceExpression",
-            expressions: [traceCall, node.test]
+            expressions: [traceCall, node.test],
           };
         }
 
         // Instrument Functions
-        if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") {
+        if (
+          node.type === "FunctionDeclaration" ||
+          node.type === "FunctionExpression" ||
+          node.type === "ArrowFunctionExpression"
+        ) {
           const functionName = node.id?.name || "anonymous";
           const traceCall = createExpressionStatement(
             markInjected(
               createCallExpression(
-                createMemberExpression(createIdentifier(coverageVariable), createIdentifier("traceFunction")),
-                [createLiteral(filename), createLiteral(line), createLiteral(functionName)]
-              )
-            )
+                createMemberExpression(
+                  createIdentifier(coverageVariable),
+                  createIdentifier("traceFunction"),
+                ),
+                [createLiteral(filename), createLiteral(line), createLiteral(functionName)],
+              ),
+            ),
           );
 
           if (node.body.type === "BlockStatement") {
@@ -133,31 +160,31 @@ export function instrumentCode(code: string, filename: string): string | null {
             // Arrow function with implicit return: () => expr  ->  () => { trace(); return expr; }
             node.body = {
               type: "BlockStatement",
-              body: [
-                traceCall,
-                { type: "ReturnStatement", argument: node.body }
-              ]
+              body: [traceCall, { type: "ReturnStatement", argument: node.body }],
             };
           }
         }
 
         // Instrument CallExpression
-        if (node.type === "CallExpression" && !((node.callee as any)?._concolicInstrumented)) {
+        if (node.type === "CallExpression" && !(node.callee as any)?._concolicInstrumented) {
           const calleeName = node.callee.type === "Identifier" ? node.callee.name : "unknown";
           const tracedCall = markInjected(
             createCallExpression(
-              createMemberExpression(createIdentifier(coverageVariable), createIdentifier("traceAndExecuteCall")),
+              createMemberExpression(
+                createIdentifier(coverageVariable),
+                createIdentifier("traceAndExecuteCall"),
+              ),
               [
                 createLiteral(filename),
                 createLiteral(line),
                 createLiteral(calleeName),
                 node.callee,
-                { type: "ArrayExpression", elements: node.arguments }
-              ]
-            )
+                { type: "ArrayExpression", elements: node.arguments },
+              ],
+            ),
           );
 
-          // We need to replace the node in the parent. 
+          // We need to replace the node in the parent.
           if (parent) {
             for (const key in parent) {
               if (parent[key] === node) {
@@ -173,7 +200,7 @@ export function instrumentCode(code: string, filename: string): string | null {
             }
           }
         }
-      }
+      },
     });
 
     const output = codegenBackend.print(ast);

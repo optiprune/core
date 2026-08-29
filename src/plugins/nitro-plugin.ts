@@ -7,7 +7,7 @@ const NITRO_CONFIG_FILES = [
   "nitro.config.js",
   "nitro.config.mjs",
   "nitro.config.cjs",
-  "nitro.config.json"
+  "nitro.config.json",
 ];
 
 const NITRO_PACKAGES = ["nitropack", "h3"];
@@ -38,7 +38,7 @@ export const NitroPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasNitroDep = NITRO_PACKAGES.some((p) => p in allDeps);
@@ -75,7 +75,7 @@ export const NitroPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Nitro configuration found but 'nitropack' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -98,7 +98,7 @@ export const NitroPlugin: AnalyzerPlugin = {
         "server/plugins/",
         "server/utils/",
         "server/tasks/",
-        "server/database/"
+        "server/database/",
       ];
 
       if (nitroServerDirectories.some((dir) => normalized.includes(dir))) {
@@ -133,15 +133,15 @@ export const NitroPlugin: AnalyzerPlugin = {
             "defineRenderHandler",
             "defineTask",
             "eventHandler",
-            "lazyEventHandler"
+            "lazyEventHandler",
           ].includes(funcName)
         ) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("nitropack");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default NitroPlugin;

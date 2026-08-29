@@ -12,7 +12,7 @@ const LADLE_CONFIG_FILES = [
   ".ladle/components.tsx",
   ".ladle/components.jsx",
   ".ladle/components.js",
-  ".ladle/head.html"
+  ".ladle/head.html",
 ];
 
 const LADLE_PACKAGE_NAME = "@ladle/react";
@@ -60,7 +60,7 @@ export const LadlePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (allDeps[LADLE_PACKAGE_NAME]) {
@@ -71,7 +71,7 @@ export const LadlePlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\bladle\b/.test(s) || s.includes("ladle serve"))
+            (s) => typeof s === "string" && (/\bladle\b/.test(s) || s.includes("ladle serve")),
           )
         ) {
           return true;
@@ -138,10 +138,7 @@ export const LadlePlugin: AnalyzerPlugin = {
       }
 
       // Mark Ladle story files (*.stories.tsx, *.stories.jsx, *.story.tsx, etc.)
-      if (
-        /\.stories\.[jt]sx?$/.test(basename) ||
-        /\.story\.[jt]sx?$/.test(basename)
-      ) {
+      if (/\.stories\.[jt]sx?$/.test(basename) || /\.story\.[jt]sx?$/.test(basename)) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -169,10 +166,7 @@ export const LadlePlugin: AnalyzerPlugin = {
       }
 
       // 2. AST Inspection inside Story files (*.stories.tsx)
-      if (
-        /\.stories\.[jt]sx?$/.test(basename) ||
-        /\.story\.[jt]sx?$/.test(basename)
-      ) {
+      if (/\.stories\.[jt]sx?$/.test(basename) || /\.story\.[jt]sx?$/.test(basename)) {
         // Mark default export (story meta / options)
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -188,16 +182,13 @@ export const LadlePlugin: AnalyzerPlugin = {
             }
           }
 
-          if (
-            t.isFunctionDeclaration(node.declaration) &&
-            node.declaration.id
-          ) {
+          if (t.isFunctionDeclaration(node.declaration) && node.declaration.id) {
             adapter.markAsUsed(fileId, node.declaration.id.name);
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default LadlePlugin;

@@ -14,7 +14,7 @@ const SVGR_CONFIG_FILES = [
   "svgr.config.js",
   "svgr.config.cjs",
   "svgr.config.mjs",
-  "svgr.config.ts"
+  "svgr.config.ts",
 ];
 
 const SVGR_PACKAGES = [
@@ -25,7 +25,7 @@ const SVGR_PACKAGES = [
   "@svgr/plugin-jsx",
   "@svgr/plugin-svgo",
   "@svgr/plugin-prettier",
-  "vite-plugin-svgr"
+  "vite-plugin-svgr",
 ];
 
 export const SvgrPlugin: AnalyzerPlugin = {
@@ -38,15 +38,12 @@ export const SvgrPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep.startsWith("@svgr/") ||
-            dep === "vite-plugin-svgr" ||
-            dep === "svgr"
+          (dep) => dep.startsWith("@svgr/") || dep === "vite-plugin-svgr" || dep === "svgr",
         )
       ) {
         return true;
@@ -55,9 +52,7 @@ export const SvgrPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("svgr") || s === "svgr")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("svgr") || s === "svgr"))
         ) {
           return true;
         }
@@ -77,11 +72,11 @@ export const SvgrPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasSvgr = Object.keys(allDeps).some(
-        (p) => p.startsWith("@svgr/") || p === "vite-plugin-svgr" || p === "svgr"
+        (p) => p.startsWith("@svgr/") || p === "vite-plugin-svgr" || p === "svgr",
       );
 
       // 1. Safeguard installed SVGR ecosystem packages in package.json
@@ -125,7 +120,7 @@ export const SvgrPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "SVGR configuration found, but '@svgr/core' or '@svgr/cli' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -155,11 +150,7 @@ export const SvgrPlugin: AnalyzerPlugin = {
         }
 
         // Detect SVG component import queries: import { ReactComponent as Icon } from './icon.svg?react'
-        if (
-          source.endsWith(".svg") ||
-          source.includes(".svg?") ||
-          source.includes(".svg?react")
-        ) {
+        if (source.endsWith(".svg") || source.includes(".svg?") || source.includes(".svg?react")) {
           adapter.markAsUsed(fileId);
         }
       }
@@ -183,11 +174,7 @@ export const SvgrPlugin: AnalyzerPlugin = {
         }
 
         // Extract SVGR plugin list: plugins: ['@svgr/plugin-svgo', '@svgr/plugin-jsx']
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "plugins"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "plugins") {
           if (t.isArrayExpression(node.value)) {
             node.value.elements.forEach((el: any) => {
               if (t.isStringLiteral(el)) {
@@ -197,8 +184,8 @@ export const SvgrPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SvgrPlugin;

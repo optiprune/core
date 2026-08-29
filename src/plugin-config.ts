@@ -1,7 +1,13 @@
 import { parseModule, walkAst } from "./parser.js";
 import type { PluginAdapter } from "./types.js";
 
-export type StaticConfigValue = string | number | boolean | null | StaticConfigValue[] | { [key: string]: StaticConfigValue };
+export type StaticConfigValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StaticConfigValue[]
+  | { [key: string]: StaticConfigValue };
 
 export interface LoadedPluginConfig {
   config: Record<string, StaticConfigValue>;
@@ -64,15 +70,22 @@ function toStaticValue(node: any): StaticConfigValue | undefined {
       ? node.value
       : undefined;
   }
-  if (node.type === "StringLiteral" || node.type === "NumericLiteral" || node.type === "BooleanLiteral") return node.value;
+  if (
+    node.type === "StringLiteral" ||
+    node.type === "NumericLiteral" ||
+    node.type === "BooleanLiteral"
+  )
+    return node.value;
   if (node.type === "NullLiteral") return null;
   if (node.type === "TemplateLiteral" && (node.expressions?.length ?? 0) === 0) {
-    return node.quasis?.map((quasi: any) => quasi.value?.cooked ?? quasi.value?.raw ?? "").join("") ?? "";
+    return (
+      node.quasis?.map((quasi: any) => quasi.value?.cooked ?? quasi.value?.raw ?? "").join("") ?? ""
+    );
   }
   if (node.type === "ArrayExpression") {
     const values = (node.elements ?? []).map((element: any) => toStaticValue(element));
     return values.every((value: StaticConfigValue | undefined) => value !== undefined)
-      ? values as StaticConfigValue[]
+      ? (values as StaticConfigValue[])
       : undefined;
   }
   if (node.type === "ObjectExpression") {
@@ -88,7 +101,10 @@ function toStaticValue(node: any): StaticConfigValue | undefined {
   return undefined;
 }
 
-function parseStaticModuleConfig(source: string, file: string): Record<string, StaticConfigValue> | undefined {
+function parseStaticModuleConfig(
+  source: string,
+  file: string,
+): Record<string, StaticConfigValue> | undefined {
   const module = parseModule(source, file);
   if (!module.ast) return undefined;
 
@@ -112,7 +128,9 @@ function parseStaticModuleConfig(source: string, file: string): Record<string, S
   });
 
   const value = toStaticValue(configExpression);
-  return value && !Array.isArray(value) && typeof value === "object" ? value as Record<string, StaticConfigValue> : undefined;
+  return value && !Array.isArray(value) && typeof value === "object"
+    ? (value as Record<string, StaticConfigValue>)
+    : undefined;
 }
 
 /**
@@ -130,9 +148,10 @@ export async function loadStaticPluginConfig(
     if (!source) continue;
 
     try {
-      const config = configFile.endsWith(".json") || configFile.endsWith(".jsonc")
-        ? JSON.parse(stripJsonComments(source)) as Record<string, StaticConfigValue>
-        : parseStaticModuleConfig(source, configFile);
+      const config =
+        configFile.endsWith(".json") || configFile.endsWith(".jsonc")
+          ? (JSON.parse(stripJsonComments(source)) as Record<string, StaticConfigValue>)
+          : parseStaticModuleConfig(source, configFile);
       if (config && !Array.isArray(config)) {
         adapter.markAsUsed(configFile);
         return { config, source: configFile };
@@ -147,7 +166,10 @@ export async function loadStaticPluginConfig(
     const config = packageJson?.[packageJsonKey];
     if (config && typeof config === "object" && !Array.isArray(config)) {
       adapter.markAsUsed("package.json", packageJsonKey);
-      return { config: config as Record<string, StaticConfigValue>, source: `package.json#${packageJsonKey}` };
+      return {
+        config: config as Record<string, StaticConfigValue>,
+        source: `package.json#${packageJsonKey}`,
+      };
     }
   }
 
@@ -160,8 +182,10 @@ export function stringArray(value: StaticConfigValue | undefined): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function stringRecord(value: StaticConfigValue | undefined): Record<string, StaticConfigValue> {
+export function stringRecord(
+  value: StaticConfigValue | undefined,
+): Record<string, StaticConfigValue> {
   return value && !Array.isArray(value) && typeof value === "object"
-    ? value as Record<string, StaticConfigValue>
+    ? (value as Record<string, StaticConfigValue>)
     : {};
 }

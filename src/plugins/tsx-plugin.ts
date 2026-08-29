@@ -12,8 +12,12 @@ function invokesTsx(script: string): boolean {
   const tokens = script.split(/\s+/).filter(Boolean);
   return tokens.some((token, index) => {
     const normalized = token.replace(/^['\"]|['\"]$/g, "");
-    if (normalized === "tsx" || normalized.endsWith("/tsx") || normalized.endsWith("\\\\tsx")) return true;
-    return (normalized === "--import" || normalized === "-r" || normalized === "--require") && tokens[index + 1] === "tsx";
+    if (normalized === "tsx" || normalized.endsWith("/tsx") || normalized.endsWith("\\\\tsx"))
+      return true;
+    return (
+      (normalized === "--import" || normalized === "-r" || normalized === "--require") &&
+      tokens[index + 1] === "tsx"
+    );
   });
 }
 
@@ -43,8 +47,7 @@ export const TsxPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         return Object.values(pkg.scripts).some(
           (script) =>
-            typeof script === "string" &&
-            (invokesTsx(script) || invokesEsbuildRegister(script)),
+            typeof script === "string" && (invokesTsx(script) || invokesEsbuildRegister(script)),
         );
       }
     }
@@ -73,10 +76,7 @@ export const TsxPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (typeof scriptContent !== "string") continue;
 
-          if (
-            invokesTsx(scriptContent) ||
-            invokesEsbuildRegister(scriptContent)
-          ) {
+          if (invokesTsx(scriptContent) || invokesEsbuildRegister(scriptContent)) {
             isTsxUsedInScripts = true;
 
             // Mark npm script entry and tsx package as used
@@ -88,9 +88,7 @@ export const TsxPlugin: AnalyzerPlugin = {
             }
 
             // Extract target TypeScript entry point after tsx command & flags
-            const tokens = scriptContent
-              .split(/\s+/)
-              .filter((t) => t.trim().length > 0);
+            const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
 
             const tsxIndex = tokens.findIndex(
               (t) => t === "tsx" || t.endsWith("/tsx") || t.endsWith("\\tsx"),
@@ -112,14 +110,9 @@ export const TsxPlugin: AnalyzerPlugin = {
                 if (token.startsWith("-")) {
                   // Skip flags with values (e.g. --env-file=.env or -r tsx)
                   if (
-                    [
-                      "-r",
-                      "--require",
-                      "--import",
-                      "-c",
-                      "--tsconfig",
-                      "--env-file",
-                    ].includes(token)
+                    ["-r", "--require", "--import", "-c", "--tsconfig", "--env-file"].includes(
+                      token,
+                    )
                   ) {
                     argIdx += 2;
                   } else {
@@ -178,10 +171,7 @@ export const TsxPlugin: AnalyzerPlugin = {
 
     onASTNode: (node, fileId, adapter) => {
       // Detect ESM imports or CJS require for tsx / esbuild-register
-      if (
-        node.type === "ImportDeclaration" &&
-        typeof node.source.value === "string"
-      ) {
+      if (node.type === "ImportDeclaration" && typeof node.source.value === "string") {
         if (
           node.source.value.startsWith("tsx") ||
           node.source.value.startsWith("esbuild-register")
@@ -190,16 +180,12 @@ export const TsxPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (
-        node.type === "CallExpression" &&
-        (node.callee as any)?.name === "require"
-      ) {
+      if (node.type === "CallExpression" && (node.callee as any)?.name === "require") {
         const arg = node.arguments[0];
         if (
           arg?.type === "Literal" &&
           typeof arg.value === "string" &&
-          (arg.value.startsWith("tsx") ||
-            arg.value.startsWith("esbuild-register"))
+          (arg.value.startsWith("tsx") || arg.value.startsWith("esbuild-register"))
         ) {
           adapter.markPackageAsUsed(arg.value);
         }

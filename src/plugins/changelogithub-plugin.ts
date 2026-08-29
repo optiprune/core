@@ -19,15 +19,20 @@ function normalize(fileId: string): string {
 }
 
 function hasChangelogithubDependency(packageJson: any): boolean {
-  return [packageJson?.dependencies, packageJson?.devDependencies, packageJson?.peerDependencies]
-    .some((section) => !!section?.[CHANGELOGITHUB_PACKAGE]);
+  return [
+    packageJson?.dependencies,
+    packageJson?.devDependencies,
+    packageJson?.peerDependencies,
+  ].some((section) => !!section?.[CHANGELOGITHUB_PACKAGE]);
 }
 
 function isChangelogithubScript(script: string): boolean {
-  return /(?:^|[\s&|;])changelogithub(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?changelogithub\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?changelogithub\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?changelogithub\b/.test(script);
+  return (
+    /(?:^|[\s&|;])changelogithub(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?changelogithub\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?changelogithub\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?changelogithub\b/.test(script)
+  );
 }
 
 function isChangelogithubConfig(fileId: string): boolean {
@@ -52,7 +57,9 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
     }
     if ((await adapter.findFiles(CHANGELOGITHUB_CONFIG_BASENAMES)).length > 0) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isChangelogithubScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isChangelogithubScript(script),
+    );
   },
 
   lifecycle: {
@@ -72,17 +79,24 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && dependencyDeclared) {
+      if (
+        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
+        dependencyDeclared
+      ) {
         adapter.markPackageAsUsed(CHANGELOGITHUB_PACKAGE);
       }
 
-      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && !dependencyDeclared) {
+      if (
+        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
+        !dependencyDeclared
+      ) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Changelogithub configuration or command found, but 'changelogithub' is not listed in package.json.",
+          message:
+            "Changelogithub configuration or command found, but 'changelogithub' is not listed in package.json.",
           evidence: { configFiles, hasInlineConfig, hasScriptInvocation },
         });
       }
@@ -93,11 +107,18 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      if (t.isImportDeclaration(node) && (node.source.value === CHANGELOGITHUB_PACKAGE || node.source.value.startsWith("changelogithub/"))) {
+      if (
+        t.isImportDeclaration(node) &&
+        (node.source.value === CHANGELOGITHUB_PACKAGE ||
+          node.source.value.startsWith("changelogithub/"))
+      ) {
         adapter.markPackageAsUsed(CHANGELOGITHUB_PACKAGE);
         adapter.markAsUsed(fileId);
       }
-      if (isChangelogithubConfig(fileId) && (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node))) {
+      if (
+        isChangelogithubConfig(fileId) &&
+        (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node))
+      ) {
         adapter.markAsUsed(fileId);
       }
     },
