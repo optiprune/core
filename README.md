@@ -289,6 +289,12 @@ npm run test language-server
 
 The build uses TypeScript. The test suite uses Vitest without file-level parallelism.
 
+## Acknowledgments
+
+OptiPrune is inspired by and stands on the shoulders of:
+
+- [Knip](https://github.com/webpro-nl/knip) — for pioneering deep workspace reachability and dead-code analysis in the JavaScript ecosystem.
+
 ## Links
 
 | Resource           | Link                                                                               |
