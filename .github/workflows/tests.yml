@@ -14,7 +14,7 @@ on:
       - '!**/fixtures/**'
       - '!**/fixture/**'
       - '!**/__fixtures__/**'
-      - '.github/'
+      - '.github/**'
   pull_request:
     branches:
       - main
@@ -25,7 +25,7 @@ on:
       - '!**/fixtures/**'
       - '!**/fixture/**'
       - '!**/__fixtures__/**'
-      - '.github/'
+      - '.github/**'
 
 jobs:
   find-matrix:
