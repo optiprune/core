@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/types/enum-members-element-access');
+const cwd = resolve("fixtures/types/enum-members-element-access");
 
-test('Consider enum members used through element access', async () => {
+test("Consider enum members used through element access", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

@@ -1,17 +1,17 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/entry/package-entry-points-all-gitignored');
+const cwd = resolve("fixtures/entry/package-entry-points-all-gitignored");
 
-test('Exclude package entry points in gitignored directories', async () => {
+test("Exclude package entry points in gitignored directories", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters, configurationHints } = await main(options);
 
-  assert.deepEqual(Object.keys(issues.files), ['src/orphan.js']);
+  assert.deepEqual(Object.keys(issues.files), ["src/orphan.js"]);
 
   assert.deepEqual(configurationHints, []);
 

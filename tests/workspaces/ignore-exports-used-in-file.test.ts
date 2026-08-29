@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-test('Respect ignoreExportsUsedInFile per workspace (override enables)', async () => {
-  const cwd = resolve('fixtures/workspaces/ignore-exports-used-in-file');
+test("Respect ignoreExportsUsedInFile per workspace (override enables)", async () => {
+  const cwd = resolve("fixtures/workspaces/ignore-exports-used-in-file");
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
   // app inherits root default (false) → internally-used type is reported
-  assert(issues.types['packages/app/fruits.ts']['Pip']);
+  assert(issues.types["packages/app/fruits.ts"]["Pip"]);
   // lib overrides to true → internally-used type is ignored
-  assert.equal(issues.types['packages/lib/leaves.ts'], undefined);
+  assert.equal(issues.types["packages/lib/leaves.ts"], undefined);
 
   assert.deepEqual(counters, {
     ...baseCounters,

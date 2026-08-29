@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/entry/exports-enum-members');
+const cwd = resolve("fixtures/entry/exports-enum-members");
 
-test('Find unused exports, types and enum members re-exported in entry file', async () => {
+test("Find unused exports, types and enum members re-exported in entry file", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 
@@ -18,13 +18,13 @@ test('Find unused exports, types and enum members re-exported in entry file', as
   });
 });
 
-test('Find unused exports, types and enum members re-exported in entry file (2)', async () => {
+test("Find unused exports, types and enum members re-exported in entry file (2)", async () => {
   const options = await createOptions({ cwd, isIncludeEntryExports: true });
   const { issues, counters } = await main(options);
 
-  assert(issues.types['fruit.ts'].Farmer);
-  assert(issues.exports['index.ts'].Farmer);
-  assert(issues.exports['index.ts'].Tree);
+  assert(issues.types["fruit.ts"].Farmer);
+  assert(issues.exports["index.ts"].Farmer);
+  assert(issues.exports["index.ts"].Tree);
 
   assert.deepEqual(counters, {
     ...baseCounters,

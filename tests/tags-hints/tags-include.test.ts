@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/tags-hints/tags-include');
+const cwd = resolve("fixtures/tags-hints/tags-include");
 
-test('Include or exclude tagged exports (include)', async () => {
+test("Include or exclude tagged exports (include)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['tags.ts']['NS.tagged']);
-  assert(issues.exports['tags.ts']['NS.taggedToo']);
+  assert(issues.exports["tags.ts"]["NS.tagged"]);
+  assert(issues.exports["tags.ts"]["NS.taggedToo"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

@@ -1,17 +1,17 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugin-config/child-process-exec');
+const cwd = resolve("fixtures/plugin-config/child-process-exec");
 
-test('Reference binaries and entry files in node:child_process calls', async () => {
+test("Reference binaries and entry files in node:child_process calls", async () => {
   const options = await createOptions({ cwd });
   const { counters, issues } = await main(options);
 
-  const binaries = issues.binaries['index.ts'];
+  const binaries = issues.binaries["index.ts"];
 
   // exec/execSync: the argument is a shell command string (operators are real commands)
   assert(binaries.mango);

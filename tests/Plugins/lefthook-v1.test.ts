@@ -1,21 +1,21 @@
-import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import os from 'node:os';
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import { join } from '../../src/util/path.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import { join } from "../../src/util/path.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const skipIfBun = typeof Bun !== 'undefined' && os.platform() === 'win32' ? test.skip : test;
+const skipIfBun = typeof Bun !== "undefined" && os.platform() === "win32" ? test.skip : test;
 
-const cwd = resolve('fixtures/plugins/lefthook-v1');
+const cwd = resolve("fixtures/plugins/lefthook-v1");
 
-skipIfBun('Find dependencies with the lefthook v1 plugin', async () => {
+skipIfBun("Find dependencies with the lefthook v1 plugin", async () => {
   const CI = process.env.CI;
-  process.env.CI = '';
-  await fs.rename(join(cwd, '_git'), join(cwd, '.git')); // Can't add .git folder to repo
+  process.env.CI = "";
+  await fs.rename(join(cwd, "_git"), join(cwd, ".git")); // Can't add .git folder to repo
 
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
@@ -27,5 +27,5 @@ skipIfBun('Find dependencies with the lefthook v1 plugin', async () => {
   });
 
   process.env.CI = CI;
-  await fs.rename(join(cwd, '.git'), join(cwd, '_git'));
+  await fs.rename(join(cwd, ".git"), join(cwd, "_git"));
 });

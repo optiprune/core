@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugin-config/plugin-disable');
+const cwd = resolve("fixtures/plugin-config/plugin-disable");
 
-test('Disable plugin from dynamically added config file', async () => {
+test("Disable plugin from dynamically added config file", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

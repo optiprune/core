@@ -1,29 +1,29 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/language/jsdoc-exports');
+const cwd = resolve("fixtures/language/jsdoc-exports");
 
-test('Find exports from jsdoc @type tags', async () => {
-  const options = await createOptions({ cwd, tags: ['-ignoreunresolved'] });
+test("Find exports from jsdoc @type tags", async () => {
+  const options = await createOptions({ cwd, tags: ["-ignoreunresolved"] });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['module.ts']['alphaFn']);
-  assert(issues.exports['module.ts']['internalUnusedFn']);
-  assert(issues.exports['module.ts']['invalidTaggedFn']);
-  assert(issues.exports['module.ts']['unusedFn']);
-  assert(issues.exports['module.ts']['overloadUntagged']);
+  assert(issues.exports["module.ts"]["alphaFn"]);
+  assert(issues.exports["module.ts"]["internalUnusedFn"]);
+  assert(issues.exports["module.ts"]["invalidTaggedFn"]);
+  assert(issues.exports["module.ts"]["unusedFn"]);
+  assert(issues.exports["module.ts"]["overloadUntagged"]);
 
-  assert(!issues.exports['module.ts']?.['overloadFn']);
-  assert(!issues.exports['module.ts']?.['overloadTagOnSecond']);
-  assert(!issues.exports['module.ts']?.['overloadTagOnImpl']);
+  assert(!issues.exports["module.ts"]?.["overloadFn"]);
+  assert(!issues.exports["module.ts"]?.["overloadTagOnSecond"]);
+  assert(!issues.exports["module.ts"]?.["overloadTagOnImpl"]);
 
-  assert(issues.types['module.ts']['UnusedInterface']);
-  assert(issues.types['module.ts']['InternalWithLineComment']);
-  assert(!issues.types['module.ts']['UsedViaJSDoc']);
+  assert(issues.types["module.ts"]["UnusedInterface"]);
+  assert(issues.types["module.ts"]["InternalWithLineComment"]);
+  assert(!issues.types["module.ts"]["UsedViaJSDoc"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -34,21 +34,21 @@ test('Find exports from jsdoc @type tags', async () => {
   });
 });
 
-test('Find exports from jsdoc @type tags (production)', async () => {
-  const options = await createOptions({ cwd, isProduction: true, tags: ['-ignoreunresolved'] });
+test("Find exports from jsdoc @type tags (production)", async () => {
+  const options = await createOptions({ cwd, isProduction: true, tags: ["-ignoreunresolved"] });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['module.ts']['alphaFn']);
-  assert(issues.exports['module.ts']['invalidTaggedFn']);
-  assert(issues.exports['module.ts']['unusedFn']);
-  assert(issues.exports['module.ts']['overloadUntagged']);
+  assert(issues.exports["module.ts"]["alphaFn"]);
+  assert(issues.exports["module.ts"]["invalidTaggedFn"]);
+  assert(issues.exports["module.ts"]["unusedFn"]);
+  assert(issues.exports["module.ts"]["overloadUntagged"]);
 
-  assert(!issues.exports['module.ts']?.['overloadFn']);
-  assert(!issues.exports['module.ts']?.['overloadTagOnSecond']);
-  assert(!issues.exports['module.ts']?.['overloadTagOnImpl']);
+  assert(!issues.exports["module.ts"]?.["overloadFn"]);
+  assert(!issues.exports["module.ts"]?.["overloadTagOnSecond"]);
+  assert(!issues.exports["module.ts"]?.["overloadTagOnImpl"]);
 
-  assert(issues.types['module.ts']['UnusedInterface']);
-  assert(issues.types['module.ts']['UsedViaJSDoc']);
+  assert(issues.types["module.ts"]["UnusedInterface"]);
+  assert(issues.types["module.ts"]["UsedViaJSDoc"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -59,11 +59,11 @@ test('Find exports from jsdoc @type tags (production)', async () => {
   });
 });
 
-test('JSDoc tag with line comment between tag and export is respected', async () => {
-  const options = await createOptions({ cwd, tags: ['-internal', '-ignoreunresolved'] });
+test("JSDoc tag with line comment between tag and export is respected", async () => {
+  const options = await createOptions({ cwd, tags: ["-internal", "-ignoreunresolved"] });
   const { issues, counters } = await main(options);
 
-  assert(!issues.types['module.ts']['InternalWithLineComment']);
+  assert(!issues.types["module.ts"]["InternalWithLineComment"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

@@ -1,20 +1,27 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import { join } from '../../src/util/path.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import { join } from "../../src/util/path.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/tags-hints/stale-internal-tag');
+const cwd = resolve("fixtures/tags-hints/stale-internal-tag");
 
-test('Flag stale @internal tags in production mode', async () => {
+test("Flag stale @internal tags in production mode", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { issues, tagHints, counters } = await main(options);
 
   assert.deepEqual(
     tagHints,
-    new Set([{ type: 'tag', filePath: join(cwd, 'module.ts'), identifier: 'usedInProdInternal', tagName: '@internal' }])
+    new Set([
+      {
+        type: "tag",
+        filePath: join(cwd, "module.ts"),
+        identifier: "usedInProdInternal",
+        tagName: "@internal",
+      },
+    ]),
   );
 
   assert.deepEqual(counters, {
@@ -26,12 +33,12 @@ test('Flag stale @internal tags in production mode', async () => {
   assert.equal(Object.keys(issues.exports).length, 0);
 });
 
-test('Do not flag @internal tags in non-production mode', async () => {
+test("Do not flag @internal tags in non-production mode", async () => {
   const options = await createOptions({ cwd });
   const { issues, tagHints, counters } = await main(options);
 
   assert.equal(tagHints.size, 0);
-  assert(issues.exports['module.ts']['unusedInternal']);
+  assert(issues.exports["module.ts"]["unusedInternal"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

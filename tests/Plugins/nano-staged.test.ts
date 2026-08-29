@@ -1,21 +1,21 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/nano-staged');
+const cwd = resolve("fixtures/plugins/nano-staged");
 
-test('Find dependencies with the nano-staged plugin', async () => {
+test("Find dependencies with the nano-staged plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.binaries['package.json']['eslint']);
-  assert(issues.binaries['package.json']['prettier']);
-  assert(issues.binaries['.nano-staged.js']['eslint']);
-  assert(issues.binaries['.nano-staged.js']['prettier']);
-  assert(issues.devDependencies['package.json']['nano-staged']);
+  assert(issues.binaries["package.json"]["eslint"]);
+  assert(issues.binaries["package.json"]["prettier"]);
+  assert(issues.binaries[".nano-staged.js"]["eslint"]);
+  assert(issues.binaries[".nano-staged.js"]["prettier"]);
+  assert(issues.devDependencies["package.json"]["nano-staged"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -26,7 +26,7 @@ test('Find dependencies with the nano-staged plugin', async () => {
   });
 });
 
-test('Find dependencies with the nano-staged plugin (production)', async () => {
+test("Find dependencies with the nano-staged plugin (production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { counters } = await main(options);
 

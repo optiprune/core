@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/resolution/tsconfig-include-dir');
+const cwd = resolve("fixtures/resolution/tsconfig-include-dir");
 
-test('Handle bare directory names in tsconfig include', async () => {
+test("Handle bare directory names in tsconfig include", async () => {
   const options = await createOptions({ cwd, isUseTscFiles: true });
   const { issues, counters } = await main(options);
 

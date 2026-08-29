@@ -1,12 +1,12 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-test('Resolve hoisted binaries from a workspace package run as single project', async () => {
-  const cwd = resolve('fixtures/dependencies/hoisted-dependencies/packages/foo');
+test("Resolve hoisted binaries from a workspace package run as single project", async () => {
+  const cwd = resolve("fixtures/dependencies/hoisted-dependencies/packages/foo");
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 
@@ -19,8 +19,8 @@ test('Resolve hoisted binaries from a workspace package run as single project', 
   });
 });
 
-test('Resolve hoisted peer dependencies from a workspace package run as single project', async () => {
-  const cwd = resolve('fixtures/dependencies/hoisted-dependencies/packages/bar');
+test("Resolve hoisted peer dependencies from a workspace package run as single project", async () => {
+  const cwd = resolve("fixtures/dependencies/hoisted-dependencies/packages/bar");
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

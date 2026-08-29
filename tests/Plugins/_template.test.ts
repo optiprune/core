@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/_template');
+const cwd = resolve("fixtures/plugins/_template");
 
-test('Find dependencies with the __PLUGIN_NAME__ plugin', async () => {
+test("Find dependencies with the __PLUGIN_NAME__ plugin", async () => {
   /**
    * Ideally, plugin tests have no `issues` left and only `total` and `processed` values in `counters`.
    * This means for instance that a dependency used in a file, is also listed in package.json, resulting in zero issues.

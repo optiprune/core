@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/ignore-exports-used-in-file/re-export-local-alias');
+const cwd = resolve("fixtures/ignore-exports-used-in-file/re-export-local-alias");
 
-test('Find unused exports respecting an ignoreExportsUsedInFile (aliased re-export of referenced import)', async () => {
+test("Find unused exports respecting an ignoreExportsUsedInFile (aliased re-export of referenced import)", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

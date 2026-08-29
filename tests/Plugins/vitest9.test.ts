@@ -1,23 +1,23 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/vitest9');
+const cwd = resolve("fixtures/plugins/vitest9");
 
-test('Find dependencies in vitest configuration (projects with inline and external)', async () => {
+test("Find dependencies in vitest configuration (projects with inline and external)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.unlisted['vitest.config.ts']['jsdom']);
-  assert(issues.unlisted['packages/client/vitest.config.e2e.ts']['happy-dom']);
-  assert(!issues.unlisted['vitest.config.ts']?.['top-level-dep']);
-  assert(!issues.unlisted['vitest.config.ts']?.['project-level-dep']);
-  assert(!issues.unlisted['vitest.config.ts']?.['project-dedupe-dep']);
-  assert(!issues.files['vitest.shared.config.ts']);
-  assert(!issues.files['src/shared.setup.ts']);
+  assert(issues.unlisted["vitest.config.ts"]["jsdom"]);
+  assert(issues.unlisted["packages/client/vitest.config.e2e.ts"]["happy-dom"]);
+  assert(!issues.unlisted["vitest.config.ts"]?.["top-level-dep"]);
+  assert(!issues.unlisted["vitest.config.ts"]?.["project-level-dep"]);
+  assert(!issues.unlisted["vitest.config.ts"]?.["project-dedupe-dep"]);
+  assert(!issues.files["vitest.shared.config.ts"]);
+  assert(!issues.files["src/shared.setup.ts"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

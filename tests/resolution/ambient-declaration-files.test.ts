@@ -1,20 +1,20 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/resolution/ambient-declaration-files');
+const cwd = resolve("fixtures/resolution/ambient-declaration-files");
 
-test('Ambient .d.ts (no exports) are not reported unused under a solution-style tsconfig', async () => {
+test("Ambient .d.ts (no exports) are not reported unused under a solution-style tsconfig", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
   // globals.d.ts (declare global), untyped-module.d.ts (declare module) and
   // vendor-augmentation.d.ts (side-effect import) carry no exports → ambient.
   // orphan-types.d.ts exports a type nothing imports → genuinely unused.
-  assert.deepEqual(Object.keys(issues.files), ['src/orphan-types.d.ts']);
+  assert.deepEqual(Object.keys(issues.files), ["src/orphan-types.d.ts"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/node-test-runner-nub');
+const cwd = resolve("fixtures/plugins/node-test-runner-nub");
 
-test('Find dependencies with the node-test-runner plugin (nub --test)', async () => {
+test("Find dependencies with the node-test-runner plugin (nub --test)", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 
@@ -18,7 +18,7 @@ test('Find dependencies with the node-test-runner plugin (nub --test)', async ()
   });
 });
 
-test('Find dependencies with the node-test-runner plugin (nub --test, production)', async () => {
+test("Find dependencies with the node-test-runner plugin (nub --test, production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { counters } = await main(options);
 

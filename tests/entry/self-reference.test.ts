@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/entry/self-reference');
+const cwd = resolve("fixtures/entry/self-reference");
 
-test('Allows self-references', async () => {
+test("Allows self-references", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
@@ -20,7 +20,7 @@ test('Allows self-references', async () => {
   });
 });
 
-test('Allows self-references (production)', async () => {
+test("Allows self-references (production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { issues, counters } = await main(options);
 
@@ -33,7 +33,7 @@ test('Allows self-references (production)', async () => {
   });
 });
 
-test('Allows self-references (strict)', async () => {
+test("Allows self-references (strict)", async () => {
   const options = await createOptions({ cwd, isStrict: true });
   const { issues, counters } = await main(options);
 

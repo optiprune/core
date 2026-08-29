@@ -1,26 +1,26 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/dependencies/basic');
+const cwd = resolve("fixtures/dependencies/basic");
 
-test('Find unused dependencies', async () => {
+test("Find unused dependencies", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert('unused-module.ts' in issues.files);
+  assert("unused-module.ts" in issues.files);
 
-  assert.equal(Object.keys(issues.dependencies['package.json']).length, 2);
-  assert(issues.dependencies['package.json']['@tootallnate/once']);
-  assert(issues.dependencies['package.json']['fs-extra']);
-  assert(issues.devDependencies['package.json']['mocha']);
+  assert.equal(Object.keys(issues.dependencies["package.json"]).length, 2);
+  assert(issues.dependencies["package.json"]["@tootallnate/once"]);
+  assert(issues.dependencies["package.json"]["fs-extra"]);
+  assert(issues.devDependencies["package.json"]["mocha"]);
 
   assert.equal(Object.keys(issues.binaries).length, 1);
-  assert(issues.binaries['package.json']['start-server']);
-  assert(issues.binaries['package.json']['jest']);
+  assert(issues.binaries["package.json"]["start-server"]);
+  assert(issues.binaries["package.json"]["jest"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -33,20 +33,20 @@ test('Find unused dependencies', async () => {
   });
 });
 
-test('Find unused dependencies (production)', async () => {
+test("Find unused dependencies (production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { issues, counters } = await main(options);
 
-  assert('unused-module.ts' in issues.files);
+  assert("unused-module.ts" in issues.files);
 
-  assert.equal(Object.keys(issues.dependencies['package.json']).length, 2);
-  assert(issues.dependencies['package.json']['@tootallnate/once']);
-  assert(issues.dependencies['package.json']['fs-extra']);
+  assert.equal(Object.keys(issues.dependencies["package.json"]).length, 2);
+  assert(issues.dependencies["package.json"]["@tootallnate/once"]);
+  assert(issues.dependencies["package.json"]["fs-extra"]);
   assert.equal(Object.keys(issues.devDependencies).length, 0);
 
   assert.equal(Object.keys(issues.binaries).length, 1);
-  assert(issues.binaries['package.json']['start-server']);
-  assert(!issues.binaries['package.json']['jest']);
+  assert(issues.binaries["package.json"]["start-server"]);
+  assert(!issues.binaries["package.json"]["jest"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -59,16 +59,16 @@ test('Find unused dependencies (production)', async () => {
   });
 });
 
-test('Find unused dependencies (strict)', async () => {
+test("Find unused dependencies (strict)", async () => {
   const options = await createOptions({ cwd, isProduction: true, isStrict: true });
   const { issues, counters } = await main(options);
 
-  assert('unused-module.ts' in issues.files);
+  assert("unused-module.ts" in issues.files);
 
-  assert.equal(Object.keys(issues.dependencies['package.json']).length, 3);
-  assert(issues.dependencies['package.json']['@tootallnate/once']);
-  assert(issues.dependencies['package.json']['fs-extra']);
-  assert(issues.dependencies['package.json']['jquery']);
+  assert.equal(Object.keys(issues.dependencies["package.json"]).length, 3);
+  assert(issues.dependencies["package.json"]["@tootallnate/once"]);
+  assert(issues.dependencies["package.json"]["fs-extra"]);
+  assert(issues.dependencies["package.json"]["jquery"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

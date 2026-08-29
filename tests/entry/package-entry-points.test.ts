@@ -1,25 +1,25 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import { join } from '../../src/util/path.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import { join } from "../../src/util/path.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/entry/package-entry-points');
+const cwd = resolve("fixtures/entry/package-entry-points");
 
-test('Resolve package entry points to source files', async () => {
+test("Resolve package entry points to source files", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters, configurationHints } = await main(options);
 
-  assert(issues.exports['feature/internal/system/used.ts'].unused);
-  assert('feature/internal/system/unused.ts' in issues.files);
-  assert('src/public/lib/rary/lost.js' in issues.files);
+  assert(issues.exports["feature/internal/system/used.ts"].unused);
+  assert("feature/internal/system/unused.ts" in issues.files);
+  assert("src/public/lib/rary/lost.js" in issues.files);
 
-  const filePath = join(cwd, 'package.json');
+  const filePath = join(cwd, "package.json");
   assert.deepEqual(configurationHints, [
-    { type: 'package-entry', identifier: './feature/index.js', workspaceName: '.', filePath },
-    { type: 'package-entry', identifier: './not-found.tsx', workspaceName: '.', filePath },
+    { type: "package-entry", identifier: "./feature/index.js", workspaceName: ".", filePath },
+    { type: "package-entry", identifier: "./not-found.tsx", workspaceName: ".", filePath },
   ]);
 
   assert.deepEqual(counters, {
@@ -31,17 +31,17 @@ test('Resolve package entry points to source files', async () => {
   });
 });
 
-test('Resolve package entry points to source files and report unused exports', async () => {
+test("Resolve package entry points to source files and report unused exports", async () => {
   const options = await createOptions({ cwd, isIncludeEntryExports: true });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['feature/internal/system/used.ts'].unused);
-  assert(issues.exports['feature/my-feature.js'].unused);
-  assert(issues.exports['src/public/lib/rary/index.ts'].entryExport);
-  assert(issues.exports['lib/index.js'].entryExport);
+  assert(issues.exports["feature/internal/system/used.ts"].unused);
+  assert(issues.exports["feature/my-feature.js"].unused);
+  assert(issues.exports["src/public/lib/rary/index.ts"].entryExport);
+  assert(issues.exports["lib/index.js"].entryExport);
 
-  assert('feature/internal/system/unused.ts' in issues.files);
-  assert('src/public/lib/rary/lost.js' in issues.files);
+  assert("feature/internal/system/unused.ts" in issues.files);
+  assert("src/public/lib/rary/lost.js" in issues.files);
 
   assert.deepEqual(counters, {
     ...baseCounters,

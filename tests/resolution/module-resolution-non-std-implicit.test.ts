@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/resolution/module-resolution-non-std-implicit');
+const cwd = resolve("fixtures/resolution/module-resolution-non-std-implicit");
 
-test('Resolve non-standard relative specifiers (no tsconfig.json)', async () => {
+test("Resolve non-standard relative specifiers (no tsconfig.json)", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

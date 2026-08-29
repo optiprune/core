@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/dependencies/peer-dependencies-optional-host-transitive');
+const cwd = resolve("fixtures/dependencies/peer-dependencies-optional-host-transitive");
 
-test('Do not report optional peerDependency referenced only through a host dependency', async () => {
+test("Do not report optional peerDependency referenced only through a host dependency", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

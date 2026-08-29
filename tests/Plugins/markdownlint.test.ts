@@ -1,17 +1,17 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/markdownlint');
+const cwd = resolve("fixtures/plugins/markdownlint");
 
-test('Find dependencies with the markdownlint plugin', async () => {
+test("Find dependencies with the markdownlint plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.binaries['package.json']['markdownlint']);
+  assert(issues.binaries["package.json"]["markdownlint"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

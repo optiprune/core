@@ -1,16 +1,16 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-test('Should track referenced default catalog entries', async () => {
-  const cwd = resolve('fixtures/dependencies/catalog-yarn');
+test("Should track referenced default catalog entries", async () => {
+  const cwd = resolve("fixtures/dependencies/catalog-yarn");
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.catalog['.yarnrc.yml']['default.@lo/dash']);
+  assert(issues.catalog[".yarnrc.yml"]["default.@lo/dash"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

@@ -1,21 +1,21 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/netlify');
+const cwd = resolve("fixtures/plugins/netlify");
 
-test('Find dependencies with the Netlify plugin', async () => {
+test("Find dependencies with the Netlify plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.unlisted['netlify.toml']['netlify-plugin-check-output-for-puppy-references']);
-  assert(issues.unlisted['netlify.toml']['package-1']);
-  assert(issues.unlisted['netlify.toml']['package-2']);
-  assert(issues.unlisted['netlify.toml']['package-3']);
-  assert(issues.unlisted['netlify.toml']['package-4']);
+  assert(issues.unlisted["netlify.toml"]["netlify-plugin-check-output-for-puppy-references"]);
+  assert(issues.unlisted["netlify.toml"]["package-1"]);
+  assert(issues.unlisted["netlify.toml"]["package-2"]);
+  assert(issues.unlisted["netlify.toml"]["package-3"]);
+  assert(issues.unlisted["netlify.toml"]["package-4"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

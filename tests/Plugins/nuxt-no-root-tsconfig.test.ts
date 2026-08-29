@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/nuxt-no-root-tsconfig');
+const cwd = resolve("fixtures/plugins/nuxt-no-root-tsconfig");
 
-test('Resolve nuxt aliases without a root tsconfig.json', async () => {
+test("Resolve nuxt aliases without a root tsconfig.json", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 
@@ -18,7 +18,7 @@ test('Resolve nuxt aliases without a root tsconfig.json', async () => {
   });
 });
 
-test('Resolve local nuxt modules in production mode', async () => {
+test("Resolve local nuxt modules in production mode", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { counters } = await main(options);
 
@@ -29,7 +29,7 @@ test('Resolve local nuxt modules in production mode', async () => {
   });
 });
 
-test('Classify package nuxt modules as production dependencies in strict mode', async () => {
+test("Classify package nuxt modules as production dependencies in strict mode", async () => {
   const options = await createOptions({ cwd, isProduction: true, isStrict: true });
   const { counters, issues } = await main(options);
 
@@ -39,5 +39,5 @@ test('Classify package nuxt modules as production dependencies in strict mode', 
     processed: 6,
     total: 6,
   });
-  assert.deepEqual(Object.keys(issues.unlisted['nuxt.config.ts']), ['nuxt-module']);
+  assert.deepEqual(Object.keys(issues.unlisted["nuxt.config.ts"]), ["nuxt-module"]);
 });

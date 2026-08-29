@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/tags-hints/pragma');
+const cwd = resolve("fixtures/tags-hints/pragma");
 
-test('Support all sorts of pragmas/docblocks', async () => {
+test("Support all sorts of pragmas/docblocks", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

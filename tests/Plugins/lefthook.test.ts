@@ -1,17 +1,17 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/lefthook');
+const cwd = resolve("fixtures/plugins/lefthook");
 
-test('Find dependencies with the Lefthook plugin', async () => {
+test("Find dependencies with the Lefthook plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.binaries['lefthook.yml']['eslint']);
+  assert(issues.binaries["lefthook.yml"]["eslint"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

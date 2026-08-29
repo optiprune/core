@@ -1,16 +1,16 @@
-import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import assert from "node:assert/strict";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/infra/git-branch-file');
-const gitLogsDir = resolve('fixtures/infra/git-branch-file/.git/logs/refs/heads/don');
+const cwd = resolve("fixtures/infra/git-branch-file");
+const gitLogsDir = resolve("fixtures/infra/git-branch-file/.git/logs/refs/heads/don");
 
-test('Ignore files in .git directory (branch names ending in .ts)', async () => {
+test("Ignore files in .git directory (branch names ending in .ts)", async () => {
   mkdirSync(gitLogsDir, { recursive: true });
-  writeFileSync(resolve('fixtures/infra/git-branch-file/.git/logs/refs/heads/don/feature.ts'), '');
+  writeFileSync(resolve("fixtures/infra/git-branch-file/.git/logs/refs/heads/don/feature.ts"), "");
 
   try {
     const options = await createOptions({ cwd });
@@ -18,6 +18,6 @@ test('Ignore files in .git directory (branch names ending in .ts)', async () => 
 
     assert.equal(Object.keys(issues.files).length, 0);
   } finally {
-    rmSync(resolve('fixtures/infra/git-branch-file/.git'), { recursive: true, force: true });
+    rmSync(resolve("fixtures/infra/git-branch-file/.git"), { recursive: true, force: true });
   }
 });

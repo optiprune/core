@@ -1,65 +1,65 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { deserialize, serialize } from 'node:v8';
+import { deserialize, serialize } from "node:v8";
 
-test('Should serialize and deserialize file back to original', () => {
+test("Should serialize and deserialize file back to original", () => {
   const file = {
     imported: undefined,
     internalImportCache: undefined,
     imports: {
       internal: new Map([
         [
-          'file',
+          "file",
           {
-            refs: new Set(['ref1', 'ref2']),
-            imported: new Map([['name', new Set(['file', 'file2'])]]),
-            importAs: new Map([['name', new Map([['alias', new Set(['file', 'file2'])]])]]),
-            importNs: new Map([['namespace', new Set(['file', 'file2'])]]),
-            reExport: new Map([['*', new Set(['file', 'file2'])]]),
-            reExportAs: new Map([['name', new Map([['alias', new Set(['file', 'file2'])]])]]),
-            reExportNs: new Map([['namespace', new Set(['file', 'file2'])]]),
+            refs: new Set(["ref1", "ref2"]),
+            imported: new Map([["name", new Set(["file", "file2"])]]),
+            importAs: new Map([["name", new Map([["alias", new Set(["file", "file2"])]])]]),
+            importNs: new Map([["namespace", new Set(["file", "file2"])]]),
+            reExport: new Map([["*", new Set(["file", "file2"])]]),
+            reExportAs: new Map([["name", new Map([["alias", new Set(["file", "file2"])]])]]),
+            reExportNs: new Map([["namespace", new Set(["file", "file2"])]]),
           },
         ],
         [
-          'file2',
+          "file2",
           {
-            refs: new Set(['ref1', 'ref2']),
-            imported: new Map([['name', new Set(['file', 'file2'])]]),
+            refs: new Set(["ref1", "ref2"]),
+            imported: new Map([["name", new Set(["file", "file2"])]]),
             importAs: new Map([
               [
-                'name',
+                "name",
                 new Map([
-                  ['alias', new Set(['file', 'file2'])],
-                  ['alias2', new Set(['file', 'file2'])],
+                  ["alias", new Set(["file", "file2"])],
+                  ["alias2", new Set(["file", "file2"])],
                 ]),
               ],
             ]),
-            importNs: new Map([['namespace', new Set(['file', 'file2'])]]),
+            importNs: new Map([["namespace", new Set(["file", "file2"])]]),
             reExport: new Map([
-              ['*', new Set(['file', 'file2'])],
-              ['id', new Set(['file', 'file2'])],
+              ["*", new Set(["file", "file2"])],
+              ["id", new Set(["file", "file2"])],
             ]),
-            reExportAs: new Map([['name', new Map([['alias', new Set(['file', 'file2'])]])]]),
+            reExportAs: new Map([["name", new Map([["alias", new Set(["file", "file2"])]])]]),
             reExportNs: new Map([
-              ['namespace', new Set(['file', 'file2'])],
-              ['namespace2', new Set(['file', 'file2'])],
+              ["namespace", new Set(["file", "file2"])],
+              ["namespace2", new Set(["file", "file2"])],
             ]),
           },
         ],
       ]),
-      external: new Set(['ext']),
-      unresolved: new Set([{ specifier: 'unresolved', pos: 1, line: 1, col: 1 }]),
+      external: new Set(["ext"]),
+      unresolved: new Set([{ specifier: "unresolved", pos: 1, line: 1, col: 1 }]),
     },
     exports: {
       exported: new Map(),
       duplicate: new Set([
         [
-          { symbol: 'def', pos: 1, line: 1, col: 1 },
-          { symbol: 'dup', pos: 1, line: 2, col: 2 },
+          { symbol: "def", pos: 1, line: 1, col: 1 },
+          { symbol: "dup", pos: 1, line: 2, col: 2 },
         ],
       ]),
     },
-    scripts: new Set(['script', 'script2']),
+    scripts: new Set(["script", "script2"]),
   };
 
   assert.deepEqual(deserialize(serialize(file)), file);

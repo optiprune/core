@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/dependencies/peer-dependencies-circular');
+const cwd = resolve("fixtures/dependencies/peer-dependencies-circular");
 
-test('Prevent infinite recursion with circular peer dependencies', async () => {
+test("Prevent infinite recursion with circular peer dependencies", async () => {
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 

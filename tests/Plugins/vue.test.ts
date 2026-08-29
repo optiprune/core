@@ -1,12 +1,12 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-test('Support compiler functions in config (vue)', async () => {
-  const cwd = resolve('fixtures/plugins/vue');
+test("Support compiler functions in config (vue)", async () => {
+  const cwd = resolve("fixtures/plugins/vue");
   const options = await createOptions({ cwd });
   const { counters } = await main(options);
 
@@ -18,13 +18,13 @@ test('Support compiler functions in config (vue)', async () => {
 });
 
 test('Detect imports from <style lang="scss|less|stylus"> in .vue SFCs', async () => {
-  const cwd = resolve('fixtures/plugins/vue-styles');
+  const cwd = resolve("fixtures/plugins/vue-styles");
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert('styles/_unused.scss' in issues.files);
-  assert('styles/unused.less' in issues.files);
-  assert('styles/unused.styl' in issues.files);
+  assert("styles/_unused.scss" in issues.files);
+  assert("styles/unused.less" in issues.files);
+  assert("styles/unused.styl" in issues.files);
 
   assert.deepEqual(counters, {
     ...baseCounters,

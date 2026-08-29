@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/karma2');
+const cwd = resolve("fixtures/plugins/karma2");
 
-test('Find dependencies with the Karma plugin (test files)', async () => {
+test("Find dependencies with the Karma plugin (test files)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert.ok('out-of-base-path/example.spec.js' in issues.files);
-  assert.ok('src/excluded.spec.js' in issues.files);
+  assert.ok("out-of-base-path/example.spec.js" in issues.files);
+  assert.ok("src/excluded.spec.js" in issues.files);
 
   assert.deepEqual(counters, {
     ...baseCounters,

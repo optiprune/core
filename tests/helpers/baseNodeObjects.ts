@@ -1,4 +1,4 @@
-import type { Export, FileNode, Import, ImportMaps } from '../../src/types/module-graph.js';
+import type { Export, FileNode, Import, ImportMaps } from "../../src/types/module-graph.js";
 
 export const baseImportMaps: ImportMaps = {
   refs: new Set(),
@@ -28,11 +28,11 @@ export const baseFileNode: FileNode = {
 };
 
 export const baseExport: Export = {
-  identifier: 'identifier',
+  identifier: "identifier",
   pos: 0,
   line: 1,
   col: 0,
-  type: 'unknown',
+  type: "unknown",
   members: [],
   jsDocTags: new Set(),
   hasRefsInFile: false,
@@ -42,9 +42,9 @@ export const baseExport: Export = {
 };
 
 export const getBaseImport = (filePath: string): Import => ({
-  specifier: './module-1',
+  specifier: "./module-1",
   filePath,
-  identifier: 'identifier',
+  identifier: "identifier",
   isTypeOnly: false,
   modifiers: 0,
   pos: 0,

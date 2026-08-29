@@ -1,17 +1,17 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/ignore/dependencies-binaries');
+const cwd = resolve("fixtures/ignore/dependencies-binaries");
 
-test('Respect ignored binaries and dependencies, including regex, show config hints', async () => {
+test("Respect ignored binaries and dependencies, including regex, show config hints", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters, configurationHints } = await main(options);
 
-  assert(issues.binaries['package.json']['formatter']);
+  assert(issues.binaries["package.json"]["formatter"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -21,13 +21,13 @@ test('Respect ignored binaries and dependencies, including regex, show config hi
   });
 
   assert.deepEqual(configurationHints, [
-    { type: 'ignoreDependencies', workspaceName: '.', identifier: 'stream' },
-    { type: 'ignoreDependencies', workspaceName: '.', identifier: /.+unused-deps.+/ },
-    { type: 'ignoreBinaries', workspaceName: '.', identifier: /.*unused-bins.*/ },
+    { type: "ignoreDependencies", workspaceName: ".", identifier: "stream" },
+    { type: "ignoreDependencies", workspaceName: ".", identifier: /.+unused-deps.+/ },
+    { type: "ignoreBinaries", workspaceName: ".", identifier: /.*unused-bins.*/ },
   ]);
 });
 
-test('Respect ignored binaries and dependencies, including regex, no config hints (production)', async () => {
+test("Respect ignored binaries and dependencies, including regex, no config hints (production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { counters } = await main(options);
 
@@ -38,11 +38,14 @@ test('Respect ignored binaries and dependencies, including regex, no config hint
   });
 });
 
-test('Respect ignored binaries when excluding dependencies+unlisted+unresolved', async () => {
-  const options = await createOptions({ cwd, excludedIssueTypes: ['dependencies', 'unlisted', 'unresolved'] });
+test("Respect ignored binaries when excluding dependencies+unlisted+unresolved", async () => {
+  const options = await createOptions({
+    cwd,
+    excludedIssueTypes: ["dependencies", "unlisted", "unresolved"],
+  });
   const { issues, counters, configurationHints } = await main(options);
 
-  assert(issues.binaries['package.json']['formatter']);
+  assert(issues.binaries["package.json"]["formatter"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -52,10 +55,10 @@ test('Respect ignored binaries when excluding dependencies+unlisted+unresolved',
   });
 
   assert.deepEqual(configurationHints, [
-    { type: 'ignoreDependencies', workspaceName: '.', identifier: 'stream' },
-    { type: 'ignoreDependencies', workspaceName: '.', identifier: /^@org\/.*/ },
-    { type: 'ignoreDependencies', workspaceName: '.', identifier: /^rc-.*/ },
-    { type: 'ignoreDependencies', workspaceName: '.', identifier: /.+unused-deps.+/ },
-    { type: 'ignoreBinaries', workspaceName: '.', identifier: /.*unused-bins.*/ },
+    { type: "ignoreDependencies", workspaceName: ".", identifier: "stream" },
+    { type: "ignoreDependencies", workspaceName: ".", identifier: /^@org\/.*/ },
+    { type: "ignoreDependencies", workspaceName: ".", identifier: /^rc-.*/ },
+    { type: "ignoreDependencies", workspaceName: ".", identifier: /.+unused-deps.+/ },
+    { type: "ignoreBinaries", workspaceName: ".", identifier: /.*unused-bins.*/ },
   ]);
 });

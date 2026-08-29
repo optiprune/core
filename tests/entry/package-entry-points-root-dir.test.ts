@@ -1,11 +1,11 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/entry/package-entry-points-root-dir');
+const cwd = resolve("fixtures/entry/package-entry-points-root-dir");
 
 test('Resolve package entry points with tsconfig rootDir: "."', async () => {
   const options = await createOptions({ cwd });

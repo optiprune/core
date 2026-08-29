@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/postcss');
+const cwd = resolve("fixtures/plugins/postcss");
 
-test('Find dependencies with the PostCSS plugin (postcss.config.js function)', async () => {
+test("Find dependencies with the PostCSS plugin (postcss.config.js function)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.unresolved['package.json']['autoprefixer']);
-  assert(issues.unlisted['postcss.config.js']['autoprefixer']);
+  assert(issues.unresolved["package.json"]["autoprefixer"]);
+  assert(issues.unlisted["postcss.config.js"]["autoprefixer"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

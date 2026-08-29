@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/types/enum-members');
+const cwd = resolve("fixtures/types/enum-members");
 
-test('Find unused enum members', async () => {
+test("Find unused enum members", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert.equal(Object.keys(issues.enumMembers['members.ts']).length, 2);
-  assert(issues.enumMembers['members.ts']['MyEnum.B_Unused']);
-  assert(issues.enumMembers['members.ts']['MyEnum.D-Key']);
+  assert.equal(Object.keys(issues.enumMembers["members.ts"]).length, 2);
+  assert(issues.enumMembers["members.ts"]["MyEnum.B_Unused"]);
+  assert(issues.enumMembers["members.ts"]["MyEnum.D-Key"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -23,13 +23,13 @@ test('Find unused enum members', async () => {
   });
 });
 
-test('Find unused enum members (isIncludeEntryExports)', async () => {
+test("Find unused enum members (isIncludeEntryExports)", async () => {
   const options = await createOptions({ cwd, isIncludeEntryExports: true });
   const { issues, counters } = await main(options);
 
-  assert.equal(Object.keys(issues.enumMembers['members.ts']).length, 2);
-  assert(issues.enumMembers['members.ts']['MyEnum.B_Unused']);
-  assert(issues.enumMembers['members.ts']['MyEnum.D-Key']);
+  assert.equal(Object.keys(issues.enumMembers["members.ts"]).length, 2);
+  assert(issues.enumMembers["members.ts"]["MyEnum.B_Unused"]);
+  assert(issues.enumMembers["members.ts"]["MyEnum.D-Key"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

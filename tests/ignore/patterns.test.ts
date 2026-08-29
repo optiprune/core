@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-test('Configuration hints for unused ignore patterns', async () => {
-  const cwd = resolve('fixtures/ignore/patterns');
+test("Configuration hints for unused ignore patterns", async () => {
+  const cwd = resolve("fixtures/ignore/patterns");
   const options = await createOptions({ cwd });
   const { counters, configurationHints } = await main(options);
 
   assert.deepEqual(configurationHints, [
-    { type: 'ignore', identifier: 'dist/**', workspaceName: undefined },
-    { type: 'ignore', identifier: 'generated/**', workspaceName: undefined },
-    { type: 'ignoreFiles', identifier: 'temp/**', workspaceName: undefined },
+    { type: "ignore", identifier: "dist/**", workspaceName: undefined },
+    { type: "ignore", identifier: "generated/**", workspaceName: undefined },
+    { type: "ignoreFiles", identifier: "temp/**", workspaceName: undefined },
   ]);
 
   assert.deepEqual(counters, {
@@ -23,14 +23,14 @@ test('Configuration hints for unused ignore patterns', async () => {
   });
 });
 
-test('Configuration hints for unused ignore patterns (monorepo)', async () => {
-  const cwd = resolve('fixtures/ignore/patterns-monorepo');
+test("Configuration hints for unused ignore patterns (monorepo)", async () => {
+  const cwd = resolve("fixtures/ignore/patterns-monorepo");
   const options = await createOptions({ cwd });
   const { counters, configurationHints } = await main(options);
 
   assert.deepEqual(configurationHints, [
-    { type: 'ignore', identifier: 'build/**', workspaceName: undefined },
-    { type: 'ignore', identifier: 'cache/**', workspaceName: 'packages/lib' },
+    { type: "ignore", identifier: "build/**", workspaceName: undefined },
+    { type: "ignore", identifier: "cache/**", workspaceName: "packages/lib" },
   ]);
 
   assert.deepEqual(counters, {

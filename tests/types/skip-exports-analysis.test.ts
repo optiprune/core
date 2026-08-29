@@ -1,23 +1,23 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/types/skip-exports-analysis');
+const cwd = resolve("fixtures/types/skip-exports-analysis");
 
-test('ignore exports', async () => {
+test("ignore exports", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.binaries['package.json'].nodemon);
-  assert(issues.binaries['package.json'].playwright);
+  assert(issues.binaries["package.json"].nodemon);
+  assert(issues.binaries["package.json"].playwright);
 
-  assert(issues.exports['src/used.js'].default);
-  assert(issues.exports['src/used.js'].unused);
-  assert(issues.exports['lib/used.js'].default);
-  assert(issues.exports['lib/used.js'].unused);
+  assert(issues.exports["src/used.js"].default);
+  assert(issues.exports["src/used.js"].unused);
+  assert(issues.exports["lib/used.js"].default);
+  assert(issues.exports["lib/used.js"].unused);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -28,21 +28,21 @@ test('ignore exports', async () => {
   });
 });
 
-test('ignore exports (isIncludeEntryExports)', async () => {
+test("ignore exports (isIncludeEntryExports)", async () => {
   const options = await createOptions({ cwd, isIncludeEntryExports: true });
   const { issues, counters } = await main(options);
-  assert(issues.binaries['package.json'].nodemon);
-  assert(issues.binaries['package.json'].playwright);
+  assert(issues.binaries["package.json"].nodemon);
+  assert(issues.binaries["package.json"].playwright);
 
-  assert(issues.exports['src/index.js'].reexport);
+  assert(issues.exports["src/index.js"].reexport);
 
-  assert(issues.exports['src/used.js'].default);
-  assert(issues.exports['src/used.js'].unused);
-  assert(issues.exports['src/used.js'].reexport);
+  assert(issues.exports["src/used.js"].default);
+  assert(issues.exports["src/used.js"].unused);
+  assert(issues.exports["src/used.js"].reexport);
 
-  assert(issues.exports['lib/used.js'].default);
-  assert(issues.exports['lib/used.js'].unused);
-  assert(issues.exports['lib/used.js'].reexport);
+  assert(issues.exports["lib/used.js"].default);
+  assert(issues.exports["lib/used.js"].unused);
+  assert(issues.exports["lib/used.js"].reexport);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -53,11 +53,11 @@ test('ignore exports (isIncludeEntryExports)', async () => {
   });
 });
 
-test('ignore exports (production)', async () => {
+test("ignore exports (production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['src/used.js'].unused);
+  assert(issues.exports["src/used.js"].unused);
 
   assert.deepEqual(counters, {
     ...baseCounters,

@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/nyc');
+const cwd = resolve("fixtures/plugins/nyc");
 
-test('Find dependencies with the nyc plugin', async () => {
+test("Find dependencies with the nyc plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.devDependencies['package.json']['nyc']);
-  assert(issues.unlisted['.nycrc.json']['@istanbuljs/nyc-config-typescript']);
+  assert(issues.devDependencies["package.json"]["nyc"]);
+  assert(issues.unlisted[".nycrc.json"]["@istanbuljs/nyc-config-typescript"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

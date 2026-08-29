@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/dependencies/definitely-typed');
+const cwd = resolve("fixtures/dependencies/definitely-typed");
 
-test('Find unused DT @types', async () => {
+test("Find unused DT @types", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.devDependencies['package.json']['@types/unused']);
-  assert(issues.devDependencies['package.json']['@types/mocha']);
+  assert(issues.devDependencies["package.json"]["@types/unused"]);
+  assert(issues.devDependencies["package.json"]["@types/mocha"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -22,11 +22,11 @@ test('Find unused DT @types', async () => {
   });
 });
 
-test('Find type imports in production dependencies (strict)', async () => {
+test("Find type imports in production dependencies (strict)", async () => {
   const options = await createOptions({ cwd, isProduction: true, isStrict: true });
   const { issues, counters } = await main(options);
 
-  assert(issues.dependencies['package.json']['type-only-production-types']);
+  assert(issues.dependencies["package.json"]["type-only-production-types"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

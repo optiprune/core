@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/re-exports/export-ns');
+const cwd = resolve("fixtures/re-exports/export-ns");
 
-test('Find re-exports through namespaces (2)', async () => {
+test("Find re-exports through namespaces (2)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['4-leaf-C.ts']['NS.fnC']);
-  assert(issues.enumMembers['4-leaf-A.ts']['EnumA.UnusedProp']);
+  assert(issues.exports["4-leaf-C.ts"]["NS.fnC"]);
+  assert(issues.enumMembers["4-leaf-A.ts"]["EnumA.UnusedProp"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -23,14 +23,14 @@ test('Find re-exports through namespaces (2)', async () => {
   });
 });
 
-test('Find re-exports through namespaces (2) including entry files', async () => {
+test("Find re-exports through namespaces (2) including entry files", async () => {
   const options = await createOptions({ cwd, isIncludeEntryExports: true });
   const { issues, counters } = await main(options);
 
-  assert(issues.exports['index.ts']['default']);
-  assert(issues.exports['4-leaf-C.ts']['NS.fnC']);
+  assert(issues.exports["index.ts"]["default"]);
+  assert(issues.exports["4-leaf-C.ts"]["NS.fnC"]);
   // assert(issues.nsExports['1-root.ts']['exportedFnOnNs']); // only when `nsExports` is included
-  assert(issues.enumMembers['4-leaf-A.ts']['EnumA.UnusedProp']);
+  assert(issues.enumMembers["4-leaf-A.ts"]["EnumA.UnusedProp"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

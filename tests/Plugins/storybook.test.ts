@@ -1,25 +1,25 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/storybook');
+const cwd = resolve("fixtures/plugins/storybook");
 
-test('Find dependencies with the Storybook plugin', async () => {
+test("Find dependencies with the Storybook plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.devDependencies['package.json']['storybook-addon-performance']);
-  assert(issues.unlisted['.storybook/main.js']['@storybook/addon-knobs']);
-  assert(issues.unlisted['.storybook/main.js']['@storybook/builder-webpack5']);
-  assert(issues.unlisted['.storybook/main.js']['@storybook/manager-webpack5']);
-  assert(issues.unlisted['.storybook/main.js']['@storybook/react-webpack5']);
-  assert(issues.unlisted['.storybook/preview.js']['cypress-storybook']);
-  assert(issues.unlisted['.storybook/vitest.setup.ts']['@storybook/your-framework']);
-  assert(issues.unresolved['.storybook/main.js']['storybook-addon-export-to-codesandbox']);
-  assert(issues.binaries['package.json']['storybook']);
+  assert(issues.devDependencies["package.json"]["storybook-addon-performance"]);
+  assert(issues.unlisted[".storybook/main.js"]["@storybook/addon-knobs"]);
+  assert(issues.unlisted[".storybook/main.js"]["@storybook/builder-webpack5"]);
+  assert(issues.unlisted[".storybook/main.js"]["@storybook/manager-webpack5"]);
+  assert(issues.unlisted[".storybook/main.js"]["@storybook/react-webpack5"]);
+  assert(issues.unlisted[".storybook/preview.js"]["cypress-storybook"]);
+  assert(issues.unlisted[".storybook/vitest.setup.ts"]["@storybook/your-framework"]);
+  assert(issues.unresolved[".storybook/main.js"]["storybook-addon-export-to-codesandbox"]);
+  assert(issues.binaries["package.json"]["storybook"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

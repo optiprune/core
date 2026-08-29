@@ -1,22 +1,22 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import { join } from '../../src/util/path.js';
-import { copyFixture } from '../helpers/copy-fixture.js';
-import { createOptions } from '../helpers/create-options.js';
+import { main } from "../../src/index.js";
+import { join } from "../../src/util/path.js";
+import { copyFixture } from "../helpers/copy-fixture.js";
+import { createOptions } from "../helpers/create-options.js";
 
-test('Fix catalog entries (package.json)', async () => {
-  const cwd = await copyFixture('fixtures/dependencies/catalog-named-package-json');
+test("Fix catalog entries (package.json)", async () => {
+  const cwd = await copyFixture("fixtures/dependencies/catalog-named-package-json");
   const options = await createOptions({ cwd, isFix: true });
   const { issues } = await main(options);
 
-  assert(issues.catalog['package.json']['default.lodash']);
-  assert(issues.catalog['package.json']['frontend.nuxt']);
-  assert(issues.catalog['package.json']['backend.fastify']);
+  assert(issues.catalog["package.json"]["default.lodash"]);
+  assert(issues.catalog["package.json"]["frontend.nuxt"]);
+  assert(issues.catalog["package.json"]["backend.fastify"]);
 
   assert.equal(
-    await readFile(join(cwd, 'package.json'), 'utf8'),
+    await readFile(join(cwd, "package.json"), "utf8"),
     `{
   "name": "@fixtures/catalog-named-package-json",
   "private": true,
@@ -42,6 +42,6 @@ test('Fix catalog entries (package.json)', async () => {
     }
   }
 }
-`
+`,
   );
 });

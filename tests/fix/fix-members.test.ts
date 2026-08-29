@@ -1,22 +1,22 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import { join } from '../../src/util/path.js';
-import { copyFixture } from '../helpers/copy-fixture.js';
-import { createOptions } from '../helpers/create-options.js';
+import { main } from "../../src/index.js";
+import { join } from "../../src/util/path.js";
+import { copyFixture } from "../helpers/copy-fixture.js";
+import { createOptions } from "../helpers/create-options.js";
 
-test('Fix enum and namespace members', async () => {
-  const cwd = await copyFixture('fixtures/fix-members');
+test("Fix enum and namespace members", async () => {
+  const cwd = await copyFixture("fixtures/fix-members");
   const options = await createOptions({ cwd, isFix: true });
   const { issues } = await main(options);
 
-  assert(issues.enumMembers['enums.ts']['Fruits.orange']);
-  assert(issues.enumMembers['enums.ts']['Directions.North']);
-  assert(issues.enumMembers['enums.ts']['Directions.South']);
-  assert(issues.enumMembers['enums.ts']['Directions.West']);
+  assert(issues.enumMembers["enums.ts"]["Fruits.orange"]);
+  assert(issues.enumMembers["enums.ts"]["Directions.North"]);
+  assert(issues.enumMembers["enums.ts"]["Directions.South"]);
+  assert(issues.enumMembers["enums.ts"]["Directions.West"]);
   assert.equal(
-    await readFile(join(cwd, 'enums.ts'), 'utf8'),
+    await readFile(join(cwd, "enums.ts"), "utf8"),
     `export enum Directions {
   East = 2,
   }
@@ -24,13 +24,13 @@ test('Fix enum and namespace members', async () => {
 export enum Fruits {
   apple = 'apple',
   }
-`
+`,
   );
 
-  assert(issues.namespaceMembers['namespaces.ts']['Animals.unusedDog']);
-  assert(issues.namespaceMembers['namespaces.ts']['Animals.Birds.unusedParrot']);
+  assert(issues.namespaceMembers["namespaces.ts"]["Animals.unusedDog"]);
+  assert(issues.namespaceMembers["namespaces.ts"]["Animals.Birds.unusedParrot"]);
   assert.equal(
-    await readFile(join(cwd, 'namespaces.ts'), 'utf8'),
+    await readFile(join(cwd, "namespaces.ts"), "utf8"),
     `export namespace Animals {
   export const cat = 'cat';
   export function swim() {}
@@ -39,6 +39,6 @@ export enum Fruits {
     export const eagle = 'eagle';
     }
 }
-`
+`,
   );
 });

@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/remark');
+const cwd = resolve("fixtures/plugins/remark");
 
-test('Find dependencies with the Remark plugin', async () => {
+test("Find dependencies with the Remark plugin", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.devDependencies['package.json']['remark-cli']);
-  assert(issues.unlisted['package.json']['remark-preset-webpro']);
-  assert(issues.binaries['package.json']['remark']);
+  assert(issues.devDependencies["package.json"]["remark-cli"]);
+  assert(issues.unlisted["package.json"]["remark-preset-webpro"]);
+  assert(issues.binaries["package.json"]["remark"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,

@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/husky-v9');
+const cwd = resolve("fixtures/plugins/husky-v9");
 
-test('Find dependencies with the husky plugin (v9)', async () => {
+test("Find dependencies with the husky plugin (v9)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.binaries['.husky/pre-push']['jest']);
-  assert(issues.binaries['.husky/pre-push']['pretty-quick']);
-  assert(issues.binaries['.husky/pre-rebase']['eslint']);
+  assert(issues.binaries[".husky/pre-push"]["jest"]);
+  assert(issues.binaries[".husky/pre-push"]["pretty-quick"]);
+  assert(issues.binaries[".husky/pre-rebase"]["eslint"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
@@ -23,7 +23,7 @@ test('Find dependencies with the husky plugin (v9)', async () => {
   });
 });
 
-test('Find dependencies with the husky plugin (v9) (production)', async () => {
+test("Find dependencies with the husky plugin (v9) (production)", async () => {
   const options = await createOptions({ cwd, isProduction: true });
   const { counters } = await main(options);
 

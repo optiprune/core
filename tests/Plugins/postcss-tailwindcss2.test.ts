@@ -1,17 +1,17 @@
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
 import { test } from "vitest";
-import { main } from '../../src/index.js';
-import baseCounters from '../helpers/baseCounters.js';
-import { createOptions } from '../helpers/create-options.js';
-import { resolve } from '../helpers/resolve.js';
+import { main } from "../../src/index.js";
+import baseCounters from "../helpers/baseCounters.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-const cwd = resolve('fixtures/plugins/postcss-tailwindcss2');
+const cwd = resolve("fixtures/plugins/postcss-tailwindcss2");
 
-test('Find dependencies with the PostCSS plugin (with @tailwindcss/postcss)', async () => {
+test("Find dependencies with the PostCSS plugin (with @tailwindcss/postcss)", async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 
-  assert(issues.unlisted['postcss.config.mjs']['@tailwindcss/postcss']);
+  assert(issues.unlisted["postcss.config.mjs"]["@tailwindcss/postcss"]);
 
   assert.deepEqual(counters, {
     ...baseCounters,
