@@ -137,4 +137,4 @@ jobs:
         with:
           timeout_minutes: 15
           max_attempts: 2
-          command: npm run test tests/${{ matrix.folder }}/
+          command: npm run test tests ${{ matrix.folder }}/
