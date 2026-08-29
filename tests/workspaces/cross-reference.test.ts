@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { test } from "vitest";
+import { main } from '../../src/index.js';
+import baseCounters from '../helpers/baseCounters.js';
+import { createOptions } from '../helpers/create-options.js';
+import { resolve } from '../helpers/resolve.js';
+
+const cwd = resolve('fixtures/workspaces/cross-reference');
+
+test('Resolve imports in separate workspaces without entry file', async () => {
+  const options = await createOptions({ cwd });
+  const { issues, counters } = await main(options);
+
+  assert(issues.exports['packages/lib-a/mod-a.ts']['unused']);
+  assert(issues.exports['packages/lib-b/mod-b.ts']['unused']);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    exports: 2,
+    processed: 4,
+    total: 4,
+  });
+});

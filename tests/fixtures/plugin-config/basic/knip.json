@@ -1,0 +1,6 @@
+{
+  "vitest": {
+    "config": ["vitest.config.ts"],
+    "entry": ["**/*.vitest.ts"]
+  }
+}

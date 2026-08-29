@@ -1,0 +1,6 @@
+{
+  "name": "@fixtures/include-entry-reexports__shared",
+  "private": true,
+  "main": "index.mjs",
+  "type": "module"
+}

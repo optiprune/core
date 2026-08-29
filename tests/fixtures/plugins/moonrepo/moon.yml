@@ -1,0 +1,13 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+tasks:
+  lint.readme:
+    command: 'vite-node $workspaceRoot/tools/linters/lint-readme.ts -- $projectRoot'
+  start.prod:
+    command: 'vitest ./server/server.ts'
+  build:
+    command:
+      - 'tsx'
+      - '--conditions=node development'
+      - '$projectRoot/tools/build.ts'
+      - '--'
+      - '--verbose'

@@ -1,0 +1,42 @@
+{
+  "name": "@plugins/webpack",
+  "imports": {
+    "#subpath/*": "./src/*"
+  },
+  "scripts": {
+    "build": "webpack",
+    "dev": "webpack serve"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "*",
+    "@babel/plugin-proposal-object-rest-spread": "*",
+    "@babel/plugin-transform-react-jsx": "*",
+    "@babel/preset-env": "*",
+    "@babel/preset-typescript": "*",
+    "babel-loader": "*",
+    "babel-plugin-macros": "*",
+    "babel-plugin-styled-components": "*",
+    "base64-inline-loader": "*",
+    "buffer": "*",
+    "copy-webpack-plugin": "*",
+    "css-loader": "*",
+    "esbuild": "*",
+    "esbuild-loader": "*",
+    "file-loader": "*",
+    "html-minimizer-webpack-plugin": "*",
+    "jquery": "*",
+    "less-loader": "*",
+    "lodash": "*",
+    "mini-css-extract-plugin": "*",
+    "module1": "*",
+    "module2": "*",
+    "svg-url-loader": "*",
+    "ts-loader": "*",
+    "url-loader": "*",
+    "vue": "*",
+    "webpack": "*",
+    "webpack-cli": "*",
+    "webpack-dev-server": "*"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@fixtures/workspaces-pnpm",
+  "knip": {
+    "workspaces": {
+      "{apps,packages}/*": {
+        "entry": "index.ts!",
+        "project": "**/*.ts!"
+      }
+    }
+  }
+}

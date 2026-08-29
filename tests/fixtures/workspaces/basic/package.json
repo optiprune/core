@@ -1,0 +1,36 @@
+{
+  "name": "@fixtures/workspaces",
+  "workspaces": [
+    "docs",
+    "apps/*",
+    "local/tsconfig",
+    "packages/*"
+  ],
+  "dependencies": {
+    "cypress": "*",
+    "minimist": "*",
+    "typescript": "*",
+    "zod": "*"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "knip": {
+    "ignoreWorkspaces": [
+      "apps/ignored-workspace"
+    ],
+    "workspaces": {
+      "apps/*": {
+        "entry": "index.ts!",
+        "project": "**/*.ts!"
+      },
+      "packages/*": {
+        "entry": "index.ts!",
+        "project": [
+          "**/*.ts!",
+          "!ignored/*.ts"
+        ]
+      }
+    }
+  }
+}

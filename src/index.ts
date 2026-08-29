@@ -1280,6 +1280,22 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 }
 
 /**
+ * Compatibility entry point for imported analyzer tests.
+ * It stays headless: no CLI process is started.
+ */
+export async function main(options: AnalyzerOptions) {
+  const report = await analyze(options);
+  return {
+    ...report,
+    counters: {
+      processed: report.summary.filesParsed,
+      total: report.summary.filesDiscovered,
+    },
+    issues: report.findings,
+  };
+}
+
+/**
  * Headless API: Cache Management
  */
 export { exportCache, importCache } from "./cache.js";

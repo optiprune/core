@@ -1,0 +1,8 @@
+{
+  "name": "@plugins/prettier",
+  "type": "module",
+  "devDependencies": {
+    "prettier": "*"
+  },
+  "prettier": "@company/prettier-config"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "@fixtures/tsconfig-paths-extends",
+  "knip": {
+    "entry": "src/cli.ts"
+  }
+}

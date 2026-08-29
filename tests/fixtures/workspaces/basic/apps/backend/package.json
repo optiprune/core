@@ -1,0 +1,13 @@
+{
+  "name": "@fixtures/workspaces__backend",
+  "main": "./index.js",
+  "dependencies": {
+    "@fixtures/workspaces__shared": "1.0.0",
+    "@fixtures/workspaces__tools": "1.0.0",
+    "picomatch": "*",
+    "next": "*"
+  },
+  "devDependencies": {
+    "@fixtures/workspaces__tsconfig": "1.0.0"
+  }
+}

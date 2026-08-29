@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"; // or '@je
 import fs from "node:fs/promises";
 import path from "pathe";
 import os from "node:os";
-import { PluginEngine } from "../../src/engine.ts";
-import { AnalysisContext } from "../../src/types.ts";
+import { PluginEngine } from "../../src/engine.js";
+import { AnalysisContext } from "../../src/types.js";
 
 describe("PluginEngine Security - Path Traversal Boundary Tests", () => {
   let tempBaseDir: string;

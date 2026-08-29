@@ -1,0 +1,7 @@
+{
+  "name": "@fixtures/workspaces__ignored-workspace",
+  "dependencies": {
+    "ghost": "*",
+    "packages": "*"
+  }
+}

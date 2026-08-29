@@ -1,0 +1,25 @@
+{
+  "name": "@fixtures/dependencies",
+  "scripts": {
+    "start": "start-server",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@tootallnate/once": "*",
+    "@sindresorhus/is": "*",
+    "fs-extra": "*",
+    "has": "*",
+    "stream": "*",
+    "JSONStream": "*"
+  },
+  "peerDependencies": {
+    "ansi-regex": "*",
+    "jquery": "*"
+  },
+  "optionalDependencies": {
+    "fs-optional": "*"
+  },
+  "devDependencies": {
+    "mocha": "*"
+  }
+}

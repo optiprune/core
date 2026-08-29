@@ -26,7 +26,7 @@ describe("TypeScript config module resolution", () => {
   it("loads a config that imports a local TypeScript helper instead of throwing module-not-found", async () => {
     const root = await rootWith({
       "optiprune.config.ts": [
-        'import { sharedOptions } from "./config/shared-options.ts";',
+        'import { sharedOptions } from "./config/shared-options.js";',
         "export default sharedOptions;",
       ].join("\n"),
       "config/shared-options.ts": [

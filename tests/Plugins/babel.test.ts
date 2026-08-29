@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import { test } from "vitest";
+import { main } from '../../src/index.js';
+import baseCounters from '../helpers/baseCounters.js';
+import { createOptions } from '../helpers/create-options.js';
+import { resolve } from '../helpers/resolve.js';
+
+const cwd = resolve('fixtures/plugins/babel');
+
+test('Find dependencies with the Babel plugin (1)', async () => {
+  const options = await createOptions({ cwd });
+  const { issues, counters } = await main(options);
+
+  assert(issues.devDependencies['package.json']['@babel/preset-react']);
+  assert(issues.devDependencies['package.json']['babel-plugin-prismjs']);
+
+  assert(issues.unlisted['.babelrc']['@babel/plugin-proposal-decorators']);
+  assert(issues.unresolved['.babelrc']['babel-preset-minify']);
+  assert(issues.unresolved['.babelrc']['react-hot-loader/babel']);
+
+  assert(issues.unlisted['.babelrc.js']['@babel/plugin-transform-runtime']);
+  assert(issues.unresolved['.babelrc.js']['babel-plugin-preval']);
+  assert(issues.unresolved['.babelrc.js']['babel-plugin-transform-imports']);
+  assert(issues.unlisted['.babelrc.js']['dotenv']);
+
+  assert(issues.unlisted['babel.config.cts']['@babel/mod']);
+  assert(issues.unlisted['babel.config.cts']['@babel/mod']);
+  assert(issues.unlisted['babel.config.cts']['@babel/plugin-mod']);
+  assert(issues.unlisted['babel.config.cts']['@babel/plugin-mod2']);
+  assert(issues.unlisted['babel.config.cts']['@babel/preset-mod']);
+  assert(issues.unlisted['babel.config.cts']['@babel/preset-mod2']);
+  assert(issues.unlisted['babel.config.cts']['@scope/babel-plugin']);
+  assert(issues.unlisted['babel.config.cts']['@scope/babel-plugin-mod']);
+  assert(issues.unlisted['babel.config.cts']['@scope/babel-preset']);
+  assert(issues.unlisted['babel.config.cts']['@scope/babel-preset-mod']);
+  assert(issues.unlisted['babel.config.cts']['@scope/mod']);
+  assert(issues.unlisted['babel.config.cts']['@scope/prefix-babel-plugin-mod']);
+  assert(issues.unlisted['babel.config.cts']['@scope2/babel-plugin']);
+  assert(issues.unlisted['babel.config.cts']['@scope2/babel-plugin-mod']);
+  assert(issues.unlisted['babel.config.cts']['@scope2/babel-preset']);
+  assert(issues.unlisted['babel.config.cts']['@scope2/babel-preset-mod']);
+  assert(issues.unresolved['babel.config.cts']['babel-plugin-mod']);
+  assert(issues.unresolved['babel.config.cts']['babel-plugin-mod2']);
+  assert(issues.unresolved['babel.config.cts']['babel-preset-mod']);
+  assert(issues.unresolved['babel.config.cts']['babel-preset-mod2']);
+  assert(issues.unresolved['babel.config.cts']['mod/plugin']);
+  assert(issues.unresolved['babel.config.cts']['mod/preset']);
+  assert(issues.unresolved['babel.config.cts']['my-plugin']);
+  assert(issues.unresolved['babel.config.cts']['my-preset']);
+
+  assert(issues.unlisted['babel.config.js']['@babel/plugin-proposal-class-properties']);
+  assert(issues.unlisted['babel.config.js']['@babel/plugin-proposal-nullish-coalescing-operator']);
+  assert(issues.unlisted['babel.config.js']['@babel/plugin-proposal-object-rest-spread']);
+  assert(issues.unlisted['babel.config.js']['@babel/plugin-proposal-optional-chaining']);
+  assert(issues.unlisted['babel.config.js']['@babel/plugin-transform-runtime']);
+  assert(issues.unresolved['babel.config.js']['babel-plugin-lodash']);
+
+  assert(issues.unresolved['babel.config.cts']['./dir/plugin.js']);
+  assert(issues.unresolved['babel.config.cts']['./dir/preset.js']);
+  assert(issues.unresolved['babel.config.cts']['/dir/plugin.js']);
+  assert(issues.unresolved['babel.config.cts']['/dir/preset.js']);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    devDependencies: 2,
+    unlisted: 24,
+    unresolved: 17,
+    processed: 3,
+    total: 3,
+  });
+});

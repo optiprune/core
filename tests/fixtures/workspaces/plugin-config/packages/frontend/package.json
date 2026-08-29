@@ -1,0 +1,17 @@
+{
+  "name": "@fixtures/workspaces-plugin-config__frontend",
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "next": "^14.0.1"
+  },
+  "devDependencies": {
+    "@fixtures/workspaces-plugin-config__tailwind": "*",
+    "@rollup/plugin-commonjs": "*",
+    "jsdom": "*",
+    "vitest": "*"
+  }
+}

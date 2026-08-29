@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { test } from "vitest";
+import { main } from '../../src/index.js';
+import baseCounters from '../helpers/baseCounters.js';
+import { createOptions } from '../helpers/create-options.js';
+import { resolve } from '../helpers/resolve.js';
+
+const cwd = resolve('fixtures/plugins/vitest');
+
+test('Find dependencies with the Vitest plugin', async () => {
+  const options = await createOptions({ cwd });
+  const { issues, counters } = await main(options);
+
+  assert(issues.unlisted['vite.config.ts']['@vitest/coverage-c8']);
+  assert(issues.unlisted['vite.config.ts']['@edge-runtime/vm']);
+  assert(issues.unlisted['vitest.workspace.ts']['@edge-runtime/vm']);
+  assert(issues.unlisted['vitest-default-coverage.config.ts']['jsdom']);
+  assert(issues.unlisted['vitest-default-coverage.config.ts']['@vitest/coverage-v8']);
+  assert(issues.unlisted['vitest.config.ts']['happy-dom']);
+  assert(issues.unlisted['vitest.config.ts']['@vitest/coverage-istanbul']);
+  assert(issues.unlisted['package.json']['@vitest/coverage-istanbul']);
+  assert(issues.unlisted['package.json']['vitest-sonar-reporter']);
+  assert(issues.unlisted['package.json']['jsdom']);
+  assert(issues.unlisted['package.json']['vue-tsc']);
+  assert(issues.unresolved['vitest.config.ts']['setup.js']);
+  assert(issues.unresolved['vitest.config.ts']['snapshot-serializer.js']);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    unlisted: 11,
+    unresolved: 2,
+    processed: 12,
+    total: 12,
+  });
+});
+
+test('Find dependencies with the Vitest plugin (production)', async () => {
+  const options = await createOptions({ cwd, isProduction: true });
+  const { issues, counters } = await main(options);
+
+  assert('src/setupTests.ts' in issues.files);
+  assert('src/htmlSnapshotSerializer.ts' in issues.files);
+  assert.equal(Object.keys(issues.files).length, 2);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    files: 2,
+    processed: 2,
+    total: 2,
+  });
+});

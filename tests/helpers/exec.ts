@@ -1,0 +1,23 @@
+import { spawnSync } from 'node:child_process';
+// oxlint-disable-next-line no-restricted-imports
+import { resolve } from 'node:path';
+
+const runtime = process.argv[0];
+const cliPath = runtime.endsWith('bun') ? resolve('src/cli.ts') : resolve('dist/cli.js');
+
+export const exec = (command: string, options: { cwd: string }) => {
+  const args = command.replace(/^knip/, '').trim().split(' ').filter(Boolean);
+  const output = spawnSync(runtime, [cliPath, ...args], {
+    cwd: options.cwd,
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+    },
+  });
+
+  return {
+    stdout: output.stdout.toString().trim(),
+    stderr: output.stderr.toString().trim(),
+    status: output.status,
+  };
+};

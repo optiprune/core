@@ -1,0 +1,9 @@
+{
+  "name": "@plugins/eslint5",
+  "devDependencies": {
+    "@eslint/js": "*",
+    "eslint-import-resolver-typescript": "*",
+    "eslint-plugin-import-x": "*",
+    "@typescript-eslint/parser": "*"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@fixtures/workspaces-tooling__frontend",
+  "scripts": {
+    "lint": "eslint",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "eslint": "*",
+    "eslint-config-custom": "*",
+    "jest": "*"
+  }
+}

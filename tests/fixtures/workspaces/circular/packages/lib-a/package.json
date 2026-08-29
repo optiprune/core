@@ -1,0 +1,7 @@
+{
+  "name": "@fixtures/workspaces-circular__lib-a",
+  "dependencies": {
+    "@fixtures/workspaces__lib-b": "1.0.0",
+    "@fixtures/workspaces__lib-c": "1.0.0"
+  }
+}

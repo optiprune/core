@@ -1,0 +1,10 @@
+{
+  "name": "@fixtures/tsconfig-extends__frontend",
+  "dependencies": {
+    "hastscript": "*"
+  },
+  "devDependencies": {
+    "@types/hast": "*",
+    "typescript": "*"
+  }
+}

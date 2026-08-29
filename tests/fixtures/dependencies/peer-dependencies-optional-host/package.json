@@ -1,0 +1,19 @@
+{
+  "name": "@fixtures/peer-dependencies-optional-host",
+  "dependencies": {
+    "vue-demi": "*"
+  },
+  "devDependencies": {
+    "@vue/composition-api": "*",
+    "vue": "*"
+  },
+  "peerDependencies": {
+    "@vue/composition-api": "*",
+    "vue": "*"
+  },
+  "peerDependenciesMeta": {
+    "@vue/composition-api": {
+      "optional": true
+    }
+  }
+}

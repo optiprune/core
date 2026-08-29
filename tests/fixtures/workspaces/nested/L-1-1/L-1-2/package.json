@@ -1,0 +1,13 @@
+{
+  "name": "@fixtures/workspaces-nested__L-1-2",
+  "scripts": {
+    "start": "ignored-bin-L-2",
+    "global": "ignored-bin-global"
+  },
+  "dependencies": {
+    "package-1-2": "*"
+  },
+  "devDependencies": {
+    "package-1-2-dev": "*"
+  }
+}

@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import { test } from "vitest";
+import { main } from '../../src/index.js';
+import baseCounters from '../helpers/baseCounters.js';
+import { createOptions } from '../helpers/create-options.js';
+import { resolve } from '../helpers/resolve.js';
+
+const cwd = resolve('fixtures/entry/self-reference');
+
+test('Allows self-references', async () => {
+  const options = await createOptions({ cwd });
+  const { issues, counters } = await main(options);
+
+  assert.equal(Object.keys(issues.unlisted).length, 0);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    processed: 2,
+    total: 2,
+  });
+});
+
+test('Allows self-references (production)', async () => {
+  const options = await createOptions({ cwd, isProduction: true });
+  const { issues, counters } = await main(options);
+
+  assert.equal(Object.keys(issues.unlisted).length, 0);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    processed: 2,
+    total: 2,
+  });
+});
+
+test('Allows self-references (strict)', async () => {
+  const options = await createOptions({ cwd, isStrict: true });
+  const { issues, counters } = await main(options);
+
+  assert.equal(Object.keys(issues.unlisted).length, 0);
+
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    processed: 2,
+    total: 2,
+  });
+});

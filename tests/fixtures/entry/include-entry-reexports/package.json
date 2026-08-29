@@ -1,0 +1,8 @@
+{
+  "name": "@fixtures/include-entry-reexports",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ]
+}

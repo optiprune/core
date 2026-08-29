@@ -1,0 +1,7 @@
+{
+  "name": "@fixtures/compilers",
+  "devDependencies": {
+    "@mdx-js/mdx": "*",
+    "vue": "*"
+  }
+}

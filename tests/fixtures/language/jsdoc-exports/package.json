@@ -1,0 +1,6 @@
+{
+  "name": "@fixtures/jsdoc-exports",
+  "scripts": {
+    "test": "node --test"
+  }
+}

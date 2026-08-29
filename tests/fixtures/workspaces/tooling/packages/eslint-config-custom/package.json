@@ -1,0 +1,7 @@
+{
+  "name": "@fixtures/workspaces-tooling__eslint-config-custom",
+  "dependencies": {
+    "eslint": "*",
+    "eslint-config-prettier": "*"
+  }
+}

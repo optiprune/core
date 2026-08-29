@@ -1,0 +1,16 @@
+{
+  "root": true,
+  "extends": [
+    "./base.eslint.json",
+    "airbnb",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
+  "plugins": ["@typescript-eslint"],
+  "parserOptions": {
+    "babelOptions": {
+      "plugins": ["@babel/plugin-syntax-import-assertions"]
+    }
+  }
+}

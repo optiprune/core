@@ -278,7 +278,7 @@ describe("Jiti configuration loading", () => {
       rootDir,
       "optiprune.config.ts",
       [
-        "import { ignoredDependencies, ignoredDirectories } from './config-values.ts';",
+        "import { ignoredDependencies, ignoredDirectories } from './config-values.js';",
         "export default {",
         "  entry: ['src/index.ts'],",
         "  ignore: ignoredDirectories,",

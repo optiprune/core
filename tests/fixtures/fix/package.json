@@ -1,0 +1,11 @@
+{
+  "name": "@fixtures/fix",
+  "dependencies": {
+    "lodash": "*",
+    "unused": "*",
+    "ignored": "*"
+  },
+  "devDependencies": {
+    "unreferenced": "*"
+  }
+}

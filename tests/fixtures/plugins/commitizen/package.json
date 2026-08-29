@@ -1,0 +1,11 @@
+{
+  "name": "@plugins/commitizen",
+  "devDependencies": {
+    "commitizen": "*"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  }
+}

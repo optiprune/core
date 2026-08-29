@@ -1,0 +1,9 @@
+{
+  "name": "@fixtures/include-entry-reexports__app",
+  "private": true,
+  "main": "index.mjs",
+  "type": "module",
+  "dependencies": {
+    "@fixtures/include-entry-reexports__shared": "*"
+  }
+}

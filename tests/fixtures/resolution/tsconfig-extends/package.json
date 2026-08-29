@@ -1,0 +1,9 @@
+{
+  "name": "@fixtures/tsconfig-extends",
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@tsconfig/esm": "*"
+  }
+}

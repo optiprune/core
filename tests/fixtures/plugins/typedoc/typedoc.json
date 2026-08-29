@@ -1,0 +1,8 @@
+{
+  "plugin": [
+    "@appium/typedoc-plugin-appium",
+    "typedoc-plugin-expand-object-like-types",
+    "./dist/index.cjs"
+  ],
+  "customJs": "custom.js"
+}

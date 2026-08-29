@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyze } from "../../src/index.ts";
+import { analyze } from "../../src/index.js";
 import path from "pathe";
 import { fileURLToPath } from "node:url";
 

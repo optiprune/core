@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+  - 'packages/flat/*'
+  - 'packages/deep/**'
+  - '!packages/a'
+  - '!packages/b*'

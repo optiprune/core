@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { test } from "vitest";
+import { main } from '../../src/index.js';
+import baseCounters from '../helpers/baseCounters.js';
+import { createOptions } from '../helpers/create-options.js';
+import { resolve } from '../helpers/resolve.js';
+
+const cwd = resolve('fixtures/imports/import-star-iteration');
+
+test('Handle usage of members of a namespace when imported using * and iterating', async () => {
+  const options = await createOptions({ cwd });
+  const { counters } = await main(options);
+
+  // Classes Orange and Apple are both used using a for (...in) loop
+  // Classes Broccoli and Spinach are both used using a for (...of) loop
+  assert.deepEqual(counters, {
+    ...baseCounters,
+    processed: 3,
+    total: 3,
+  });
+});

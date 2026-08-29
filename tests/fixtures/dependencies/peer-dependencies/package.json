@@ -1,0 +1,8 @@
+{
+  "name": "@fixtures/peer-dependencies",
+  "dependencies": {
+    "host": "*",
+    "peer": "*",
+    "unused": "*"
+  }
+}

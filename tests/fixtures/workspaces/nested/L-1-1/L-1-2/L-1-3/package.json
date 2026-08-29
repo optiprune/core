@@ -1,0 +1,16 @@
+{
+  "name": "@fixtures/workspaces-nested__L-1-3",
+  "scripts": {
+    "dev": "pm2-dev",
+    "lint": "eslint",
+    "start": "ignored-bin-L-2",
+    "global": "ignored-bin-global"
+  },
+  "dependencies": {
+    "package-1-3": "*",
+    "package-1-3-dev": "*"
+  },
+  "devDependencies": {
+    "eslint": "*"
+  }
+}
