@@ -9,7 +9,7 @@ const LOST_PIXEL_CONFIG_FILES = [
   "lostpixel.config.js",
   "lostpixel.config.ts",
   "lostpixel.config.cjs",
-  "lostpixel.config.mjs"
+  "lostpixel.config.mjs",
 ];
 
 const LOST_PIXEL_PACKAGE_NAME = "lost-pixel";
@@ -30,7 +30,7 @@ export const LostPixelPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (allDeps[LOST_PIXEL_PACKAGE_NAME]) {
@@ -41,9 +41,7 @@ export const LostPixelPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\blost-pixel\b/.test(s) || /\blostpixel\b/.test(s))
+            (s) => typeof s === "string" && (/\blost-pixel\b/.test(s) || /\blostpixel\b/.test(s)),
           )
         ) {
           return true;
@@ -81,8 +79,7 @@ export const LostPixelPlugin: AnalyzerPlugin = {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
             if (
               typeof scriptContent === "string" &&
-              (/\blost-pixel\b/.test(scriptContent) ||
-                /\blostpixel\b/.test(scriptContent))
+              (/\blost-pixel\b/.test(scriptContent) || /\blostpixel\b/.test(scriptContent))
             ) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
@@ -134,8 +131,8 @@ export const LostPixelPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default LostPixelPlugin;

@@ -2,10 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const PRISMA_SCHEMA_FILES = [
-  "prisma/schema.prisma",
-  "schema.prisma"
-];
+const PRISMA_SCHEMA_FILES = ["prisma/schema.prisma", "schema.prisma"];
 
 const PRISMA_PACKAGES = [
   "prisma",
@@ -13,7 +10,7 @@ const PRISMA_PACKAGES = [
   "@prisma/instrumentation",
   "@prisma/debug",
   "@prisma/engines",
-  "@prisma/internals"
+  "@prisma/internals",
 ];
 
 export const PrismaPlugin: AnalyzerPlugin = {
@@ -26,15 +23,12 @@ export const PrismaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep === "prisma" ||
-            dep.startsWith("@prisma/") ||
-            dep.startsWith("prisma-")
+          (dep) => dep === "prisma" || dep.startsWith("@prisma/") || dep.startsWith("prisma-"),
         )
       ) {
         return true;
@@ -44,7 +38,7 @@ export const PrismaPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("prisma ") || s === "prisma")
+            (s) => typeof s === "string" && (s.includes("prisma ") || s === "prisma"),
           )
         ) {
           return true;
@@ -56,10 +50,7 @@ export const PrismaPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(schemaFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("prisma")) ||
-      (await adapter.folderExists("prisma/schema"))
-    );
+    return (await adapter.folderExists("prisma")) || (await adapter.folderExists("prisma/schema"));
   },
 
   lifecycle: {
@@ -68,14 +59,11 @@ export const PrismaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasPrisma = Object.keys(allDeps).some(
-        (p) =>
-          p === "prisma" ||
-          p.startsWith("@prisma/") ||
-          p.startsWith("prisma-")
+        (p) => p === "prisma" || p.startsWith("@prisma/") || p.startsWith("prisma-"),
       );
 
       // 1. Safeguard all installed Prisma ecosystem packages in package.json
@@ -128,7 +116,7 @@ export const PrismaPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Prisma schema found, but 'prisma' or '@prisma/client' is not listed in package.json.",
-          evidence: { hasSchemaFile }
+          evidence: { hasSchemaFile },
         });
       }
     },
@@ -149,11 +137,7 @@ export const PrismaPlugin: AnalyzerPlugin = {
       // 1. Detect ESM imports for @prisma/client or prisma packages
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source === "prisma" ||
-          source.startsWith("@prisma/") ||
-          source.startsWith("prisma-")
-        ) {
+        if (source === "prisma" || source.startsWith("@prisma/") || source.startsWith("prisma-")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
@@ -194,8 +178,8 @@ export const PrismaPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default PrismaPlugin;

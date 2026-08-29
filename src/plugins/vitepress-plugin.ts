@@ -8,15 +8,10 @@ const VITEPRESS_CONFIG_FILES = [
   ".vitepress/config.mjs",
   ".vitepress/config.cjs",
   ".vitepress/config.mts",
-  ".vitepress/config.cts"
+  ".vitepress/config.cts",
 ];
 
-const VITEPRESS_PACKAGES = [
-  "vitepress",
-  "vue",
-  "@docsearch/js",
-  "@docsearch/css"
-];
+const VITEPRESS_PACKAGES = ["vitepress", "vue", "@docsearch/js", "@docsearch/css"];
 
 export const VitepressPlugin: AnalyzerPlugin = {
   name: "vitepress-plugin",
@@ -28,7 +23,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (VITEPRESS_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -36,11 +31,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("vitepress")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("vitepress"))) {
           return true;
         }
       }
@@ -59,7 +50,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasVitepressDep = VITEPRESS_PACKAGES.some((p) => p in allDeps);
@@ -85,10 +76,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking VitePress CLI (e.g. "docs:dev": "vitepress dev docs")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("vitepress")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("vitepress")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("vitepress");
           }
@@ -102,9 +90,8 @@ export const VitepressPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "VitePress configuration found, but 'vitepress' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "VitePress configuration found, but 'vitepress' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -114,10 +101,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // 1. Mark VitePress configuration and theme files under .vitepress/
-      if (
-        normalized.includes(".vitepress/") ||
-        VITEPRESS_CONFIG_FILES.includes(basename)
-      ) {
+      if (normalized.includes(".vitepress/") || VITEPRESS_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vitepress");
       }
@@ -141,17 +125,12 @@ export const VitepressPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
       const isConfigFile =
-        normalized.includes(".vitepress/") ||
-        VITEPRESS_CONFIG_FILES.includes(basename);
+        normalized.includes(".vitepress/") || VITEPRESS_CONFIG_FILES.includes(basename);
 
       // 1. Detect ESM imports for vitepress and Vue in any file
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source === "vitepress" ||
-          source.startsWith("vitepress/") ||
-          source === "vue"
-        ) {
+        if (source === "vitepress" || source.startsWith("vitepress/") || source === "vue") {
           adapter.markPackageAsUsed(source.split("/")[0] ?? source);
           adapter.markAsUsed(fileId);
         }
@@ -175,11 +154,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
         }
 
         // Extract themeConfig properties (e.g. search, algolia, nav, sidebar)
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "search"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "search") {
           if (t.isObjectExpression(node.value)) {
             node.value.properties.forEach((prop: any) => {
               if (
@@ -195,8 +170,8 @@ export const VitepressPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default VitepressPlugin;

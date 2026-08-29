@@ -25,16 +25,20 @@ describe("package script entry points", () => {
           type: "module",
           bin: { fixture: "./bin/fixture.mjs" },
           scripts: {
-            build: "node --enable-source-maps scripts/prepare.mjs && node -r ./scripts/register.cjs scripts/after.mjs",
+            build:
+              "node --enable-source-maps scripts/prepare.mjs && node -r ./scripts/register.cjs scripts/after.mjs",
             inline: "node --eval \"console.log('inline command')\"",
           },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     await fs.writeFile(path.join(fixtureRoot, "bin", "fixture.mjs"), "console.log('bin');\n");
-    await fs.writeFile(path.join(fixtureRoot, "scripts", "prepare.mjs"), "console.log('prepare');\n");
+    await fs.writeFile(
+      path.join(fixtureRoot, "scripts", "prepare.mjs"),
+      "console.log('prepare');\n",
+    );
     await fs.writeFile(path.join(fixtureRoot, "scripts", "register.cjs"), "module.exports = {};\n");
     await fs.writeFile(path.join(fixtureRoot, "scripts", "after.mjs"), "console.log('after');\n");
     await fs.writeFile(path.join(fixtureRoot, "src", "orphan.ts"), "export const orphan = true;\n");
@@ -48,16 +52,31 @@ describe("package script entry points", () => {
     });
 
     expect(report.entryPoints).toEqual(
-      expect.arrayContaining([
-        "bin/fixture.mjs",
-        "scripts/prepare.mjs",
-        "scripts/after.mjs",
-      ])
+      expect.arrayContaining(["bin/fixture.mjs", "scripts/prepare.mjs", "scripts/after.mjs"]),
     );
-    expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("bin/fixture.mjs"))).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("scripts/prepare.mjs"))).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("scripts/after.mjs"))).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("src/orphan.ts"))).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("bin/fixture.mjs"),
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("scripts/prepare.mjs"),
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("scripts/after.mjs"),
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) => finding.rule === "unreachable-file" && finding.file.endsWith("src/orphan.ts"),
+      ),
+    ).toBe(true);
     expect(report.findings.some((finding) => finding.rule === "missing-script-target")).toBe(false);
   });
 
@@ -78,11 +97,14 @@ describe("package script entry points", () => {
           },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     await fs.writeFile(path.join(fixtureRoot, "perf", "bench.ts"), "export const bench = true;\n");
-    await fs.writeFile(path.join(fixtureRoot, "test", "integration", "release.ts"), "export const release = true;\n");
+    await fs.writeFile(
+      path.join(fixtureRoot, "test", "integration", "release.ts"),
+      "export const release = true;\n",
+    );
 
     const report = await analyze({
       rootDir: fixtureRoot,
@@ -93,10 +115,7 @@ describe("package script entry points", () => {
     });
 
     expect(report.entryPoints).toEqual(
-      expect.arrayContaining([
-        "perf/bench.ts",
-        "test/integration/release.ts",
-      ])
+      expect.arrayContaining(["perf/bench.ts", "test/integration/release.ts"]),
     );
     expect(report.findings.some((finding) => finding.rule === "missing-script-target")).toBe(false);
   });
@@ -112,10 +131,13 @@ describe("package script entry points", () => {
           devDependencies: { vitest: "3.0.0", vite: "6.0.0" },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
-    await fs.writeFile(path.join(fixtureRoot, "vitest.config.ts"), "export default { test: { environment: 'node' } };\n");
+    await fs.writeFile(
+      path.join(fixtureRoot, "vitest.config.ts"),
+      "export default { test: { environment: 'node' } };\n",
+    );
 
     const report = await analyze({
       rootDir: fixtureRoot,
@@ -144,8 +166,8 @@ describe("package script entry points", () => {
           },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     const report = await analyze({
@@ -160,14 +182,31 @@ describe("package script entry points", () => {
       report.findings.some(
         (finding) =>
           finding.rule === "missing-dependency" &&
-          (finding.evidence?.package === "@scope/console" || finding.evidence?.package === "@scope/docs")
-      )
+          (finding.evidence?.package === "@scope/console" ||
+            finding.evidence?.package === "@scope/docs"),
+      ),
     ).toBe(false);
   });
 
   it("resolves pnpm store binaries to their real package names", async () => {
-    const typescriptBin = path.join(fixtureRoot, "node_modules", ".pnpm", "typescript@5.8.3", "node_modules", "typescript", "bin");
-    const vitestBin = path.join(fixtureRoot, "node_modules", ".pnpm", "vitest@3.2.7", "node_modules", "vitest", "vitest.mjs");
+    const typescriptBin = path.join(
+      fixtureRoot,
+      "node_modules",
+      ".pnpm",
+      "typescript@5.8.3",
+      "node_modules",
+      "typescript",
+      "bin",
+    );
+    const vitestBin = path.join(
+      fixtureRoot,
+      "node_modules",
+      ".pnpm",
+      "vitest@3.2.7",
+      "node_modules",
+      "vitest",
+      "vitest.mjs",
+    );
     await fs.mkdir(typescriptBin, { recursive: true });
     await fs.mkdir(path.dirname(vitestBin), { recursive: true });
     await fs.mkdir(path.join(fixtureRoot, "node_modules", ".bin"), { recursive: true });
@@ -175,7 +214,10 @@ describe("package script entry points", () => {
     await fs.writeFile(vitestBin, "#!/usr/bin/env node\n");
 
     // Omit "file" argument so Windows does not enforce Developer Mode
-    await fs.symlink(path.join(typescriptBin, "tsc"), path.join(fixtureRoot, "node_modules", ".bin", "tsc"));
+    await fs.symlink(
+      path.join(typescriptBin, "tsc"),
+      path.join(fixtureRoot, "node_modules", ".bin", "tsc"),
+    );
     await fs.symlink(vitestBin, path.join(fixtureRoot, "node_modules", ".bin", "vitest"));
 
     await fs.writeFile(
@@ -188,8 +230,8 @@ describe("package script entry points", () => {
           devDependencies: { typescript: "^5.8.3", vitest: "^3.2.7" },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     const report = await analyze({
@@ -200,8 +242,14 @@ describe("package script entry points", () => {
       reportUnusedExports: false,
     });
 
-    expect(report.findings.some((finding) => finding.rule === "missing-dependency" && finding.evidence?.package === ".pnpm")).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "missing-dev-dependency")).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) => finding.rule === "missing-dependency" && finding.evidence?.package === ".pnpm",
+      ),
+    ).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "missing-dev-dependency")).toBe(
+      false,
+    );
   });
 
   it("reports a high-confidence error when a concrete local Node script target is absent", async () => {
@@ -215,8 +263,8 @@ describe("package script entry points", () => {
           scripts: { verify: "node ./scripts/does-not-exist.mjs" },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     const report = await analyze({

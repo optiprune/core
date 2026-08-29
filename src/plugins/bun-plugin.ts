@@ -5,16 +5,55 @@ import path from "pathe";
 const BUN_CONFIG_FILES = ["bunfig.toml", "bun.lockb", "bun.lock"];
 
 const NODE_BUILTINS = new Set([
-  "assert", "buffer", "child_process", "cluster", "console", "constants", 
-  "crypto", "dgram", "dns", "domain", "events", "fs", "http", "http2", 
-  "https", "inspector", "module", "net", "os", "path", "perf_hooks", 
-  "process", "punycode", "querystring", "readline", "repl", "stream", 
-  "string_decoder", "sys", "timers", "tls", "trace_events", "tty", 
-  "url", "util", "v8", "vm", "worker_threads", "zlib"
+  "assert",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "dns",
+  "domain",
+  "events",
+  "fs",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "module",
+  "net",
+  "os",
+  "path",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "repl",
+  "stream",
+  "string_decoder",
+  "sys",
+  "timers",
+  "tls",
+  "trace_events",
+  "tty",
+  "url",
+  "util",
+  "v8",
+  "vm",
+  "worker_threads",
+  "zlib",
 ]);
 
 const BUN_BUILTINS = new Set([
-  "bun", "bun:sqlite", "bun:ffi", "bun:jsc", "bun:wrap", "bun:test", "bun:main"
+  "bun",
+  "bun:sqlite",
+  "bun:ffi",
+  "bun:jsc",
+  "bun:wrap",
+  "bun:test",
+  "bun:main",
 ]);
 
 export const BunPlugin: AnalyzerPlugin = {
@@ -40,10 +79,7 @@ export const BunPlugin: AnalyzerPlugin = {
 
     if (pkg?.scripts) {
       for (const script of Object.values(pkg.scripts) as string[]) {
-        if (
-          typeof script === "string" &&
-          (script.includes("bun") || script.includes("bunx"))
-        ) {
+        if (typeof script === "string" && (script.includes("bun") || script.includes("bunx"))) {
           return true;
         }
       }
@@ -61,9 +97,7 @@ export const BunPlugin: AnalyzerPlugin = {
       const lockContent = await adapter.readFile("bun.lock");
       if (lockContent) {
         try {
-          const cleanJson = lockContent
-            .replace(/,\s*([\]}])/g, "$1")
-            .replace(/\/\/.*/g, ""); // remove single line comments
+          const cleanJson = lockContent.replace(/,\s*([\]}])/g, "$1").replace(/\/\/.*/g, ""); // remove single line comments
           const lock = JSON.parse(cleanJson);
 
           if (lock.workspaces && typeof lock.workspaces === "object") {
@@ -81,7 +115,7 @@ export const BunPlugin: AnalyzerPlugin = {
                 const allDeps = new Set([
                   ...Object.keys(manifest.dependencies || {}),
                   ...Object.keys(manifest.devDependencies || {}),
-                  ...Object.keys(manifest.peerDependencies || {})
+                  ...Object.keys(manifest.peerDependencies || {}),
                 ]);
 
                 packageMap.set(pkgName, {
@@ -90,7 +124,7 @@ export const BunPlugin: AnalyzerPlugin = {
                   relativePath: relPath,
                   manifestPath: path.join(location, "package.json"),
                   dependencies: new Set(),
-                  allDependencies: allDeps
+                  allDependencies: allDeps,
                 });
                 topologicalOrder.push(pkgName);
               }
@@ -100,7 +134,7 @@ export const BunPlugin: AnalyzerPlugin = {
               adapter.setMonorepo({
                 rootPath: rootDir,
                 packageMap,
-                topologicalOrder
+                topologicalOrder,
               });
             }
           }
@@ -115,7 +149,7 @@ export const BunPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       // 2. Protect types and runtime packages if present in package.json
@@ -135,13 +169,9 @@ export const BunPlugin: AnalyzerPlugin = {
           const tokens = script.split(/\s+/);
           for (const token of tokens) {
             const clean = token.replace(/^["']|["']$/g, "");
-            
+
             // Ignore CLI flags (--foo), env vars (FOO=bar), or scoped packages (@scope/pkg)
-            if (
-              clean.startsWith("-") ||
-              clean.includes("=") ||
-              clean.startsWith("@")
-            ) {
+            if (clean.startsWith("-") || clean.includes("=") || clean.startsWith("@")) {
               continue;
             }
 
@@ -168,11 +198,7 @@ export const BunPlugin: AnalyzerPlugin = {
       }
 
       // Bun default entrypoints
-      if (
-        ["index.ts", "main.ts", "server.ts", "index.js", "index.html"].includes(
-          basename
-        )
-      ) {
+      if (["index.ts", "main.ts", "server.ts", "index.js", "index.html"].includes(basename)) {
         adapter.markAsUsed(fileId);
       }
 
@@ -194,11 +220,7 @@ export const BunPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect Bun Shell syntax: $`ls -la`
-      if (
-        t.isTaggedTemplateExpression(node) &&
-        t.isIdentifier(node.tag) &&
-        node.tag.name === "$"
-      ) {
+      if (t.isTaggedTemplateExpression(node) && t.isIdentifier(node.tag) && node.tag.name === "$") {
         adapter.markAsUsed(fileId);
       }
 
@@ -226,10 +248,7 @@ export const BunPlugin: AnalyzerPlugin = {
       }
 
       // 4. Mark relative dynamic imports: import('./module.js')
-      if (
-        t.isCallExpression(node) &&
-        (node.callee as any)?.type === "Import"
-      ) {
+      if (t.isCallExpression(node) && (node.callee as any)?.type === "Import") {
         const arg = node.arguments?.[0];
         if (t.isStringLiteral(arg)) {
           const val = arg.value;
@@ -238,8 +257,8 @@ export const BunPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default BunPlugin;

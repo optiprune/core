@@ -22,10 +22,12 @@ function normalize(fileId: string): string {
 }
 
 function isLintHtmlScript(script: string): boolean {
-  return /(?:^|[\s&|;])linthtml(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?@linthtml\/linthtml\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?linthtml\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?linthtml\b/.test(script);
+  return (
+    /(?:^|[\s&|;])linthtml(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?@linthtml\/linthtml\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?linthtml\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?linthtml\b/.test(script)
+  );
 }
 
 function declaredLintHtmlPackages(packageJson: any): string[] {
@@ -59,7 +61,9 @@ export const LintHtmlPlugin: AnalyzerPlugin = {
     }
     if ((await adapter.findFiles(LINTHTML_CONFIG_BASENAMES)).length > 0) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isLintHtmlScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isLintHtmlScript(script),
+    );
   },
 
   lifecycle: {
@@ -79,17 +83,24 @@ export const LintHtmlPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && packages.length > 0) {
+      if (
+        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
+        packages.length > 0
+      ) {
         for (const packageName of packages) adapter.markPackageAsUsed(packageName);
       }
 
-      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && packages.length === 0) {
+      if (
+        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
+        packages.length === 0
+      ) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "LintHTML configuration or command found, but '@linthtml/linthtml' is not listed in package.json.",
+          message:
+            "LintHTML configuration or command found, but '@linthtml/linthtml' is not listed in package.json.",
           evidence: { configFiles, hasInlineConfig, hasScriptInvocation },
         });
       }
@@ -109,12 +120,12 @@ export const LintHtmlPlugin: AnalyzerPlugin = {
       if (!isLintHtmlConfig(normalized)) return;
       if (t.isExportDefaultDeclaration(node)) adapter.markAsUsed(fileId, "default");
       if (
-        t.isAssignmentExpression(node)
-        && t.isMemberExpression(node.left)
-        && t.isIdentifier(node.left.object)
-        && node.left.object.name === "module"
-        && t.isIdentifier(node.left.property)
-        && node.left.property.name === "exports"
+        t.isAssignmentExpression(node) &&
+        t.isMemberExpression(node.left) &&
+        t.isIdentifier(node.left.object) &&
+        node.left.object.name === "module" &&
+        t.isIdentifier(node.left.property) &&
+        node.left.property.name === "exports"
       ) {
         adapter.markAsUsed(fileId);
       }

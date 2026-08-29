@@ -19,15 +19,20 @@ function normalize(fileId: string): string {
 }
 
 function hasChangelogenDependency(packageJson: any): boolean {
-  return [packageJson?.dependencies, packageJson?.devDependencies, packageJson?.peerDependencies]
-    .some((section) => !!section?.[CHANGELOGEN_PACKAGE]);
+  return [
+    packageJson?.dependencies,
+    packageJson?.devDependencies,
+    packageJson?.peerDependencies,
+  ].some((section) => !!section?.[CHANGELOGEN_PACKAGE]);
 }
 
 function isChangelogenScript(script: string): boolean {
-  return /(?:^|[\s&|;])changelogen(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?changelogen\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?changelogen\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?changelogen\b/.test(script);
+  return (
+    /(?:^|[\s&|;])changelogen(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?changelogen\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?changelogen\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?changelogen\b/.test(script)
+  );
 }
 
 function isChangelogenConfig(fileId: string): boolean {
@@ -52,7 +57,9 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
     }
     if ((await adapter.findFiles(CHANGELOGEN_CONFIG_BASENAMES)).length > 0) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isChangelogenScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isChangelogenScript(script),
+    );
   },
 
   lifecycle: {
@@ -72,17 +79,24 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && dependencyDeclared) {
+      if (
+        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
+        dependencyDeclared
+      ) {
         adapter.markPackageAsUsed(CHANGELOGEN_PACKAGE);
       }
 
-      if ((configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) && !dependencyDeclared) {
+      if (
+        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
+        !dependencyDeclared
+      ) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Changelogen configuration or command found, but 'changelogen' is not listed in package.json.",
+          message:
+            "Changelogen configuration or command found, but 'changelogen' is not listed in package.json.",
           evidence: { configFiles, hasInlineConfig, hasScriptInvocation },
         });
       }
@@ -93,11 +107,17 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      if (t.isImportDeclaration(node) && (node.source.value === CHANGELOGEN_PACKAGE || node.source.value.startsWith("changelogen/"))) {
+      if (
+        t.isImportDeclaration(node) &&
+        (node.source.value === CHANGELOGEN_PACKAGE || node.source.value.startsWith("changelogen/"))
+      ) {
         adapter.markPackageAsUsed(CHANGELOGEN_PACKAGE);
         adapter.markAsUsed(fileId);
       }
-      if (isChangelogenConfig(fileId) && (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node))) {
+      if (
+        isChangelogenConfig(fileId) &&
+        (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node))
+      ) {
         adapter.markAsUsed(fileId);
       }
     },

@@ -15,7 +15,7 @@ const REMARK_CONFIG_FILES = [
   ".remarkrc.cjs",
   "remark.config.js",
   "remark.config.mjs",
-  "remark.config.cjs"
+  "remark.config.cjs",
 ];
 
 const REMARK_CORE_PACKAGES = [
@@ -23,7 +23,7 @@ const REMARK_CORE_PACKAGES = [
   "remark-cli",
   "remark-parse",
   "remark-stringify",
-  "remark-rehype"
+  "remark-rehype",
 ];
 
 /**
@@ -80,14 +80,10 @@ export const RemarkPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "remark" || dep.startsWith("remark-")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "remark" || dep.startsWith("remark-"))) {
         return true;
       }
 
@@ -95,9 +91,7 @@ export const RemarkPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bremark\b/.test(s) || s.includes("remark ."))
+            (s) => typeof s === "string" && (/\bremark\b/.test(s) || s.includes("remark .")),
           )
         ) {
           return true;
@@ -124,7 +118,7 @@ export const RemarkPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -158,8 +152,8 @@ export const RemarkPlugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists(".remarkrc.json"))
         ? ".remarkrc.json"
         : (await adapter.folderExists(".remarkrc"))
-        ? ".remarkrc"
-        : null;
+          ? ".remarkrc"
+          : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -184,10 +178,7 @@ export const RemarkPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // 1. Inspect JS/TS config files (.remarkrc.js, remark.config.js, etc.)
-      if (
-        basename.startsWith(".remarkrc.") ||
-        basename.startsWith("remark.config.")
-      ) {
+      if (basename.startsWith(".remarkrc.") || basename.startsWith("remark.config.")) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
         }
@@ -204,11 +195,7 @@ export const RemarkPlugin: AnalyzerPlugin = {
         }
 
         // AST Property Inspection for "plugins"
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "plugins"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "plugins") {
           if (t.isArrayExpression(node.value)) {
             for (const el of node.value.elements) {
               if (t.isStringLiteral(el)) {
@@ -233,8 +220,8 @@ export const RemarkPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RemarkPlugin;

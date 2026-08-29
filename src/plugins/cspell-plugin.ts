@@ -21,7 +21,7 @@ const CSPELL_CONFIG_FILES = [
   "cspell.config.mjs",
   "cspell.config.ts",
   "cspell.config.yaml",
-  "cspell.config.yml"
+  "cspell.config.yml",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -47,13 +47,11 @@ export const CspellPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "cspell" || dep.startsWith("@cspell/")
-        ) ||
+        Object.keys(allDeps).some((dep) => dep === "cspell" || dep.startsWith("@cspell/")) ||
         pkg.cspell
       ) {
         return true;
@@ -63,8 +61,7 @@ export const CspellPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("cspell ") || s === "cspell")
+            (s) => typeof s === "string" && (s.includes("cspell ") || s === "cspell"),
           )
         ) {
           return true;
@@ -86,11 +83,11 @@ export const CspellPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasCspell = Object.keys(allDeps).some(
-        (p) => p === "cspell" || p.startsWith("@cspell/")
+        (p) => p === "cspell" || p.startsWith("@cspell/"),
       );
 
       // 1. Safeguard installed CSpell packages and dictionary packages in package.json
@@ -139,7 +136,7 @@ export const CspellPlugin: AnalyzerPlugin = {
           ".cspell.json",
           "cspell.json",
           ".cspell.jsonc",
-          "cspell.jsonc"
+          "cspell.jsonc",
         ]) {
           const content = await adapter.readFile(jsonConfigName);
           if (content) {
@@ -164,9 +161,8 @@ export const CspellPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "CSpell configuration found, but 'cspell' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.cspell }
+          message: "CSpell configuration found, but 'cspell' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.cspell },
         });
       }
     },
@@ -216,15 +212,10 @@ export const CspellPlugin: AnalyzerPlugin = {
 
         // Inspect properties in JS config object
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key)
-            ? node.key.name
-            : (node.key as any).value;
+          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
 
           // Extract dictionaryDefinitions: [{ path: './custom-words.txt' }]
-          if (
-            keyName === "dictionaryDefinitions" &&
-            t.isArrayExpression(node.value)
-          ) {
+          if (keyName === "dictionaryDefinitions" && t.isArrayExpression(node.value)) {
             node.value.elements.forEach((el: any) => {
               if (t.isObjectExpression(el)) {
                 el.properties.forEach((prop: any) => {
@@ -256,8 +247,8 @@ export const CspellPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processCspellConfigObj(config: any, adapter: any): void {

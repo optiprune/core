@@ -11,13 +11,10 @@ const TAURI_CONFIG_FILES = [
   "tauri.conf.json",
   "tauri.conf.json5",
   "src-tauri/Cargo.toml",
-  "src-tauri/build.rs"
+  "src-tauri/build.rs",
 ];
 
-const TAURI_CORE_PACKAGES = [
-  "@tauri-apps/cli",
-  "@tauri-apps/api"
-];
+const TAURI_CORE_PACKAGES = ["@tauri-apps/cli", "@tauri-apps/api"];
 
 /**
  * Helper to process tauri.conf.json configuration properties
@@ -63,14 +60,10 @@ export const TauriPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "tauri" || dep.startsWith("@tauri-apps/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "tauri" || dep.startsWith("@tauri-apps/"))) {
         return true;
       }
 
@@ -78,7 +71,7 @@ export const TauriPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\btauri\b/.test(s) || s.includes("tauri dev"))
+            (s) => typeof s === "string" && (/\btauri\b/.test(s) || s.includes("tauri dev")),
           )
         ) {
           return true;
@@ -109,7 +102,7 @@ export const TauriPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -136,8 +129,8 @@ export const TauriPlugin: AnalyzerPlugin = {
       const tauriConfigPath = (await adapter.folderExists("src-tauri/tauri.conf.json"))
         ? "src-tauri/tauri.conf.json"
         : (await adapter.folderExists("tauri.conf.json"))
-        ? "tauri.conf.json"
-        : null;
+          ? "tauri.conf.json"
+          : null;
 
       if (tauriConfigPath) {
         const configData = await adapter.readJson(tauriConfigPath);
@@ -171,8 +164,8 @@ export const TauriPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TauriPlugin;

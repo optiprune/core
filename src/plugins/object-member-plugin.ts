@@ -65,7 +65,8 @@ function isExternalConfigContract(fileId: string, objectName: string): boolean {
   if (/(?:^|\/)[^/]+\.config(?:\.[cm]?[jt]sx?)?$/i.test(normalized)) return true;
   if (basename.startsWith("stylelint.config.")) return true;
   if (normalized.includes("/.storybook/") && basename.startsWith("preview.")) return true;
-  if (objectName === "metadata" && /(?:^|\/)app\/layout\.[cm]?[jt]sx?$/.test(normalized)) return true;
+  if (objectName === "metadata" && /(?:^|\/)app\/layout\.[cm]?[jt]sx?$/.test(normalized))
+    return true;
   return false;
 }
 
@@ -99,7 +100,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
               state.definitions.set(objName, {
                 fileId,
                 members,
-                loc: decl.id.loc || node.loc
+                loc: decl.id.loc || node.loc,
               });
             }
           }
@@ -116,7 +117,7 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
           state.definitions.set("default", {
             fileId,
             members,
-            loc: node.loc
+            loc: node.loc,
           });
         }
       }
@@ -154,17 +155,16 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
       }
 
       // 4. Tracking: Member Access -> obj.prop or obj?.prop
-      if (
-        node.type === "MemberExpression" ||
-        node.type === "OptionalMemberExpression"
-      ) {
+      if (node.type === "MemberExpression" || node.type === "OptionalMemberExpression") {
         const objectNames = t.isIdentifier(node.object)
           ? state.resolveAliases(node.object.name)
           : new Set<string>();
         if (!node.computed && t.isIdentifier(node.property)) {
-          for (const objectName of objectNames) state.usages.add(`${objectName}.${node.property.name}`);
+          for (const objectName of objectNames)
+            state.usages.add(`${objectName}.${node.property.name}`);
         } else if (node.computed && t.isStringLiteral(node.property)) {
-          for (const objectName of objectNames) state.usages.add(`${objectName}.${node.property.value}`);
+          for (const objectName of objectNames)
+            state.usages.add(`${objectName}.${node.property.value}`);
         } else if (node.computed) {
           // A dynamic key such as `map[tagName]` may read any property.
           // Do not report statically declared members as unused in that case.
@@ -174,13 +174,18 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
 
       // 5. Tracking: Passing an object as a whole to another API hides the
       // member access behind that API. Treat its members as dynamically used.
-      if ((node.type === "ObjectProperty" || node.type === "Property") && t.isIdentifier(node.value)) {
-        for (const objectName of state.resolveAliases(node.value.name)) state.wildcardObjects.add(objectName);
+      if (
+        (node.type === "ObjectProperty" || node.type === "Property") &&
+        t.isIdentifier(node.value)
+      ) {
+        for (const objectName of state.resolveAliases(node.value.name))
+          state.wildcardObjects.add(objectName);
       }
       if (node.type === "CallExpression") {
         for (const argument of node.arguments ?? []) {
           if (t.isIdentifier(argument)) {
-            for (const objectName of state.resolveAliases(argument.name)) state.wildcardObjects.add(objectName);
+            for (const objectName of state.resolveAliases(argument.name))
+              state.wildcardObjects.add(objectName);
           }
         }
       }
@@ -188,14 +193,23 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
       // 6. Tracking: Object spread reads an unknown set of members.
       if (node.type === "SpreadElement") {
         if (t.isIdentifier(node.argument)) {
-          for (const objectName of state.resolveAliases(node.argument.name)) state.wildcardObjects.add(objectName);
-        } else if (node.argument?.type === "MemberExpression" && t.isIdentifier(node.argument.object)) {
-          for (const objectName of state.resolveAliases(node.argument.object.name)) state.wildcardObjects.add(objectName);
+          for (const objectName of state.resolveAliases(node.argument.name))
+            state.wildcardObjects.add(objectName);
+        } else if (
+          node.argument?.type === "MemberExpression" &&
+          t.isIdentifier(node.argument.object)
+        ) {
+          for (const objectName of state.resolveAliases(node.argument.object.name))
+            state.wildcardObjects.add(objectName);
         }
       }
 
       // 7. Tracking: Destructuring Access -> const { usedKey } = config
-      if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && t.isIdentifier(node.init)) {
+      if (
+        node.type === "VariableDeclarator" &&
+        node.id?.type === "ObjectPattern" &&
+        t.isIdentifier(node.init)
+      ) {
         const objName = node.init.name;
         for (const prop of node.id.properties) {
           if (prop.type === "Property" || prop.type === "ObjectProperty") {
@@ -230,19 +244,15 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
         if (!isEntryPoint && adapter.isPublicExport(def.fileId, objName)) continue;
 
         const aliases = state.resolveAliases(objName);
-        const hasWildcardUsage = Array.from(aliases).some((name) => state.wildcardObjects.has(name));
+        const hasWildcardUsage = Array.from(aliases).some((name) =>
+          state.wildcardObjects.has(name),
+        );
         for (const [memberName, memberLoc] of def.members.entries()) {
           const usageKey = `${objName}.${memberName}`;
 
-          const semanticallyUsed = adapter.isConfigMemberUsed(
-            def.fileId,
-            objName,
-            memberName,
-          ) || adapter.isRuntimeMemberUsed(
-            def.fileId,
-            objName,
-            memberName,
-          );
+          const semanticallyUsed =
+            adapter.isConfigMemberUsed(def.fileId, objName, memberName) ||
+            adapter.isRuntimeMemberUsed(def.fileId, objName, memberName);
 
           if (!hasWildcardUsage && !state.usages.has(usageKey) && !semanticallyUsed) {
             adapter.emitFinding({
@@ -254,8 +264,8 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
               evidence: {
                 exportName: objName,
                 memberName: memberName,
-                location: memberLoc || def.loc
-              }
+                location: memberLoc || def.loc,
+              },
             });
           }
         }
@@ -263,8 +273,8 @@ export const ObjectMemberPlugin: AnalyzerPlugin = {
 
       // Clear state after execution
       state.reset();
-    }
-  }
+    },
+  },
 };
 
 /**

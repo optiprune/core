@@ -9,7 +9,7 @@ const VITE_CONFIG_FILES = [
   "vite.config.mjs",
   "vite.config.cjs",
   "vite.config.mts",
-  "vite.config.cts"
+  "vite.config.cts",
 ];
 
 const VITE_CORE_PACKAGES = [
@@ -19,7 +19,7 @@ const VITE_CORE_PACKAGES = [
   "@vitejs/plugin-vue-jsx",
   "@vitejs/plugin-react",
   "@vitejs/plugin-react-swc",
-  "@vitejs/plugin-legacy"
+  "@vitejs/plugin-legacy",
 ];
 
 const pendingViteGlobPatterns = new Set<string>();
@@ -28,11 +28,13 @@ function isImportMetaGlobCall(node: any): boolean {
   if (!t.isCallExpression(node) || !t.isMemberExpression(node.callee)) return false;
   const object = node.callee.object;
   const property = node.callee.property;
-  return object?.type === "MetaProperty" &&
+  return (
+    object?.type === "MetaProperty" &&
     object.meta?.name === "import" &&
     object.property?.name === "meta" &&
     property?.type === "Identifier" &&
-    property.name === "glob";
+    property.name === "glob"
+  );
 }
 
 function staticGlobArguments(node: any): string[] {
@@ -46,12 +48,19 @@ function staticGlobArguments(node: any): string[] {
   return [];
 }
 
-function toProjectRelativeViteGlob(fileId: string, pattern: string, rootDir: string): string | undefined {
+function toProjectRelativeViteGlob(
+  fileId: string,
+  pattern: string,
+  rootDir: string,
+): string | undefined {
   // Vite accepts relative and root-absolute globs. Package aliases are deliberately
   // excluded here because their resolution belongs to the TypeScript/Vite alias layer.
   if (pattern.startsWith("./") || pattern.startsWith("../")) {
     const sourceFile = path.isAbsolute(fileId) ? fileId : path.resolve(rootDir, fileId);
-    return path.relative(rootDir, path.resolve(path.dirname(sourceFile), pattern)).split(String.fromCharCode(92)).join("/");
+    return path
+      .relative(rootDir, path.resolve(path.dirname(sourceFile), pattern))
+      .split(String.fromCharCode(92))
+      .join("/");
   }
   if (pattern.startsWith("/")) return pattern.slice(1);
   return undefined;
@@ -78,7 +87,13 @@ function exportedNamesFromAst(ast: any): string[] {
       for (const declarator of declaration.declarations ?? []) {
         if (declarator.id?.type === "Identifier") names.add(declarator.id.name);
       }
-    } else if ((declaration?.type === "FunctionDeclaration" || declaration?.type === "ClassDeclaration" || declaration?.type === "TSTypeAliasDeclaration" || declaration?.type === "TSInterfaceDeclaration") && declaration.id?.name) {
+    } else if (
+      (declaration?.type === "FunctionDeclaration" ||
+        declaration?.type === "ClassDeclaration" ||
+        declaration?.type === "TSTypeAliasDeclaration" ||
+        declaration?.type === "TSInterfaceDeclaration") &&
+      declaration.id?.name
+    ) {
       names.add(declaration.id.name);
     }
   }
@@ -88,7 +103,9 @@ function exportedNamesFromAst(ast: any): string[] {
 function resolveViteRoot(rootDir: string, source: string): string {
   // Vite config is not executed by OptiPrune. Resolve only the common static
   // forms so a dynamic root cannot accidentally create a false entry point.
-  const rootMatch = source.match(/\broot\s*:\s*(?:path\.)?resolve\(\s*(?:import\.meta\.dirname|__dirname)\s*,\s*["']([^"']+)["']\s*\)/);
+  const rootMatch = source.match(
+    /\broot\s*:\s*(?:path\.)?resolve\(\s*(?:import\.meta\.dirname|__dirname)\s*,\s*["']([^"']+)["']\s*\)/,
+  );
   if (rootMatch?.[1]) return path.resolve(rootDir, rootMatch[1]);
 
   const literalMatch = source.match(/\broot\s*:\s*["']([^"']+)["']/);
@@ -125,7 +142,7 @@ export const VitePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (VITE_CORE_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -146,10 +163,10 @@ export const VitePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-            const hasViteDep = VITE_CORE_PACKAGES.some((p) => p in allDeps);
+      const hasViteDep = VITE_CORE_PACKAGES.some((p) => p in allDeps);
       let configPath: string | undefined;
       for (const configFile of VITE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
@@ -176,7 +193,9 @@ export const VitePlugin: AnalyzerPlugin = {
             }
           }
         }
-        const viteRoot = configSource ? resolveViteRoot(adapter.getConfig().rootDir, configSource) : adapter.getConfig().rootDir;
+        const viteRoot = configSource
+          ? resolveViteRoot(adapter.getConfig().rootDir, configSource)
+          : adapter.getConfig().rootDir;
         await markHtmlEntry(adapter, path.join(viteRoot, "index.html"));
       }
 
@@ -200,7 +219,7 @@ export const VitePlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Vite configuration found but 'vite' is not listed in package.json.",
-          evidence: { hasConfigFile: Boolean(configPath), configFile: configPath }
+          evidence: { hasConfigFile: Boolean(configPath), configFile: configPath },
         });
       }
     },
@@ -232,7 +251,11 @@ export const VitePlugin: AnalyzerPlugin = {
       // inventory in onAnalysisComplete.
       if (isImportMetaGlobCall(node)) {
         for (const pattern of staticGlobArguments(node)) {
-          const projectRelativePattern = toProjectRelativeViteGlob(fileId, pattern, adapter.getConfig().rootDir);
+          const projectRelativePattern = toProjectRelativeViteGlob(
+            fileId,
+            pattern,
+            adapter.getConfig().rootDir,
+          );
           if (projectRelativePattern) pendingViteGlobPatterns.add(projectRelativePattern);
         }
         adapter.markPackageAsUsed("vite");
@@ -344,11 +367,7 @@ export const VitePlugin: AnalyzerPlugin = {
                 aliasVal.elements.forEach((aliasEl: any) => {
                   if (t.isObjectExpression(aliasEl)) {
                     aliasEl.properties.forEach((p: any) => {
-                      if (
-                        p.key?.name === "replacement" &&
-                        p.value &&
-                        t.isStringLiteral(p.value)
-                      ) {
+                      if (p.key?.name === "replacement" && p.value && t.isStringLiteral(p.value)) {
                         adapter.markAsUsed(p.value.value);
                       }
                     });
@@ -382,8 +401,8 @@ export const VitePlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId, exportName);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default VitePlugin;

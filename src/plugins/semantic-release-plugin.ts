@@ -13,7 +13,7 @@ const SEMANTIC_RELEASE_CONFIG_FILES = [
   "release.config.js",
   "release.config.cjs",
   "release.config.mjs",
-  "release.config.ts"
+  "release.config.ts",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -38,7 +38,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -46,7 +46,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           (dep) =>
             dep === "semantic-release" ||
             dep.startsWith("@semantic-release/") ||
-            dep.startsWith("semantic-release-")
+            dep.startsWith("semantic-release-"),
         ) ||
         pkg.release
       ) {
@@ -59,7 +59,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("semantic-release") || s.includes("npx semantic-release"))
+              (s.includes("semantic-release") || s.includes("npx semantic-release")),
           )
         ) {
           return true;
@@ -80,14 +80,14 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasSemanticRelease = Object.keys(allDeps).some(
         (p) =>
           p === "semantic-release" ||
           p.startsWith("@semantic-release/") ||
-          p.startsWith("semantic-release-")
+          p.startsWith("semantic-release-"),
       );
 
       // 1. Safeguard all installed semantic-release packages and plugins in package.json
@@ -124,10 +124,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking semantic-release CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("semantic-release")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("semantic-release")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("semantic-release");
           }
@@ -162,7 +159,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "semantic-release configuration found, but 'semantic-release' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.release }
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.release },
         });
       }
     },
@@ -216,9 +213,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
 
         // Search for plugins in JS configuration objects
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key)
-            ? node.key.name
-            : (node.key as any).value;
+          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
 
           if (keyName === "plugins" && t.isArrayExpression(node.value)) {
             node.value.elements.forEach((el: any) => {
@@ -237,8 +232,8 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processReleaseConfigObj(config: any, adapter: any): void {
@@ -250,10 +245,7 @@ function processReleaseConfigObj(config: any, adapter: any): void {
 
       if (typeof pluginEntry === "string") {
         pluginName = pluginEntry;
-      } else if (
-        Array.isArray(pluginEntry) &&
-        typeof pluginEntry[0] === "string"
-      ) {
+      } else if (Array.isArray(pluginEntry) && typeof pluginEntry[0] === "string") {
         pluginName = pluginEntry[0];
       }
 

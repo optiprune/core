@@ -27,7 +27,25 @@
       "items": {
         "type": "string"
       },
-      "default": [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte", ".astro", ".css", ".scss", ".sass", ".less", ".styl", ".stylus"],
+      "default": [
+        ".ts",
+        ".tsx",
+        ".mts",
+        ".cts",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".vue",
+        ".svelte",
+        ".astro",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        ".styl",
+        ".stylus"
+      ],
       "description": "File extensions OptiPrune will process during analysis. Replaces the default list when provided."
     },
     "ignore": {
@@ -37,9 +55,7 @@
       },
       "default": [],
       "description": "Glob patterns or path segments to exclude from analysis. Use this to ignore entire folders (e.g., '**/tests/**'), specific files (e.g., '**/*.spec.ts'), or build artifacts. These patterns are appended to the built-in defaults like node_modules and dist.",
-      "examples": [
-        ["**/tests/**", "**/__mocks__/**", "**/*.test.ts"]
-      ]
+      "examples": [["**/tests/**", "**/__mocks__/**", "**/*.test.ts"]]
     },
     "ignoreDependencies": {
       "type": "array",

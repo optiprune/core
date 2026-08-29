@@ -1,10 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
 
-const TRAVIS_CONFIG_FILES = [
-  ".travis.yml",
-  ".travis.yaml"
-];
+const TRAVIS_CONFIG_FILES = [".travis.yml", ".travis.yaml"];
 
 const TRAVIS_LIFECYCLE_HOOKS = [
   "before_install",
@@ -16,7 +13,7 @@ const TRAVIS_LIFECYCLE_HOOKS = [
   "before_deploy",
   "deploy",
   "after_deploy",
-  "after_script"
+  "after_script",
 ];
 
 export const TravisCiPlugin: AnalyzerPlugin = {
@@ -34,11 +31,7 @@ export const TravisCiPlugin: AnalyzerPlugin = {
     if (pkg?.scripts) {
       const scriptValues = Object.values(pkg.scripts);
       if (
-        scriptValues.some(
-          (s) =>
-            typeof s === "string" &&
-            (s.includes("travis ") || s === "travis")
-        )
+        scriptValues.some((s) => typeof s === "string" && (s.includes("travis ") || s === "travis"))
       ) {
         return true;
       }
@@ -87,8 +80,8 @@ export const TravisCiPlugin: AnalyzerPlugin = {
       if (TRAVIS_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 function parseTravisYamlCommands(yamlContent: string, adapter: any): void {

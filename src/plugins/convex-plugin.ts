@@ -2,10 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const CONVEX_CONFIG_FILES = [
-  "convex.json",
-  "convexrc.json"
-];
+const CONVEX_CONFIG_FILES = ["convex.json", "convexrc.json"];
 
 const CONVEX_SPECIAL_FILES = [
   "schema.ts",
@@ -15,7 +12,7 @@ const CONVEX_SPECIAL_FILES = [
   "_generated/api.d.ts",
   "_generated/api.js",
   "_generated/server.d.ts",
-  "_generated/server.js"
+  "_generated/server.js",
 ];
 
 const CONVEX_FUNCTIONS = new Set([
@@ -25,7 +22,7 @@ const CONVEX_FUNCTIONS = new Set([
   "internalQuery",
   "internalMutation",
   "internalAction",
-  "httpAction"
+  "httpAction",
 ]);
 
 export const ConvexPlugin: AnalyzerPlugin = {
@@ -38,14 +35,10 @@ export const ConvexPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "convex" || dep.startsWith("@convex-dev/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "convex" || dep.startsWith("@convex-dev/"))) {
         return true;
       }
 
@@ -53,8 +46,7 @@ export const ConvexPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("convex ") || s === "convex")
+            (s) => typeof s === "string" && (s.includes("convex ") || s === "convex"),
           )
         ) {
           return true;
@@ -75,11 +67,11 @@ export const ConvexPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasConvex = Object.keys(allDeps).some(
-        (p) => p === "convex" || p.startsWith("@convex-dev/")
+        (p) => p === "convex" || p.startsWith("@convex-dev/"),
       );
 
       // 1. Safeguard installed Convex packages in package.json
@@ -128,7 +120,7 @@ export const ConvexPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Convex configuration or 'convex/' folder found, but 'convex' is not listed in package.json.",
-          evidence: { hasConfigFile, hasConvexDir }
+          evidence: { hasConfigFile, hasConvexDir },
         });
       }
     },
@@ -157,7 +149,11 @@ export const ConvexPlugin: AnalyzerPlugin = {
       // 1. Detect ESM imports for convex packages
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (source === "convex" || source.startsWith("convex/") || source.startsWith("@convex-dev/")) {
+        if (
+          source === "convex" ||
+          source.startsWith("convex/") ||
+          source.startsWith("@convex-dev/")
+        ) {
           adapter.markPackageAsUsed(source.startsWith("@convex-dev/") ? source : "convex");
           adapter.markAsUsed(fileId);
         }
@@ -198,8 +194,8 @@ export const ConvexPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ConvexPlugin;

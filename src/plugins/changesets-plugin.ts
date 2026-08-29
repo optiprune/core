@@ -6,15 +6,20 @@ const CHANGESET_CONFIG_FILE = ".changeset/config.json";
 const CHANGESETS_CLI_PACKAGE = "@changesets/cli";
 
 function hasChangesetsCli(packageJson: any): boolean {
-  return [packageJson?.dependencies, packageJson?.devDependencies, packageJson?.peerDependencies]
-    .some((section) => !!section?.[CHANGESETS_CLI_PACKAGE]);
+  return [
+    packageJson?.dependencies,
+    packageJson?.devDependencies,
+    packageJson?.peerDependencies,
+  ].some((section) => !!section?.[CHANGESETS_CLI_PACKAGE]);
 }
 
 function isChangesetScript(script: string): boolean {
-  return /(?:^|[\s&|;])changeset(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?changeset\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?changeset\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?changeset\b/.test(script);
+  return (
+    /(?:^|[\s&|;])changeset(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?changeset\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?changeset\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?changeset\b/.test(script)
+  );
 }
 
 function changelogPackage(config: Record<string, any>): string | undefined {
@@ -40,7 +45,9 @@ export const ChangesetsPlugin: AnalyzerPlugin = {
     if (hasChangesetsCli(packageJson)) return true;
     if (await adapter.folderExists(CHANGESET_DIRECTORY)) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isChangesetScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isChangesetScript(script),
+    );
   },
 
   lifecycle: {
@@ -70,7 +77,8 @@ export const ChangesetsPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Changesets configuration or command found, but '@changesets/cli' is not listed in package.json.",
+          message:
+            "Changesets configuration or command found, but '@changesets/cli' is not listed in package.json.",
           evidence: { hasDirectory, hasConfig, hasScriptInvocation },
         });
       }

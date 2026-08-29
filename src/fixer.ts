@@ -25,12 +25,17 @@ type TextEdit = { start: number; end: number; replacement: string };
 function getMinConfidence(config: FixConfig | boolean): number {
   if (typeof config === "boolean") return 3;
   switch (config.confidence) {
-    case "all": return 0;
+    case "all":
+      return 0;
     case "low":
-    case "low+": return 1;
-    case "medium+": return 2;
-    case "high": return 3;
-    default: return 3;
+    case "low+":
+      return 1;
+    case "medium+":
+      return 2;
+    case "high":
+      return 3;
+    default:
+      return 3;
   }
 }
 
@@ -39,13 +44,17 @@ function isRequestedRule(allowedRules: Set<string>, rule: string): boolean {
   if (allowedRules.has("files") && rule === "unreachable-file") return true;
   if (allowedRules.has("dependencies") && rule === "unused-dependency") return true;
   if (allowedRules.has("devDependencies") && rule === "unused-dev-dependency") return true;
-  if (allowedRules.has("exports") && (rule === "unused-export" || rule === "unused-member")) return true;
+  if (allowedRules.has("exports") && (rule === "unused-export" || rule === "unused-member"))
+    return true;
   if (allowedRules.has("conditions") && rule === "constant-condition") return true;
   if (allowedRules.has("json") && rule === "parse-recovery") return true;
   return false;
 }
 
-function lineBounds(source: string, lineNumber: number): { start: number; end: number; text: string } | null {
+function lineBounds(
+  source: string,
+  lineNumber: number,
+): { start: number; end: number; text: string } | null {
   const lines = source.split("\n");
   const index = lineNumber - 1;
   if (index < 0 || index >= lines.length) return null;
@@ -67,17 +76,28 @@ function isSupportedSourceFile(file: string): boolean {
   return SUPPORTED_SOURCE_EXTENSIONS.has(extensionOf(file));
 }
 
-function exportTokenForFinding(source: string, finding: Finding): { index: number; name: string } | null {
+function exportTokenForFinding(
+  source: string,
+  finding: Finding,
+): { index: number; name: string } | null {
   const exportName = finding.evidence?.exportName;
   if (typeof exportName !== "string" || !exportName) return null;
-  const from = finding.location ? Math.max(0, lineBounds(source, finding.location.start.line)?.start ?? 0) : 0;
-  const declaration = new RegExp(String.raw`\bexport\s+(?:default\s+)?(?=(?:async\s+)?(?:function|class|const|let|var)\s+${exportName}\b)`);
+  const from = finding.location
+    ? Math.max(0, lineBounds(source, finding.location.start.line)?.start ?? 0)
+    : 0;
+  const declaration = new RegExp(
+    String.raw`\bexport\s+(?:default\s+)?(?=(?:async\s+)?(?:function|class|const|let|var)\s+${exportName}\b)`,
+  );
   const match = declaration.exec(source.slice(from));
-  return match && match.index !== undefined ? { index: from + match.index, name: exportName } : null;
+  return match && match.index !== undefined
+    ? { index: from + match.index, name: exportName }
+    : null;
 }
 
 function identifierCount(source: string, name: string): number {
-  return (source.match(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\b`, "g")) ?? []).length;
+  return (
+    source.match(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\b`, "g")) ?? []
+  ).length;
 }
 
 function isUsedInSameFile(source: string, finding: Finding): boolean {
@@ -99,7 +119,10 @@ function matchingBrace(source: string, open: number): number {
       else if (ch === quote) quote = "";
       continue;
     }
-    if (ch === "'" || ch === '"' || ch === "`") { quote = ch; continue; }
+    if (ch === "'" || ch === '"' || ch === "`") {
+      quote = ch;
+      continue;
+    }
     if (ch === "{") depth++;
     if (ch === "}" && --depth === 0) return i + 1;
   }
@@ -121,7 +144,8 @@ function wholeExportDeclarationEdit(source: string, finding: Finding): TextEdit 
     if (close >= 0) end = close;
   } else if (bodyStart >= 0 && (declarationEnd < 0 || bodyStart < declarationEnd)) {
     const close = matchingBrace(source, bodyStart);
-    if (close >= 0 && /\b(?:const|let|var)\b/.test(source.slice(declarationStart, bodyStart))) end = source.indexOf(";", close) >= 0 ? source.indexOf(";", close) + 1 : close;
+    if (close >= 0 && /\b(?:const|let|var)\b/.test(source.slice(declarationStart, bodyStart)))
+      end = source.indexOf(";", close) >= 0 ? source.indexOf(";", close) + 1 : close;
   }
   if (end < 0) return null;
   while (end < source.length && (source[end] === "\r" || source[end] === "\n")) end++;
@@ -137,14 +161,19 @@ function exportListEdit(source: string, finding: Finding): TextEdit | null {
   while ((match = listPattern.exec(source))) {
     const body = match[1] ?? "";
     const parts = [...body.matchAll(/[^,]+/g)];
-    const target = parts.find((part) => new RegExp(String.raw`\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`).test(part[0] ?? ""));
+    const target = parts.find((part) =>
+      new RegExp(String.raw`\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`).test(
+        part[0] ?? "",
+      ),
+    );
     if (!target || target.index === undefined) continue;
     const absolute = (match.index ?? 0) + match[0].indexOf("{") + 1;
     const start = absolute + target.index;
     const end = start + target[0].length;
     const before = source.slice(absolute, start);
     const after = source.slice(end, absolute + body.length);
-    if (/\s*,\s*$/.test(before)) return { start: before.lastIndexOf(",") + absolute, end, replacement: "" };
+    if (/\s*,\s*$/.test(before))
+      return { start: before.lastIndexOf(",") + absolute, end, replacement: "" };
     const nextComma = after.indexOf(",");
     if (nextComma >= 0) return { start, end: end + nextComma + 1, replacement: "" };
     return { start, end, replacement: "" };
@@ -168,21 +197,34 @@ function forceExportEdit(source: string, finding: Finding): TextEdit | null {
   if (typeof exportName !== "string" || !exportName) return null;
   const escaped = exportName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-  const declaration = new RegExp(`\\bexport\\s+(?:default\\s+)?(?=(?:async\\s+)?(?:function|class|const|let|var)\\s+${escaped}\\b)`);
+  const declaration = new RegExp(
+    `\\bexport\\s+(?:default\\s+)?(?=(?:async\\s+)?(?:function|class|const|let|var)\\s+${escaped}\\b)`,
+  );
   const declarationMatch = declaration.exec(source);
   if (declarationMatch && declarationMatch.index !== undefined) {
     const exportOffset = declarationMatch.index;
-    return { start: exportOffset, end: exportOffset + (declarationMatch[0]?.match(/\s*$/)?.[0].length ?? 0) + "export".length, replacement: "" };
+    return {
+      start: exportOffset,
+      end: exportOffset + (declarationMatch[0]?.match(/\s*$/)?.[0].length ?? 0) + "export".length,
+      replacement: "",
+    };
   }
 
   const listPattern = /\bexport\s*\{([^{}]*)\}/g;
   let listMatch: RegExpExecArray | null;
   while ((listMatch = listPattern.exec(source))) {
     const body = listMatch[1] ?? "";
-    const specifiers = body.split(",").map((item) => item.trim()).filter(Boolean);
+    const specifiers = body
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
     const remaining = specifiers.filter((specifier) => {
-      const match = /^(?<local>[A-Za-z_$][\w$]*)(?:\s+as\s+(?<exported>[A-Za-z_$][\w$]*))?$/.exec(specifier);
-      return !match || (match.groups?.local !== exportName && match.groups?.exported !== exportName);
+      const match = /^(?<local>[A-Za-z_$][\w$]*)(?:\s+as\s+(?<exported>[A-Za-z_$][\w$]*))?$/.exec(
+        specifier,
+      );
+      return (
+        !match || (match.groups?.local !== exportName && match.groups?.exported !== exportName)
+      );
     });
     if (remaining.length === specifiers.length) continue;
     const openBrace = listMatch[0].indexOf("{");
@@ -212,7 +254,9 @@ function objectMemberEdit(source: string, finding: Finding): TextEdit | null {
   let bounds = finding.location ? lineBounds(source, finding.location.start.line) : null;
   if (!bounds && typeof exportName === "string") {
     const lines = source.split("\n");
-    const lineIndex = lines.findIndex((line) => new RegExp(`\\bexport\\s+(?:const|let|var)\\s+${exportName}\\s*=\\s*\\{`).test(line));
+    const lineIndex = lines.findIndex((line) =>
+      new RegExp(`\\bexport\\s+(?:const|let|var)\\s+${exportName}\\s*=\\s*\\{`).test(line),
+    );
     if (lineIndex >= 0) bounds = lineBounds(source, lineIndex + 1);
   }
   if (!bounds) return null;
@@ -221,7 +265,9 @@ function objectMemberEdit(source: string, finding: Finding): TextEdit | null {
   if (beforeObject < 0 || afterObject < 0) return null;
   const objectText = bounds.text.slice(beforeObject + 1, afterObject);
   const escaped = memberName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const property = new RegExp(`\\b${escaped}\\s*:\\s*(?:'[^'\\n]*'|"[^"\\n]*"|true|false|null|[-+]?\\d+(?:\\.\\d+)?)\\s*(,)?`);
+  const property = new RegExp(
+    `\\b${escaped}\\s*:\\s*(?:'[^'\\n]*'|"[^"\\n]*"|true|false|null|[-+]?\\d+(?:\\.\\d+)?)\\s*(,)?`,
+  );
   const match = property.exec(objectText);
   if (!match || match.index === undefined) return null;
   const trailingComma = match[2] ? match[0].length - 1 : match[0].length;
@@ -300,7 +346,8 @@ function conditionEdit(source: string, finding: Finding, used: Set<number>): Tex
     if (used.has(index)) return false;
     if (value === true && region.condition === "true") return true;
     if (value === false && region.condition === "false") return true;
-    if (reason === "unsat-path-then" && /^(?:false\s*&&|0\s*&&)/.test(region.condition)) return true;
+    if (reason === "unsat-path-then" && /^(?:false\s*&&|0\s*&&)/.test(region.condition))
+      return true;
     return false;
   });
   if (candidate < 0) return null;
@@ -308,46 +355,70 @@ function conditionEdit(source: string, finding: Finding, used: Set<number>): Tex
   const region = regions[candidate]!;
   const isTrue = value === true;
   if (isTrue && region.elseStart !== undefined && region.elseEnd !== undefined) {
-    return { start: region.start, end: region.end, replacement: source.slice(region.thenStart, region.thenEnd) };
+    return {
+      start: region.start,
+      end: region.end,
+      replacement: source.slice(region.thenStart, region.thenEnd),
+    };
   }
   if (!isTrue && region.elseStart !== undefined && region.elseEnd !== undefined) {
-    return { start: region.start, end: region.end, replacement: source.slice(region.elseStart, region.elseEnd) };
+    return {
+      start: region.start,
+      end: region.end,
+      replacement: source.slice(region.elseStart, region.elseEnd),
+    };
   }
   if (isTrue) return { start: region.start, end: region.thenStart, replacement: "" };
   return { start: region.start, end: region.thenEnd + 1, replacement: "" };
 }
 
 function sourceFindingLabel(finding: Finding): string {
-  const exportName = typeof finding.evidence?.exportName === "string" ? finding.evidence.exportName : undefined;
-  const memberName = typeof finding.evidence?.memberName === "string" ? finding.evidence.memberName : undefined;
-  if (finding.rule === "unused-member" && exportName && memberName) return `${exportName}.${memberName}`;
+  const exportName =
+    typeof finding.evidence?.exportName === "string" ? finding.evidence.exportName : undefined;
+  const memberName =
+    typeof finding.evidence?.memberName === "string" ? finding.evidence.memberName : undefined;
+  if (finding.rule === "unused-member" && exportName && memberName)
+    return `${exportName}.${memberName}`;
   if (exportName) return exportName;
   return finding.rule;
 }
 
 function sourceFindingStatus(source: string, finding: Finding): "removed" | "edited" {
-  return finding.rule === "unused-export" && !isUsedInSameFile(source, finding) ? "removed" : "edited";
+  return finding.rule === "unused-export" && !isUsedInSameFile(source, finding)
+    ? "removed"
+    : "edited";
 }
 
-function buildSourceEdits(source: string, file: string, findings: Finding[], force: boolean): TextEdit[] {
+function buildSourceEdits(
+  source: string,
+  file: string,
+  findings: Finding[],
+  force: boolean,
+): TextEdit[] {
   const edits: TextEdit[] = [];
   const usedConditions = new Set<number>();
   for (const finding of findings) {
-    const edit = finding.rule === "unused-export"
-      ? (isUsedInSameFile(source, finding)
+    const edit =
+      finding.rule === "unused-export"
+        ? isUsedInSameFile(source, finding)
           ? exportModifierEdit(source, finding)
-          : (exportListEdit(source, finding) ?? wholeExportDeclarationEdit(source, finding) ?? (force ? forceExportEdit(source, finding) : null)))
-      : finding.rule === "unused-member"
-        ? objectMemberEdit(source, finding)
-        : finding.rule === "constant-condition"
-          ? conditionEdit(source, finding, usedConditions)
-          : null;
+          : (exportListEdit(source, finding) ??
+            wholeExportDeclarationEdit(source, finding) ??
+            (force ? forceExportEdit(source, finding) : null))
+        : finding.rule === "unused-member"
+          ? objectMemberEdit(source, finding)
+          : finding.rule === "constant-condition"
+            ? conditionEdit(source, finding, usedConditions)
+            : null;
     if (edit) {
-      const duplicate = edits.some((existing) => existing.start === edit.start && existing.end === edit.end);
+      const duplicate = edits.some(
+        (existing) => existing.start === edit.start && existing.end === edit.end,
+      );
       if (!duplicate) edits.push(edit);
-    }
-    else if (!(force && finding.rule === "unused-export")) {
-      console.error(`[Fixer] Skipping unsafe or unsupported source fix: ${finding.rule} in ${file}`);
+    } else if (!(force && finding.rule === "unused-export")) {
+      console.error(
+        `[Fixer] Skipping unsafe or unsupported source fix: ${finding.rule} in ${file}`,
+      );
     }
   }
   edits.sort((a, b) => b.start - a.start);
@@ -361,15 +432,21 @@ function buildSourceEdits(source: string, file: string, findings: Finding[], for
 
 function applyEdits(source: string, edits: TextEdit[]): string {
   let result = source;
-  for (const edit of edits) result = result.slice(0, edit.start) + edit.replacement + result.slice(edit.end);
+  for (const edit of edits)
+    result = result.slice(0, edit.start) + edit.replacement + result.slice(edit.end);
   return result;
 }
 
-export async function applyFixes(report: AnalysisReport, rootDir: string, fixConfig?: boolean | FixConfig): Promise<number> {
+export async function applyFixes(
+  report: AnalysisReport,
+  rootDir: string,
+  fixConfig?: boolean | FixConfig,
+): Promise<number> {
   let fixesApplied = 0;
   const config = fixConfig ?? true;
   const minConfidence = getMinConfidence(config);
-  const allowedRules = typeof config === "object" && config.rules ? new Set(config.rules) : DEFAULT_SAFE_RULES;
+  const allowedRules =
+    typeof config === "object" && config.rules ? new Set(config.rules) : DEFAULT_SAFE_RULES;
   const dryRun = typeof config === "object" && !!config.dryRun;
   const force = typeof config === "object" && !!config.force;
 
@@ -421,10 +498,13 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
   for (const [file, findings] of orderedFiles) {
     const absolutePath = path.resolve(rootDir, file);
     if (dryRun) {
-      const eligibleFindings = await Promise.all(findings.map(async (finding) => {
-        if (finding.rule !== "unused-dependency" && finding.rule !== "unused-dev-dependency") return true;
-        return canRemoveConditionalDependency(finding);
-      }));
+      const eligibleFindings = await Promise.all(
+        findings.map(async (finding) => {
+          if (finding.rule !== "unused-dependency" && finding.rule !== "unused-dev-dependency")
+            return true;
+          return canRemoveConditionalDependency(finding);
+        }),
+      );
       const eligibleCount = eligibleFindings.filter(Boolean).length;
       console.error(`[Fixer] [Dry Run] Would fix ${eligibleCount} issue(s) in ${file}`);
       fixesApplied += eligibleCount;
@@ -433,10 +513,11 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
 
     if (file === "package.json" || file.endsWith("/package.json")) {
       let changed = false;
-      const repairFinding = findings.find((finding) =>
-        finding.rule === "parse-recovery" &&
-        finding.evidence?.kind === "json-parse" &&
-        finding.evidence?.repairable === true,
+      const repairFinding = findings.find(
+        (finding) =>
+          finding.rule === "parse-recovery" &&
+          finding.evidence?.kind === "json-parse" &&
+          finding.evidence?.repairable === true,
       );
       if (repairFinding) {
         try {
@@ -459,9 +540,10 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
         if (
           (finding.rule === "unused-dependency" || finding.rule === "unused-dev-dependency") &&
           finding.evidence?.package &&
-          await canRemoveConditionalDependency(finding)
+          (await canRemoveConditionalDependency(finding))
         ) {
-          const section = finding.rule === "unused-dev-dependency" ? "devDependencies" : "dependencies";
+          const section =
+            finding.rule === "unused-dev-dependency" ? "devDependencies" : "dependencies";
           const packageName = finding.evidence.package as string;
           if (pkg[section]?.[packageName]) {
             delete pkg[section][packageName];
@@ -486,7 +568,12 @@ export async function applyFixes(report: AnalysisReport, rootDir: string, fixCon
       continue;
     }
 
-    const sourceFindings = findings.filter((finding) => finding.rule === "unused-export" || finding.rule === "unused-member" || finding.rule === "constant-condition");
+    const sourceFindings = findings.filter(
+      (finding) =>
+        finding.rule === "unused-export" ||
+        finding.rule === "unused-member" ||
+        finding.rule === "constant-condition",
+    );
     if (sourceFindings.length === 0) continue;
     const source = await fs.readFile(absolutePath, "utf8");
     const edits = buildSourceEdits(source, file, sourceFindings, force);

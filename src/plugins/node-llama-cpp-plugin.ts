@@ -3,10 +3,28 @@ import { t } from "../ast-utils.js";
 
 const PACKAGE_NAME = "node-llama-cpp";
 const SERVER_PARAMETER_NAMES = new Set([
-  "req", "res", "request", "response", "reply", "ctx", "context", "socket", "event",
+  "req",
+  "res",
+  "request",
+  "response",
+  "reply",
+  "ctx",
+  "context",
+  "socket",
+  "event",
 ]);
 const SERVER_METHODS = new Set([
-  "get", "post", "put", "patch", "delete", "all", "use", "route", "handle", "on", "listen",
+  "get",
+  "post",
+  "put",
+  "patch",
+  "delete",
+  "all",
+  "use",
+  "route",
+  "handle",
+  "on",
+  "listen",
 ]);
 
 type ResourceKind = "llama" | "model" | "context" | "sequence" | "session";
@@ -69,12 +87,14 @@ function stateFor(file: string): FileState {
 
 function nodeName(node: any): string | undefined {
   if (t.isIdentifier(node)) return node.name;
-  if (t.isStringLiteral(node) || t.isLiteral(node)) return typeof node.value === "string" ? node.value : undefined;
+  if (t.isStringLiteral(node) || t.isLiteral(node))
+    return typeof node.value === "string" ? node.value : undefined;
   return undefined;
 }
 
 function propertyName(member: any): string | undefined {
-  if (!member || (member.type !== "MemberExpression" && member.type !== "OptionalMemberExpression")) return undefined;
+  if (!member || (member.type !== "MemberExpression" && member.type !== "OptionalMemberExpression"))
+    return undefined;
   if (!member.computed) return nodeName(member.property);
   return nodeName(member.property);
 }
@@ -89,16 +109,31 @@ function memberCall(expression: any): { object: any; method: string; call: any }
 
 function unwrapAwait(expression: any): any {
   let current = expression;
-  while (current && ["AwaitExpression", "TSAsExpression", "TSTypeAssertion", "TSNonNullExpression"].includes(current.type)) {
+  while (
+    current &&
+    ["AwaitExpression", "TSAsExpression", "TSTypeAssertion", "TSNonNullExpression"].includes(
+      current.type,
+    )
+  ) {
     current = current.argument ?? current.expression;
   }
   return current;
 }
 
 function functionScope(ancestors: any[]): string {
-  const functionNode = [...ancestors].reverse().find((node) =>
-    node && ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression", "ObjectMethod", "ClassMethod"].includes(node.type),
-  );
+  const functionNode = [...ancestors]
+    .reverse()
+    .find(
+      (node) =>
+        node &&
+        [
+          "FunctionDeclaration",
+          "FunctionExpression",
+          "ArrowFunctionExpression",
+          "ObjectMethod",
+          "ClassMethod",
+        ].includes(node.type),
+    );
   if (!functionNode) return "module";
   const name = functionNode.id?.name ?? functionNode.key?.name ?? "anonymous";
   return `function:${name}@${functionNode.start ?? "unknown"}`;
@@ -117,23 +152,41 @@ function setOrigin(state: FileState, origin: Origin): void {
 }
 
 function isUsingDeclaration(ancestors: any[]): boolean {
-  return ancestors.some((node) => node?.type === "VariableDeclaration" && typeof node.kind === "string" && node.kind.includes("using"));
+  return ancestors.some(
+    (node) =>
+      node?.type === "VariableDeclaration" &&
+      typeof node.kind === "string" &&
+      node.kind.includes("using"),
+  );
 }
 
 function rangeContains(container: any, node: any): boolean {
-  return typeof container?.start === "number" && typeof container?.end === "number" &&
-    typeof node?.start === "number" && typeof node?.end === "number" &&
-    container.start <= node.start && container.end >= node.end;
+  return (
+    typeof container?.start === "number" &&
+    typeof container?.end === "number" &&
+    typeof node?.start === "number" &&
+    typeof node?.end === "number" &&
+    container.start <= node.start &&
+    container.end >= node.end
+  );
 }
 
 function isInsideFinally(node: any, ancestors: any[]): boolean {
-  return ancestors.some((ancestor) => ancestor?.type === "TryStatement" && rangeContains(ancestor.finalizer, node));
+  return ancestors.some(
+    (ancestor) => ancestor?.type === "TryStatement" && rangeContains(ancestor.finalizer, node),
+  );
 }
 
 function isRequestScopedHandler(ancestors: any[]): boolean {
-  const functionNode = [...ancestors].reverse().find((node) =>
-    node && ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(node.type),
-  );
+  const functionNode = [...ancestors]
+    .reverse()
+    .find(
+      (node) =>
+        node &&
+        ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+          node.type,
+        ),
+    );
   const hasRequestParameter = !!functionNode?.params?.some((parameter: any) => {
     const name = nodeName(parameter);
     return !!name && SERVER_PARAMETER_NAMES.has(name);
@@ -150,7 +203,8 @@ function isRequestScopedHandler(ancestors: any[]): boolean {
 function objectProperty(object: any, key: string): any | undefined {
   if (!t.isObjectExpression(object)) return undefined;
   return object.properties?.find((property: any) => {
-    if (!property || (property.type !== "Property" && property.type !== "ObjectProperty")) return false;
+    if (!property || (property.type !== "Property" && property.type !== "ObjectProperty"))
+      return false;
     return nodeName(property.key) === key;
   })?.value;
 }
@@ -158,11 +212,21 @@ function objectProperty(object: any, key: string): any | undefined {
 function numericLiteral(node: any): number | undefined {
   const value = unwrapAwait(node);
   if (typeof value?.value === "number" && Number.isFinite(value.value)) return value.value;
-  if (value?.type === "UnaryExpression" && value.operator === "-" && typeof value.argument?.value === "number") return -value.argument.value;
+  if (
+    value?.type === "UnaryExpression" &&
+    value.operator === "-" &&
+    typeof value.argument?.value === "number"
+  )
+    return -value.argument.value;
   return undefined;
 }
 
-function emitOnce(state: FileState, adapter: PluginAdapter, key: string, finding: Omit<Finding, "rule"> & { rule?: string }): void {
+function emitOnce(
+  state: FileState,
+  adapter: PluginAdapter,
+  key: string,
+  finding: Omit<Finding, "rule"> & { rule?: string },
+): void {
   if (state.emitted.has(key)) return;
   state.emitted.add(key);
   adapter.emitFinding(finding);
@@ -202,7 +266,8 @@ function reportMissingDependency(file: string, state: FileState, adapter: Plugin
     severity: "error",
     confidence: "high",
     file: "package.json",
-    message: "node-llama-cpp is imported by the project but is not declared in package.json dependencies, devDependencies, or peerDependencies.",
+    message:
+      "node-llama-cpp is imported by the project but is not declared in package.json dependencies, devDependencies, or peerDependencies.",
     evidence: { package: PACKAGE_NAME, importedFrom: file },
   });
 }
@@ -221,7 +286,8 @@ function registerImport(node: any, file: string, state: FileState, adapter: Plug
     return;
   }
 
-  if (!t.isCallExpression(node) || !t.isIdentifier(node.callee) || node.callee.name !== "require") return;
+  if (!t.isCallExpression(node) || !t.isIdentifier(node.callee) || node.callee.name !== "require")
+    return;
   const required = nodeName(node.arguments?.[0]);
   if (required !== PACKAGE_NAME) return;
   adapter.markPackageAsUsed(PACKAGE_NAME);
@@ -301,7 +367,13 @@ function auditContextOptions(
   }
 }
 
-function registerVariable(node: any, file: string, ancestors: any[], state: FileState, adapter: PluginAdapter): void {
+function registerVariable(
+  node: any,
+  file: string,
+  ancestors: any[],
+  state: FileState,
+  adapter: PluginAdapter,
+): void {
   if (node?.type !== "VariableDeclarator") return;
   const scope = functionScope(ancestors);
   const init = unwrapAwait(node.init);
@@ -366,13 +438,25 @@ function registerVariable(node: any, file: string, ancestors: any[], state: File
     }
   }
 
-  if (t.isCallExpression(init) && t.isIdentifier(init.callee) && state.importedGetLlamaNames.has(init.callee.name)) {
+  if (
+    t.isCallExpression(init) &&
+    t.isIdentifier(init.callee) &&
+    state.importedGetLlamaNames.has(init.callee.name)
+  ) {
     setOrigin(state, { key: originKey(scope, name), kind: "llama", name, file, scope });
     return;
   }
 
-  if (t.isNewExpression(init) && t.isIdentifier(init.callee) && state.importedSessionNames.has(init.callee.name)) {
-    const sequence = resolveOrigin(state, objectProperty(init.arguments?.[0], "contextSequence"), scope);
+  if (
+    t.isNewExpression(init) &&
+    t.isIdentifier(init.callee) &&
+    state.importedSessionNames.has(init.callee.name)
+  ) {
+    const sequence = resolveOrigin(
+      state,
+      objectProperty(init.arguments?.[0], "contextSequence"),
+      scope,
+    );
     const session: SessionResource = {
       key: originKey(scope, name),
       kind: "session",
@@ -403,12 +487,24 @@ function trackDisposal(node: any, file: string, ancestors: any[], state: FileSta
   context.disposedInFinally ||= isInsideFinally(node, ancestors);
 }
 
-function reportSharedSequence(node: any, file: string, ancestors: any[], state: FileState, adapter: PluginAdapter): void {
+function reportSharedSequence(
+  node: any,
+  file: string,
+  ancestors: any[],
+  state: FileState,
+  adapter: PluginAdapter,
+): void {
   const call = memberCall(node);
-  if (!call || !["prompt", "preloadPrompt", "completePrompt"].includes(call.method) || !t.isIdentifier(call.object)) return;
+  if (
+    !call ||
+    !["prompt", "preloadPrompt", "completePrompt"].includes(call.method) ||
+    !t.isIdentifier(call.object)
+  )
+    return;
   const handlerScope = functionScope(ancestors);
   const sessionOrigin = getOrigin(state, call.object.name, handlerScope);
-  const session = sessionOrigin?.kind === "session" ? state.sessions.get(sessionOrigin.key) : undefined;
+  const session =
+    sessionOrigin?.kind === "session" ? state.sessions.get(sessionOrigin.key) : undefined;
   if (!session || !isRequestScopedHandler(ancestors)) return;
 
   const context = session.contextKey ? state.contexts.get(session.contextKey) : undefined;
@@ -460,7 +556,11 @@ function auditContextLifecycle(file: string, state: FileState, adapter: PluginAd
         confidence: "medium",
         file,
         message: `node-llama-cpp context '${context.name}' obtains ${context.sequenceCount} sequences but is configured for ${context.sequences}. Increase sequences or release/reuse sequences deliberately.`,
-        evidence: { context: context.name, sequenceCount: context.sequenceCount, configuredSequences: context.sequences },
+        evidence: {
+          context: context.name,
+          sequenceCount: context.sequenceCount,
+          configuredSequences: context.sequences,
+        },
       });
     }
   }
@@ -471,10 +571,23 @@ export const NodeLlamaCppPlugin: AnalyzerPlugin = {
   version: "1.0.0",
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
-    if (pkg?.dependencies?.[PACKAGE_NAME] || pkg?.devDependencies?.[PACKAGE_NAME] || pkg?.peerDependencies?.[PACKAGE_NAME]) {
+    if (
+      pkg?.dependencies?.[PACKAGE_NAME] ||
+      pkg?.devDependencies?.[PACKAGE_NAME] ||
+      pkg?.peerDependencies?.[PACKAGE_NAME]
+    ) {
       return true;
     }
-    const sourceFiles = await adapter.findFilesByGlob(["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mts", "**/*.cts", "**/*.mjs", "**/*.cjs"]);
+    const sourceFiles = await adapter.findFilesByGlob([
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.mts",
+      "**/*.cts",
+      "**/*.mjs",
+      "**/*.cjs",
+    ]);
     for (const sourceFile of sourceFiles) {
       const source = await adapter.readFile(sourceFile);
       if (source?.includes(PACKAGE_NAME)) return true;
@@ -486,7 +599,11 @@ export const NodeLlamaCppPlugin: AnalyzerPlugin = {
       stateByFile.clear();
       reportedMissingDependency = false;
       const pkg = await adapter.readJson("package.json");
-      packageDeclared = !!(pkg?.dependencies?.[PACKAGE_NAME] || pkg?.devDependencies?.[PACKAGE_NAME] || pkg?.peerDependencies?.[PACKAGE_NAME]);
+      packageDeclared = !!(
+        pkg?.dependencies?.[PACKAGE_NAME] ||
+        pkg?.devDependencies?.[PACKAGE_NAME] ||
+        pkg?.peerDependencies?.[PACKAGE_NAME]
+      );
       if (pkg?.scripts) {
         for (const [scriptName, script] of Object.entries(pkg.scripts)) {
           if (typeof script === "string" && script.includes(PACKAGE_NAME)) {

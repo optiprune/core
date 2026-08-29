@@ -15,7 +15,7 @@ describe("Layer 4: Concolic Execution", () => {
     });
 
     const concolicFindings = report.findings.filter((f) => f.rule === "unreachable-dynamic-path");
-    
+
     // Expect some findings if not all paths are covered by initial inputs or if some are truly unreachable
     // This test is more about ensuring the concolic engine runs and produces *some* output
     // rather than asserting a specific number of unreachable paths, as that depends on the complexity

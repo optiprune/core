@@ -14,8 +14,13 @@ afterEach(async () => {
 describe("Layer 4 JavaScript runtime pattern modeling", () => {
   it("resolves template imports and keeps bundler-runtime constructs executable", async () => {
     await fs.mkdir(path.join(fixtureRoot, "src", "locales"), { recursive: true });
-    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({ name: "layer4-patterns", private: true }, null, 2));
-    await fs.writeFile(path.join(fixtureRoot, "src", "main.ts"), `
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify({ name: "layer4-patterns", private: true }, null, 2),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "src", "main.ts"),
+      `
       const lang = "de";
       const prefix = "prefix-" + "fixed";
       const SECONDS = 60 * 60 * 24;
@@ -38,9 +43,16 @@ describe("Layer 4 JavaScript runtime pattern modeling", () => {
       tag.src = new URL("./worker.js", import.meta.url).href;
       document.head.appendChild(tag);
       await import(\`./locales/\${lang}.json\`);
-    `);
-    await fs.writeFile(path.join(fixtureRoot, "src", "locales", "de.json"), "export default { hello: 'Hallo' };\n");
-    await fs.writeFile(path.join(fixtureRoot, "src", "locales", "en.json"), "export default { hello: 'Hello' };\n");
+    `,
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "src", "locales", "de.json"),
+      "export default { hello: 'Hallo' };\n",
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "src", "locales", "en.json"),
+      "export default { hello: 'Hello' };\n",
+    );
     await fs.writeFile(path.join(fixtureRoot, "src", "worker.js"), "self.onmessage = () => {};\n");
 
     const report = await analyze({
@@ -52,23 +64,43 @@ describe("Layer 4 JavaScript runtime pattern modeling", () => {
       layers: { skip3: false, skip4: false },
     });
 
-    const normalized = report.findings.map((finding) => `${finding.rule}:${finding.file.replaceAll("\\\\", "/")}`);
-    expect(normalized.some((value) => value.includes("unreachable-file") && value.includes("locales/de.json"))).toBe(false);
-    expect(normalized.some((value) => value.includes("unreachable-file") && value.includes("locales/en.json"))).toBe(false);
-    expect(normalized.some((value) => value.includes("unreachable-file") && value.includes("worker.js"))).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "unknown-dynamic-import")).toBe(false);
+    const normalized = report.findings.map(
+      (finding) => `${finding.rule}:${finding.file.replaceAll("\\\\", "/")}`,
+    );
+    expect(
+      normalized.some(
+        (value) => value.includes("unreachable-file") && value.includes("locales/de.json"),
+      ),
+    ).toBe(false);
+    expect(
+      normalized.some(
+        (value) => value.includes("unreachable-file") && value.includes("locales/en.json"),
+      ),
+    ).toBe(false);
+    expect(
+      normalized.some((value) => value.includes("unreachable-file") && value.includes("worker.js")),
+    ).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "unknown-dynamic-import")).toBe(
+      false,
+    );
   });
 
   it("does not crash on direct dynamic imports with string concatenation and eval", async () => {
     await fs.mkdir(path.join(fixtureRoot, "src", "locales"), { recursive: true });
-    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({ name: "layer4-eval", private: true }, null, 2));
-    await fs.writeFile(path.join(fixtureRoot, "src", "main.ts"), `
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify({ name: "layer4-eval", private: true }, null, 2),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "src", "main.ts"),
+      `
       const suffix = "de";
       const expression = "./locales/" + suffix + ".json";
       const evaluate = new Function("x", "return x + 1");
       eval("void 0");
       await import(expression);
-    `);
+    `,
+    );
     await fs.writeFile(path.join(fixtureRoot, "src", "locales", "de.json"), "export default {};\n");
 
     const report = await analyze({
@@ -78,7 +110,14 @@ describe("Layer 4 JavaScript runtime pattern modeling", () => {
       includeConventionalEntries: false,
       layers: { skip3: false, skip4: false },
     });
-    expect(report.findings.some((finding) => finding.rule === "unknown-dynamic-import")).toBe(false);
-    expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("locales/de.json"))).toBe(false);
+    expect(report.findings.some((finding) => finding.rule === "unknown-dynamic-import")).toBe(
+      false,
+    );
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unreachable-file" && finding.file.endsWith("locales/de.json"),
+      ),
+    ).toBe(false);
   });
 });

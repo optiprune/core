@@ -13,7 +13,7 @@ const LOCKFILE_LINT_CONFIG_FILES = [
   ".lockfile-lintrc.js",
   ".lockfile-lintrc.cjs",
   "lockfile-lint.config.js",
-  "lockfile-lint.config.cjs"
+  "lockfile-lint.config.cjs",
 ];
 
 const LOCKFILE_LINT_PACKAGE_NAME = "lockfile-lint";
@@ -36,7 +36,7 @@ export const LockfileLintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (allDeps[LOCKFILE_LINT_PACKAGE_NAME]) {
@@ -45,11 +45,7 @@ export const LockfileLintPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && /\blockfile-lint\b/.test(s)
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && /\blockfile-lint\b/.test(s))) {
           return true;
         }
       }
@@ -91,10 +87,7 @@ export const LockfileLintPlugin: AnalyzerPlugin = {
         // 4. Mark npm scripts invoking lockfile-lint CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\blockfile-lint\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\blockfile-lint\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -138,8 +131,8 @@ export const LockfileLintPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default LockfileLintPlugin;

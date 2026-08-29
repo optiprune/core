@@ -1,15 +1,15 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 
-const EXPRESS_METHODS = new Set(['get', 'post', 'put', 'delete', 'patch', 'use', 'all', 'param']);
+const EXPRESS_METHODS = new Set(["get", "post", "put", "delete", "patch", "use", "all", "param"]);
 
 export const ExpressPlugin: AnalyzerPlugin = {
   name: "express-plugin",
   version: "1.1.0",
 
   detect: async (adapter) => {
-    const pkg = await adapter.readJson('package.json');
-    return !!(pkg?.dependencies?.['express'] || pkg?.devDependencies?.['express']);
+    const pkg = await adapter.readJson("package.json");
+    return !!(pkg?.dependencies?.["express"] || pkg?.devDependencies?.["express"]);
   },
 
   lifecycle: {
@@ -33,7 +33,11 @@ export const ExpressPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("express");
       }
 
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg) && arg.value === "express") {
           adapter.markPackageAsUsed("express");
@@ -54,7 +58,7 @@ export const ExpressPlugin: AnalyzerPlugin = {
             if (t.isIdentifier(arg)) {
               adapter.markAsUsed(fileId, arg.name);
             }
-            
+
             // Case B: MemberExpression -> app.get('/route', controller.handleRoute)
             else if (t.isMemberExpression(arg)) {
               const obj = arg.object;
@@ -79,7 +83,11 @@ export const ExpressPlugin: AnalyzerPlugin = {
             }
 
             // Case D: Direct require inside app.use -> app.use('/api', require('./routes/api'))
-            else if (t.isCallExpression(arg) && t.isIdentifier(arg.callee) && arg.callee.name === "require") {
+            else if (
+              t.isCallExpression(arg) &&
+              t.isIdentifier(arg.callee) &&
+              arg.callee.name === "require"
+            ) {
               const reqArg = arg.arguments[0];
               if (t.isStringLiteral(reqArg)) {
                 adapter.markAsUsed(reqArg.value);
@@ -88,8 +96,8 @@ export const ExpressPlugin: AnalyzerPlugin = {
           });
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ExpressPlugin;

@@ -10,7 +10,7 @@ const EXECA_FUNCTIONS = new Set([
   "execaCommand",
   "execaCommandSync",
   "execaNode",
-  "$"
+  "$",
 ]);
 
 export const ExecaPlugin: AnalyzerPlugin = {
@@ -24,7 +24,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => EXECA_PACKAGES.includes(dep))) {
@@ -41,7 +41,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // Dependency declarations alone are not usage evidence. Imports and
@@ -51,7 +51,6 @@ export const ExecaPlugin: AnalyzerPlugin = {
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
-
     },
 
     onASTNode: (node: any, fileId, adapter) => {
@@ -83,10 +82,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
 
         if (t.isIdentifier(node.tag)) {
           tagName = node.tag.name;
-        } else if (
-          t.isMemberExpression(node.tag) &&
-          t.isIdentifier(node.tag.property)
-        ) {
+        } else if (t.isMemberExpression(node.tag) && t.isIdentifier(node.tag.property)) {
           tagName = node.tag.property.name;
         }
 
@@ -94,9 +90,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("execa");
 
-          const rawText = node.quasi?.quasis
-            ?.map((q: any) => q.value?.raw ?? "")
-            .join(" ");
+          const rawText = node.quasi?.quasis?.map((q: any) => q.value?.raw ?? "").join(" ");
 
           if (rawText) {
             parseExecaCommandString(rawText, adapter);
@@ -109,10 +103,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
 
         if (t.isIdentifier(node.callee)) {
           calleeName = node.callee.name;
-        } else if (
-          t.isMemberExpression(node.callee) &&
-          t.isIdentifier(node.callee.property)
-        ) {
+        } else if (t.isMemberExpression(node.callee) && t.isIdentifier(node.callee.property)) {
           // Handles execa.sync('npm', ['test']) or execa.$('ls')
           calleeName = node.callee.property.name;
         } else if (
@@ -155,8 +146,8 @@ export const ExecaPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 /**
@@ -181,16 +172,10 @@ function parseExecaCommandString(cmdStr: string, adapter: any): void {
     cmdStr.includes("bun run ") ||
     cmdStr.includes("bun ")
   ) {
-    const match = cmdStr.match(
-      /(?:npm run|yarn|pnpm run|pnpm|bun run|bun)\s+([a-zA-Z0-9_:-]+)/
-    );
+    const match = cmdStr.match(/(?:npm run|yarn|pnpm run|pnpm|bun run|bun)\s+([a-zA-Z0-9_:-]+)/);
     if (match && match[1]) {
       const scriptName = match[1].replace(/['"[\]]/g, "");
-      if (
-        !["test", "build", "install", "run", "add", "start"].includes(
-          scriptName
-        )
-      ) {
+      if (!["test", "build", "install", "run", "add", "start"].includes(scriptName)) {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       } else if (["test", "build", "start"].includes(scriptName)) {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);

@@ -21,7 +21,7 @@ const SVELTEKIT_ROUTING_PATTERNS = [
   "hooks.client.ts",
   "hooks.client.js",
   "hooks.ts",
-  "hooks.js"
+  "hooks.js",
 ];
 
 const SVELTEKIT_PROTECTED_EXPORTS = new Set([
@@ -42,7 +42,7 @@ const SVELTEKIT_PROTECTED_EXPORTS = new Set([
   "handle",
   "handleError",
   "handleFetch",
-  "init"
+  "init",
 ]);
 
 const SVELTEKIT_PACKAGES = [
@@ -53,7 +53,7 @@ const SVELTEKIT_PACKAGES = [
   "@sveltejs/adapter-cloudflare",
   "@sveltejs/adapter-vercel",
   "@sveltejs/adapter-netlify",
-  "@sveltejs/vite-plugin-svelte"
+  "@sveltejs/vite-plugin-svelte",
 ];
 
 export const SvelteKitPlugin: AnalyzerPlugin = {
@@ -66,12 +66,12 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) => dep === "@sveltejs/kit" || dep.startsWith("@sveltejs/adapter-")
+          (dep) => dep === "@sveltejs/kit" || dep.startsWith("@sveltejs/adapter-"),
         )
       ) {
         return true;
@@ -79,11 +79,7 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("svelte-kit")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("svelte-kit"))) {
           return true;
         }
       }
@@ -98,20 +94,17 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasKitDep = Object.keys(allDeps).some(
-        (p) => p === "@sveltejs/kit" || p.startsWith("@sveltejs/adapter-")
+        (p) => p === "@sveltejs/kit" || p.startsWith("@sveltejs/adapter-"),
       );
 
       // 1. Safeguard all installed SvelteKit ecosystem packages in package.json
       if (hasKitDep) {
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "svelte" ||
-            depName.startsWith("@sveltejs/")
-          ) {
+          if (depName === "svelte" || depName.startsWith("@sveltejs/")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -127,10 +120,7 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking SvelteKit CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("svelte-kit")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("svelte-kit")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@sveltejs/kit");
           }
@@ -146,7 +136,7 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "SvelteKit routing directory found, but '@sveltejs/kit' is not listed in package.json.",
-          evidence: { hasRoutesFolder }
+          evidence: { hasRoutesFolder },
         });
       }
     },
@@ -195,10 +185,7 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
               adapter.markAsUsed(fileId, decl.id.name);
             } else if (t.isVariableDeclaration(decl)) {
               for (const d of decl.declarations) {
-                if (
-                  t.isIdentifier(d.id) &&
-                  SVELTEKIT_PROTECTED_EXPORTS.has(d.id.name)
-                ) {
+                if (t.isIdentifier(d.id) && SVELTEKIT_PROTECTED_EXPORTS.has(d.id.name)) {
                   adapter.markAsUsed(fileId, d.id.name);
                 }
               }
@@ -209,10 +196,7 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
           if (Array.isArray(node.specifiers)) {
             for (const spec of node.specifiers) {
               const exportName = spec.exported?.name || spec.exported?.value;
-              if (
-                typeof exportName === "string" &&
-                SVELTEKIT_PROTECTED_EXPORTS.has(exportName)
-              ) {
+              if (typeof exportName === "string" && SVELTEKIT_PROTECTED_EXPORTS.has(exportName)) {
                 adapter.markAsUsed(fileId, exportName);
               }
             }
@@ -224,8 +208,8 @@ export const SvelteKitPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId, "default");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SvelteKitPlugin;

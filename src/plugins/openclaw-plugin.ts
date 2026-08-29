@@ -13,7 +13,7 @@ const OPENCLAW_CONFIG_FILES = [
   "openclaw.json",
   "claw.config.ts",
   "claw.config.js",
-  "claw.json"
+  "claw.json",
 ];
 
 const OPENCLAW_PACKAGES = [
@@ -23,7 +23,7 @@ const OPENCLAW_PACKAGES = [
   "@openclaw/tools",
   "@openclaw/browser",
   "@openclaw/cli",
-  "@openclaw/sdk"
+  "@openclaw/sdk",
 ];
 
 const OPENCLAW_EXPORTS = new Set([
@@ -32,7 +32,7 @@ const OPENCLAW_EXPORTS = new Set([
   "defineWorkflow",
   "createAgent",
   "createTool",
-  "runAgent"
+  "runAgent",
 ]);
 
 /**
@@ -79,14 +79,10 @@ export const OpenClawPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "openclaw" || dep.startsWith("@openclaw/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "openclaw" || dep.startsWith("@openclaw/"))) {
         return true;
       }
 
@@ -94,9 +90,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bopenclaw\b/.test(s) || s.includes("claw run"))
+            (s) => typeof s === "string" && (/\bopenclaw\b/.test(s) || s.includes("claw run")),
           )
         ) {
           return true;
@@ -125,7 +119,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
         "src/tools",
         "tools",
         "src/workflows",
-        "workflows"
+        "workflows",
       ];
       for (const folder of agentFolders) {
         if (await adapter.folderExists(folder)) {
@@ -138,7 +132,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -187,10 +181,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
 
       // 1. Inspect config files
       if (OPENCLAW_CONFIG_FILES.includes(basename)) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("openclaw");
         }
@@ -206,10 +197,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
 
       // 3. Protect agent/tool named or default exports
       if (isOpenClawDirectory(normalized)) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
         }
       }
@@ -222,8 +210,8 @@ export const OpenClawPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default OpenClawPlugin;

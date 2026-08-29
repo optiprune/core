@@ -4,13 +4,7 @@
     "core": {
       "commit": "ref: refs/heads/main",
       "version": "1.11.38",
-      "exports": [
-        "analyze",
-        "applyFixes",
-        "exportCache",
-        "importCache",
-        "shouldFail"
-      ],
+      "exports": ["analyze", "applyFixes", "exportCache", "importCache", "shouldFail"],
       "typeExports": [
         "AnalysisContext",
         "AnalysisReport",
@@ -78,14 +72,7 @@
         "types.ts",
         "workspace.ts"
       ],
-      "layers": [
-        "layer2.ts",
-        "layer3.ts",
-        "layer4.ts",
-        "layer5.ts",
-        "layer6.ts",
-        "layer7.ts"
-      ],
+      "layers": ["layer2.ts", "layer3.ts", "layer4.ts", "layer5.ts", "layer6.ts", "layer7.ts"],
       "pluginFiles": [
         "angular-plugin.ts",
         "astro-plugin.ts",
@@ -270,11 +257,7 @@
     "cli": {
       "commit": "ref: refs/heads/main",
       "version": "1.2.23",
-      "commands": [
-        "analyze",
-        "export-cache <targetPath>",
-        "import-cache <sourcePath>"
-      ],
+      "commands": ["analyze", "export-cache <targetPath>", "import-cache <sourcePath>"],
       "options": [
         {
           "flag": "-r, --rootDir <path>",
@@ -365,9 +348,7 @@
           "description": "Path to export the resulting cache to after analysis"
         }
       ],
-      "sourceFiles": [
-        "cli.ts"
-      ],
+      "sourceFiles": ["cli.ts"],
       "packageBin": {
         "optiprune": "./dist/cli.js"
       }
@@ -444,13 +425,7 @@
         },
         "default": [],
         "description": "Glob patterns or path segments to exclude from analysis. Use this to ignore entire folders (e.g., '**/tests/**'), specific files (e.g., '**/*.spec.ts'), or build artifacts. These patterns are appended to the built-in defaults like node_modules and dist.",
-        "examples": [
-          [
-            "**/tests/**",
-            "**/__mocks__/**",
-            "**/*.test.ts"
-          ]
-        ]
+        "examples": [["**/tests/**", "**/__mocks__/**", "**/*.test.ts"]]
       },
       "ignoreDependencies": {
         "type": "array",
@@ -480,13 +455,7 @@
       },
       "failOn": {
         "type": "string",
-        "enum": [
-          "high",
-          "medium",
-          "low",
-          "info",
-          "none"
-        ],
+        "enum": ["high", "medium", "low", "info", "none"],
         "default": "high",
         "description": "Minimum finding severity level that causes the execution process to exit with a non-zero code."
       },
@@ -507,12 +476,7 @@
             "properties": {
               "confidence": {
                 "type": "string",
-                "enum": [
-                  "high",
-                  "medium+",
-                  "low+",
-                  "all"
-                ],
+                "enum": ["high", "medium+", "low+", "all"],
                 "default": "high",
                 "description": "Minimum confidence level to apply a fix."
               },
@@ -523,19 +487,9 @@
                 },
                 "description": "List of fix categories or individual rule names. Categories include exports, files, dependencies, and conditions. Supported core rules include unused-export, unused-member, unreachable-file, unused-dependency, unused-dev-dependency, and constant-condition.",
                 "examples": [
-                  [
-                    "files",
-                    "dependencies"
-                  ],
-                  [
-                    "exports"
-                  ],
-                  [
-                    "files",
-                    "dependencies",
-                    "exports",
-                    "conditions"
-                  ]
+                  ["files", "dependencies"],
+                  ["exports"],
+                  ["files", "dependencies", "exports", "conditions"]
                 ]
               },
               "dryRun": {
@@ -552,11 +506,7 @@
       },
       "output": {
         "type": "string",
-        "enum": [
-          "terminal",
-          "json",
-          "sarif"
-        ],
+        "enum": ["terminal", "json", "sarif"],
         "default": "terminal",
         "description": "Output format for analysis results. 'terminal' produces human-readable coloured output; 'json' emits machine-readable JSON to stdout; 'sarif' emits SARIF 2.1 JSON for IDE and CI integrations."
       },
@@ -571,11 +521,7 @@
         "description": "Map of rule names to their severity level overrides.",
         "additionalProperties": {
           "type": "string",
-          "enum": [
-            "error",
-            "warning",
-            "off"
-          ]
+          "enum": ["error", "warning", "off"]
         }
       },
       "plugins": {
@@ -811,9 +757,6 @@
       "unused-export",
       "unused-member"
     ],
-    "reporterExports": [
-      "formatSarif",
-      "formatTerminal"
-    ]
+    "reporterExports": ["formatSarif", "formatTerminal"]
   }
 }

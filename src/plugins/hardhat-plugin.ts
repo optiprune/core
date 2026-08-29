@@ -6,7 +6,7 @@ const HARDHAT_CONFIG_FILES = [
   "hardhat.config.js",
   "hardhat.config.ts",
   "hardhat.config.cjs",
-  "hardhat.config.mjs"
+  "hardhat.config.mjs",
 ];
 
 const HARDHAT_ECOSYSTEM_PACKAGES = [
@@ -24,7 +24,7 @@ const HARDHAT_ECOSYSTEM_PACKAGES = [
   "hardhat-gas-reporter",
   "solidity-coverage",
   "typechain",
-  "@typechain/hardhat"
+  "@typechain/hardhat",
 ];
 
 export const HardhatPlugin: AnalyzerPlugin = {
@@ -44,10 +44,7 @@ export const HardhatPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("contracts")) ||
-      (await adapter.folderExists("ignition"))
-    );
+    return (await adapter.folderExists("contracts")) || (await adapter.folderExists("ignition"));
   },
 
   lifecycle: {
@@ -56,7 +53,7 @@ export const HardhatPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasHardhatDep = HARDHAT_ECOSYSTEM_PACKAGES.some((p) => p in allDeps);
@@ -94,7 +91,7 @@ export const HardhatPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Hardhat configuration found but 'hardhat' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -118,7 +115,7 @@ export const HardhatPlugin: AnalyzerPlugin = {
         "/tasks/",
         "/deploy/",
         "/deployments/",
-        "/ignition/"
+        "/ignition/",
       ];
 
       if (hardhatDirectories.some((dir) => normalized.includes(dir))) {
@@ -180,8 +177,8 @@ export const HardhatPlugin: AnalyzerPlugin = {
       if (isConfigFile && t.isExportDefaultDeclaration(node)) {
         adapter.markAsUsed(fileId, "default");
       }
-    }
-  }
+    },
+  },
 };
 
 export default HardhatPlugin;

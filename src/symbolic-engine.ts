@@ -3,7 +3,7 @@ import { SemanticNode, SemanticGraph } from "./semantic-graph.js";
 
 export interface SymbolicExecutionContract {
   nodeId: string;
-  inputs: Record<string, 'symbolic' | any>;
+  inputs: Record<string, "symbolic" | any>;
   constraints: any[];
   stateSpace: Map<string, any[]>; // Maps variable names to possible algebraic states
 }
@@ -30,20 +30,20 @@ export class SymbolicEngine {
 
       // Example: Evaluate dynamic property access
       // const handler = handlers[config.mode];
-      if (node.metadata.dynamicType === 'property-access') {
+      if (node.metadata.dynamicType === "property-access") {
         const objectName = node.metadata.objectName;
         const propertyVar = node.metadata.propertyVar;
-        
+
         const possibleStates = contract.stateSpace.get(propertyVar) || [];
-        
+
         for (const state of possibleStates) {
           // In a real implementation, we would look up the actual object property
           // and create a live reference in the semantic graph.
           const targetNodeName = `${objectName}.${state}`;
-          const targetNode = this.graph.getAllNodes().find(n => n.name === targetNodeName);
-          
+          const targetNode = this.graph.getAllNodes().find((n) => n.name === targetNodeName);
+
           if (targetNode) {
-            this.graph.addReference(nodeId, targetNode.id, 'CALLS', { state });
+            this.graph.addReference(nodeId, targetNode.id, "CALLS", { state });
           } else {
             findings.push({
               rule: "unknown-dynamic-import",
@@ -52,7 +52,7 @@ export class SymbolicEngine {
               message: `[Symbolic] Could not resolve dynamic link for state: ${state}`,
               file: node.fileId,
               location: node.location ?? undefined,
-              evidence: { nodeId, state }
+              evidence: { nodeId, state },
             });
           }
         }

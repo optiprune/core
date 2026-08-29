@@ -14,7 +14,7 @@ const NPM_PACKAGE_JSON_LINT_CONFIG_FILES = [
   ".npmpackagejsonlintrc",
   ".npmpackagejsonlintrc.yaml",
   ".npmpackagejsonlintrc.yml",
-  ".npmpackagejsonlintignore"
+  ".npmpackagejsonlintignore",
 ];
 
 const NPM_PACKAGE_JSON_LINT_PACKAGE_NAME = "npm-package-json-lint";
@@ -52,7 +52,7 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (allDeps[NPM_PACKAGE_JSON_LINT_PACKAGE_NAME]) {
@@ -65,7 +65,7 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (/\bnpm-package-json-lint\b/.test(s) || /\bnpm-pkg-lint\b/.test(s))
+              (/\bnpm-package-json-lint\b/.test(s) || /\bnpm-pkg-lint\b/.test(s)),
           )
         ) {
           return true;
@@ -122,10 +122,9 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
       }
 
       // 5. Parse standalone JSON config files for `extends` packages
-      const jsonConfigFile =
-        (await adapter.folderExists(".npmpackagejsonlintrc.json"))
-          ? ".npmpackagejsonlintrc.json"
-          : (await adapter.folderExists(".npmpackagejsonlintrc"))
+      const jsonConfigFile = (await adapter.folderExists(".npmpackagejsonlintrc.json"))
+        ? ".npmpackagejsonlintrc.json"
+        : (await adapter.folderExists(".npmpackagejsonlintrc"))
           ? ".npmpackagejsonlintrc"
           : null;
 
@@ -172,11 +171,7 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
         }
 
         // Inspect AST for property "extends": "npm-package-json-lint-config-..."
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "extends"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "extends") {
           if (t.isStringLiteral(node.value)) {
             adapter.markPackageAsUsed(node.value.value);
           } else if (t.isArrayExpression(node.value)) {
@@ -188,8 +183,8 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default NpmPackageJsonLintPlugin;

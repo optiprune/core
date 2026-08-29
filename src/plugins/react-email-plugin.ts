@@ -9,7 +9,7 @@ const REACT_EMAIL_CORE_PACKAGES = [
   "react-email",
   "@react-email/components",
   "@react-email/render",
-  "@react-email/tailwind"
+  "@react-email/tailwind",
 ];
 
 /**
@@ -30,10 +30,7 @@ export const ReactEmailPlugin: AnalyzerPlugin = {
 
   detect: async (adapter) => {
     // 1. Check for dedicated emails folder
-    if (
-      (await adapter.folderExists("emails")) ||
-      (await adapter.folderExists("src/emails"))
-    ) {
+    if ((await adapter.folderExists("emails")) || (await adapter.folderExists("src/emails"))) {
       return true;
     }
 
@@ -43,13 +40,11 @@ export const ReactEmailPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "react-email" || dep.startsWith("@react-email/")
-        )
+        Object.keys(allDeps).some((dep) => dep === "react-email" || dep.startsWith("@react-email/"))
       ) {
         return true;
       }
@@ -58,9 +53,7 @@ export const ReactEmailPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\breact-email\b/.test(s) || s.includes("email dev"))
+            (s) => typeof s === "string" && (/\breact-email\b/.test(s) || s.includes("email dev")),
           )
         ) {
           return true;
@@ -88,7 +81,7 @@ export const ReactEmailPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -127,10 +120,7 @@ export const ReactEmailPlugin: AnalyzerPlugin = {
 
       // 1. Inspect email templates inside emails/ for export default EmailComponent
       if (isReactEmailDirectory(normalized)) {
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("react-email");
         }
@@ -153,8 +143,8 @@ export const ReactEmailPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ReactEmailPlugin;

@@ -14,7 +14,7 @@ const SVGO_CONFIG_FILES = [
   ".svgorc.yaml",
   ".svgorc.yml",
   ".svgorc.js",
-  ".svgorc.cjs"
+  ".svgorc.cjs",
 ];
 
 const SVGO_PACKAGES = ["svgo"];
@@ -29,7 +29,7 @@ export const SvgoPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (SVGO_PACKAGES.some((pkgName) => pkgName in allDeps)) {
@@ -39,9 +39,7 @@ export const SvgoPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("svgo") || s === "svgo")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("svgo") || s === "svgo"))
         ) {
           return true;
         }
@@ -61,7 +59,7 @@ export const SvgoPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasSvgo = "svgo" in allDeps;
@@ -100,9 +98,8 @@ export const SvgoPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "SVGO configuration found, but 'svgo' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "SVGO configuration found, but 'svgo' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -172,8 +169,8 @@ export const SvgoPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("svgo");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SvgoPlugin;

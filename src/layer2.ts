@@ -91,7 +91,10 @@ function analyzeModuleFlow(module: ModuleRecord, detectImpossibleConditions = tr
       }
     }
 
-    if (detectImpossibleConditions && (node.type === "WhileStatement" || node.type === "DoWhileStatement")) {
+    if (
+      detectImpossibleConditions &&
+      (node.type === "WhileStatement" || node.type === "DoWhileStatement")
+    ) {
       const result = evaluateStaticCondition(node.test);
       if (result === false && node.type === "WhileStatement") {
         const bodyLoc = (node.body as any)?.loc as Range | undefined;
@@ -131,7 +134,8 @@ function analyzeModuleFlow(module: ModuleRecord, detectImpossibleConditions = tr
           rule: "unreachable-statement",
           severity: "info",
           confidence: "medium",
-          message: "Default branch is marked as 'never' (exhaustive check), indicating it is dead code in a valid type system.",
+          message:
+            "Default branch is marked as 'never' (exhaustive check), indicating it is dead code in a valid type system.",
           file: module.id,
           ...(switchLoc !== undefined && { location: switchLoc }),
           evidence: { type: "exhaustive-check" },
@@ -152,10 +156,17 @@ function hasNeverUsage(nodes: any[]): boolean {
       if (child.type === "TSAsExpression" && child.typeAnnotation?.type === "TSNeverKeyword") {
         found = true;
       }
-      if (child.type === "CallExpression" && child.callee?.type === "Identifier" && child.callee?.name?.toLowerCase().includes("never")) {
+      if (
+        child.type === "CallExpression" &&
+        child.callee?.type === "Identifier" &&
+        child.callee?.name?.toLowerCase().includes("never")
+      ) {
         found = true;
       }
-      if (child.type === "VariableDeclarator" && child.id?.typeAnnotation?.typeAnnotation?.type === "TSNeverKeyword") {
+      if (
+        child.type === "VariableDeclarator" &&
+        child.id?.typeAnnotation?.typeAnnotation?.type === "TSNeverKeyword"
+      ) {
         found = true;
       }
     });
@@ -181,7 +192,7 @@ function evaluateStaticCondition(node: any): boolean | undefined {
   if (node.type === "Literal") {
     return Boolean(node.value);
   }
-  
+
   if (node.type === "UnaryExpression" && node.operator === "!") {
     const val = evaluateStaticCondition(node.argument);
     return val === undefined ? undefined : !val;
@@ -191,7 +202,7 @@ function evaluateStaticCondition(node: any): boolean | undefined {
   if (node.type === "BinaryExpression") {
     const leftLit = getLiteralValue(node.left);
     const rightLit = getLiteralValue(node.right);
-    
+
     if (leftLit !== undefined && rightLit !== undefined) {
       if (node.operator === "===" || node.operator === "==") return leftLit === rightLit;
       if (node.operator === "!==" || node.operator === "!=") return leftLit !== rightLit;
@@ -203,7 +214,7 @@ function evaluateStaticCondition(node: any): boolean | undefined {
 
 function getLiteralValue(node: any): any {
   if (!node) return undefined;
-  
+
   // ESTree / Yuku standard Literal check
   if (node.type === "Literal") {
     return node.value;
@@ -213,40 +224,44 @@ function getLiteralValue(node: any): any {
   if (node.type === "BigIntLiteral") {
     return node.value;
   }
-  
+
   return undefined;
 }
 
 function isContradictory(left: any, right: any): boolean {
-    // Simple case: x === 1 && x === 2
-    const leftExpr = parseSimpleEquality(left);
-    const rightExpr = parseSimpleEquality(right);
+  // Simple case: x === 1 && x === 2
+  const leftExpr = parseSimpleEquality(left);
+  const rightExpr = parseSimpleEquality(right);
 
-    if (leftExpr && rightExpr && leftExpr.name === rightExpr.name) {
-        if (leftExpr.operator === "===" && rightExpr.operator === "===" && leftExpr.value !== rightExpr.value) {
-            return true;
-        }
+  if (leftExpr && rightExpr && leftExpr.name === rightExpr.name) {
+    if (
+      leftExpr.operator === "===" &&
+      rightExpr.operator === "===" &&
+      leftExpr.value !== rightExpr.value
+    ) {
+      return true;
     }
-    return false;
+  }
+  return false;
 }
 
-function parseSimpleEquality(node: any): { name: string, operator: string, value: any } | null {
-    if (node.type !== "BinaryExpression") return null;
-    if (node.operator !== "===" && node.operator !== "==") return null;
+function parseSimpleEquality(node: any): { name: string; operator: string; value: any } | null {
+  if (node.type !== "BinaryExpression") return null;
+  if (node.operator !== "===" && node.operator !== "==") return null;
 
-    let identifier: string | null = null;
-    let value: any = undefined;
+  let identifier: string | null = null;
+  let value: any = undefined;
 
-    if (node.left.type === "Identifier") {
-        identifier = node.left.name;
-        value = getLiteralValue(node.right);
-    } else if (node.right.type === "Identifier") {
-        identifier = node.right.name;
-        value = getLiteralValue(node.left);
-    }
+  if (node.left.type === "Identifier") {
+    identifier = node.left.name;
+    value = getLiteralValue(node.right);
+  } else if (node.right.type === "Identifier") {
+    identifier = node.right.name;
+    value = getLiteralValue(node.left);
+  }
 
-    if (identifier !== null && value !== undefined) {
-        return { name: identifier, operator: node.operator, value };
-    }
-    return null;
+  if (identifier !== null && value !== undefined) {
+    return { name: identifier, operator: node.operator, value };
+  }
+  return null;
 }

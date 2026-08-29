@@ -17,7 +17,7 @@ const ANGULAR_PACKAGES = [
   "@angular/animations",
   "@angular/httpClient",
   "@angular/elements",
-  "@angular/service-worker"
+  "@angular/service-worker",
 ];
 
 const ANGULAR_CLASS_DECORATORS = new Set([
@@ -25,7 +25,7 @@ const ANGULAR_CLASS_DECORATORS = new Set([
   "Directive",
   "Injectable",
   "NgModule",
-  "Pipe"
+  "Pipe",
 ]);
 
 const ANGULAR_MEMBER_DECORATORS = new Set([
@@ -36,7 +36,7 @@ const ANGULAR_MEMBER_DECORATORS = new Set([
   "ContentChild",
   "ContentChildren",
   "HostListener",
-  "HostBinding"
+  "HostBinding",
 ]);
 
 const ANGULAR_FUNCTIONAL_SIGNALS = new Set([
@@ -47,7 +47,7 @@ const ANGULAR_FUNCTIONAL_SIGNALS = new Set([
   "viewChildren",
   "contentChild",
   "contentChildren",
-  "inject"
+  "inject",
 ]);
 
 /**
@@ -116,7 +116,7 @@ export const AngularPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasCoreDep = "@angular/core" in allDeps;
@@ -154,8 +154,9 @@ export const AngularPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Angular configuration (angular.json) found but '@angular/core' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message:
+            "Angular configuration (angular.json) found but '@angular/core' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -187,7 +188,7 @@ export const AngularPlugin: AnalyzerPlugin = {
         ".pipe.ts",
         ".guard.ts",
         ".interceptor.ts",
-        ".resolver.ts"
+        ".resolver.ts",
       ];
 
       if (angularFileConventions.some((ext) => normalized.endsWith(ext))) {
@@ -287,8 +288,8 @@ export const AngularPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default AngularPlugin;

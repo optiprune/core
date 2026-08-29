@@ -51,7 +51,9 @@ function parseJsonc(content: string): Record<string, StaticConfigValue> | undefi
   try {
     // Matches string literals OR comments; preserves the string contents untouched
     const stripped = content
-      .replace(/("(?:\\.|[^"\\])*")|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, (match, str) => (str ? str : ""))
+      .replace(/("(?:\\.|[^"\\])*")|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, (match, str) =>
+        str ? str : "",
+      )
       .replace(/,\s*([}\]])/g, "$1");
     return JSON.parse(stripped);
   } catch {
@@ -69,15 +71,16 @@ function parseJsonc(content: string): Record<string, StaticConfigValue> | undefi
  * - `const config = { ... }; export default config;`
  */
 function extractStaticJsTsObject(code: string): Record<string, StaticConfigValue> | undefined {
-  const cleanCode = code
-    .replace(/("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, (match, str) => (str ? str : ""));
+  const cleanCode = code.replace(
+    /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g,
+    (match, str) => (str ? str : ""),
+  );
 
   // Match default exports (including arrow/function wraps) or variable declarations
   const match =
     cleanCode.match(
-      /(?:export\s+default\s+(?:defineConfig\s*\(\s*)?(?:(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>\s*\(?)?|module\.exports\s*=\s*)([\s\S]+?)(?:\s*\)\s*)?(?:;|\n|$)/
-    ) ||
-    cleanCode.match(/(?:const|let|var)\s+config(?:\s*:\s*[A-Za-z0-9_<>]+)?\s*=\s*([\s\S]+?);/);
+      /(?:export\s+default\s+(?:defineConfig\s*\(\s*)?(?:(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>\s*\(?)?|module\.exports\s*=\s*)([\s\S]+?)(?:\s*\)\s*)?(?:;|\n|$)/,
+    ) || cleanCode.match(/(?:const|let|var)\s+config(?:\s*:\s*[A-Za-z0-9_<>]+)?\s*=\s*([\s\S]+?);/);
 
   if (!match) return undefined;
 
@@ -137,12 +140,14 @@ function dependencyNames(value: StaticConfigValue | undefined): string[] {
 function applyIgnoreIssues(
   config: Record<string, StaticConfigValue>,
   workspace: string,
-  adapter: PluginAdapter
+  adapter: PluginAdapter,
 ): void {
   for (const [pattern, issueTypes] of Object.entries(stringRecord(config.ignoreIssues))) {
     const types = stringArray(issueTypes);
     const scopedPattern = prefixedPatterns(workspace, [pattern]);
-    if (types.some((type) => ["exports", "types", "enumMembers", "namespaceMembers"].includes(type))) {
+    if (
+      types.some((type) => ["exports", "types", "enumMembers", "namespaceMembers"].includes(type))
+    ) {
       adapter.addProtectedExportPatterns(scopedPattern);
     }
     if (types.includes("files")) {
@@ -154,7 +159,7 @@ function applyIgnoreIssues(
 function applyKnipConfig(
   config: Record<string, StaticConfigValue>,
   adapter: PluginAdapter,
-  workspace = "."
+  workspace = ".",
 ): void {
   const entries = prefixedPatterns(workspace, stringArray(config.entry));
   const ignored = prefixedPatterns(workspace, stringArray(config.ignore));
@@ -208,7 +213,7 @@ function applyKnipConfig(
 }
 
 async function loadKnipConfig(
-  adapter: PluginAdapter
+  adapter: PluginAdapter,
 ): Promise<{ config: Record<string, StaticConfigValue>; source: string } | undefined> {
   const loaded = await loadStaticPluginConfig(adapter, KNIP_CONFIG_FILES, "knip");
   if (loaded && (hasKnipShape(loaded.config) || loaded.source.startsWith("package.json#"))) {
@@ -252,7 +257,7 @@ export const KnipPlugin: AnalyzerPlugin = {
     const hasKnipScript = Object.values(pkg?.scripts ?? {}).some(
       (script) =>
         typeof script === "string" &&
-        /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?knip(?:\s|$)/.test(script)
+        /(?:^|\s)(?:pnpm\s+exec\s+|yarn\s+|bunx\s+|npx\s+)?knip(?:\s|$)/.test(script),
     );
     return hasDependency || hasKnipScript;
   },

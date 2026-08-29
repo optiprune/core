@@ -4,7 +4,7 @@ import path from "pathe";
 const PRECONSTRUCT_PACKAGES = [
   "@preconstruct/cli",
   "@preconstruct/hook",
-  "@preconstruct/babel-plugin"
+  "@preconstruct/babel-plugin",
 ];
 
 export const PreconstructPlugin: AnalyzerPlugin = {
@@ -17,13 +17,12 @@ export const PreconstructPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep === "@preconstruct/cli" || dep.startsWith("@preconstruct/")
+          (dep) => dep === "@preconstruct/cli" || dep.startsWith("@preconstruct/"),
         ) ||
         pkg.preconstruct
       ) {
@@ -34,9 +33,7 @@ export const PreconstructPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("preconstruct ") || s === "preconstruct")
+            (s) => typeof s === "string" && (s.includes("preconstruct ") || s === "preconstruct"),
           )
         ) {
           return true;
@@ -53,20 +50,17 @@ export const PreconstructPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasPreconstructDep = Object.keys(allDeps).some(
-        (p) => p === "@preconstruct/cli" || p.startsWith("@preconstruct/")
+        (p) => p === "@preconstruct/cli" || p.startsWith("@preconstruct/"),
       );
 
       // 1. Safeguard installed Preconstruct packages in package.json
       if (hasPreconstructDep) {
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "@preconstruct/cli" ||
-            depName.startsWith("@preconstruct/")
-          ) {
+          if (depName === "@preconstruct/cli" || depName.startsWith("@preconstruct/")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -136,7 +130,7 @@ export const PreconstructPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Preconstruct configuration found in package.json, but '@preconstruct/cli' is not listed under devDependencies.",
-          evidence: { hasPreconstructConfig: true }
+          evidence: { hasPreconstructConfig: true },
         });
       }
     },
@@ -148,8 +142,8 @@ export const PreconstructPlugin: AnalyzerPlugin = {
       if (basename === "package.json") {
         adapter.markPackageAsUsed("@preconstruct/cli");
       }
-    }
-  }
+    },
+  },
 };
 
 export default PreconstructPlugin;

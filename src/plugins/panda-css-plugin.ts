@@ -9,7 +9,7 @@ const PANDA_CONFIG_FILES = [
   "panda.config.cjs",
   "panda.config.mts",
   "panda.config.cts",
-  "panda.config.json"
+  "panda.config.json",
 ];
 
 const PANDA_APIS = new Set([
@@ -30,7 +30,7 @@ const PANDA_APIS = new Set([
   "float",
   "aspect",
   "spacer",
-  "divider"
+  "divider",
 ]);
 
 export const PandaCssPlugin: AnalyzerPlugin = {
@@ -44,13 +44,11 @@ export const PandaCssPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "@pandacss/dev" || dep.startsWith("@pandacss/")
-        )
+        Object.keys(allDeps).some((dep) => dep === "@pandacss/dev" || dep.startsWith("@pandacss/"))
       ) {
         return true;
       }
@@ -58,10 +56,7 @@ export const PandaCssPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("panda ") || s === "panda")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("panda ") || s === "panda"))
         ) {
           return true;
         }
@@ -82,11 +77,11 @@ export const PandaCssPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasPanda = Object.keys(allDeps).some(
-        (p) => p === "@pandacss/dev" || p.startsWith("@pandacss/")
+        (p) => p === "@pandacss/dev" || p.startsWith("@pandacss/"),
       );
 
       // 1. Safeguard installed Panda packages in package.json
@@ -135,7 +130,7 @@ export const PandaCssPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Panda CSS configuration found, but '@pandacss/dev' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -151,10 +146,7 @@ export const PandaCssPlugin: AnalyzerPlugin = {
       }
 
       // Protect generated styled-system files
-      if (
-        normalized.includes("/styled-system/") ||
-        normalized.startsWith("styled-system/")
-      ) {
+      if (normalized.includes("/styled-system/") || normalized.startsWith("styled-system/")) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -211,18 +203,12 @@ export const PandaCssPlugin: AnalyzerPlugin = {
             objExpr.properties.forEach((prop: any) => {
               if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
                 // Extract custom outdir: outdir: 'my-styled-system'
-                if (
-                  prop.key.name === "outdir" &&
-                  t.isStringLiteral(prop.value)
-                ) {
+                if (prop.key.name === "outdir" && t.isStringLiteral(prop.value)) {
                   adapter.markAsUsed(prop.value.value);
                 }
 
                 // Extract custom includes: include: ['./src/**/*.{ts,tsx}']
-                if (
-                  prop.key.name === "include" &&
-                  t.isArrayExpression(prop.value)
-                ) {
+                if (prop.key.name === "include" && t.isArrayExpression(prop.value)) {
                   prop.value.elements.forEach((el: any) => {
                     if (t.isStringLiteral(el)) {
                       adapter.markAsUsed(el.value);
@@ -244,8 +230,8 @@ export const PandaCssPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default PandaCssPlugin;

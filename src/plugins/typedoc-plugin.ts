@@ -15,7 +15,7 @@ const TYPEDOC_CONFIG_FILES = [
   "typedoc.cjs",
   "typedoc.mjs",
   ".typedocrc",
-  ".typedocrc.json"
+  ".typedocrc.json",
 ];
 
 const TYPEDOC_PACKAGE_NAME = "typedoc";
@@ -81,7 +81,7 @@ export const TypeDocPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (allDeps[TYPEDOC_PACKAGE_NAME]) {
@@ -90,11 +90,7 @@ export const TypeDocPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && /\btypedoc\b/.test(s)
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && /\btypedoc\b/.test(s))) {
           return true;
         }
       }
@@ -119,7 +115,7 @@ export const TypeDocPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -142,10 +138,7 @@ export const TypeDocPlugin: AnalyzerPlugin = {
         // 4. Mark scripts executing typedoc CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\btypedoc\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\btypedoc\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -153,16 +146,15 @@ export const TypeDocPlugin: AnalyzerPlugin = {
       }
 
       // 5. Parse standalone JSON config files if present
-      const jsonConfigFile =
-        (await adapter.folderExists("typedoc.json"))
-          ? "typedoc.json"
-          : (await adapter.folderExists("typedoc.jsonc"))
+      const jsonConfigFile = (await adapter.folderExists("typedoc.json"))
+        ? "typedoc.json"
+        : (await adapter.folderExists("typedoc.jsonc"))
           ? "typedoc.jsonc"
           : (await adapter.folderExists(".typedocrc.json"))
-          ? ".typedocrc.json"
-          : (await adapter.folderExists(".typedocrc"))
-          ? ".typedocrc"
-          : null;
+            ? ".typedocrc.json"
+            : (await adapter.folderExists(".typedocrc"))
+              ? ".typedocrc"
+              : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -225,8 +217,8 @@ export const TypeDocPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TypeDocPlugin;

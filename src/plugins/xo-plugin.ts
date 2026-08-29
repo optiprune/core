@@ -14,7 +14,7 @@ const XO_CONFIG_FILES = [
   "xo.config.cjs",
   ".xo-config.yaml",
   ".xo-config.yml",
-  ".xoignore"
+  ".xoignore",
 ];
 
 const XO_PACKAGE_NAME = "xo";
@@ -98,7 +98,7 @@ export const XoPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (allDeps[XO_PACKAGE_NAME]) {
@@ -109,7 +109,7 @@ export const XoPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\bxo\b/.test(s) || /\bxo --fix\b/.test(s))
+            (s) => typeof s === "string" && (/\bxo\b/.test(s) || /\bxo --fix\b/.test(s)),
           )
         ) {
           return true;
@@ -165,8 +165,8 @@ export const XoPlugin: AnalyzerPlugin = {
       const jsonConfigFile = (await adapter.folderExists(".xo-config.json"))
         ? ".xo-config.json"
         : (await adapter.folderExists(".xo-config"))
-        ? ".xo-config"
-        : null;
+          ? ".xo-config"
+          : null;
 
       if (jsonConfigFile) {
         const rcConfig = await adapter.readJson(jsonConfigFile);
@@ -191,10 +191,7 @@ export const XoPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Inspect JS configuration files (.xo-config.js, xo.config.js, etc.)
-      if (
-        basename.startsWith(".xo-config.") ||
-        basename.startsWith("xo.config.")
-      ) {
+      if (basename.startsWith(".xo-config.") || basename.startsWith("xo.config.")) {
         // Mark ES module default exports
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -239,8 +236,8 @@ export const XoPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default XoPlugin;

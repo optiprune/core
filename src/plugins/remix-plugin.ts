@@ -10,7 +10,7 @@ const REMIX_CONFIG_FILES = [
   "remix.config.mjs",
   "remix.config.cjs",
   "react-router.config.ts",
-  "react-router.config.js"
+  "react-router.config.js",
 ];
 
 const REMIX_EXPORTS = new Set([
@@ -26,7 +26,7 @@ const REMIX_EXPORTS = new Set([
   "HydrateFallback",
   "ErrorBoundary",
   "stale",
-  "default"
+  "default",
 ]);
 
 const REMIX_PACKAGES = [
@@ -40,7 +40,7 @@ const REMIX_PACKAGES = [
   "@remix-run/router",
   "@react-router/dev",
   "@react-router/node",
-  "react-router"
+  "react-router",
 ];
 
 export const RemixPlugin: AnalyzerPlugin = {
@@ -53,7 +53,7 @@ export const RemixPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -61,7 +61,7 @@ export const RemixPlugin: AnalyzerPlugin = {
           (dep) =>
             dep === "react-router" ||
             dep.startsWith("@remix-run/") ||
-            dep.startsWith("@react-router/")
+            dep.startsWith("@react-router/"),
         )
       ) {
         return true;
@@ -71,9 +71,7 @@ export const RemixPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("remix ") || s.includes("react-router "))
+            (s) => typeof s === "string" && (s.includes("remix ") || s.includes("react-router ")),
           )
         ) {
           return true;
@@ -94,14 +92,12 @@ export const RemixPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRemixDep = Object.keys(allDeps).some(
         (p) =>
-          p === "react-router" ||
-          p.startsWith("@remix-run/") ||
-          p.startsWith("@react-router/")
+          p === "react-router" || p.startsWith("@remix-run/") || p.startsWith("@react-router/"),
       );
 
       // 1. Safeguard installed Remix & React Router packages in package.json
@@ -132,8 +128,7 @@ export const RemixPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("remix") ||
-              scriptContent.includes("react-router"))
+            (scriptContent.includes("remix") || scriptContent.includes("react-router"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@remix-run/dev");
@@ -150,7 +145,7 @@ export const RemixPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Remix/React Router configuration found, but '@remix-run/dev' or 'react-router' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -209,11 +204,7 @@ export const RemixPlugin: AnalyzerPlugin = {
           // export const loader = ... / export function loader() {}
           if (node.declaration) {
             const decl = node.declaration;
-            if (
-              t.isFunctionDeclaration(decl) &&
-              decl.id?.name &&
-              REMIX_EXPORTS.has(decl.id.name)
-            ) {
+            if (t.isFunctionDeclaration(decl) && decl.id?.name && REMIX_EXPORTS.has(decl.id.name)) {
               adapter.markAsUsed(fileId, decl.id.name);
             } else if (t.isVariableDeclaration(decl)) {
               for (const d of decl.declarations) {
@@ -240,8 +231,8 @@ export const RemixPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId, "default");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RemixPlugin;

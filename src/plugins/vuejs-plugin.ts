@@ -2,12 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const VUE_CONFIG_FILES = [
-  "vue.config.js",
-  "vue.config.ts",
-  "vue.config.cjs",
-  "vue.config.mjs"
-];
+const VUE_CONFIG_FILES = ["vue.config.js", "vue.config.ts", "vue.config.cjs", "vue.config.mjs"];
 
 const VUE_PACKAGES = [
   "vue",
@@ -18,7 +13,7 @@ const VUE_PACKAGES = [
   "@vue/runtime-core",
   "@vue/server-renderer",
   "@vueuse/core",
-  "vue-demi"
+  "vue-demi",
 ];
 
 const VUE_COMPOSITION_APIS = new Set([
@@ -63,7 +58,7 @@ const VUE_COMPOSITION_APIS = new Set([
   "useRouter",
   "useRoute",
   "defineStore",
-  "useStore"
+  "useStore",
 ]);
 
 export const VueJsPlugin: AnalyzerPlugin = {
@@ -76,7 +71,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (VUE_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -87,10 +82,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("src/App.vue")) ||
-      (await adapter.folderExists("App.vue"))
-    );
+    return (await adapter.folderExists("src/App.vue")) || (await adapter.folderExists("App.vue"));
   },
 
   lifecycle: {
@@ -99,7 +91,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasVueDep = VUE_PACKAGES.some((p) => p in allDeps);
@@ -122,10 +114,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       // Track npm scripts invoking Vue CLI or Nuxt
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (              scriptContent.includes("vue-cli-service"))
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("vue-cli-service")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
           }
         }
@@ -138,7 +127,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Vue configuration found but 'vue' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -228,7 +217,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
                 "watch",
                 "setup",
                 "components",
-                "directives"
+                "directives",
               ].includes(propKeyName)
             ) {
               adapter.markAsUsed(fileId, propKeyName);
@@ -236,8 +225,8 @@ export const VueJsPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default VueJsPlugin;

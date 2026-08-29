@@ -74,7 +74,7 @@ function resolveEdge(
   if (edge.rawSpecifier.startsWith(".")) {
     // console.log("Resolving " + edge.rawSpecifier + " from " + source.id + " -> " + target);
   }
-  
+
   // 2. Try tsconfig path aliases. Match the most specific alias first and
   // substitute every wildcard capture in order (`@/*/test/*` is valid), rather
   // than reusing only the first capture.
@@ -112,18 +112,27 @@ function resolveEdge(
   // module specifiers and must be resolved before falling back to an external
   // package; otherwise Layer 6 emits a false missing-dependency finding.
   if (!target && edge.rawSpecifier.startsWith("#")) {
-    const aliases = [...(options.packageImports ?? new Map<string, string[]>()).entries()].sort(([left], [right]) => right.length - left.length);
+    const aliases = [...(options.packageImports ?? new Map<string, string[]>()).entries()].sort(
+      ([left], [right]) => right.length - left.length,
+    );
     for (const [alias, targets] of aliases) {
       const wildcardIndex = alias.indexOf("*");
-      const matched = wildcardIndex >= 0
-        ? edge.rawSpecifier.startsWith(alias.slice(0, wildcardIndex)) && edge.rawSpecifier.endsWith(alias.slice(wildcardIndex + 1))
-        : edge.rawSpecifier === alias;
+      const matched =
+        wildcardIndex >= 0
+          ? edge.rawSpecifier.startsWith(alias.slice(0, wildcardIndex)) &&
+            edge.rawSpecifier.endsWith(alias.slice(wildcardIndex + 1))
+          : edge.rawSpecifier === alias;
       if (!matched) continue;
-      const wildcardValue = wildcardIndex >= 0
-        ? edge.rawSpecifier.slice(alias.slice(0, wildcardIndex).length, edge.rawSpecifier.length - alias.slice(wildcardIndex + 1).length)
-        : "";
+      const wildcardValue =
+        wildcardIndex >= 0
+          ? edge.rawSpecifier.slice(
+              alias.slice(0, wildcardIndex).length,
+              edge.rawSpecifier.length - alias.slice(wildcardIndex + 1).length,
+            )
+          : "";
       for (const candidate of targets) {
-        const substituted = wildcardIndex >= 0 ? candidate.replace(/\*/g, wildcardValue) : candidate;
+        const substituted =
+          wildcardIndex >= 0 ? candidate.replace(/\*/g, wildcardValue) : candidate;
         target = resolveLocalSpecifier(source.id, substituted, knownFiles, options.extensions);
         if (target) break;
       }
@@ -132,7 +141,12 @@ function resolveEdge(
   }
 
   // 4. Try baseUrl resolution (non-relative imports)
-  if (!target && options.baseUrl && !edge.rawSpecifier.startsWith(".") && !path.isAbsolute(edge.rawSpecifier)) {
+  if (
+    !target &&
+    options.baseUrl &&
+    !edge.rawSpecifier.startsWith(".") &&
+    !path.isAbsolute(edge.rawSpecifier)
+  ) {
     const absoluteTarget = path.resolve(options.rootDir, options.baseUrl, edge.rawSpecifier);
     target = resolveLocalSpecifier(source.id, absoluteTarget, knownFiles, options.extensions);
   }
@@ -141,27 +155,37 @@ function resolveEdge(
   if (!target && options.monorepo) {
     // Check if the specifier starts with a workspace package name
     for (const [pkgName, pkg] of options.monorepo.packageMap.entries()) {
-      if (edge.rawSpecifier === pkgName || edge.rawSpecifier.startsWith(pkgName + '/')) {
+      if (edge.rawSpecifier === pkgName || edge.rawSpecifier.startsWith(pkgName + "/")) {
         // Resolve to the package's entry point (main/exports)
         // For simplicity, we assume index.ts/js in the package root or src
         const subPath = edge.rawSpecifier.slice(pkgName.length);
         const pkgRoot = pkg.location;
-        
+
         // Try common entry points if it's just the package name
         const normalize = (p: string): string => path.resolve(p).replace(/\\/g, "/");
 
         // Check if the subpath is empty or points to the root directory
-        const isRoot = !subPath || subPath === '/' || subPath === '.' || subPath === './';
+        const isRoot = !subPath || subPath === "/" || subPath === "." || subPath === "./";
 
         if (isRoot) {
           const entries = [
-            'src/index.ts', 'src/index.tsx', 'src/index.mts', 'src/index.mjs', 'src/index.cjs', 'src/index.js',
-            'index.ts', 'index.tsx', 'index.mts', 'index.mjs', 'index.cjs', 'index.js',
+            "src/index.ts",
+            "src/index.tsx",
+            "src/index.mts",
+            "src/index.mjs",
+            "src/index.cjs",
+            "src/index.js",
+            "index.ts",
+            "index.tsx",
+            "index.mts",
+            "index.mjs",
+            "index.cjs",
+            "index.js",
           ];
-          
+
           // Build a lookup map of [normalizedPath -> originalKnownFilePath]
           const normalizedKnownMap = new Map<string, string>(
-            Array.from(knownFiles).map((f: string) => [normalize(f), f])
+            Array.from(knownFiles).map((f: string) => [normalize(f), f]),
           );
 
           for (const e of entries) {
@@ -175,14 +199,24 @@ function resolveEdge(
           // Try the package-local sub-path first. Source repositories often
           // expose TypeScript source while their package export map names the
           // eventual JavaScript artifact.
-          const localSpecifier = subPath.startsWith('./') ? subPath : `./${subPath.replace(/^\//, '')}`;
-          target = resolveLocalSpecifier(path.join(pkgRoot, "package.json"), localSpecifier, knownFiles, options.extensions);
+          const localSpecifier = subPath.startsWith("./")
+            ? subPath
+            : `./${subPath.replace(/^\//, "")}`;
+          target = resolveLocalSpecifier(
+            path.join(pkgRoot, "package.json"),
+            localSpecifier,
+            knownFiles,
+            options.extensions,
+          );
 
           // When no built artifact exists, resolve one unambiguous source file
           // by its package-relative sub-path. This supports exports such as
           // `./chart` -> `src/Chart.tsx` without guessing among multiple files.
           if (!target) {
-            const requested = subPath.replace(/^\.?\//, "").replace(/\.[^./]+$/, "").toLowerCase();
+            const requested = subPath
+              .replace(/^\.?\//, "")
+              .replace(/\.[^./]+$/, "")
+              .toLowerCase();
             const candidatePaths = new Set<string>([
               requested,
               `src/${requested}`,
@@ -201,7 +235,7 @@ function resolveEdge(
             if (candidates.length === 1) target = candidates[0];
           }
         }
-        
+
         if (target) break;
       }
     }
@@ -210,7 +244,11 @@ function resolveEdge(
   if (target) {
     edge.target = target;
     edge.resolution = "resolved";
-  } else if (edge.rawSpecifier.startsWith(".") || edge.rawSpecifier.startsWith("/") || edge.rawSpecifier.startsWith("file:")) {
+  } else if (
+    edge.rawSpecifier.startsWith(".") ||
+    edge.rawSpecifier.startsWith("/") ||
+    edge.rawSpecifier.startsWith("file:")
+  ) {
     edge.resolution = "unresolved";
   } else {
     edge.resolution = "external";
@@ -253,7 +291,10 @@ export function resolveConcreteSpecifier(
   return edge.target;
 }
 
-export function resolveDependencies(modules: Map<string, ModuleRecord>, options: ResolvedOptions): void {
+export function resolveDependencies(
+  modules: Map<string, ModuleRecord>,
+  options: ResolvedOptions,
+): void {
   const knownFiles = new Set(modules.keys());
   for (const module of modules.values()) {
     for (const edge of module.edges) {
@@ -294,7 +335,9 @@ function reverseAdjacency(modules: Map<string, ModuleRecord>): Map<string, strin
 }
 
 /** Kosaraju with explicit stacks avoids stack overflows on deep graphs and cycles. */
-export function stronglyConnectedComponents(modules: Map<string, ModuleRecord>): StronglyConnectedComponent[] {
+export function stronglyConnectedComponents(
+  modules: Map<string, ModuleRecord>,
+): StronglyConnectedComponent[] {
   const visited = new Set<string>();
   const finishOrder: string[] = [];
 
@@ -316,7 +359,11 @@ export function stronglyConnectedComponents(modules: Map<string, ModuleRecord>):
         frame.nextIndex += 1;
         if (neighbor && !visited.has(neighbor)) {
           visited.add(neighbor);
-          stack.push({ moduleId: neighbor, nextIndex: 0, neighbors: adjacencyFor(modules, neighbor) });
+          stack.push({
+            moduleId: neighbor,
+            nextIndex: 0,
+            neighbors: adjacencyFor(modules, neighbor),
+          });
         }
       } else {
         finishOrder.push(frame.moduleId);
@@ -351,7 +398,8 @@ export function stronglyConnectedComponents(modules: Map<string, ModuleRecord>):
       }
     }
     members.sort((left, right) => left.localeCompare(right));
-    const selfLoop = members.length === 1 && adjacencyFor(modules, members[0] ?? "").includes(members[0] ?? "");
+    const selfLoop =
+      members.length === 1 && adjacencyFor(modules, members[0] ?? "").includes(members[0] ?? "");
     components.push({
       id: components.length,
       modules: members,
@@ -381,7 +429,10 @@ export function calculateReachability(
 ): Pick<GraphBuildResult, "reachable" | "maybeReachable" | "hasReachableUnknownDynamicBoundary"> {
   const reachable = new Set<string>();
   const maybeReachable = new Set<string>();
-  const queue: ReachabilityWorkItem[] = [...entryPoints].map((moduleId) => ({ moduleId, certainty: "exact" }));
+  const queue: ReachabilityWorkItem[] = [...entryPoints].map((moduleId) => ({
+    moduleId,
+    certainty: "exact",
+  }));
   let cursor = 0;
   let hasReachableUnknownDynamicBoundary = false;
 
@@ -413,7 +464,10 @@ export function calculateReachability(
     }
 
     for (const edge of module.edges) {
-      if (ignoreUnknownImport && (edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic")) {
+      if (
+        ignoreUnknownImport &&
+        (edge.kind === "dynamic-pattern" || edge.kind === "unknown-dynamic")
+      ) {
         continue;
       }
       // Type-only imports DO contribute to file reachability, but not necessarily runtime usage
@@ -433,9 +487,11 @@ export function calculateReachability(
   // we assume it's a plugin loader and mark all files in that directory as maybe-reachable.
   for (const module of modules.values()) {
     if (!ignoreUnknownImport && reachable.has(module.id)) {
-      const hasDynamicPatterns = module.edges.some(e => e.kind === "dynamic-pattern" || e.kind === "unknown-dynamic");
+      const hasDynamicPatterns = module.edges.some(
+        (e) => e.kind === "dynamic-pattern" || e.kind === "unknown-dynamic",
+      );
       const hasScannedDirs = module.scannedDirectories && module.scannedDirectories.length > 0;
-      
+
       if (hasDynamicPatterns && (hasScannedDirs || module.hasUnknownDynamicBoundary)) {
         if (hasScannedDirs) {
           for (const dir of module.scannedDirectories) {
@@ -450,7 +506,7 @@ export function calculateReachability(
             }
           }
         }
-        
+
         // If we have an unknown dynamic boundary (like a variable readdir or unknown import),
         // we must be conservative to ensure "World Peace" and not flag unreachable files
         // that might be part of this dynamic system.
@@ -503,12 +559,21 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     const returnTypes = new Map<string, string>();
     exportedReturnTypes.set(moduleId, returnTypes);
     walkAst(targetModule.ast, (node: any) => {
-      if (node.type === "FunctionDeclaration" && requestedNames.has(node.id?.name) && !returnTypes.has(node.id.name)) {
+      if (
+        node.type === "FunctionDeclaration" &&
+        requestedNames.has(node.id?.name) &&
+        !returnTypes.has(node.id.name)
+      ) {
         const returnType = typeNameFromAnnotation(node.returnType);
         if (returnType) returnTypes.set(node.id.name, returnType);
         return;
       }
-      if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && requestedNames.has(node.id.name) && !returnTypes.has(node.id.name)) {
+      if (
+        node.type === "VariableDeclarator" &&
+        node.id?.type === "Identifier" &&
+        requestedNames.has(node.id.name) &&
+        !returnTypes.has(node.id.name)
+      ) {
         const init = node.init;
         if (init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression") {
           const returnType = typeNameFromAnnotation(init.returnType);
@@ -528,8 +593,10 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     // former can safely be associated with an export in this same module.
     const localTypeMemberAccess = new Map<string, Set<string>>();
     const localInstanceTypes = new Map<string, string>();
-    const exportedReturnType = (targetModule: ModuleRecord, exportName: string): string | undefined =>
-      exportedReturnTypes.get(targetModule.id)?.get(exportName);
+    const exportedReturnType = (
+      targetModule: ModuleRecord,
+      exportName: string,
+    ): string | undefined => exportedReturnTypes.get(targetModule.id)?.get(exportName);
     // Connect `const value = importedFactory()` with the factory's explicit
     // exported return type so member reads are attributed to that type.
     for (const edge of module.edges) {
@@ -548,7 +615,13 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
       // function parameter from the AST stack first to retain lexical scope.
       for (let index = stack.length - 1; index >= 0; index -= 1) {
         const scope = stack[index] as any;
-        if (!scope || !["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(scope.type)) continue;
+        if (
+          !scope ||
+          !["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+            scope.type,
+          )
+        )
+          continue;
         for (const parameter of scope.params ?? []) {
           if (parameter?.type !== "Identifier" || parameter.name !== objectName) continue;
           const typeName = parameter.typeAnnotation?.typeAnnotation?.typeName;
@@ -557,10 +630,16 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
       }
       for (let index = stack.length - 1; index >= 0; index -= 1) {
         const scope = stack[index] as any;
-        if (scope?.type !== "VariableDeclarator" || scope.id?.type !== "Identifier" || scope.id.name !== objectName) continue;
+        if (
+          scope?.type !== "VariableDeclarator" ||
+          scope.id?.type !== "Identifier" ||
+          scope.id.name !== objectName
+        )
+          continue;
         const annotation = scope.id.typeAnnotation?.typeAnnotation?.typeName;
         if (annotation?.type === "Identifier") return annotation.name;
-        if (scope.init?.type === "NewExpression" && scope.init.callee?.type === "Identifier") return scope.init.callee.name;
+        if (scope.init?.type === "NewExpression" && scope.init.callee?.type === "Identifier")
+          return scope.init.callee.name;
       }
       return localInstanceTypes.get(objectName) ?? module.localTypeMap?.[objectName];
     };
@@ -581,7 +660,11 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     if (module.ast) {
       walkAst(module.ast, (node: any, stack: any[]) => {
         // Preserve object aliases (`const config = SITE`) for later member reads.
-        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "Identifier") {
+        if (
+          node.type === "VariableDeclarator" &&
+          node.id?.type === "Identifier" &&
+          node.init?.type === "Identifier"
+        ) {
           if (!localAliases.has(node.id.name)) localAliases.set(node.id.name, new Set());
           localAliases.get(node.id.name)!.add(node.init.name);
         }
@@ -593,35 +676,58 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         if (node.type === "ForInStatement" && node.right?.type === "Identifier") {
           recordWildcardAccess(node.right.name);
         }
-        if (node.type === "CallExpression" && node.callee?.type === "MemberExpression" &&
-            node.callee.object?.type === "Identifier" && !node.callee.computed &&
-            ["keys", "values", "entries", "assign"].includes(node.callee.property?.name)) {
+        if (
+          node.type === "CallExpression" &&
+          node.callee?.type === "MemberExpression" &&
+          node.callee.object?.type === "Identifier" &&
+          !node.callee.computed &&
+          ["keys", "values", "entries", "assign"].includes(node.callee.property?.name)
+        ) {
           for (const argument of node.arguments ?? []) {
             if (argument?.type === "Identifier") recordWildcardAccess(argument.name);
           }
         }
-        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "NewExpression" && node.init.callee?.type === "Identifier") {
+        if (
+          node.type === "VariableDeclarator" &&
+          node.id?.type === "Identifier" &&
+          node.init?.type === "NewExpression" &&
+          node.init.callee?.type === "Identifier"
+        ) {
           localInstanceTypes.set(node.id.name, node.init.callee.name);
         }
-        if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" && node.init?.type === "CallExpression" && node.init.callee?.type === "Identifier") {
+        if (
+          node.type === "VariableDeclarator" &&
+          node.id?.type === "Identifier" &&
+          node.init?.type === "CallExpression" &&
+          node.init.callee?.type === "Identifier"
+        ) {
           const returnType = localInstanceTypes.get(node.init.callee.name);
           if (returnType) localInstanceTypes.set(node.id.name, returnType);
         }
 
         // Track destructured typed function parameters, e.g.
         // `({ children }: ButtonProps) => ...`.
-        if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") {
+        if (
+          node.type === "FunctionDeclaration" ||
+          node.type === "FunctionExpression" ||
+          node.type === "ArrowFunctionExpression"
+        ) {
           for (const parameter of node.params ?? []) {
             if (parameter?.type !== "ObjectPattern" || !parameter.typeAnnotation) continue;
             const typeName = typeNameFromAnnotation(parameter.typeAnnotation);
             if (!typeName) continue;
             for (const property of parameter.properties ?? []) {
-              if ((property.type !== "Property" && property.type !== "ObjectProperty") || property.computed) continue;
+              if (
+                (property.type !== "Property" && property.type !== "ObjectProperty") ||
+                property.computed
+              )
+                continue;
               const memberName = property.key?.name ?? property.key?.value;
               if (typeof memberName !== "string") continue;
               if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
               localMemberAccess.get(typeName)!.add(memberName);
-              if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+              if (!localTypeMemberAccess.has(typeName))
+                localTypeMemberAccess.set(typeName, new Set());
               localTypeMemberAccess.get(typeName)!.add(memberName);
             }
           }
@@ -629,9 +735,17 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         // 1. Track destructured properties (e.g. const { imports, schemaType } = config).
         // Destructuring is equivalent to reading those object members, but it is
         // not represented as a MemberExpression in the AST.
-        if (node.type === "VariableDeclarator" && node.id?.type === "ObjectPattern" && node.init?.type === "Identifier") {
+        if (
+          node.type === "VariableDeclarator" &&
+          node.id?.type === "ObjectPattern" &&
+          node.init?.type === "Identifier"
+        ) {
           for (const property of node.id.properties ?? []) {
-            if ((property.type !== "Property" && property.type !== "ObjectProperty") || property.computed) continue;
+            if (
+              (property.type !== "Property" && property.type !== "ObjectProperty") ||
+              property.computed
+            )
+              continue;
             const memberName = property.key?.name ?? property.key?.value;
             if (typeof memberName !== "string") continue;
             const objectName = node.init.name;
@@ -641,7 +755,8 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             if (typeName) {
               if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
               localMemberAccess.get(typeName)!.add(memberName);
-              if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+              if (!localTypeMemberAccess.has(typeName))
+                localTypeMemberAccess.set(typeName, new Set());
               localTypeMemberAccess.get(typeName)!.add(memberName);
             }
           }
@@ -653,10 +768,11 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         // so treating it as one concrete property would create false positives.
         if (node.type === "MemberExpression") {
           const propertyName = node.computed
-            ? ((node.property?.type === "StringLiteral" || node.property?.type === "Literal") && typeof node.property.value === "string"
+            ? (node.property?.type === "StringLiteral" || node.property?.type === "Literal") &&
+              typeof node.property.value === "string"
               ? node.property.value
-              : undefined)
-            : (node.property?.name || node.property?.value);
+              : undefined
+            : node.property?.name || node.property?.value;
           let objectName: string | undefined;
           if (node.object?.type === "Identifier") {
             objectName = node.object.name;
@@ -664,9 +780,12 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             // `this.items` has no identifier object. Resolve it against the
             // nearest enclosing class so internal class-member usage reaches
             // the same `usedMembers` key as external `registry.items` access.
-            const enclosingClass = [...stack].reverse().find((ancestor: any) =>
-              ancestor?.type === "ClassDeclaration" || ancestor?.type === "ClassExpression",
-            );
+            const enclosingClass = [...stack]
+              .reverse()
+              .find(
+                (ancestor: any) =>
+                  ancestor?.type === "ClassDeclaration" || ancestor?.type === "ClassExpression",
+              );
             objectName = enclosingClass?.id?.name;
           }
           if (objectName) {
@@ -682,11 +801,13 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
               if (typeName) {
                 if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
                 localMemberAccess.get(typeName)!.add(String(propertyName));
-                if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+                if (!localTypeMemberAccess.has(typeName))
+                  localTypeMemberAccess.set(typeName, new Set());
                 localTypeMemberAccess.get(typeName)!.add(String(propertyName));
               }
               if (node.object?.type === "ThisExpression") {
-                if (!localTypeMemberAccess.has(objectName)) localTypeMemberAccess.set(objectName, new Set());
+                if (!localTypeMemberAccess.has(objectName))
+                  localTypeMemberAccess.set(objectName, new Set());
                 localTypeMemberAccess.get(objectName)!.add(String(propertyName));
               }
             } else if (node.computed) {
@@ -694,18 +815,18 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
               if (typeName) {
                 if (!localMemberAccess.has(typeName)) localMemberAccess.set(typeName, new Set());
                 localMemberAccess.get(typeName)!.add("*");
-                if (!localTypeMemberAccess.has(typeName)) localTypeMemberAccess.set(typeName, new Set());
+                if (!localTypeMemberAccess.has(typeName))
+                  localTypeMemberAccess.set(typeName, new Set());
                 localTypeMemberAccess.get(typeName)!.add("*");
               }
               if (node.object?.type === "ThisExpression") {
-                if (!localTypeMemberAccess.has(objectName)) localTypeMemberAccess.set(objectName, new Set());
+                if (!localTypeMemberAccess.has(objectName))
+                  localTypeMemberAccess.set(objectName, new Set());
                 localTypeMemberAccess.get(objectName)!.add("*");
               }
             }
           }
         }
-        
-
       });
     }
 
@@ -732,12 +853,12 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
       for (const target of edgeTargets(edge)) {
         const targetModule = modules.get(target);
         if (!targetModule) continue;
-        const current = usage.get(target) ?? { 
-          consumers: new Set<string>(), 
-          names: new Set<string>(), 
+        const current = usage.get(target) ?? {
+          consumers: new Set<string>(),
+          names: new Set<string>(),
           memberAccess: new Map<string, Set<string>>(),
           wildcard: false,
-          reExportOnly: true 
+          reExportOnly: true,
         };
         current.consumers.add(module.id);
         const isReExport = edge.kind === "export-all" || edge.kind === "export-from";
@@ -781,15 +902,15 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
     // Mark exports as used if they are referenced locally within the module
     for (const exportRecord of module.exports) {
       if (module.localReferences && module.localReferences.includes(exportRecord.name)) {
-        const current = usage.get(module.id) ?? { 
-          consumers: new Set<string>(), 
-          names: new Set<string>(), 
+        const current = usage.get(module.id) ?? {
+          consumers: new Set<string>(),
+          names: new Set<string>(),
           memberAccess: new Map<string, Set<string>>(),
           wildcard: false,
-          reExportOnly: true 
+          reExportOnly: true,
         };
         current.names.add(exportRecord.exportedAs);
-        // Note: We keep reExportOnly = true here to not block unused-export detection 
+        // Note: We keep reExportOnly = true here to not block unused-export detection
         // if this is the ONLY usage.
         usage.set(module.id, current);
       }
@@ -826,14 +947,14 @@ export function buildUsedExports(
   }
   // 1. Initial pass: Mark exports used by non-re-export imports
   // and resolve explicit re-exports (export { x } from 'mod')
-  const worklist: Array<{ moduleId: string, name: string }> = [];
+  const worklist: Array<{ moduleId: string; name: string }> = [];
   for (const [targetId, usage] of importUsage.entries()) {
     const targetModule = modules.get(targetId);
     if (!targetModule) continue;
 
     if (options.verbose) {
       console.error(`[Graph] Processing module ${targetId}`);
-      console.error(`  - Consumers: ${Array.from(usage.consumers).join(', ')}`);
+      console.error(`  - Consumers: ${Array.from(usage.consumers).join(", ")}`);
       console.error(`  - reExportOnly: ${usage.reExportOnly}`);
     }
 
@@ -845,20 +966,23 @@ export function buildUsedExports(
 
       // SELF-IMPORT FIX: Check if there are consumers OTHER than the module itself.
       // If a file imports from itself, that shouldn't count as an external usage.
-      const hasExternalConsumers = Array.from(usage.consumers).some(c => c !== targetId);
+      const hasExternalConsumers = Array.from(usage.consumers).some((c) => c !== targetId);
 
       // If it's a direct import (not a re-export)
       if (!usage.reExportOnly && hasExternalConsumers) {
-        const isRequested = usage.wildcard || usage.names.has(exp.exportedAs) || (exp.isDefault && usage.names.has('default'));
+        const isRequested =
+          usage.wildcard ||
+          usage.names.has(exp.exportedAs) ||
+          (exp.isDefault && usage.names.has("default"));
         if (isRequested) {
           if (!usedExports.has(`${targetId}:${exp.exportedAs}`)) {
             usedExports.add(`${targetId}:${exp.exportedAs}`);
             worklist.push({ moduleId: targetId, name: exp.exportedAs });
           }
-          
+
           // Track member access
           const accessed = usage.memberAccess.get(exp.exportedAs);
-          
+
           if (accessed) {
             const membersToMark = accessed.has("*")
               ? new Set((exp.members ?? []).map((member: any) => member.name))
@@ -876,7 +1000,7 @@ export function buildUsedExports(
     changed = false;
     for (const module of modules.values()) {
       for (const edge of module.edges) {
-        if (edge.kind === 'export-all' || edge.kind === 'export-from') {
+        if (edge.kind === "export-all" || edge.kind === "export-from") {
           for (const targetId of edgeTargets(edge)) {
             const targetModule = modules.get(targetId);
             if (!targetModule) continue;
@@ -899,12 +1023,13 @@ export function buildUsedExports(
 
               let isUsedViaReExport = false;
 
-              if (edge.kind === 'export-all') {
+              if (edge.kind === "export-all") {
                 const isPublicApiReExport = isPublicApiModule;
-                const isRequested = effectiveUsage.wildcard || effectiveUsage.names.has(exp.exportedAs);
-                
+                const isRequested =
+                  effectiveUsage.wildcard || effectiveUsage.names.has(exp.exportedAs);
+
                 // Also check if it's a default export being requested via a name (not common for export *)
-                const isDefaultRequested = exp.isDefault && effectiveUsage.names.has('default');
+                const isDefaultRequested = exp.isDefault && effectiveUsage.names.has("default");
 
                 if (isPublicApiReExport || isRequested || isDefaultRequested) {
                   isUsedViaReExport = true;
@@ -915,36 +1040,53 @@ export function buildUsedExports(
                     isUsedViaReExport = true;
                   }
                 }
-              } else if (edge.kind === 'export-from') {
+              } else if (edge.kind === "export-from") {
                 for (const edgeImportName of edge.importedNames) {
-                   if (edgeImportName === exp.exportedAs || (exp.isDefault && edgeImportName === 'default')) {
-                     // Find the name this is exported as in 'module'
-                     const correspondingExport = module.exports.find(e => e.isReExport && e.name === edgeImportName);
-                     if (correspondingExport) {
-                       const exportKeyInModule = `${module.id}:${correspondingExport.exportedAs}`;
-                       if (usedExports.has(exportKeyInModule)) {
-                         isUsedViaReExport = true;
-                         break;
-                       }
-                       const moduleUsage = importUsage.get(module.id);
-                       if (moduleUsage && (moduleUsage.wildcard || moduleUsage.names.has(correspondingExport.exportedAs))) {
-                         isUsedViaReExport = true;
-                         break;
-                       }
-                     }
-                   }
+                  if (
+                    edgeImportName === exp.exportedAs ||
+                    (exp.isDefault && edgeImportName === "default")
+                  ) {
+                    // Find the name this is exported as in 'module'
+                    const correspondingExport = module.exports.find(
+                      (e) => e.isReExport && e.name === edgeImportName,
+                    );
+                    if (correspondingExport) {
+                      const exportKeyInModule = `${module.id}:${correspondingExport.exportedAs}`;
+                      if (usedExports.has(exportKeyInModule)) {
+                        isUsedViaReExport = true;
+                        break;
+                      }
+                      const moduleUsage = importUsage.get(module.id);
+                      if (
+                        moduleUsage &&
+                        (moduleUsage.wildcard ||
+                          moduleUsage.names.has(correspondingExport.exportedAs))
+                      ) {
+                        isUsedViaReExport = true;
+                        break;
+                      }
+                    }
+                  }
                 }
               }
 
               if (isUsedViaReExport) {
                 usedExports.add(exportKey);
-                if (isPublicApiModule || usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low") {
+                if (
+                  isPublicApiModule ||
+                  usedExportConfidence.get(`${module.id}:${exp.exportedAs}`) === "low"
+                ) {
                   usedExportConfidence.set(exportKey, "low");
                 }
                 changed = true;
 
                 // PROPAGATE MEMBER ACCESS THROUGH RE-EXPORTS
-                const accessedInModule = effectiveUsage.memberAccess.get(edge.kind === 'export-all' ? exp.exportedAs : (module.exports.find(e => e.isReExport && e.name === exp.exportedAs)?.exportedAs || ""));
+                const accessedInModule = effectiveUsage.memberAccess.get(
+                  edge.kind === "export-all"
+                    ? exp.exportedAs
+                    : module.exports.find((e) => e.isReExport && e.name === exp.exportedAs)
+                        ?.exportedAs || "",
+                );
                 if (accessedInModule) {
                   const membersToMark = accessedInModule.has("*")
                     ? new Set((exp.members ?? []).map((member: any) => member.name))
@@ -970,16 +1112,17 @@ export function buildUsedExports(
     changed = false;
     for (const module of modules.values()) {
       const localDeps = module.localSymbolMap || {};
-      
+
       // INTERNAL REFERENCE FIX: Symbols used in top-level code
       // We only mark internal exports as used if the module itself is reachable.
       // If the module is unreachable, its internal references don't matter.
-      const isReachable = usedExports.size > 0 && Array.from(usedExports).some(k => k.startsWith(`${module.id}:`));
-      
+      const isReachable =
+        usedExports.size > 0 && Array.from(usedExports).some((k) => k.startsWith(`${module.id}:`));
+
       if (isReachable) {
         const topLevelRefs = localDeps[""] || [];
         for (const refName of topLevelRefs) {
-          const internalExport = module.exports.find(e => e.name === refName);
+          const internalExport = module.exports.find((e) => e.name === refName);
           if (internalExport?.isTypeOnly) {
             // Preserve pure type exports referenced by a used public signature.
             // Runtime value exports referenced only inside another export remain
@@ -992,22 +1135,22 @@ export function buildUsedExports(
           }
         }
       }
-      
+
       for (const exp of module.exports) {
         const exportKey = `${module.id}:${exp.exportedAs}`;
         if (usedExports.has(exportKey)) {
           const queue = [...(exp.localReferences || [])];
           const visited = new Set<string>();
-          
+
           while (queue.length > 0) {
             const current = queue.shift()!;
             if (!current || visited.has(current)) continue;
             visited.add(current);
-            
+
             // If this local symbol is also a pure type export (e.g. an
             // interface used in a public signature), preserve its usage.
             // Runtime value exports remain independently reportable.
-            const internalExport = module.exports.find(e => e.name === current);
+            const internalExport = module.exports.find((e) => e.name === current);
             if (internalExport?.isTypeOnly) {
               const internalKey = `${module.id}:${internalExport.exportedAs}`;
               if (!usedExports.has(internalKey)) {
@@ -1015,7 +1158,7 @@ export function buildUsedExports(
                 changed = true;
               }
             }
-            
+
             // Propagate to symbols used by this symbol
             const deps = localDeps[current];
             if (Array.isArray(deps)) {
@@ -1064,14 +1207,14 @@ export function buildUsedExports(
 export function calculateComponentReachability(
   components: StronglyConnectedComponent[],
   reachable: Set<string>,
-  maybeReachable: Set<string>
+  maybeReachable: Set<string>,
 ): void {
   for (const comp of components) {
     // A component is reachable if ANY of its modules are in the reachable set
-    comp.isReachable = comp.modules.some(m => reachable.has(m));
+    comp.isReachable = comp.modules.some((m) => reachable.has(m));
     // A component is maybe reachable if ANY of its modules are in the maybeReachable set
     // OR if it's not reachable but one of its modules is reachable via a maybe-path
-    comp.isMaybeReachable = comp.modules.some(m => maybeReachable.has(m));
+    comp.isMaybeReachable = comp.modules.some((m) => maybeReachable.has(m));
   }
 }
 
@@ -1084,11 +1227,15 @@ export function buildGraph(
   resolveDependencies(modules, options);
   const components = stronglyConnectedComponents(modules);
   const reachability = calculateReachability(modules, entryPoints, options.ignoreUnknownImport);
-  
+
   // Apply SCC reachability check
   calculateComponentReachability(components, reachability.reachable, reachability.maybeReachable);
-  
-  const { usedExports, usedExportConfidence, usedMembers } = buildUsedExports(modules, options, publicApiEntryPoints);
+
+  const { usedExports, usedExportConfidence, usedMembers } = buildUsedExports(
+    modules,
+    options,
+    publicApiEntryPoints,
+  );
 
   if (options.verbose) {
     console.error(`[Graph] Reachable files: ${reachability.reachable.size}`);
@@ -1124,7 +1271,9 @@ export function contextWithGraph(
     usedExportConfidence: graph.usedExportConfidence,
     usedMembers: graph.usedMembers,
     candidateBranches: [],
-    dynamicImportCandidates: Array.from(modules.values()).flatMap(m => m.dynamicImportCandidates || []),
+    dynamicImportCandidates: Array.from(modules.values()).flatMap(
+      (m) => m.dynamicImportCandidates || [],
+    ),
     usedPackages: new Set(),
     enabledPlugins: new Set(),
   };

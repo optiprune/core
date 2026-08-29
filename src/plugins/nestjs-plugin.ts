@@ -19,7 +19,7 @@ const NEST_ECOSYSTEM_PACKAGES = [
   "@nestjs/cqrs",
   "@nestjs/schedule",
   "@nestjs/bull",
-  "@nestjs/terminus"
+  "@nestjs/terminus",
 ];
 
 const CLASS_DECORATORS = new Set([
@@ -33,18 +33,36 @@ const CLASS_DECORATORS = new Set([
   "ObjectType",
   "InputType",
   "ArgsType",
-  "InterfaceType"
+  "InterfaceType",
 ]);
 
 const METHOD_DECORATORS = new Set([
   // HTTP
-  "Get", "Post", "Put", "Delete", "Patch", "Options", "Head", "All",
+  "Get",
+  "Post",
+  "Put",
+  "Delete",
+  "Patch",
+  "Options",
+  "Head",
+  "All",
   // Microservices / WebSockets
-  "MessagePattern", "EventPattern", "GrpcMethod", "SubscribeMessage",
+  "MessagePattern",
+  "EventPattern",
+  "GrpcMethod",
+  "SubscribeMessage",
   // GraphQL
-  "Query", "Mutation", "Subscription", "ResolveField",
+  "Query",
+  "Mutation",
+  "Subscription",
+  "ResolveField",
   // Task Scheduling / CQRS
-  "Cron", "Interval", "Timeout", "CommandHandler", "QueryHandler", "EventHandler"
+  "Cron",
+  "Interval",
+  "Timeout",
+  "CommandHandler",
+  "QueryHandler",
+  "EventHandler",
 ]);
 
 const PROPERTY_PARAM_DECORATORS = new Set([
@@ -55,7 +73,7 @@ const PROPERTY_PARAM_DECORATORS = new Set([
   "InjectQueue",
   "ApiProperty",
   "ApiPropertyOptional",
-  "Field"
+  "Field",
 ]);
 
 export const NestJsPlugin: AnalyzerPlugin = {
@@ -84,7 +102,7 @@ export const NestJsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasNestDep = NEST_ECOSYSTEM_PACKAGES.some((p) => p in allDeps);
@@ -120,8 +138,9 @@ export const NestJsPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "NestJS configuration (nest-cli.json) found but '@nestjs/core' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message:
+            "NestJS configuration (nest-cli.json) found but '@nestjs/core' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -149,7 +168,7 @@ export const NestJsPlugin: AnalyzerPlugin = {
         ".strategy.ts",
         ".resolver.ts",
         ".gateway.ts",
-        ".dto.ts"
+        ".dto.ts",
       ];
 
       if (nestFileConventions.some((ext) => normalized.endsWith(ext))) {
@@ -239,8 +258,8 @@ export const NestJsPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default NestJsPlugin;

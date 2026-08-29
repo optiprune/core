@@ -8,24 +8,24 @@ on:
     branches:
       - main
     paths:
-      - 'package.json'
-      - 'src/**'
-      - 'tests/**'
-      - '!**/fixtures/**'
-      - '!**/fixture/**'
-      - '!**/__fixtures__/**'
-      - '.github/**'
+      - "package.json"
+      - "src/**"
+      - "tests/**"
+      - "!**/fixtures/**"
+      - "!**/fixture/**"
+      - "!**/__fixtures__/**"
+      - ".github/**"
   pull_request:
     branches:
       - main
     paths:
-      - 'package.json'
-      - 'src/**'
-      - 'tests/**'
-      - '!**/fixtures/**'
-      - '!**/fixture/**'
-      - '!**/__fixtures__/**'
-      - '.github/**'
+      - "package.json"
+      - "src/**"
+      - "tests/**"
+      - "!**/fixtures/**"
+      - "!**/fixture/**"
+      - "!**/__fixtures__/**"
+      - ".github/**"
 
 jobs:
   find-matrix:
@@ -126,7 +126,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
 
       - run: npm ci --include=dev
 

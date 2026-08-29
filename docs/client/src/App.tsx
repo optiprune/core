@@ -5,5 +5,14 @@ import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
-  return <Switch><Route path="/" component={Home} /><Route path="/docs/:slug/:plugin" component={Docs} /><Route path="/docs/:slug" component={Docs} /><Route path="/docs" component={Docs} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>;
+  return (
+    <Switch>
+      <Route path="/" component={Home} />
+      <Route path="/docs/:slug/:plugin" component={Docs} />
+      <Route path="/docs/:slug" component={Docs} />
+      <Route path="/docs" component={Docs} />
+      <Route path="/404" component={NotFound} />
+      <Route component={NotFound} />
+    </Switch>
+  );
 }

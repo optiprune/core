@@ -8,7 +8,7 @@ const SWC_CONFIG_FILES = [
   "swc.config.js",
   "swc.config.cjs",
   "swc.config.mjs",
-  "swc.config.json"
+  "swc.config.json",
 ];
 
 const SWC_PACKAGES = [
@@ -19,7 +19,7 @@ const SWC_PACKAGES = [
   "@swc/register",
   "@swc/helpers",
   "swc-loader",
-  "unplugin-swc"
+  "unplugin-swc",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -44,15 +44,12 @@ export const SwcPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep === "swc-loader" ||
-            dep.startsWith("@swc/") ||
-            dep.startsWith("swc-")
+          (dep) => dep === "swc-loader" || dep.startsWith("@swc/") || dep.startsWith("swc-"),
         )
       ) {
         return true;
@@ -61,9 +58,7 @@ export const SwcPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("swc ") || s === "swc")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("swc ") || s === "swc"))
         ) {
           return true;
         }
@@ -83,11 +78,11 @@ export const SwcPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasSwc = Object.keys(allDeps).some(
-        (p) => p === "swc-loader" || p.startsWith("@swc/") || p.startsWith("swc-")
+        (p) => p === "swc-loader" || p.startsWith("@swc/") || p.startsWith("swc-"),
       );
 
       // 1. Safeguard installed SWC packages and plugins in package.json
@@ -156,7 +151,7 @@ export const SwcPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "SWC configuration found, but '@swc/core' or '@swc/cli' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -180,11 +175,7 @@ export const SwcPlugin: AnalyzerPlugin = {
       // 1. Detect ESM imports for @swc/* packages
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source === "swc-loader" ||
-          source.startsWith("@swc/") ||
-          source.startsWith("swc-")
-        ) {
+        if (source === "swc-loader" || source.startsWith("@swc/") || source.startsWith("swc-")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
@@ -213,9 +204,15 @@ export const SwcPlugin: AnalyzerPlugin = {
           const prop = node.callee.property;
           if (t.isIdentifier(obj) && t.isIdentifier(prop)) {
             if (
-              ["transform", "transformSync", "parse", "parseSync", "bundle", "minify", "minifySync"].includes(
-                prop.name
-              )
+              [
+                "transform",
+                "transformSync",
+                "parse",
+                "parseSync",
+                "bundle",
+                "minify",
+                "minifySync",
+              ].includes(prop.name)
             ) {
               adapter.markAsUsed(fileId);
               adapter.markPackageAsUsed("@swc/core");
@@ -241,8 +238,8 @@ export const SwcPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("@swc/core");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SwcPlugin;

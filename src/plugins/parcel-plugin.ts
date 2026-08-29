@@ -10,14 +10,10 @@ const PARCEL_CONFIG_FILES = [
   ".parcelrc.mjs",
   "parcel.config.js",
   "parcel.config.cjs",
-  "parcel.config.mjs"
+  "parcel.config.mjs",
 ];
 
-const PARCEL_CORE_PACKAGES = [
-  "parcel",
-  "parcel-bundler",
-  "@parcel/config-default"
-];
+const PARCEL_CORE_PACKAGES = ["parcel", "parcel-bundler", "@parcel/config-default"];
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -41,15 +37,12 @@ export const ParcelPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep === "parcel" ||
-            dep === "parcel-bundler" ||
-            dep.startsWith("@parcel/")
+          (dep) => dep === "parcel" || dep === "parcel-bundler" || dep.startsWith("@parcel/"),
         )
       ) {
         return true;
@@ -59,11 +52,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("parcel")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("parcel"))) {
           return true;
         }
       }
@@ -82,11 +71,11 @@ export const ParcelPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasParcel = Object.keys(allDeps).some(
-        (p) => p === "parcel" || p === "parcel-bundler" || p.startsWith("@parcel/")
+        (p) => p === "parcel" || p === "parcel-bundler" || p.startsWith("@parcel/"),
       );
 
       // 1. Safeguard all installed Parcel ecosystem packages in package.json
@@ -175,7 +164,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
             "namers",
             "packagers",
             "reporters",
-            "validators"
+            "validators",
           ];
 
           for (const category of pluginCategories) {
@@ -212,7 +201,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Parcel configuration found, but 'parcel' or 'parcel-bundler' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -260,8 +249,8 @@ export const ParcelPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("parcel");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ParcelPlugin;

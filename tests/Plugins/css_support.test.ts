@@ -37,9 +37,17 @@ describe("First-class stylesheet support", () => {
       expect(report.summary.filesDiscovered).toBe(4);
       expect(report.summary.filesParsed).toBe(4);
       expect(report.findings.some((finding) => finding.rule === "unresolved-import")).toBe(false);
-      expect(report.findings.some((finding) => finding.rule === "unreachable-file" && finding.file.endsWith("unused.css"))).toBe(true);
-      expect(report.findings.some((finding) => finding.evidence?.package === "tw-animate-css")).toBe(false);
-      expect(report.findings.some((finding) => finding.evidence?.package === "unused-css-package")).toBe(true);
+      expect(
+        report.findings.some(
+          (finding) => finding.rule === "unreachable-file" && finding.file.endsWith("unused.css"),
+        ),
+      ).toBe(true);
+      expect(
+        report.findings.some((finding) => finding.evidence?.package === "tw-animate-css"),
+      ).toBe(false);
+      expect(
+        report.findings.some((finding) => finding.evidence?.package === "unused-css-package"),
+      ).toBe(true);
     } finally {
       await fs.rm(rootDir, { recursive: true, force: true });
     }

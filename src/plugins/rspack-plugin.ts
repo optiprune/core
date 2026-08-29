@@ -8,7 +8,7 @@ const RSPACK_CONFIG_FILES = [
   "rspack.config.cjs",
   "rspack.config.ts",
   "rspack.config.mts",
-  "rspack.config.cts"
+  "rspack.config.cts",
 ];
 
 const RSPACK_PACKAGES = [
@@ -16,7 +16,7 @@ const RSPACK_PACKAGES = [
   "@rspack/cli",
   "@rspack/dev-server",
   "@rspack/plugin-react-refresh",
-  "rspack"
+  "rspack",
 ];
 
 export const RspackPlugin: AnalyzerPlugin = {
@@ -29,14 +29,10 @@ export const RspackPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "rspack" || dep.startsWith("@rspack/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "rspack" || dep.startsWith("@rspack/"))) {
         return true;
       }
 
@@ -44,7 +40,7 @@ export const RspackPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("rspack ") || s === "rspack")
+            (s) => typeof s === "string" && (s.includes("rspack ") || s === "rspack"),
           )
         ) {
           return true;
@@ -65,11 +61,11 @@ export const RspackPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRspack = Object.keys(allDeps).some(
-        (p) => p === "rspack" || p.startsWith("@rspack/")
+        (p) => p === "rspack" || p.startsWith("@rspack/"),
       );
 
       // 1. Safeguard installed Rspack ecosystem packages in package.json
@@ -113,7 +109,7 @@ export const RspackPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Rspack configuration found, but '@rspack/core' or 'rspack' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -186,10 +182,7 @@ export const RspackPlugin: AnalyzerPlugin = {
                     });
                   } else if (t.isObjectExpression(val)) {
                     val.properties.forEach((entryProp: any) => {
-                      if (
-                        t.isObjectProperty(entryProp) &&
-                        t.isStringLiteral(entryProp.value)
-                      ) {
+                      if (t.isObjectProperty(entryProp) && t.isStringLiteral(entryProp.value)) {
                         adapter.markAsUsed(entryProp.value.value);
                       }
                     });
@@ -221,19 +214,13 @@ export const RspackPlugin: AnalyzerPlugin = {
               processObject(firstArg);
             } else if (t.isArrayExpression(firstArg)) {
               firstArg.elements.forEach((el: any) => processObject(el));
-            } else if (
-              t.isArrowFunctionExpression(firstArg) ||
-              t.isFunctionExpression(firstArg)
-            ) {
+            } else if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
               const body = (firstArg as any).body;
               if (t.isObjectExpression(body)) {
                 processObject(body);
               } else if (t.isBlockStatement(body)) {
                 body.body.forEach((stmt: any) => {
-                  if (
-                    t.isReturnStatement(stmt) &&
-                    t.isObjectExpression(stmt.argument)
-                  ) {
+                  if (t.isReturnStatement(stmt) && t.isObjectExpression(stmt.argument)) {
                     processObject(stmt.argument);
                   }
                 });
@@ -252,10 +239,7 @@ export const RspackPlugin: AnalyzerPlugin = {
               processObject(body);
             } else if (t.isBlockStatement(body)) {
               body.body.forEach((stmt: any) => {
-                if (
-                  t.isReturnStatement(stmt) &&
-                  t.isObjectExpression(stmt.argument)
-                ) {
+                if (t.isReturnStatement(stmt) && t.isObjectExpression(stmt.argument)) {
                   processObject(stmt.argument);
                 }
               });
@@ -263,8 +247,8 @@ export const RspackPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RspackPlugin;

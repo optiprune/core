@@ -10,7 +10,7 @@ const HUSKY_HOOKS = [
   "prepare-commit-msg",
   "post-commit",
   "post-rewrite",
-  "sendemail-validate"
+  "sendemail-validate",
 ];
 
 const LEGACY_CONFIGS = [
@@ -20,7 +20,7 @@ const LEGACY_CONFIGS = [
   ".huskyrc.yaml",
   ".huskyrc.yml",
   "husky.config.js",
-  "husky.config.cjs"
+  "husky.config.cjs",
 ];
 
 export const HuskyPlugin: AnalyzerPlugin = {
@@ -107,8 +107,8 @@ export const HuskyPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("husky");
       }
-    }
-  }
+    },
+  },
 };
 
 export default HuskyPlugin;

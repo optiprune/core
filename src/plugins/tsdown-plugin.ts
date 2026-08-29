@@ -9,7 +9,7 @@ const TSDOWN_CONFIG_FILES = [
   "tsdown.config.cjs",
   "tsdown.config.mts",
   "tsdown.config.cts",
-  "tsdown.config.json"
+  "tsdown.config.json",
 ];
 
 const TSDOWN_PACKAGES = ["tsdown", "rolldown", "typescript"];
@@ -24,13 +24,11 @@ export const TsdownPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "tsdown" || dep.startsWith("tsdown-")
-        ) ||
+        Object.keys(allDeps).some((dep) => dep === "tsdown" || dep.startsWith("tsdown-")) ||
         pkg.tsdown
       ) {
         return true;
@@ -40,7 +38,7 @@ export const TsdownPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("tsdown ") || s === "tsdown")
+            (s) => typeof s === "string" && (s.includes("tsdown ") || s === "tsdown"),
           )
         ) {
           return true;
@@ -61,21 +59,15 @@ export const TsdownPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasTsdown = Object.keys(allDeps).some(
-        (p) => p === "tsdown" || p.startsWith("tsdown-")
-      );
+      const hasTsdown = Object.keys(allDeps).some((p) => p === "tsdown" || p.startsWith("tsdown-"));
 
       // 1. Safeguard tsdown ecosystem packages in package.json
       if (hasTsdown) {
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "tsdown" ||
-            depName === "rolldown" ||
-            depName.startsWith("tsdown-")
-          ) {
+          if (depName === "tsdown" || depName === "rolldown" || depName.startsWith("tsdown-")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -133,9 +125,8 @@ export const TsdownPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "tsdown configuration found, but 'tsdown' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.tsdown }
+          message: "tsdown configuration found, but 'tsdown' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.tsdown },
         });
       }
     },
@@ -208,10 +199,7 @@ export const TsdownPlugin: AnalyzerPlugin = {
                   });
                 } else if (t.isObjectExpression(val)) {
                   val.properties.forEach((p: any) => {
-                    if (
-                      t.isObjectProperty(p) &&
-                      t.isStringLiteral(p.value)
-                    ) {
+                    if (t.isObjectProperty(p) && t.isStringLiteral(p.value)) {
                       adapter.markAsUsed(p.value.value);
                     }
                   });
@@ -228,19 +216,13 @@ export const TsdownPlugin: AnalyzerPlugin = {
               processObject(firstArg);
             } else if (t.isArrayExpression(firstArg)) {
               firstArg.elements.forEach((el: any) => processObject(el));
-            } else if (
-              t.isArrowFunctionExpression(firstArg) ||
-              t.isFunctionExpression(firstArg)
-            ) {
+            } else if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
               const body = (firstArg as any).body;
               if (t.isObjectExpression(body)) {
                 processObject(body);
               } else if (t.isBlockStatement(body)) {
                 body.body.forEach((stmt: any) => {
-                  if (
-                    t.isReturnStatement(stmt) &&
-                    t.isObjectExpression(stmt.argument)
-                  ) {
+                  if (t.isReturnStatement(stmt) && t.isObjectExpression(stmt.argument)) {
                     processObject(stmt.argument);
                   }
                 });
@@ -253,8 +235,8 @@ export const TsdownPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TsdownPlugin;

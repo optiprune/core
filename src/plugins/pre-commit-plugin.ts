@@ -5,13 +5,10 @@ const PRE_COMMIT_CONFIG_FILES = [
   ".pre-commit-config.yaml",
   ".pre-commit-config.yml",
   ".pre-commit-hooks.yaml",
-  ".pre-commit-hooks.yml"
+  ".pre-commit-hooks.yml",
 ];
 
-const PRE_COMMIT_PACKAGES = [
-  "pre-commit",
-  "pre-commit-js"
-];
+const PRE_COMMIT_PACKAGES = ["pre-commit", "pre-commit-js"];
 
 export const PreCommitPlugin: AnalyzerPlugin = {
   name: "pre-commit-plugin",
@@ -29,12 +26,10 @@ export const PreCommitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some((dep) => PRE_COMMIT_PACKAGES.includes(dep))
-      ) {
+      if (Object.keys(allDeps).some((dep) => PRE_COMMIT_PACKAGES.includes(dep))) {
         return true;
       }
 
@@ -42,9 +37,7 @@ export const PreCommitPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("pre-commit ") || s === "pre-commit")
+            (s) => typeof s === "string" && (s.includes("pre-commit ") || s === "pre-commit"),
           )
         ) {
           return true;
@@ -61,7 +54,7 @@ export const PreCommitPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // 1. Safeguard pre-commit packages in package.json if installed
@@ -98,7 +91,7 @@ export const PreCommitPlugin: AnalyzerPlugin = {
           // Detect entry: npx <package> or entry: npm run <script>
           if (trimmed.startsWith("entry:")) {
             const entryValue = trimmed.replace(/^entry:\s*/, "").replace(/^['"]|['"]$/g, "");
-            
+
             if (entryValue.includes("npx ")) {
               const parts = entryValue.split("npx ")[1]?.split(" ");
               if (parts && parts[0]) {
@@ -123,8 +116,8 @@ export const PreCommitPlugin: AnalyzerPlugin = {
       if (PRE_COMMIT_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default PreCommitPlugin;

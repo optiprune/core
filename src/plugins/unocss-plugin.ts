@@ -14,7 +14,7 @@ const UNOCSS_CONFIG_FILES = [
   "unocss.config.mjs",
   "unocss.config.cjs",
   "unocss.config.mts",
-  "unocss.config.cts"
+  "unocss.config.cts",
 ];
 
 const UNOCSS_PACKAGES = [
@@ -33,7 +33,7 @@ const UNOCSS_PACKAGES = [
   "@unocss/preset-typography",
   "@unocss/preset-web-fonts",
   "@unocss/preset-tagify",
-  "@unocss/preset-rem-to-px"
+  "@unocss/preset-rem-to-px",
 ];
 
 export const UnocssPlugin: AnalyzerPlugin = {
@@ -46,7 +46,7 @@ export const UnocssPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (UNOCSS_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -66,7 +66,7 @@ export const UnocssPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasUnoDep = UNOCSS_PACKAGES.some((p) => p in allDeps);
@@ -104,7 +104,7 @@ export const UnocssPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "UnoCSS configuration found but 'unocss' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -164,14 +164,18 @@ export const UnocssPlugin: AnalyzerPlugin = {
 
         // Detect UnoCSS shortcuts, theme, rules, or presets properties
         if (t.isObjectProperty(node) && t.isIdentifier(node.key)) {
-          if (["shortcuts", "theme", "rules", "presets", "extractors", "transformers"].includes(node.key.name)) {
+          if (
+            ["shortcuts", "theme", "rules", "presets", "extractors", "transformers"].includes(
+              node.key.name,
+            )
+          ) {
             adapter.markAsUsed(fileId);
             adapter.markPackageAsUsed("unocss");
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default UnocssPlugin;

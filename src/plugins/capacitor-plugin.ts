@@ -10,14 +10,14 @@ const CAPACITOR_CONFIG_FILES = [
   "capacitor.config.ts",
   "capacitor.config.js",
   "capacitor.config.cjs",
-  "capacitor.config.mjs"
+  "capacitor.config.mjs",
 ];
 
 const CAPACITOR_CORE_PACKAGES = [
   "@capacitor/core",
   "@capacitor/cli",
   "@capacitor/ios",
-  "@capacitor/android"
+  "@capacitor/android",
 ];
 
 /**
@@ -52,17 +52,14 @@ export const CapacitorPlugin: AnalyzerPlugin = {
     }
 
     // 2. Check for Capacitor native directories
-    if (
-      (await adapter.folderExists("android")) ||
-      (await adapter.folderExists("ios"))
-    ) {
+    if ((await adapter.folderExists("android")) || (await adapter.folderExists("ios"))) {
       // Verify if package.json has @capacitor/core to avoid false positives on non-Capacitor native apps
       const pkg = await adapter.readJson("package.json");
       if (pkg) {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
         if ("@capacitor/core" in allDeps || "@capacitor/cli" in allDeps) {
           return true;
@@ -76,12 +73,12 @@ export const CapacitorPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) => dep.startsWith("@capacitor/") || dep.startsWith("capacitor-")
+          (dep) => dep.startsWith("@capacitor/") || dep.startsWith("capacitor-"),
         )
       ) {
         return true;
@@ -93,7 +90,7 @@ export const CapacitorPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (/\bcap\b/.test(s) || /\bcapacitor\b/.test(s) || s.includes("npx cap"))
+              (/\bcap\b/.test(s) || /\bcapacitor\b/.test(s) || s.includes("npx cap")),
           )
         ) {
           return true;
@@ -128,7 +125,7 @@ export const CapacitorPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -228,8 +225,8 @@ export const CapacitorPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default CapacitorPlugin;

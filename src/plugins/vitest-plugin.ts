@@ -1,10 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
-import {
-  loadStaticPluginConfig,
-  stringRecord,
-  type StaticConfigValue,
-} from "../plugin-config.js";
+import { loadStaticPluginConfig, stringRecord, type StaticConfigValue } from "../plugin-config.js";
 import path from "pathe";
 
 const VITEST_CONFIG_BASENAMES = [
@@ -85,26 +81,18 @@ function isVitestTestFile(fileId: string): boolean {
   );
 }
 
-function configuredEnvironment(
-  config: Record<string, StaticConfigValue>,
-): string | undefined {
+function configuredEnvironment(config: Record<string, StaticConfigValue>): string | undefined {
   const test = stringRecord(config.test);
   return typeof test.environment === "string" ? test.environment : undefined;
 }
 
-function configuredCoverageProvider(
-  config: Record<string, StaticConfigValue>,
-): string | undefined {
+function configuredCoverageProvider(config: Record<string, StaticConfigValue>): string | undefined {
   const test = stringRecord(config.test);
   const coverage = stringRecord(test.coverage);
-  return typeof coverage.provider === "string"
-    ? coverage.provider
-    : undefined;
+  return typeof coverage.provider === "string" ? coverage.provider : undefined;
 }
 
-function hasVitestConfigSection(
-  config: Record<string, StaticConfigValue>,
-): boolean {
+function hasVitestConfigSection(config: Record<string, StaticConfigValue>): boolean {
   return Object.keys(stringRecord(config.test)).length > 0;
 }
 
@@ -176,9 +164,7 @@ export const VitestPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("__tests__");
       }
 
-      for (const [scriptName, script] of Object.entries(
-        packageJson?.scripts ?? {},
-      )) {
+      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
         if (typeof script !== "string" || !isVitestScript(script)) continue;
 
         hasScriptInvocation = true;
@@ -204,8 +190,7 @@ export const VitestPlugin: AnalyzerPlugin = {
       }
 
       const hasVitestConfig = parsedConfigs.length > 0;
-      const hasVitestEvidence =
-        hasVitestConfig || hasTestsDirectory || hasScriptInvocation;
+      const hasVitestEvidence = hasVitestConfig || hasTestsDirectory || hasScriptInvocation;
 
       if (hasVitestEvidence && dependencies.has(VITEST_PACKAGE)) {
         adapter.markPackageAsUsed(VITEST_PACKAGE);
@@ -229,18 +214,10 @@ export const VitestPlugin: AnalyzerPlugin = {
 
       for (const loaded of parsedConfigs) {
         const environment = configuredEnvironment(loaded.config);
-        const environmentPackage = environment
-          ? ENVIRONMENT_PACKAGES[environment]
-          : undefined;
+        const environmentPackage = environment ? ENVIRONMENT_PACKAGES[environment] : undefined;
 
         if (environmentPackage) {
-          if (
-            !declaredPackage(
-              adapter,
-              dependencies,
-              environmentPackage,
-            )
-          ) {
+          if (!declaredPackage(adapter, dependencies, environmentPackage)) {
             adapter.emitFinding({
               rule: "missing-dependency",
               severity: "error",
@@ -257,18 +234,10 @@ export const VitestPlugin: AnalyzerPlugin = {
         }
 
         const provider = configuredCoverageProvider(loaded.config);
-        const coveragePackage = provider
-          ? COVERAGE_PACKAGES[provider]
-          : undefined;
+        const coveragePackage = provider ? COVERAGE_PACKAGES[provider] : undefined;
 
         if (coveragePackage) {
-          if (
-            !declaredPackage(
-              adapter,
-              dependencies,
-              coveragePackage,
-            )
-          ) {
+          if (!declaredPackage(adapter, dependencies, coveragePackage)) {
             adapter.emitFinding({
               rule: "missing-dependency",
               severity: "error",
@@ -310,11 +279,7 @@ export const VitestPlugin: AnalyzerPlugin = {
 
       // Static setupFiles references are safe to mark as used. Dynamic config
       // expressions are intentionally ignored rather than guessed.
-      if (
-        t.isObjectProperty(node) &&
-        t.isIdentifier(node.key) &&
-        node.key.name === "setupFiles"
-      ) {
+      if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "setupFiles") {
         const configDirectory = path.dirname(fileId);
         const markSetupFile = (configuredPath: string) => {
           const target = path.isAbsolute(configuredPath)

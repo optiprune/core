@@ -14,7 +14,7 @@ const OCLIF_ENTRY_FILES = [
   "bin/dev.ts",
   "bin/dev.cjs",
   "bin/dev.mjs",
-  "oclif.manifest.json"
+  "oclif.manifest.json",
 ];
 
 const OCLIF_CORE_PACKAGES = [
@@ -25,7 +25,7 @@ const OCLIF_CORE_PACKAGES = [
   "@oclif/plugin-commands",
   "@oclif/plugin-autocomplete",
   "@oclif/plugin-warn-if-update-available",
-  "@oclif/plugin-version"
+  "@oclif/plugin-version",
 ];
 
 /**
@@ -59,10 +59,7 @@ export const OclifPlugin: AnalyzerPlugin = {
 
   detect: async (adapter) => {
     // 1. Check for dedicated oclif directories or entry files
-    if (
-      (await adapter.folderExists("src/commands")) ||
-      (await adapter.folderExists("src/hooks"))
-    ) {
+    if ((await adapter.folderExists("src/commands")) || (await adapter.folderExists("src/hooks"))) {
       return true;
     }
 
@@ -78,7 +75,7 @@ export const OclifPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => dep.startsWith("@oclif/"))) {
@@ -113,7 +110,7 @@ export const OclifPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -184,10 +181,7 @@ export const OclifPlugin: AnalyzerPlugin = {
         normalized.startsWith("src/hooks/")
       ) {
         // Protect export default Command class or hook functions
-        if (
-          t.isExportDefaultDeclaration(node) ||
-          t.isExportNamedDeclaration(node)
-        ) {
+        if (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node)) {
           // Protect the complete runtime-facing export surface of Oclif
           // command/hook modules from unused-export false positives.
           adapter.markAsUsed(fileId, "*");
@@ -218,8 +212,8 @@ export const OclifPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default OclifPlugin;

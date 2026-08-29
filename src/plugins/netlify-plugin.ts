@@ -2,12 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const NETLIFY_CONFIG_FILES = [
-  "netlify.toml",
-  "_redirects",
-  "_headers",
-  "_redirects.json"
-];
+const NETLIFY_CONFIG_FILES = ["netlify.toml", "_redirects", "_headers", "_redirects.json"];
 
 const NETLIFY_PACKAGES = [
   "@netlify/functions",
@@ -19,14 +14,10 @@ const NETLIFY_PACKAGES = [
   "@netlify/plugin-lighthouse",
   "@netlify/plugin-sitemap",
   "@netlify/remix-adapter",
-  "@netlify/next"
+  "@netlify/next",
 ];
 
-const NETLIFY_SPECIAL_EXPORTS = new Set([
-  "handler",
-  "config",
-  "default"
-]);
+const NETLIFY_SPECIAL_EXPORTS = new Set(["handler", "config", "default"]);
 
 export const NetlifyPlugin: AnalyzerPlugin = {
   name: "netlify-plugin",
@@ -57,7 +48,7 @@ export const NetlifyPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasNetlifyDep = NETLIFY_PACKAGES.some((p) => p in allDeps);
@@ -107,8 +98,9 @@ export const NetlifyPlugin: AnalyzerPlugin = {
           severity: "info",
           confidence: "medium",
           file: "package.json",
-          message: "Netlify configuration or functions found. Consider adding '@netlify/functions' to package.json for type definitions.",
-          evidence: { hasConfigFile }
+          message:
+            "Netlify configuration or functions found. Consider adding '@netlify/functions' to package.json for type definitions.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -206,8 +198,8 @@ export const NetlifyPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId, "default");
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default NetlifyPlugin;

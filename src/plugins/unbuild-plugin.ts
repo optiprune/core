@@ -9,14 +9,10 @@ const UNBUILD_CONFIG_FILES = [
   "build.config.cjs",
   "build.config.mts",
   "build.config.cts",
-  "build.config.json"
+  "build.config.json",
 ];
 
-const UNBUILD_PACKAGES = [
-  "unbuild",
-  "mkdist",
-  "untun"
-];
+const UNBUILD_PACKAGES = ["unbuild", "mkdist", "untun"];
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -41,13 +37,11 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "unbuild" || dep === "mkdist"
-        ) ||
+        Object.keys(allDeps).some((dep) => dep === "unbuild" || dep === "mkdist") ||
         pkg.unbuild
       ) {
         return true;
@@ -57,9 +51,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("unbuild") || s.includes("unbuild "))
+            (s) => typeof s === "string" && (s.includes("unbuild") || s.includes("unbuild ")),
           )
         ) {
           return true;
@@ -81,12 +73,10 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasUnbuild = Object.keys(allDeps).some(
-        (p) => p === "unbuild" || p === "mkdist"
-      );
+      const hasUnbuild = Object.keys(allDeps).some((p) => p === "unbuild" || p === "mkdist");
 
       // 1. Safeguard installed unbuild packages in package.json
       if (hasUnbuild) {
@@ -151,9 +141,8 @@ export const UnbuildPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "unbuild configuration found, but 'unbuild' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.unbuild }
+          message: "unbuild configuration found, but 'unbuild' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.unbuild },
         });
       }
     },
@@ -274,8 +263,8 @@ export const UnbuildPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processUnbuildConfigObj(config: any, adapter: any): void {

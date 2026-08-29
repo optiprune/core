@@ -60,7 +60,7 @@ export function saveCache(rootDir: string, cache: AnalysisCache): void {
 }
 
 /**
- * Exports the current cache to a standalone JSON file, 
+ * Exports the current cache to a standalone JSON file,
  * suitable for uploading to a remote storage or CI cache.
  */
 export async function exportCache(rootDir: string, targetPath: string): Promise<void> {

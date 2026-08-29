@@ -15,7 +15,8 @@ import {
 
 const PACKAGES = ["@tensorflow/tfjs", "@tensorflow/tfjs-node", "@tensorflow/tfjs-core"] as const;
 const PACKAGE_SET = new Set<string>(PACKAGES);
-const TENSOR_CREATORS = /^(tensor\d*d?|scalar|zeros(?:Like)?|ones(?:Like)?|fill|range|linspace|random(?:Normal|Uniform)?|truncatedNormal|buffer|fromPixels)$/;
+const TENSOR_CREATORS =
+  /^(tensor\d*d?|scalar|zeros(?:Like)?|ones(?:Like)?|fill|range|linspace|random(?:Normal|Uniform)?|truncatedNormal|buffer|fromPixels)$/;
 
 interface TensorResource {
   key: string;
@@ -60,7 +61,10 @@ function recordImport(node: any, state: FileState, adapter: PluginAdapter): void
   markPackageImport(node, PACKAGE_SET, adapter);
   if (!isPackageImport(node, PACKAGE_SET)) return;
   for (const specifier of node.specifiers ?? []) {
-    if (["ImportNamespaceSpecifier", "ImportDefaultSpecifier"].includes(specifier.type) && t.isIdentifier(specifier.local)) {
+    if (
+      ["ImportNamespaceSpecifier", "ImportDefaultSpecifier"].includes(specifier.type) &&
+      t.isIdentifier(specifier.local)
+    ) {
       state.tfNames.add(specifier.local.name);
     }
   }
@@ -69,9 +73,16 @@ function recordImport(node: any, state: FileState, adapter: PluginAdapter): void
 function recordTensor(node: any, file: string, ancestors: any[], state: FileState): void {
   if (node?.type !== "VariableDeclarator" || !t.isIdentifier(node.id)) return;
   const init = unwrapExpression(node.init);
-  if (!isTensorCreation(init, state.tfNames) || isWithinTidy(node, ancestors, state.tfNames)) return;
+  if (!isTensorCreation(init, state.tfNames) || isWithinTidy(node, ancestors, state.tfNames))
+    return;
   const scope = functionScope(ancestors);
-  const tensor: TensorResource = { key: keyFor(scope, node.id.name), name: node.id.name, file, scope, disposed: false };
+  const tensor: TensorResource = {
+    key: keyFor(scope, node.id.name),
+    name: node.id.name,
+    file,
+    scope,
+    disposed: false,
+  };
   state.tensors.set(tensor.key, tensor);
 }
 
@@ -98,7 +109,11 @@ function audit(adapter: PluginAdapter): void {
         confidence: "high",
         file: tensor.file,
         message: `TensorFlow.js tensor '${tensor.name}' is created outside tf.tidy() and has no matching dispose() call. Wrap temporary tensor work in tf.tidy() or explicitly dispose the tensor.`,
-        evidence: { tensor: tensor.name, scope: tensor.scope, safeAlternatives: ["tf.tidy", "tensor.dispose", "tf.dispose"] },
+        evidence: {
+          tensor: tensor.name,
+          scope: tensor.scope,
+          safeAlternatives: ["tf.tidy", "tensor.dispose", "tf.dispose"],
+        },
       });
     }
   }
@@ -113,7 +128,8 @@ export const TensorflowJsPlugin: AnalyzerPlugin = {
     onASTNode: (node: any, file, adapter, ancestors = []) => {
       const state = stateFor(file);
       recordImport(node, state, adapter);
-      if (isPackageRequire(node, PACKAGE_SET)) adapter.markPackageAsUsed(nodeName(node.arguments?.[0])!);
+      if (isPackageRequire(node, PACKAGE_SET))
+        adapter.markPackageAsUsed(nodeName(node.arguments?.[0])!);
       recordTensor(node, file, ancestors, state);
       recordDisposal(node, ancestors, state);
     },

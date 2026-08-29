@@ -15,13 +15,13 @@ describe("Layer 3: SMT Constraint Solver", () => {
     });
 
     const smtFindings = report.findings.filter((f) => f.rule === "constant-condition");
-    
+
     // 1. x > 10 && x < 5
     // 2. age < 0 && age > 150
     // (Nested x === 1 and x === 2 might not be caught yet depending on how we track context)
     expect(smtFindings.length).toBeGreaterThanOrEqual(1);
-    
-    const impossibleX = smtFindings.find(f => f.file.includes("layer3-test.ts"));
+
+    const impossibleX = smtFindings.find((f) => f.file.includes("layer3-test.ts"));
     expect(impossibleX).toBeDefined();
     expect(impossibleX?.rule).toBe("constant-condition");
 

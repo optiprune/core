@@ -12,7 +12,7 @@ export interface Layer7Result {
 
 export interface ImplicitEdge {
   id: string;
-  type: 'DI_INJECTION' | 'EVENT_CONTRACT';
+  type: "DI_INJECTION" | "EVENT_CONTRACT";
   provider?: {
     file: string;
     symbol: string;
@@ -24,7 +24,7 @@ export interface ImplicitEdge {
     handler?: string;
   };
   topic?: string;
-  status: 'ACTIVE' | 'DEAD_ORPHANED_CONSUMER';
+  status: "ACTIVE" | "DEAD_ORPHANED_CONSUMER";
 }
 
 export interface ResolvedDynamicImport {
@@ -75,18 +75,15 @@ function analyzeDITopology(context: AnalysisContext): ImplicitEdge[] {
         node.type === "ClassDeclaration"
           ? node
           : node.type === "ExportNamedDeclaration" && node.declaration?.type === "ClassDeclaration"
-          ? node.declaration
-          : null;
+            ? node.declaration
+            : null;
 
       if (classNode) {
         // Gather decorators from both outer Export declaration AND inner Class declaration
-        const decorators = [
-          ...getDecorators(node),
-          ...getDecorators(classNode),
-        ];
+        const decorators = [...getDecorators(node), ...getDecorators(classNode)];
 
         const isProvider = decorators.some((d) =>
-          ["Injectable", "Module", "Service"].includes(d.name)
+          ["Injectable", "Module", "Service"].includes(d.name),
         );
         const className = classNode.id?.name;
 
@@ -95,18 +92,12 @@ function analyzeDITopology(context: AnalysisContext): ImplicitEdge[] {
         }
 
         // Check constructor parameters for @Inject('TOKEN')
-        const constructor = classNode.body?.body?.find(
-          (m: any) => m.kind === "constructor"
-        );
+        const constructor = classNode.body?.body?.find((m: any) => m.kind === "constructor");
         if (constructor) {
           const params = constructor.params || constructor.value?.params || [];
           for (const rawParam of params) {
-            const param =
-              rawParam.type === "TSParameterProperty" ? rawParam.parameter : rawParam;
-            const paramDecorators = [
-              ...getDecorators(rawParam),
-              ...getDecorators(param),
-            ];
+            const param = rawParam.type === "TSParameterProperty" ? rawParam.parameter : rawParam;
+            const paramDecorators = [...getDecorators(rawParam), ...getDecorators(param)];
 
             const injectDecorator = paramDecorators.find((d) => d.name === "Inject");
             if (injectDecorator && injectDecorator.args.length > 0) {
@@ -163,25 +154,30 @@ function analyzeEventContracts(context: AnalysisContext): ImplicitEdge[] {
       const node = rawNode as any;
 
       // Consumer: @EventPattern('topic'), @MessagePattern('topic')
-      if (node.type === 'ClassMethod' || node.type === 'MethodDefinition') {
+      if (node.type === "ClassMethod" || node.type === "MethodDefinition") {
         const decorators = getDecorators(node);
-        const eventDecorator = decorators.find(d => ['EventPattern', 'MessagePattern', 'OnEvent'].includes(d.name));
+        const eventDecorator = decorators.find((d) =>
+          ["EventPattern", "MessagePattern", "OnEvent"].includes(d.name),
+        );
         if (eventDecorator && eventDecorator.args.length > 0) {
           const topic = eventDecorator.args[0];
-          if (typeof topic === 'string') {
+          if (typeof topic === "string") {
             consumers.push({
               file: module.id,
-              symbol: 'unknown',
+              symbol: "unknown",
               handler: node.key.name,
-              topic
+              topic,
             });
           }
         }
       }
 
       // Producer: emitter.emit('topic'), client.send('topic')
-      if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression') {
-        if (['emit', 'send', 'publish'].includes(node.callee.property.name) && node.arguments.length > 0) {
+      if (node.type === "CallExpression" && node.callee.type === "MemberExpression") {
+        if (
+          ["emit", "send", "publish"].includes(node.callee.property.name) &&
+          node.arguments.length > 0
+        ) {
           const topic = getLiteralValue(node.arguments[0]);
           if (topic) {
             producers.push({ file: module.id, topic });
@@ -192,16 +188,16 @@ function analyzeEventContracts(context: AnalysisContext): ImplicitEdge[] {
   }
 
   // Match Producers to Consumers
-  const producerTopics = new Set(producers.map(p => p.topic));
-  
+  const producerTopics = new Set(producers.map((p) => p.topic));
+
   for (const consumer of consumers) {
     const isActive = producerTopics.has(consumer.topic);
     edges.push({
       id: `event-${consumer.file}-${consumer.topic}`,
-      type: 'EVENT_CONTRACT',
+      type: "EVENT_CONTRACT",
       topic: consumer.topic,
       consumer: { file: consumer.file, symbol: consumer.symbol, handler: consumer.handler },
-      status: isActive ? 'ACTIVE' : 'DEAD_ORPHANED_CONSUMER'
+      status: isActive ? "ACTIVE" : "DEAD_ORPHANED_CONSUMER",
     });
   }
 
@@ -211,19 +207,21 @@ function analyzeEventContracts(context: AnalysisContext): ImplicitEdge[] {
 /**
  * Sub-Engine C: Dynamic Specifier & Template Literal Engine
  */
-async function analyzeDynamicSpecifiers(context: AnalysisContext): Promise<ResolvedDynamicImport[]> {
+async function analyzeDynamicSpecifiers(
+  context: AnalysisContext,
+): Promise<ResolvedDynamicImport[]> {
   const results: ResolvedDynamicImport[] = [];
   const allFiles = Array.from(context.modules.keys());
 
   for (const module of context.modules.values()) {
     for (const edge of module.edges) {
-      if (edge.kind === 'dynamic-pattern' && edge.dynamicPattern) {
+      if (edge.kind === "dynamic-pattern" && edge.dynamicPattern) {
         const { prefix, suffix } = edge.dynamicPattern;
-        
+
         // Bounded glob search over mapped modules
-        const resolvedFiles = allFiles.filter(f => {
+        const resolvedFiles = allFiles.filter((f) => {
           const relative = path.relative(path.dirname(module.id), f);
-          const normalizedRelative = relative.startsWith('.') ? relative : './' + relative;
+          const normalizedRelative = relative.startsWith(".") ? relative : "./" + relative;
           return normalizedRelative.startsWith(prefix) && normalizedRelative.endsWith(suffix);
         });
 
@@ -231,7 +229,7 @@ async function analyzeDynamicSpecifiers(context: AnalysisContext): Promise<Resol
           results.push({
             sourceFile: module.id,
             template: edge.rawSpecifier,
-            resolvedFiles
+            resolvedFiles,
           });
         }
       }
@@ -248,28 +246,28 @@ function applyLayer7Results(
   context: AnalysisContext,
   implicitEdges: ImplicitEdge[],
   resolvedDynamicImports: ResolvedDynamicImport[],
-  findings: Finding[]
+  findings: Finding[],
 ) {
   // 1. Add implicit edges to reachability
   for (const edge of implicitEdges) {
-    if (edge.status === 'ACTIVE') {
-      if (edge.type === 'DI_INJECTION' && edge.provider) {
+    if (edge.status === "ACTIVE") {
+      if (edge.type === "DI_INJECTION" && edge.provider) {
         if (context.reachable.has(edge.consumer.file)) {
           context.reachable.add(edge.provider.file);
           context.usedExports.add(`${edge.provider.file}:${edge.provider.symbol}`);
         }
-      } else if (edge.type === 'EVENT_CONTRACT') {
+      } else if (edge.type === "EVENT_CONTRACT") {
         context.reachable.add(edge.consumer.file);
         context.usedExports.add(`${edge.consumer.file}:${edge.consumer.handler}`);
       }
-    } else if (edge.status === 'DEAD_ORPHANED_CONSUMER') {
+    } else if (edge.status === "DEAD_ORPHANED_CONSUMER") {
       findings.push({
         rule: "protected-contract",
         severity: "warning",
         confidence: "high",
         message: `Orphaned Event Consumer: No producers found for topic '${edge.topic}'.`,
         file: edge.consumer.file,
-        evidence: { topic: edge.topic, handler: edge.consumer.handler }
+        evidence: { topic: edge.topic, handler: edge.consumer.handler },
       });
     }
   }
@@ -292,44 +290,52 @@ function getDecorators(node: any): Array<{ name: string; args: any[] }> {
   const decorators: any[] = [
     ...(Array.isArray(node?.decorators) ? node.decorators : []),
     ...(Array.isArray(node?.modifiers)
-      ? node.modifiers.filter((m: any) => m.type === 'Decorator' || m.kind === 'Decorator')
+      ? node.modifiers.filter((m: any) => m.type === "Decorator" || m.kind === "Decorator")
       : []),
   ];
 
-  return decorators.map(d => {
+  return decorators.map((d) => {
     const expr = d.expression || d;
-    if (expr.type === 'CallExpression') {
-      let name = 'unknown';
-      if (expr.callee.type === 'Identifier') {
+    if (expr.type === "CallExpression") {
+      let name = "unknown";
+      if (expr.callee.type === "Identifier") {
         name = expr.callee.name;
-      } else if (expr.callee.type === 'MemberExpression' && expr.callee.property.type === 'Identifier') {
+      } else if (
+        expr.callee.type === "MemberExpression" &&
+        expr.callee.property.type === "Identifier"
+      ) {
         name = expr.callee.property.name;
       }
       return {
         name,
-        args: expr.arguments.map((a: any) => getLiteralOrIdentifierValue(a))
+        args: expr.arguments.map((a: any) => getLiteralOrIdentifierValue(a)),
       };
     }
     return {
-      name: expr.name || (expr.type === 'Identifier' ? expr.name : 'unknown'),
-      args: []
+      name: expr.name || (expr.type === "Identifier" ? expr.name : "unknown"),
+      args: [],
     };
   });
 }
 
 function getLiteralOrIdentifierValue(node: any): any {
   if (!node) return undefined;
-  if (node.type === 'Identifier') return node.name;
+  if (node.type === "Identifier") return node.name;
   return getLiteralValue(node);
 }
 
 function getLiteralValue(node: any): any {
   if (!node) return undefined;
   // ESTree Literal (Yuku)
-  if (node.type === 'Literal') return node.value;
+  if (node.type === "Literal") return node.value;
   // Babel Compatibility
-  if (node.type === 'StringLiteral' || node.type === 'NumericLiteral' || node.type === 'BooleanLiteral') return node.value;
-  if (node.type === 'TemplateLiteral') {
+  if (
+    node.type === "StringLiteral" ||
+    node.type === "NumericLiteral" ||
+    node.type === "BooleanLiteral"
+  )
+    return node.value;
+  if (node.type === "TemplateLiteral") {
     if (node.expressions.length === 0) return node.quasis[0].value.cooked;
   }
   return undefined;

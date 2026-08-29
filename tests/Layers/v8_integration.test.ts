@@ -12,7 +12,9 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
   const configPath = path.join(rootDir, "optiprune.config.ts");
 
   beforeEach(() => {
-    fs.writeFileSync(fixturePath, `
+    fs.writeFileSync(
+      fixturePath,
+      `
       // @public
       export const PublicExport = 1;
 
@@ -34,14 +36,15 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
       const z = { object: () => ({}) };
       // @public
       export const UserSchema = z.object({});
-    `);
+    `,
+    );
   });
 
   afterEach(() => {
     if (fs.existsSync(fixturePath)) fs.unlinkSync(fixturePath);
     if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
     if (fs.existsSync(path.join(rootDir, ".optiprune"))) {
-        fs.rmSync(path.join(rootDir, ".optiprune"), { recursive: true, force: true });
+      fs.rmSync(path.join(rootDir, ".optiprune"), { recursive: true, force: true });
     }
   });
 
@@ -52,11 +55,13 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
       includeConventionalEntries: false,
     });
 
-    const module = report.modules.find(m => m.path.includes("puzzle-test.ts"));
+    const module = report.modules.find((m) => m.path.includes("puzzle-test.ts"));
     expect(module).toBeDefined();
 
-    const protectedExports = module?.exports.filter(e => e.isExternalContract).map(e => e.exportedAs);
-    
+    const protectedExports = module?.exports
+      .filter((e) => e.isExternalContract)
+      .map((e) => e.exportedAs);
+
     expect(protectedExports).toContain("PublicExport");
     expect(protectedExports).toContain("UsedAnnotation");
     expect(protectedExports).toContain("IgnoredExport");

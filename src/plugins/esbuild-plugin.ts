@@ -9,7 +9,7 @@ const ESBUILD_CONFIG_FILES = [
   "build.js",
   "build.ts",
   "build.mjs",
-  "build.cjs"
+  "build.cjs",
 ];
 
 const ESBUILD_METHODS = new Set([
@@ -21,7 +21,7 @@ const ESBUILD_METHODS = new Set([
   "serve",
   "analyzeMetafile",
   "formatMessages",
-  "initialize"
+  "initialize",
 ]);
 
 /**
@@ -98,7 +98,9 @@ export const ESBuildPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
-      const hasEsbuildDep = pkg ? !!(pkg.dependencies?.["esbuild"] || pkg.devDependencies?.["esbuild"]) : false;
+      const hasEsbuildDep = pkg
+        ? !!(pkg.dependencies?.["esbuild"] || pkg.devDependencies?.["esbuild"])
+        : false;
 
       let hasConfigFile = false;
       for (const file of ESBUILD_CONFIG_FILES) {
@@ -119,10 +121,7 @@ export const ESBuildPlugin: AnalyzerPlugin = {
             const tokens = script.split(/\s+/);
             for (const token of tokens) {
               const cleanToken = token.replace(/['"]/g, "");
-              if (
-                !cleanToken.startsWith("-") &&
-                /\.[jt]sx?$/.test(cleanToken)
-              ) {
+              if (!cleanToken.startsWith("-") && /\.[jt]sx?$/.test(cleanToken)) {
                 adapter.markAsUsed(cleanToken);
               }
             }
@@ -137,7 +136,7 @@ export const ESBuildPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "esbuild config found but 'esbuild' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -146,7 +145,11 @@ export const ESBuildPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
 
       // Match exact root/config build files
-      if (ESBUILD_CONFIG_FILES.some((pattern) => normalized.endsWith(`/${pattern}`) || normalized === pattern)) {
+      if (
+        ESBUILD_CONFIG_FILES.some(
+          (pattern) => normalized.endsWith(`/${pattern}`) || normalized === pattern,
+        )
+      ) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("esbuild");
       }
@@ -162,7 +165,11 @@ export const ESBuildPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect require('esbuild')
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg) && arg.value === "esbuild") {
           adapter.markAsUsed(fileId);
@@ -180,7 +187,7 @@ export const ESBuildPlugin: AnalyzerPlugin = {
           if (t.isIdentifier(prop) && ESBUILD_METHODS.has(prop.name)) {
             methodName = prop.name;
           }
-        } 
+        }
         // Matches direct call build(...) or context(...)
         else if (t.isIdentifier(node.callee) && ESBUILD_METHODS.has(node.callee.name)) {
           methodName = node.callee.name;
@@ -204,8 +211,8 @@ export const ESBuildPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ESBuildPlugin;

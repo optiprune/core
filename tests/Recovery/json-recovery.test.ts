@@ -69,14 +69,16 @@ describe("structured JSON diagnostics", () => {
     expect(parsed.recovered).toBe(true);
     expect(parsed.repairable).toBe(true);
     expect(parsed.value).toEqual({ name: "demo", version: "1.0.0" });
-    expect(parsed.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: "CommaExpected",
-        location: { start: { line: 3, column: 3 }, end: expect.any(Object) },
-        message: expect.stringContaining("Expected ','"),
-        excerpt: '  "version": "1.0.0"',
-      }),
-    ]));
+    expect(parsed.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "CommaExpected",
+          location: { start: { line: 3, column: 3 }, end: expect.any(Object) },
+          message: expect.stringContaining("Expected ','"),
+          excerpt: '  "version": "1.0.0"',
+        }),
+      ]),
+    );
   });
 
   it("does not expose an unsafe partially parsed package manifest", () => {
@@ -123,26 +125,31 @@ describe("package.json report and fixer integration", () => {
       skip4: true,
     });
 
-    const parseFinding = result.findings.find((finding) => finding.file === "package.json" && finding.rule === "parse-recovery");
+    const parseFinding = result.findings.find(
+      (finding) => finding.file === "package.json" && finding.rule === "parse-recovery",
+    );
     expect(parseFinding).toMatchObject({
       severity: "warning",
       location: { start: { line: 3, column: 3 } },
       evidence: { kind: "json-parse", code: "CommaExpected", repairable: true },
     });
-    expect(result.debug?.json.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        file: "package.json",
-        code: "CommaExpected",
-        recovered: true,
-        repairable: true,
-      }),
-    ]));
+    expect(result.debug?.json.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: "package.json",
+          code: "CommaExpected",
+          recovered: true,
+          repairable: true,
+        }),
+      ]),
+    );
     expect(result.debug?.parser.modulesByStatus.parsed).toBeGreaterThanOrEqual(1);
   });
 
   it("repairs a safe malformed package.json and removes a reported unused devDependency in one fix pass", async () => {
     const root = await rootWith({
-      "package.json": '{\n  "devDependencies": {\n    "keep": "1.0.0"\n    "remove": "1.0.0"\n  }\n}\n',
+      "package.json":
+        '{\n  "devDependencies": {\n    "keep": "1.0.0"\n    "remove": "1.0.0"\n  }\n}\n',
     });
     const unusedDevDependency: Finding = {
       rule: "unused-dev-dependency",
@@ -153,7 +160,9 @@ describe("package.json report and fixer integration", () => {
       evidence: { package: "remove" },
     };
 
-    expect(await applyFixes(report([jsonParseFinding(true), unusedDevDependency]), root, true)).toBe(2);
+    expect(
+      await applyFixes(report([jsonParseFinding(true), unusedDevDependency]), root, true),
+    ).toBe(2);
     const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
     expect(packageJson.devDependencies).toEqual({ keep: "1.0.0" });
   });

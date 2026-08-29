@@ -35,7 +35,6 @@ function trimLogFile(logPath: string, maxSize: number) {
   }
 }
 
-
 function vitePluginStorageProxy(): Plugin {
   return {
     name: "manus-storage-proxy",

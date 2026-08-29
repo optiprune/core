@@ -29,10 +29,12 @@ function declaredCypressPackages(packageJson: any): string[] {
 }
 
 function isCypressScript(script: string): boolean {
-  return /(?:^|[\s&|;])cypress(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?cypress\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?cypress\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?cypress\b/.test(script);
+  return (
+    /(?:^|[\s&|;])cypress(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?cypress\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?cypress\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?cypress\b/.test(script)
+  );
 }
 
 function isCypressConfig(fileId: string): boolean {
@@ -41,9 +43,11 @@ function isCypressConfig(fileId: string): boolean {
 
 function isCypressTestFile(fileId: string): boolean {
   const normalized = normalize(fileId);
-  return normalized.includes("/cypress/")
-    || normalized.startsWith("cypress/")
-    || /\.(?:cy|spec)\.[cm]?[jt]sx?$/.test(normalized);
+  return (
+    normalized.includes("/cypress/") ||
+    normalized.startsWith("cypress/") ||
+    /\.(?:cy|spec)\.[cm]?[jt]sx?$/.test(normalized)
+  );
 }
 
 /**
@@ -66,7 +70,9 @@ export const CypressPlugin: AnalyzerPlugin = {
     if ((await adapter.findFiles(CYPRESS_CONFIG_BASENAMES)).length > 0) return true;
     if (await adapter.folderExists("cypress")) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isCypressScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isCypressScript(script),
+    );
   },
 
   lifecycle: {
@@ -101,7 +107,8 @@ export const CypressPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Cypress configuration, tests, or command found, but 'cypress' is not listed in package.json.",
+          message:
+            "Cypress configuration, tests, or command found, but 'cypress' is not listed in package.json.",
           evidence: { configFiles, hasTestDirectory, hasScriptInvocation, isNxProject },
         });
       }
@@ -112,7 +119,10 @@ export const CypressPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
-      if (t.isImportDeclaration(node) && (node.source.value === CYPRESS_PACKAGE || node.source.value.startsWith("cypress/"))) {
+      if (
+        t.isImportDeclaration(node) &&
+        (node.source.value === CYPRESS_PACKAGE || node.source.value.startsWith("cypress/"))
+      ) {
         adapter.markPackageAsUsed(CYPRESS_PACKAGE);
         adapter.markAsUsed(fileId);
       }
@@ -120,12 +130,12 @@ export const CypressPlugin: AnalyzerPlugin = {
       if (!isCypressConfig(fileId)) return;
       if (t.isExportDefaultDeclaration(node)) adapter.markAsUsed(fileId, "default");
       if (
-        t.isAssignmentExpression(node)
-        && t.isMemberExpression(node.left)
-        && t.isIdentifier(node.left.object)
-        && node.left.object.name === "module"
-        && t.isIdentifier(node.left.property)
-        && node.left.property.name === "exports"
+        t.isAssignmentExpression(node) &&
+        t.isMemberExpression(node.left) &&
+        t.isIdentifier(node.left.object) &&
+        node.left.object.name === "module" &&
+        t.isIdentifier(node.left.property) &&
+        node.left.property.name === "exports"
       ) {
         adapter.markAsUsed(fileId);
       }

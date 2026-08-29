@@ -10,7 +10,7 @@ const NYC_CONFIG_FILES = [
   "nyc.config.js",
   "nyc.config.cjs",
   "nyc.config.mjs",
-  "nyc.config.ts"
+  "nyc.config.ts",
 ];
 
 const NYC_PACKAGE_NAME = "nyc";
@@ -39,11 +39,7 @@ export const NycPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && /\bnyc\b/.test(s)
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && /\bnyc\b/.test(s))) {
           return true;
         }
       }
@@ -82,10 +78,7 @@ export const NycPlugin: AnalyzerPlugin = {
         // 4. Mark scripts invoking nyc CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\bnyc\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\bnyc\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -122,8 +115,8 @@ export const NycPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default NycPlugin;

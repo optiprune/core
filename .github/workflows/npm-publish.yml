@@ -15,8 +15,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 'latest'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "latest"
+          registry-url: "https://registry.npmjs.org"
 
       - run: npm ci
 

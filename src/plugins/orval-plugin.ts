@@ -9,7 +9,7 @@ const ORVAL_CONFIG_FILES = [
   "orval.config.cjs",
   "orval.config.mts",
   "orval.config.cts",
-  "orval.config.json"
+  "orval.config.json",
 ];
 
 const ORVAL_PACKAGES = ["orval", "@orval/core", "@orval/query", "@orval/axios"];
@@ -24,23 +24,17 @@ export const OrvalPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "orval" || dep.startsWith("@orval/")
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "orval" || dep.startsWith("@orval/"))) {
         return true;
       }
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("orval") || s === "orval")
-          )
+          scriptValues.some((s) => typeof s === "string" && (s.includes("orval") || s === "orval"))
         ) {
           return true;
         }
@@ -60,12 +54,10 @@ export const OrvalPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasOrval = Object.keys(allDeps).some(
-        (p) => p === "orval" || p.startsWith("@orval/")
-      );
+      const hasOrval = Object.keys(allDeps).some((p) => p === "orval" || p.startsWith("@orval/"));
 
       // 1. Safeguard installed Orval packages in package.json
       if (hasOrval) {
@@ -106,9 +98,8 @@ export const OrvalPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Orval configuration found, but 'orval' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Orval configuration found, but 'orval' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -166,11 +157,7 @@ export const OrvalPlugin: AnalyzerPlugin = {
         }
 
         // Extract target output file / directory (output.target) and custom mutators (output.override.mutator)
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "output"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "output") {
           if (t.isObjectExpression(node.value)) {
             node.value.properties.forEach((prop: any) => {
               if (!t.isIdentifier(prop.key)) return;
@@ -181,10 +168,7 @@ export const OrvalPlugin: AnalyzerPlugin = {
               }
 
               // Extract custom mutator file path: mutator: { path: './src/api/mutator/custom-instance.ts', name: 'customInstance' }
-              if (
-                prop.key.name === "override" &&
-                t.isObjectExpression(prop.value)
-              ) {
+              if (prop.key.name === "override" && t.isObjectExpression(prop.value)) {
                 prop.value.properties.forEach((overrideProp: any) => {
                   if (
                     overrideProp.key?.name === "mutator" &&
@@ -205,8 +189,8 @@ export const OrvalPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default OrvalPlugin;

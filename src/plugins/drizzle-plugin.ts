@@ -9,7 +9,7 @@ const DRIZZLE_CONFIG_FILES = [
   "drizzle.config.cjs",
   "drizzle.config.mts",
   "drizzle.config.cts",
-  "drizzle.config.json"
+  "drizzle.config.json",
 ];
 
 const DRIZZLE_PACKAGES = [
@@ -21,16 +21,10 @@ const DRIZZLE_PACKAGES = [
   "postgres",
   "pg",
   "mysql2",
-  "better-sqlite3"
+  "better-sqlite3",
 ];
 
-const DRIZZLE_SCHEMA_PATTERNS = [
-  "/schema/",
-  "/db/schema",
-  "/models/",
-  "schema.ts",
-  "schema.js"
-];
+const DRIZZLE_SCHEMA_PATTERNS = ["/schema/", "/db/schema", "/models/", "schema.ts", "schema.js"];
 
 export const DrizzlePlugin: AnalyzerPlugin = {
   name: "drizzle-plugin",
@@ -42,14 +36,10 @@ export const DrizzlePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
-      if (
-        Object.keys(allDeps).some(
-          (dep) => dep === "drizzle-orm" || dep === "drizzle-kit"
-        )
-      ) {
+      if (Object.keys(allDeps).some((dep) => dep === "drizzle-orm" || dep === "drizzle-kit")) {
         return true;
       }
 
@@ -58,8 +48,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
         if (
           scriptValues.some(
             (s) =>
-              typeof s === "string" &&
-              (s.includes("drizzle-kit") || s.includes("drizzle-orm"))
+              typeof s === "string" && (s.includes("drizzle-kit") || s.includes("drizzle-orm")),
           )
         ) {
           return true;
@@ -84,11 +73,10 @@ export const DrizzlePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
-      const hasDrizzle =
-        "drizzle-orm" in allDeps || "drizzle-kit" in allDeps;
+      const hasDrizzle = "drizzle-orm" in allDeps || "drizzle-kit" in allDeps;
 
       // 1. Safeguard installed Drizzle ecosystem packages in package.json
       if (hasDrizzle) {
@@ -116,10 +104,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking Drizzle Kit CLI (e.g., "db:push": "drizzle-kit push")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("drizzle-kit")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("drizzle-kit")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("drizzle-kit");
           }
@@ -135,7 +120,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Drizzle configuration found, but 'drizzle-kit' or 'drizzle-orm' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -199,11 +184,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
         }
 
         // Extract schema property in config: schema: "./src/db/schema.ts"
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "schema"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "schema") {
           const val = node.value;
           if (t.isStringLiteral(val)) {
             adapter.markAsUsed(val.value);
@@ -217,11 +198,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
         }
 
         // Extract out (migrations) directory: out: "./drizzle"
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "out"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "out") {
           if (t.isStringLiteral(node.value)) {
             adapter.markAsUsed(node.value.value);
           }
@@ -232,15 +209,13 @@ export const DrizzlePlugin: AnalyzerPlugin = {
       if (
         t.isCallExpression(node) &&
         t.isIdentifier(node.callee) &&
-        ["pgTable", "mysqlTable", "sqliteTable", "pgEnum", "pgSchema"].includes(
-          node.callee.name
-        )
+        ["pgTable", "mysqlTable", "sqliteTable", "pgEnum", "pgSchema"].includes(node.callee.name)
       ) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("drizzle-orm");
       }
-    }
-  }
+    },
+  },
 };
 
 export default DrizzlePlugin;

@@ -13,7 +13,7 @@ const STYLELINT_FILES = [
   "stylelint.config.js",
   "stylelint.config.cjs",
   "stylelint.config.mjs",
-  ".stylelintignore"
+  ".stylelintignore",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -38,15 +38,13 @@ export const StylelintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
           (dep) =>
-            dep === "stylelint" ||
-            dep.startsWith("stylelint-") ||
-            dep.startsWith("@stylelint/")
+            dep === "stylelint" || dep.startsWith("stylelint-") || dep.startsWith("@stylelint/"),
         ) ||
         pkg.stylelint
       ) {
@@ -57,7 +55,7 @@ export const StylelintPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("stylelint ") || s === "stylelint")
+            (s) => typeof s === "string" && (s.includes("stylelint ") || s === "stylelint"),
           )
         ) {
           return true;
@@ -78,14 +76,11 @@ export const StylelintPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasStylelint = Object.keys(allDeps).some(
-        (p) =>
-          p === "stylelint" ||
-          p.startsWith("stylelint-") ||
-          p.startsWith("@stylelint/")
+        (p) => p === "stylelint" || p.startsWith("stylelint-") || p.startsWith("@stylelint/"),
       );
 
       // 1. Safeguard all installed Stylelint packages, plugins, and configs in package.json
@@ -149,9 +144,8 @@ export const StylelintPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Stylelint configuration found, but 'stylelint' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.stylelint }
+          message: "Stylelint configuration found, but 'stylelint' is not listed in package.json.",
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.stylelint },
         });
       }
     },
@@ -205,8 +199,7 @@ export const StylelintPlugin: AnalyzerPlugin = {
 
         // Detect extends, plugins, and customSyntax in JS-based configs
         if (t.isObjectProperty(node)) {
-          const keyName =
-            t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
+          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
 
           if (["extends", "plugins", "customSyntax"].includes(keyName)) {
             const val = node.value;
@@ -222,8 +215,8 @@ export const StylelintPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processStylelintConfigObj(config: any, adapter: any): void {

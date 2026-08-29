@@ -12,7 +12,7 @@ const RELEASE_IT_CONFIG_FILES = [
   ".release-it.mjs",
   ".release-it.ts",
   ".release-it.yaml",
-  ".release-it.yml"
+  ".release-it.yml",
 ];
 
 const RELEASE_IT_PACKAGE_NAME = "release-it";
@@ -60,7 +60,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -68,7 +68,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
           (dep) =>
             dep === RELEASE_IT_PACKAGE_NAME ||
             dep.startsWith("@release-it/") ||
-            dep.startsWith("release-it-")
+            dep.startsWith("release-it-"),
         )
       ) {
         return true;
@@ -78,9 +78,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\brelease-it\b/.test(s) || s.includes("release-it "))
+            (s) => typeof s === "string" && (/\brelease-it\b/.test(s) || s.includes("release-it ")),
           )
         ) {
           return true;
@@ -107,7 +105,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -212,8 +210,8 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ReleaseItPlugin;

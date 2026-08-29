@@ -61,7 +61,13 @@ export class CoverageTracker {
   }
 
   // New method to trace and execute calls
-  traceAndExecuteCall(file: string, line: number, calleeName: string, callee: Function, args: any[]) {
+  traceAndExecuteCall(
+    file: string,
+    line: number,
+    calleeName: string,
+    callee: Function,
+    args: any[],
+  ) {
     this.traceCall(file, line, calleeName);
     // Execute the original function call
     return callee(...args);
@@ -85,7 +91,7 @@ export class CoverageTracker {
 
 // This will be initialized once in Layer 4 and passed to the sandbox
 export async function createCoverageTracker() {
-    const { Context } = await init();
-    const z3 = Context("main");
-    return new CoverageTracker(z3);
+  const { Context } = await init();
+  const z3 = Context("main");
+  return new CoverageTracker(z3);
 }

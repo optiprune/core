@@ -21,15 +21,10 @@ const R_CONFIG_FILES = [
   "rolldown.config.cjs",
   "rolldown.config.mts",
   "rolldown.config.cts",
-  "rolldown.config.json"
+  "rolldown.config.json",
 ];
 
-const R_TOOLS_PACKAGES = [
-  "@rsbuild/core",
-  "@rslib/core",
-  "rolldown",
-  "@rolldown/node"
-];
+const R_TOOLS_PACKAGES = ["@rsbuild/core", "@rslib/core", "rolldown", "@rolldown/node"];
 
 export const RToolsPlugin: AnalyzerPlugin = {
   name: "r-tools-plugin",
@@ -41,7 +36,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -50,7 +45,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
             dep.startsWith("@rsbuild/") ||
             dep.startsWith("@rslib/") ||
             dep === "rolldown" ||
-            dep.startsWith("@rolldown/")
+            dep.startsWith("@rolldown/"),
         )
       ) {
         return true;
@@ -62,9 +57,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("rsbuild") ||
-                s.includes("rslib") ||
-                s.includes("rolldown"))
+              (s.includes("rsbuild") || s.includes("rslib") || s.includes("rolldown")),
           )
         ) {
           return true;
@@ -85,7 +78,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRTools = Object.keys(allDeps).some(
@@ -93,7 +86,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
           p.startsWith("@rsbuild/") ||
           p.startsWith("@rslib/") ||
           p === "rolldown" ||
-          p.startsWith("@rolldown/")
+          p.startsWith("@rolldown/"),
       );
 
       // 1. Safeguard installed R-Tools packages in package.json
@@ -149,7 +142,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Rsbuild, Rslib, or Rolldown configuration found, but core packages are missing from package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -209,9 +202,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
         if (
           t.isCallExpression(node) &&
           t.isIdentifier(node.callee) &&
-          ["defineConfig", "defineRsbuildConfig", "defineRslibConfig"].includes(
-            node.callee.name
-          )
+          ["defineConfig", "defineRsbuildConfig", "defineRslibConfig"].includes(node.callee.name)
         ) {
           adapter.markAsUsed(fileId);
 
@@ -220,18 +211,12 @@ export const RToolsPlugin: AnalyzerPlugin = {
             firstArg.properties.forEach((prop: any) => {
               if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
                 // Rolldown / Rslib 'input' or 'entry'
-                if (
-                  ["entry", "input"].includes(prop.key.name) &&
-                  t.isStringLiteral(prop.value)
-                ) {
+                if (["entry", "input"].includes(prop.key.name) && t.isStringLiteral(prop.value)) {
                   adapter.markAsUsed(prop.value.value);
                 }
 
                 // Rsbuild 'source.entry'
-                if (
-                  prop.key.name === "source" &&
-                  t.isObjectExpression(prop.value)
-                ) {
+                if (prop.key.name === "source" && t.isObjectExpression(prop.value)) {
                   prop.value.properties.forEach((sourceProp: any) => {
                     if (
                       t.isObjectProperty(sourceProp) &&
@@ -242,10 +227,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
                         adapter.markAsUsed(sourceProp.value.value);
                       } else if (t.isObjectExpression(sourceProp.value)) {
                         sourceProp.value.properties.forEach((eProp: any) => {
-                          if (
-                            t.isObjectProperty(eProp) &&
-                            t.isStringLiteral(eProp.value)
-                          ) {
+                          if (t.isObjectProperty(eProp) && t.isStringLiteral(eProp.value)) {
                             adapter.markAsUsed(eProp.value.value);
                           }
                         });
@@ -258,8 +240,8 @@ export const RToolsPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RToolsPlugin;

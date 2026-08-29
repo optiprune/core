@@ -13,7 +13,7 @@ const HONO_METHODS = new Set([
   "on",
   "basePath",
   "notFound",
-  "onError"
+  "onError",
 ]);
 
 export const HonoPlugin: AnalyzerPlugin = {
@@ -56,7 +56,11 @@ export const HonoPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect CJS require("hono") or require("@hono/*")
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg)) {
           const val = arg.value;
@@ -109,8 +113,8 @@ export const HonoPlugin: AnalyzerPlugin = {
           });
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default HonoPlugin;

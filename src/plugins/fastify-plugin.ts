@@ -2,20 +2,20 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 
 const FASTIFY_METHODS = new Set([
-  "register", 
-  "get", 
-  "post", 
-  "put", 
-  "delete", 
-  "patch", 
-  "head", 
-  "options", 
-  "all", 
-  "route", 
-  "addHook", 
-  "decorate", 
-  "decorateRequest", 
-  "decorateReply"
+  "register",
+  "get",
+  "post",
+  "put",
+  "delete",
+  "patch",
+  "head",
+  "options",
+  "all",
+  "route",
+  "addHook",
+  "decorate",
+  "decorateRequest",
+  "decorateReply",
 ]);
 
 export const FastifyPlugin: AnalyzerPlugin = {
@@ -25,7 +25,7 @@ export const FastifyPlugin: AnalyzerPlugin = {
   detect: async (adapter) => {
     const pkg = await adapter.readJson("package.json");
     return !!(
-      pkg?.dependencies?.["fastify"] || 
+      pkg?.dependencies?.["fastify"] ||
       pkg?.devDependencies?.["fastify"] ||
       pkg?.dependencies?.["fastify-plugin"] ||
       pkg?.devDependencies?.["fastify-plugin"]
@@ -56,7 +56,11 @@ export const FastifyPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg) && (arg.value === "fastify" || arg.value === "fastify-plugin")) {
           adapter.markPackageAsUsed(arg.value);
@@ -64,7 +68,11 @@ export const FastifyPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect fastify-plugin / fp() wrapper call: fp(myPlugin)
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && ["fp", "fastifyPlugin"].includes(node.callee.name)) {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        ["fp", "fastifyPlugin"].includes(node.callee.name)
+      ) {
         adapter.markPackageAsUsed("fastify-plugin");
         const pluginArg = node.arguments[0];
         if (t.isIdentifier(pluginArg)) {
@@ -88,7 +96,11 @@ export const FastifyPlugin: AnalyzerPlugin = {
             }
 
             // Case B: fastify.register(require('./routes/users'))
-            else if (t.isCallExpression(arg) && t.isIdentifier(arg.callee) && arg.callee.name === "require") {
+            else if (
+              t.isCallExpression(arg) &&
+              t.isIdentifier(arg.callee) &&
+              arg.callee.name === "require"
+            ) {
               const reqArg = arg.arguments[0];
               if (t.isStringLiteral(reqArg)) {
                 adapter.markAsUsed(reqArg.value);
@@ -109,8 +121,8 @@ export const FastifyPlugin: AnalyzerPlugin = {
           });
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default FastifyPlugin;

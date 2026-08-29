@@ -14,7 +14,7 @@ const SIMPLE_GIT_HOOKS_CONFIG_FILES = [
   "simple-git-hooks.cjs",
   "simple-git-hooks.mjs",
   "simple-git-hooks.yaml",
-  "simple-git-hooks.yml"
+  "simple-git-hooks.yml",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -40,7 +40,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if ("simple-git-hooks" in allDeps || pkg["simple-git-hooks"]) {
@@ -53,7 +53,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("simple-git-hooks ") || s === "simple-git-hooks")
+              (s.includes("simple-git-hooks ") || s === "simple-git-hooks"),
           )
         ) {
           return true;
@@ -75,7 +75,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasHookDep = "simple-git-hooks" in allDeps;
@@ -107,8 +107,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("simple-git-hooks ") ||
-              scriptContent === "simple-git-hooks")
+            (scriptContent.includes("simple-git-hooks ") || scriptContent === "simple-git-hooks")
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("simple-git-hooks");
@@ -118,10 +117,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
 
       // 5. Inspect JSON-based config files (.simple-git-hooks.json) for hook commands
       if (!hookConfig) {
-        for (const jsonConfigName of [
-          ".simple-git-hooks.json",
-          "simple-git-hooks.json"
-        ]) {
+        for (const jsonConfigName of [".simple-git-hooks.json", "simple-git-hooks.json"]) {
           const content = await adapter.readFile(jsonConfigName);
           if (content) {
             const parsed = parseJsonc(content);
@@ -147,7 +143,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "simple-git-hooks configuration found, but 'simple-git-hooks' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.["simple-git-hooks"] }
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.["simple-git-hooks"] },
         });
       }
     },
@@ -200,8 +196,8 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
           parseHookCommandString(node.value.value, adapter);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processHookCommands(configObj: Record<string, any>, adapter: any): void {
@@ -224,7 +220,10 @@ function parseHookCommandString(commandStr: string, adapter: any): void {
 
   // Extract npm run / yarn / pnpm script invocations: "npm run lint"
   if (commandStr.includes("npm run ") || commandStr.includes("pnpm run ")) {
-    const scriptName = commandStr.split(/run\s+/)[1]?.trim().split(" ")[0];
+    const scriptName = commandStr
+      .split(/run\s+/)[1]
+      ?.trim()
+      .split(" ")[0];
     if (scriptName) {
       adapter.markAsUsed("package.json", `scripts:${scriptName}`);
     }

@@ -12,7 +12,7 @@ const SANITY_CONFIG_FILES = [
   "sanity.config.jsx",
   "sanity.cli.ts",
   "sanity.cli.js",
-  "sanity.json"
+  "sanity.json",
 ];
 
 const SANITY_CORE_PACKAGES = [
@@ -25,7 +25,7 @@ const SANITY_CORE_PACKAGES = [
   "@sanity/asset-utils",
   "@sanity/block-tools",
   "@sanity/types",
-  "next-sanity"
+  "next-sanity",
 ];
 
 /**
@@ -38,9 +38,7 @@ function processSanityConfig(config: Record<string, any>, adapter: any): void {
   if (config.plugins && Array.isArray(config.plugins)) {
     for (const plugin of config.plugins) {
       if (typeof plugin === "string") {
-        const pkgName = plugin.startsWith("sanity-plugin-")
-          ? plugin
-          : `sanity-plugin-${plugin}`;
+        const pkgName = plugin.startsWith("sanity-plugin-") ? plugin : `sanity-plugin-${plugin}`;
         adapter.markPackageAsUsed(pkgName);
       }
     }
@@ -58,10 +56,7 @@ export const SanityPlugin: AnalyzerPlugin = {
     }
 
     // 2. Check for Sanity schema folders
-    if (
-      (await adapter.folderExists("schemaTypes")) ||
-      (await adapter.folderExists("schemas"))
-    ) {
+    if ((await adapter.folderExists("schemaTypes")) || (await adapter.folderExists("schemas"))) {
       return true;
     }
 
@@ -71,7 +66,7 @@ export const SanityPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -80,7 +75,7 @@ export const SanityPlugin: AnalyzerPlugin = {
             dep === "sanity" ||
             dep.startsWith("@sanity/") ||
             dep.startsWith("sanity-plugin-") ||
-            dep === "next-sanity"
+            dep === "next-sanity",
         )
       ) {
         return true;
@@ -90,9 +85,7 @@ export const SanityPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (/\bsanity\b/.test(s) || s.includes("sanity dev"))
+            (s) => typeof s === "string" && (/\bsanity\b/.test(s) || s.includes("sanity dev")),
           )
         ) {
           return true;
@@ -127,7 +120,7 @@ export const SanityPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -189,10 +182,7 @@ export const SanityPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // 1. Inspect JS/TS config files (sanity.config.ts, sanity.cli.ts, etc.)
-      if (
-        basename.startsWith("sanity.config.") ||
-        basename.startsWith("sanity.cli.")
-      ) {
+      if (basename.startsWith("sanity.config.") || basename.startsWith("sanity.cli.")) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
         }
@@ -225,10 +215,7 @@ export const SanityPlugin: AnalyzerPlugin = {
       }
 
       // 2. Protect exports inside schema files (e.g. export default defineType({...}))
-      if (
-        normalized.includes("/schemaTypes/") ||
-        normalized.includes("/schemas/")
-      ) {
+      if (normalized.includes("/schemaTypes/") || normalized.includes("/schemas/")) {
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
         }
@@ -256,8 +243,8 @@ export const SanityPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default SanityPlugin;

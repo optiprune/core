@@ -2,20 +2,62 @@
   "name": "@optiprune/core",
   "version": "1.15.0",
   "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
-  "type": "module",
-  "main": "./dist/index.js",
-  "bin": {
-    "optiprune-language-server": "./dist/language-server.js"
-  },
-  "types": "./dist/index.d.ts",
+  "keywords": [
+    "analysis",
+    "analyze",
+    "class",
+    "cli",
+    "dead",
+    "dead code",
+    "dependencies",
+    "detect",
+    "devDependencies",
+    "duplicate",
+    "entropy",
+    "enum",
+    "export",
+    "files",
+    "find",
+    "javascript",
+    "lint",
+    "maintenance",
+    "members",
+    "missing",
+    "monorepo",
+    "namespace",
+    "opti",
+    "optimization",
+    "optiprune",
+    "package",
+    "pruning",
+    "scan",
+    "types",
+    "typescript",
+    "unreferenced",
+    "unresolved",
+    "unused",
+    "workspace"
+  ],
   "homepage": "https://opti.drml.int.yt/",
+  "bugs": {
+    "url": "https://github.com/optiprune/core/issues"
+  },
+  "license": "MIT",
+  "author": "DreamLongYT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/optiprune/core.git"
   },
-  "bugs": {
-    "url": "https://github.com/optiprune/core/issues"
+  "bin": {
+    "optiprune-language-server": "./dist/language-server.js"
   },
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -40,48 +82,13 @@
     "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism"
   },
-  "keywords": [
-    "analysis",
-    "analyze",
-    "class",
-    "cli",
-    "dead code",
-    "dependencies",
-    "detect",
-    "devDependencies",
-    "duplicate",
-    "entropy",
-    "enum",
-    "export",
-    "files",
-    "find",
-    "javascript",
-    "lint",
-    "maintenance",
-    "members",
-    "missing",
-    "monorepo",
-    "namespace",
-    "package",
-    "scan",
-    "types",
-    "typescript",
-    "unreferenced",
-    "unresolved",
-    "unused",
-    "workspace",
-    "optiprune",
-    "pruning",
-    "dead",
-    "opti",
-    "optimization"
-  ],
   "dependencies": {
     "esbuild": "^0.28.2",
     "fast-glob": "^3.3.3",
     "jiti": "^2.7.0",
     "js-yaml": "^5.2.2",
     "jsonc-parser": "^3.3.1",
+    "oxfmt": "^0.65.0",
     "pathe": "2.0.3",
     "quickjs-emscripten": "^0.32.0",
     "vscode-languageserver": "^10.1.0",
@@ -91,6 +98,11 @@
     "yuku-codegen": "^0.8.3",
     "yuku-parser": "^0.8.3",
     "z3-solver": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "@yuku-codegen/wasm": "^0.8.7",
@@ -104,19 +116,8 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@types/node": "^22.15.3",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
-  },
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@12.0.2",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
-  "license": "MIT",
-  "author": "DreamLongYT"
+  "packageManager": "npm@10.9.2"
 }

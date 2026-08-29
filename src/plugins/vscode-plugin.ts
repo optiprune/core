@@ -4,11 +4,11 @@ const VSCODE_FILES = [
   ".vscode/settings.json",
   ".vscode/tasks.json",
   ".vscode/launch.json",
-  ".vscode/extensions.json"
+  ".vscode/extensions.json",
 ];
 
 /**
- * Strips single-line (//) and multi-line (/* *\/) comments and trailing commas 
+ * Strips single-line (//) and multi-line (/* *\/) comments and trailing commas
  * to parse VS Code's JSONC format cleanly.
  */
 function parseJsonc<T = any>(content: string): T | null {
@@ -55,13 +55,17 @@ export const VsCodePlugin: AnalyzerPlugin = {
             if (!fullCmd) continue;
 
             // Extract npm/pnpm/yarn/bun script executions (e.g., "npm run build", "pnpm test")
-            const scriptMatch = /(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?([a-zA-Z0-9\-_:]+)/i.exec(fullCmd);
+            const scriptMatch = /(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?([a-zA-Z0-9\-_:]+)/i.exec(
+              fullCmd,
+            );
             if (scriptMatch?.[1] && !["run", "exec", "dlx", "install"].includes(scriptMatch[1])) {
               adapter.markAsUsed("package.json", `scripts:${scriptMatch[1]}`);
             }
 
             // Extract CLI package executions (e.g., "npx tsc", "pnpm dlx vite")
-            const cliMatch = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-\/]+)/i.exec(fullCmd);
+            const cliMatch = /(?:npx|bunx|pnpm\s+dlx|yarn\s+dlx)\s+([@a-zA-Z0-9\-\/]+)/i.exec(
+              fullCmd,
+            );
             if (cliMatch?.[1] && !cliMatch[1].startsWith("-")) {
               adapter.markPackageAsUsed(cliMatch[1]);
             }
@@ -77,18 +81,25 @@ export const VsCodePlugin: AnalyzerPlugin = {
           for (const config of launchJson.configurations) {
             // Protect program entry points (e.g., "program": "${workspaceFolder}/src/index.ts")
             if (typeof config.program === "string") {
-              const cleanPath = config.program.replace(/\$\{workspaceFolder\}/g, ".").replace(/^\.\//, "");
+              const cleanPath = config.program
+                .replace(/\$\{workspaceFolder\}/g, ".")
+                .replace(/^\.\//, "");
               adapter.markAsUsed(cleanPath);
             }
 
             // Protect custom runtime executables (e.g., "runtimeExecutable": "tsx" or "node")
-            if (typeof config.runtimeExecutable === "string" && !["node", "npm", "pnpm", "yarn", "bun"].includes(config.runtimeExecutable)) {
+            if (
+              typeof config.runtimeExecutable === "string" &&
+              !["node", "npm", "pnpm", "yarn", "bun"].includes(config.runtimeExecutable)
+            ) {
               adapter.markPackageAsUsed(config.runtimeExecutable);
             }
 
             // Protect referenced env files (e.g., "envFile": "${workspaceFolder}/.env")
             if (typeof config.envFile === "string") {
-              const cleanEnvPath = config.envFile.replace(/\$\{workspaceFolder\}/g, ".").replace(/^\.\//, "");
+              const cleanEnvPath = config.envFile
+                .replace(/\$\{workspaceFolder\}/g, ".")
+                .replace(/^\.\//, "");
               adapter.markAsUsed(cleanEnvPath);
             }
           }
@@ -119,8 +130,8 @@ export const VsCodePlugin: AnalyzerPlugin = {
       if (normalized.includes(".vscode/")) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default VsCodePlugin;

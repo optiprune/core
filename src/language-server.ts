@@ -98,7 +98,11 @@ connection.onInitialize((params): InitializeResult => {
   workspaceRoot = rootFromParams(params);
   return {
     capabilities: {
-      textDocumentSync: { openClose: true, change: TextDocumentSyncKind.Incremental, save: { includeText: false } },
+      textDocumentSync: {
+        openClose: true,
+        change: TextDocumentSyncKind.Incremental,
+        save: { includeText: false },
+      },
       workspaceSymbolProvider: false,
     },
     serverInfo: { name: "OptiPrune Language Server", version: "0.1.0" },
@@ -109,7 +113,9 @@ connection.onInitialized(() => scheduleAnalysis());
 documents.onDidOpen(() => scheduleAnalysis());
 documents.onDidChangeContent(() => scheduleAnalysis());
 documents.onDidSave(() => scheduleAnalysis());
-documents.onDidClose((event) => connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }));
+documents.onDidClose((event) =>
+  connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }),
+);
 
 connection.onShutdown(() => {
   if (analysisTimer) clearTimeout(analysisTimer);

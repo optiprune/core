@@ -14,14 +14,28 @@ afterEach(async () => {
 describe("script output-to-source entry resolution", () => {
   it("maps a missing dist output back to an existing tsconfig source entry", async () => {
     await fs.mkdir(path.join(fixtureRoot, "src"), { recursive: true });
-    await fs.writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
-      name: "tsconfig-output-source-entry",
-      private: true,
-      scripts: { start: "node dist/index.js" },
-    }, null, 2));
-    await fs.writeFile(path.join(fixtureRoot, "tsconfig.json"), JSON.stringify({
-      compilerOptions: { rootDir: "src", outDir: "dist" },
-    }, null, 2));
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify(
+        {
+          name: "tsconfig-output-source-entry",
+          private: true,
+          scripts: { start: "node dist/index.js" },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: { rootDir: "src", outDir: "dist" },
+        },
+        null,
+        2,
+      ),
+    );
     await fs.writeFile(path.join(fixtureRoot, "src", "index.ts"), "export const main = true;\n");
 
     const report = await analyze({

@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("ignoreUnknownImport", () => {
   it("does not classify dynamic-scan files as maybe-reachable", async () => {
-    const rootDir = path.join(__dirname, "..","fixtures", "dynamic-scan-test");
+    const rootDir = path.join(__dirname, "..", "fixtures", "dynamic-scan-test");
     const report = await analyze({
       rootDir,
       entry: ["entry.ts"],
@@ -18,12 +18,18 @@ describe("ignoreUnknownImport", () => {
       ignoreUnknownImport: true,
     });
 
-    expect(report.findings.some((finding) =>
-      finding.file.includes("plugin-a.ts") && finding.rule === "unreachable-file",
-    )).toBe(true);
-    expect(report.findings.some((finding) =>
-      finding.file.includes("plugin-b.ts") && finding.rule === "unreachable-file",
-    )).toBe(true);
-    expect(report.findings.some((finding) => finding.rule === "unknown-dynamic-import")).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) => finding.file.includes("plugin-a.ts") && finding.rule === "unreachable-file",
+      ),
+    ).toBe(true);
+    expect(
+      report.findings.some(
+        (finding) => finding.file.includes("plugin-b.ts") && finding.rule === "unreachable-file",
+      ),
+    ).toBe(true);
+    expect(report.findings.some((finding) => finding.rule === "unknown-dynamic-import")).toBe(
+      false,
+    );
   });
 });

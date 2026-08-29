@@ -25,7 +25,7 @@ describe("Layer 3: SMT Fixes", () => {
     // 6. !true
     // 7. !!false
     // 8. obj.prop === 1 && obj.prop === 2
-    
+
     // The current implementation (before fix) likely only finds a few or none of these.
     // Let's see what it finds now.
   });

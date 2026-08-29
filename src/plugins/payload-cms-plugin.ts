@@ -35,10 +35,12 @@ function isPayloadConfigFile(fileId: string): boolean {
 }
 
 function isPayloadScript(script: string): boolean {
-  return /(?:^|[\s&|;])payload(?:\s|$)/.test(script)
-    || /\bnpx\s+(?:--yes\s+)?payload\b/.test(script)
-    || /\bpnpm\s+(?:exec\s+)?payload\b/.test(script)
-    || /\byarn\s+(?:dlx\s+)?payload\b/.test(script);
+  return (
+    /(?:^|[\s&|;])payload(?:\s|$)/.test(script) ||
+    /\bnpx\s+(?:--yes\s+)?payload\b/.test(script) ||
+    /\bpnpm\s+(?:exec\s+)?payload\b/.test(script) ||
+    /\byarn\s+(?:dlx\s+)?payload\b/.test(script)
+  );
 }
 
 /**
@@ -60,7 +62,9 @@ export const PayloadCMSPlugin: AnalyzerPlugin = {
     }
     if ((await adapter.findFiles(PAYLOAD_CONFIG_BASENAMES)).length > 0) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some((script) => typeof script === "string" && isPayloadScript(script));
+    return Object.values(packageJson?.scripts ?? {}).some(
+      (script) => typeof script === "string" && isPayloadScript(script),
+    );
   },
 
   lifecycle: {
@@ -92,7 +96,8 @@ export const PayloadCMSPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message: "Payload configuration or command found, but 'payload' is not listed in package.json.",
+          message:
+            "Payload configuration or command found, but 'payload' is not listed in package.json.",
           evidence: { configFiles, hasScriptInvocation },
         });
       }
@@ -115,7 +120,11 @@ export const PayloadCMSPlugin: AnalyzerPlugin = {
 
       // `buildConfig()` may be wrapped or aliased, so retaining the config module
       // itself is safer than inferring optional package use from callee names alone.
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "buildConfig") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "buildConfig"
+      ) {
         adapter.markAsUsed(fileId);
       }
     },

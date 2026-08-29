@@ -8,7 +8,7 @@ const WEBPACK_CONFIG_FILES = [
   "webpack.config.cjs",
   "webpack.config.ts",
   "webpack.config.mts",
-  "webpack.config.cts"
+  "webpack.config.cts",
 ];
 
 const WEBPACK_PACKAGES = [
@@ -18,7 +18,7 @@ const WEBPACK_PACKAGES = [
   "html-webpack-plugin",
   "mini-css-extract-plugin",
   "webpack-merge",
-  "copy-webpack-plugin"
+  "copy-webpack-plugin",
 ];
 
 export const WebpackPlugin: AnalyzerPlugin = {
@@ -31,7 +31,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -40,7 +40,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
             dep === "webpack" ||
             dep === "@nx/webpack" ||
             dep.startsWith("webpack-") ||
-            dep.endsWith("-loader")
+            dep.endsWith("-loader"),
         )
       ) {
         return true;
@@ -50,9 +50,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("webpack ") || s === "webpack")
+            (s) => typeof s === "string" && (s.includes("webpack ") || s === "webpack"),
           )
         ) {
           return true;
@@ -73,12 +71,15 @@ export const WebpackPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasWebpack = Object.keys(allDeps).some(
         (p) =>
-          p === "webpack" || p === "@nx/webpack" || p.startsWith("webpack-") || p.endsWith("-loader")
+          p === "webpack" ||
+          p === "@nx/webpack" ||
+          p.startsWith("webpack-") ||
+          p.endsWith("-loader"),
       );
 
       // 1. Safeguard installed Webpack ecosystem packages and loaders in package.json
@@ -133,12 +134,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
 
       // Ignore common lockfiles and JSON files
       if (
-        [
-          "package.json",
-          "package-lock.json",
-          "yarn.lock",
-          "pnpm-lock.yaml"
-        ].includes(basename) ||
+        ["package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"].includes(basename) ||
         basename.endsWith(".json")
       ) {
         return;
@@ -159,11 +155,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
       // 1. Detect ESM imports for Webpack plugins or loaders
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
-        if (
-          source === "webpack" ||
-          source.startsWith("webpack-") ||
-          source.endsWith("-loader")
-        ) {
+        if (source === "webpack" || source.startsWith("webpack-") || source.endsWith("-loader")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
@@ -212,10 +204,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
                     });
                   } else if (t.isObjectExpression(value)) {
                     value.properties.forEach((entryProp: any) => {
-                      if (
-                        t.isObjectProperty(entryProp) &&
-                        t.isStringLiteral(entryProp.value)
-                      ) {
+                      if (t.isObjectProperty(entryProp) && t.isStringLiteral(entryProp.value)) {
                         adapter.markAsUsed(entryProp.value.value);
                       } else if (
                         t.isObjectProperty(entryProp) &&
@@ -236,33 +225,21 @@ export const WebpackPlugin: AnalyzerPlugin = {
                       file: fileId,
                       message:
                         "Webpack entry point is dynamic, cannot statically determine all entry files.",
-                      evidence: { type: "function-entry" }
+                      evidence: { type: "function-entry" },
                     });
                   }
                 }
 
                 // Handle 'output' property
-                if (
-                  propName === "output" &&
-                  t.isObjectExpression(prop.value)
-                ) {
+                if (propName === "output" && t.isObjectExpression(prop.value)) {
                   prop.value.properties.forEach((outputProp: any) => {
-                    if (
-                      t.isObjectProperty(outputProp) &&
-                      t.isIdentifier(outputProp.key)
-                    ) {
+                    if (t.isObjectProperty(outputProp) && t.isIdentifier(outputProp.key)) {
                       const outputPropName = outputProp.key.name;
-                      if (
-                        outputPropName === "path" &&
-                        t.isStringLiteral(outputProp.value)
-                      ) {
+                      if (outputPropName === "path" && t.isStringLiteral(outputProp.value)) {
                         adapter.markAsUsed(outputProp.value.value);
                       }
 
-                      if (
-                        outputPropName === "publicPath" &&
-                        t.isStringLiteral(outputProp.value)
-                      ) {
+                      if (outputPropName === "publicPath" && t.isStringLiteral(outputProp.value)) {
                         if (
                           outputProp.value.value.startsWith("/") ||
                           outputProp.value.value.startsWith("./")
@@ -275,26 +252,14 @@ export const WebpackPlugin: AnalyzerPlugin = {
                 }
 
                 // Handle 'resolve' property (alias, modules)
-                if (
-                  propName === "resolve" &&
-                  t.isObjectExpression(prop.value)
-                ) {
+                if (propName === "resolve" && t.isObjectExpression(prop.value)) {
                   prop.value.properties.forEach((resolveProp: any) => {
-                    if (
-                      t.isObjectProperty(resolveProp) &&
-                      t.isIdentifier(resolveProp.key)
-                    ) {
+                    if (t.isObjectProperty(resolveProp) && t.isIdentifier(resolveProp.key)) {
                       const resolvePropName = resolveProp.key.name;
 
-                      if (
-                        resolvePropName === "alias" &&
-                        t.isObjectExpression(resolveProp.value)
-                      ) {
+                      if (resolvePropName === "alias" && t.isObjectExpression(resolveProp.value)) {
                         resolveProp.value.properties.forEach((aliasProp: any) => {
-                          if (
-                            t.isObjectProperty(aliasProp) &&
-                            t.isStringLiteral(aliasProp.value)
-                          ) {
+                          if (t.isObjectProperty(aliasProp) && t.isStringLiteral(aliasProp.value)) {
                             adapter.markAsUsed(aliasProp.value.value);
                           }
                         });
@@ -316,19 +281,13 @@ export const WebpackPlugin: AnalyzerPlugin = {
           };
 
           // Unwrap function definitions: module.exports = (env, argv) => ({ ... })
-          if (
-            t.isArrowFunctionExpression(configExpr) ||
-            t.isFunctionExpression(configExpr)
-          ) {
+          if (t.isArrowFunctionExpression(configExpr) || t.isFunctionExpression(configExpr)) {
             const body = (configExpr as any).body;
             if (t.isObjectExpression(body)) {
               processObject(body);
             } else if (t.isBlockStatement(body)) {
               body.body.forEach((stmt: any) => {
-                if (
-                  t.isReturnStatement(stmt) &&
-                  t.isObjectExpression(stmt.argument)
-                ) {
+                if (t.isReturnStatement(stmt) && t.isObjectExpression(stmt.argument)) {
                   processObject(stmt.argument);
                 }
               });
@@ -340,8 +299,8 @@ export const WebpackPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default WebpackPlugin;

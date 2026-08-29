@@ -14,7 +14,7 @@ const COSMOS_CONFIG_FILES = [
   "cosmos.decorator.js",
   "cosmos.decorator.jsx",
   "cosmos.decorator.ts",
-  "cosmos.decorator.tsx"
+  "cosmos.decorator.tsx",
 ];
 
 const COSMOS_PACKAGES = [
@@ -22,7 +22,7 @@ const COSMOS_PACKAGES = [
   "react-cosmos-plugin-webpack",
   "react-cosmos-plugin-vite",
   "react-cosmos-dom",
-  "react-cosmos-core"
+  "react-cosmos-core",
 ];
 
 /**
@@ -67,10 +67,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    if (
-      (await adapter.folderExists("__fixtures__")) ||
-      (await adapter.folderExists("cosmos"))
-    ) {
+    if ((await adapter.folderExists("__fixtures__")) || (await adapter.folderExists("cosmos"))) {
       return true;
     }
 
@@ -82,7 +79,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (COSMOS_PACKAGES.some((p) => p in allDeps)) {
@@ -91,11 +88,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && /\bcosmos\b/.test(s)
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && /\bcosmos\b/.test(s))) {
           return true;
         }
       }
@@ -120,7 +113,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -143,10 +136,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
         // 4. Mark scripts executing react-cosmos CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\bcosmos\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\bcosmos\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -211,11 +201,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
         }
 
         // Extract plugin dependencies from AST (e.g. plugins: ['react-cosmos-plugin-vite'])
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "plugins"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "plugins") {
           if (t.isArrayExpression(node.value)) {
             for (const el of node.value.elements) {
               if (t.isStringLiteral(el)) {
@@ -227,10 +213,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
       }
 
       // 2. AST Inspection inside Fixture Files (*.fixture.tsx)
-      if (
-        normalized.includes("__fixtures__") ||
-        /\.fixture\.[jt]sx?$/.test(basename)
-      ) {
+      if (normalized.includes("__fixtures__") || /\.fixture\.[jt]sx?$/.test(basename)) {
         // Mark export default inside fixtures
         if (t.isExportDefaultDeclaration(node)) {
           adapter.markAsUsed(fileId, "default");
@@ -247,8 +230,8 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default ReactCosmosPlugin;

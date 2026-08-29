@@ -6,7 +6,7 @@ const TRPC_PACKAGES = [
   "@trpc/client",
   "@trpc/react-query",
   "@trpc/next",
-  "@trpc/tanstack-react-query"
+  "@trpc/tanstack-react-query",
 ];
 
 const TRPC_PROCEDURE_METHODS = new Set([
@@ -16,7 +16,7 @@ const TRPC_PROCEDURE_METHODS = new Set([
   "input",
   "output",
   "use",
-  "middleware"
+  "middleware",
 ]);
 
 export const TrpcPlugin: AnalyzerPlugin = {
@@ -29,7 +29,7 @@ export const TrpcPlugin: AnalyzerPlugin = {
 
     const allDeps = {
       ...pkg.dependencies,
-      ...pkg.devDependencies
+      ...pkg.devDependencies,
     };
 
     return TRPC_PACKAGES.some((pkgName) => pkgName in allDeps);
@@ -43,7 +43,7 @@ export const TrpcPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       // Protect all installed @trpc/* packages in package.json
@@ -80,7 +80,11 @@ export const TrpcPlugin: AnalyzerPlugin = {
       }
 
       // 2. Detect CJS require('@trpc/*')
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require") {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg) && arg.value.startsWith("@trpc/")) {
           adapter.markPackageAsUsed(arg.value);
@@ -121,7 +125,12 @@ export const TrpcPlugin: AnalyzerPlugin = {
       if (t.isCallExpression(node)) {
         const calleeName = t.isIdentifier(node.callee) ? node.callee.name : null;
 
-        if (calleeName && (calleeName === "router" || calleeName === "createTRPCRouter" || calleeName.endsWith("Router"))) {
+        if (
+          calleeName &&
+          (calleeName === "router" ||
+            calleeName === "createTRPCRouter" ||
+            calleeName.endsWith("Router"))
+        ) {
           adapter.markPackageAsUsed("@trpc/server");
           adapter.markAsUsed(fileId);
 
@@ -137,8 +146,8 @@ export const TrpcPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default TrpcPlugin;

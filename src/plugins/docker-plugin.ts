@@ -8,24 +8,12 @@ const DOCKER_CONFIG_FILES = [
   "docker-compose.yaml",
   "compose.yml",
   "compose.yaml",
-  ".dockerignore"
+  ".dockerignore",
 ];
 
-const DOCKER_PACKAGES = [
-  "dockerode",
-  "docker-compose",
-  "@docker/extension-api-client"
-];
+const DOCKER_PACKAGES = ["dockerode", "docker-compose", "@docker/extension-api-client"];
 
-const COMMON_RUNTIMES = [
-  "ts-node",
-  "tsx",
-  "pm2",
-  "bun",
-  "nodemon",
-  "nest",
-  "next"
-];
+const COMMON_RUNTIMES = ["ts-node", "tsx", "pm2", "bun", "nodemon", "nest", "next"];
 
 export const DockerPlugin: AnalyzerPlugin = {
   name: "docker-plugin",
@@ -47,7 +35,7 @@ export const DockerPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (Object.keys(allDeps).some((dep) => DOCKER_PACKAGES.includes(dep))) {
@@ -60,9 +48,7 @@ export const DockerPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("docker ") ||
-                s.includes("docker-compose ") ||
-                s === "docker")
+              (s.includes("docker ") || s.includes("docker-compose ") || s === "docker"),
           )
         ) {
           return true;
@@ -79,7 +65,7 @@ export const DockerPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // 1. Safeguard installed Docker packages in package.json
@@ -107,11 +93,7 @@ export const DockerPlugin: AnalyzerPlugin = {
       }
 
       // 4. Inspect Dockerfile variants for RUN, CMD, ENTRYPOINT, COPY, and ADD instructions
-      const dockerfileVariants = [
-        "Dockerfile",
-        "Dockerfile.dev",
-        "Dockerfile.prod"
-      ];
+      const dockerfileVariants = ["Dockerfile", "Dockerfile.dev", "Dockerfile.prod"];
 
       for (const variant of dockerfileVariants) {
         const dockerfileContent = await adapter.readFile(variant);
@@ -126,7 +108,7 @@ export const DockerPlugin: AnalyzerPlugin = {
         "docker-compose.yml",
         "docker-compose.yaml",
         "compose.yml",
-        "compose.yaml"
+        "compose.yaml",
       ]) {
         const composeContent = await adapter.readFile(composeFile);
         if (composeContent) {
@@ -141,10 +123,7 @@ export const DockerPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Protect Docker configuration files and Dockerfile variants
-      if (
-        DOCKER_CONFIG_FILES.includes(basename) ||
-        basename.startsWith("Dockerfile.")
-      ) {
+      if (DOCKER_CONFIG_FILES.includes(basename) || basename.startsWith("Dockerfile.")) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -173,8 +152,8 @@ export const DockerPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed(source);
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 /**
@@ -269,16 +248,10 @@ function parseCommandString(cmdLine: string, adapter: any): void {
     cmdLine.includes("bun run ") ||
     cmdLine.includes("bun ")
   ) {
-    const match = cmdLine.match(
-      /(?:npm run|yarn|pnpm run|pnpm|bun run|bun)\s+([a-zA-Z0-9_:-]+)/
-    );
+    const match = cmdLine.match(/(?:npm run|yarn|pnpm run|pnpm|bun run|bun)\s+([a-zA-Z0-9_:-]+)/);
     if (match && match[1]) {
       const scriptName = match[1].replace(/['"[\]]/g, "");
-      if (
-        !["test", "build", "install", "run", "add", "start"].includes(
-          scriptName
-        )
-      ) {
+      if (!["test", "build", "install", "run", "add", "start"].includes(scriptName)) {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       } else if (["test", "build", "start"].includes(scriptName)) {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);

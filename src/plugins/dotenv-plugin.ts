@@ -7,7 +7,7 @@ const DOTENV_FILES = [
   ".env.development",
   ".env.production",
   ".env.test",
-  ".env.example"
+  ".env.example",
 ];
 
 const DOTENV_PACKAGES = ["dotenv", "dotenv-expand", "dotenv-flow", "dotenvx"];
@@ -43,7 +43,7 @@ export const DotenvPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // Protect installed dotenv packages
@@ -78,7 +78,7 @@ export const DotenvPlugin: AnalyzerPlugin = {
             definedEnvKeys.push({
               fileId: envFile,
               key: match[1],
-              line: index + 1
+              line: index + 1,
             });
           }
         });
@@ -87,7 +87,7 @@ export const DotenvPlugin: AnalyzerPlugin = {
       // Attach state for tracking
       (adapter as any)._dotenvState = {
         definedEnvKeys,
-        referencedKeys: new Set<string>()
+        referencedKeys: new Set<string>(),
       };
     },
 
@@ -159,8 +159,8 @@ export const DotenvPlugin: AnalyzerPlugin = {
               const keyName = t.isIdentifier(p.key)
                 ? p.key.name
                 : t.isStringLiteral(p.key)
-                ? p.key.value
-                : null;
+                  ? p.key.value
+                  : null;
               if (keyName) referencedKeys.add(keyName);
             }
           });
@@ -187,15 +187,15 @@ export const DotenvPlugin: AnalyzerPlugin = {
             file: item.fileId,
             location: {
               start: { line: item.line, column: 1 },
-              end: { line: item.line, column: item.key.length + 1 }
+              end: { line: item.line, column: item.key.length + 1 },
             },
             message: `Environment variable '${item.key}' is defined in ${item.fileId} but never referenced in code.`,
-            evidence: { key: item.key }
+            evidence: { key: item.key },
           });
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default DotenvPlugin;

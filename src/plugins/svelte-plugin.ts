@@ -6,7 +6,7 @@ const SVELTE_CONFIG_FILES = [
   "svelte.config.js",
   "svelte.config.ts",
   "svelte.config.cjs",
-  "svelte.config.mjs"
+  "svelte.config.mjs",
 ];
 
 const SVELTE_PACKAGES = [
@@ -20,7 +20,7 @@ const SVELTE_PACKAGES = [
   "@sveltejs/adapter-netlify",
   "@sveltejs/vite-plugin-svelte",
   "svelte-preprocess",
-  "svelte-check"
+  "svelte-check",
 ];
 
 const SVELTE_LIFECYCLE_APIS = new Set([
@@ -33,7 +33,7 @@ const SVELTE_LIFECYCLE_APIS = new Set([
   "setContext",
   "getContext",
   "hasContext",
-  "getAllContexts"
+  "getAllContexts",
 ]);
 
 const SVELTE_RUNES = new Set([
@@ -43,7 +43,7 @@ const SVELTE_RUNES = new Set([
   "$props",
   "$bindable",
   "$inspect",
-  "$host"
+  "$host",
 ]);
 
 const SVELTEKIT_ROUTE_EXPORTS = new Set([
@@ -59,14 +59,14 @@ const SVELTEKIT_ROUTE_EXPORTS = new Set([
   "prerender",
   "ssr",
   "csr",
-  "trailingSlash"
+  "trailingSlash",
 ]);
 
 const svelteKitByRoot = new Map<string, boolean>();
 
 function packageName(specifier: string): string {
   const parts = specifier.split("/");
-  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0] ?? specifier;
+  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : (parts[0] ?? specifier);
 }
 
 export const SveltePlugin: AnalyzerPlugin = {
@@ -78,7 +78,7 @@ export const SveltePlugin: AnalyzerPlugin = {
     const allDeps = {
       ...pkg?.dependencies,
       ...pkg?.devDependencies,
-      ...pkg?.peerDependencies
+      ...pkg?.peerDependencies,
     };
     svelteKitByRoot.set(adapter.getConfig().rootDir, Boolean(allDeps["@sveltejs/kit"]));
     if (pkg) {
@@ -104,7 +104,7 @@ export const SveltePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
       svelteKitByRoot.set(adapter.getConfig().rootDir, Boolean(allDeps["@sveltejs/kit"]));
 
@@ -128,8 +128,7 @@ export const SveltePlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("svelte-check") ||
-              scriptContent.includes("svelte-kit"))
+            (scriptContent.includes("svelte-check") || scriptContent.includes("svelte-kit"))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
           }
@@ -143,7 +142,7 @@ export const SveltePlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Svelte configuration found but 'svelte' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -165,10 +164,7 @@ export const SveltePlugin: AnalyzerPlugin = {
       }
 
       // 3. SvelteKit Route and App Hook files (+page.svelte, +page.ts, +server.ts, hooks.server.ts)
-      if (
-        normalized.includes("/src/routes/") ||
-        normalized.includes("/src/hooks.")
-      ) {
+      if (normalized.includes("/src/routes/") || normalized.includes("/src/hooks.")) {
         if (
           basename.startsWith("+") ||
           basename.startsWith("hooks.server") ||
@@ -221,11 +217,7 @@ export const SveltePlugin: AnalyzerPlugin = {
       }
 
       // 4. Svelte Stores ($storeName auto-subscription)
-      if (
-        t.isIdentifier(node) &&
-        node.name.startsWith("$") &&
-        !SVELTE_RUNES.has(node.name)
-      ) {
+      if (t.isIdentifier(node) && node.name.startsWith("$") && !SVELTE_RUNES.has(node.name)) {
         const storeName = node.name.slice(1);
         if (storeName) {
           adapter.markAsUsed(fileId, storeName);
@@ -250,11 +242,7 @@ export const SveltePlugin: AnalyzerPlugin = {
         }
 
         // Detect adapter: adapter() in svelte.config.js
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "adapter"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "adapter") {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("@sveltejs/kit");
         }
@@ -262,12 +250,13 @@ export const SveltePlugin: AnalyzerPlugin = {
 
       // 6. In SvelteKit Route files (+page.ts, +page.server.ts, +server.ts)
       if (isSvelteKitRoute) {
-        if (
-          node?.type === "ExportNamedDeclaration" &&
-          node.declaration
-        ) {
+        if (node?.type === "ExportNamedDeclaration" && node.declaration) {
           const decl = node.declaration;
-          if (t.isFunctionDeclaration(decl) && decl.id && SVELTEKIT_ROUTE_EXPORTS.has(decl.id.name)) {
+          if (
+            t.isFunctionDeclaration(decl) &&
+            decl.id &&
+            SVELTEKIT_ROUTE_EXPORTS.has(decl.id.name)
+          ) {
             adapter.markAsUsed(fileId, decl.id.name);
           } else if (t.isVariableDeclaration(decl)) {
             for (const d of decl.declarations) {
@@ -278,8 +267,8 @@ export const SveltePlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function allDepsHasKit(adapter: any): boolean {

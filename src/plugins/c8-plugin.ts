@@ -8,7 +8,7 @@ const C8_CONFIG_FILES = [
   "c8.config.js",
   "c8.config.cjs",
   "c8.config.mjs",
-  "c8.config.ts"
+  "c8.config.ts",
 ];
 
 const C8_PACKAGE_NAME = "c8";
@@ -27,9 +27,18 @@ function extractReporterPackages(configObj: any, adapter: any): void {
       if (typeof item === "string" && !item.startsWith(".") && !item.startsWith("/")) {
         // Exclude standard built-in istanbul reporters
         const builtInReporters = new Set([
-          "clover", "cobertura", "html", "json", "json-summary", 
-          "lcov", "lcovonly", "none", "teamcity", "text", 
-          "text-lcov", "text-summary"
+          "clover",
+          "cobertura",
+          "html",
+          "json",
+          "json-summary",
+          "lcov",
+          "lcovonly",
+          "none",
+          "teamcity",
+          "text",
+          "text-lcov",
+          "text-summary",
         ]);
 
         if (!builtInReporters.has(item)) {
@@ -55,7 +64,7 @@ function extractReporterPackages(configObj: any, adapter: any): void {
         }
       }
     }
-  } 
+  }
   // If config is a raw parsed JS object (e.g. from .c8rc.json)
   else if (typeof configObj === "object") {
     if (configObj.reporter) {
@@ -88,11 +97,7 @@ export const C8Plugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && /\bc8\b/.test(s)
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && /\bc8\b/.test(s))) {
           return true;
         }
       }
@@ -125,11 +130,13 @@ export const C8Plugin: AnalyzerPlugin = {
         if (c8Json) extractReporterPackages(c8Json, adapter);
       }
 
-      const isDep = pkg ? !!(
-        (pkg.dependencies && pkg.dependencies[C8_PACKAGE_NAME]) ||
-        (pkg.devDependencies && pkg.devDependencies[C8_PACKAGE_NAME]) ||
-        (pkg.peerDependencies && pkg.peerDependencies[C8_PACKAGE_NAME])
-      ) : false;
+      const isDep = pkg
+        ? !!(
+            (pkg.dependencies && pkg.dependencies[C8_PACKAGE_NAME]) ||
+            (pkg.devDependencies && pkg.devDependencies[C8_PACKAGE_NAME]) ||
+            (pkg.peerDependencies && pkg.peerDependencies[C8_PACKAGE_NAME])
+          )
+        : false;
 
       if (pkg) {
         // 2. Protect c8 dependency
@@ -147,10 +154,7 @@ export const C8Plugin: AnalyzerPlugin = {
         // 4. Mark scripts invoking c8 CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              /\bc8\b/.test(scriptContent)
-            ) {
+            if (typeof scriptContent === "string" && /\bc8\b/.test(scriptContent)) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
               adapter.markPackageAsUsed(C8_PACKAGE_NAME);
             }
@@ -166,7 +170,7 @@ export const C8Plugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "c8 configuration found, but 'c8' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -226,8 +230,8 @@ export const C8Plugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
         extractReporterPackages(node.right, adapter);
       }
-    }
-  }
+    },
+  },
 };
 
 export default C8Plugin;

@@ -9,7 +9,7 @@ const ROLLDOWN_CONFIG_FILES = [
   "rolldown.config.ts",
   "rolldown.config.mts",
   "rolldown.config.cts",
-  "rolldown.config.json"
+  "rolldown.config.json",
 ];
 
 const ROLLDOWN_CORE_PACKAGES = ["rolldown", "@rolldown/node"];
@@ -24,7 +24,7 @@ export const RolldownPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -32,7 +32,7 @@ export const RolldownPlugin: AnalyzerPlugin = {
           (dep) =>
             dep === "rolldown" ||
             dep.startsWith("@rolldown/") ||
-            dep.startsWith("rolldown-plugin-")
+            dep.startsWith("rolldown-plugin-"),
         )
       ) {
         return true;
@@ -42,9 +42,7 @@ export const RolldownPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("rolldown ") || s === "rolldown")
+            (s) => typeof s === "string" && (s.includes("rolldown ") || s === "rolldown"),
           )
         ) {
           return true;
@@ -65,14 +63,11 @@ export const RolldownPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRolldown = Object.keys(allDeps).some(
-        (p) =>
-          p === "rolldown" ||
-          p.startsWith("@rolldown/") ||
-          p.startsWith("rolldown-plugin-")
+        (p) => p === "rolldown" || p.startsWith("@rolldown/") || p.startsWith("rolldown-plugin-"),
       );
 
       // 1. Safeguard all installed Rolldown packages and plugins in package.json
@@ -118,9 +113,8 @@ export const RolldownPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Rolldown configuration found, but 'rolldown' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Rolldown configuration found, but 'rolldown' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -197,10 +191,7 @@ export const RolldownPlugin: AnalyzerPlugin = {
                     });
                   } else if (t.isObjectExpression(val)) {
                     val.properties.forEach((entryProp: any) => {
-                      if (
-                        t.isObjectProperty(entryProp) &&
-                        t.isStringLiteral(entryProp.value)
-                      ) {
+                      if (t.isObjectProperty(entryProp) && t.isStringLiteral(entryProp.value)) {
                         adapter.markAsUsed(entryProp.value.value);
                       }
                     });
@@ -235,10 +226,7 @@ export const RolldownPlugin: AnalyzerPlugin = {
                 // Handle 'plugins' array
                 if (keyName === "plugins" && t.isArrayExpression(prop.value)) {
                   prop.value.elements.forEach((pluginExpr: any) => {
-                    if (
-                      t.isCallExpression(pluginExpr) &&
-                      t.isIdentifier(pluginExpr.callee)
-                    ) {
+                    if (t.isCallExpression(pluginExpr) && t.isIdentifier(pluginExpr.callee)) {
                       adapter.markAsUsed(fileId);
                       adapter.markPackageAsUsed("rolldown");
                     }
@@ -256,19 +244,13 @@ export const RolldownPlugin: AnalyzerPlugin = {
               processObject(firstArg);
             } else if (t.isArrayExpression(firstArg)) {
               firstArg.elements.forEach((el: any) => processObject(el));
-            } else if (
-              t.isArrowFunctionExpression(firstArg) ||
-              t.isFunctionExpression(firstArg)
-            ) {
+            } else if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
               const body = (firstArg as any).body;
               if (t.isObjectExpression(body)) {
                 processObject(body);
               } else if (t.isBlockStatement(body)) {
                 body.body.forEach((stmt: any) => {
-                  if (
-                    t.isReturnStatement(stmt) &&
-                    t.isObjectExpression(stmt.argument)
-                  ) {
+                  if (t.isReturnStatement(stmt) && t.isObjectExpression(stmt.argument)) {
                     processObject(stmt.argument);
                   }
                 });
@@ -295,19 +277,16 @@ export const RolldownPlugin: AnalyzerPlugin = {
               "transform",
               "buildStart",
               "generateBundle",
-              "renderChunk"
-            ].includes(p.key.name)
+              "renderChunk",
+            ].includes(p.key.name),
         );
 
-        if (
-          hasPluginKeys &&
-          (normalized.includes("plugin") || normalized.includes("rolldown"))
-        ) {
+        if (hasPluginKeys && (normalized.includes("plugin") || normalized.includes("rolldown"))) {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RolldownPlugin;

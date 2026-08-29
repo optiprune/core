@@ -19,7 +19,7 @@ const NX_PACKAGES = [
   "@nx/cypress",
   "@nx/playwright",
   "@nx/eslint",
-  "@nx/storybook"
+  "@nx/storybook",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -49,10 +49,7 @@ export const NxPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("project.json")) ||
-      (await adapter.folderExists(".nx"))
-    );
+    return (await adapter.folderExists("project.json")) || (await adapter.folderExists(".nx"));
   },
 
   lifecycle: {
@@ -61,7 +58,7 @@ export const NxPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasNxDep = NX_PACKAGES.some((p) => p in allDeps);
@@ -101,8 +98,7 @@ export const NxPlugin: AnalyzerPlugin = {
         // Protect Nx plugins specified in nx.json (e.g. plugins: ["@nx/vite/plugin"])
         if (Array.isArray(nxJson?.plugins)) {
           nxJson.plugins.forEach((pluginEntry: any) => {
-            const pluginName =
-              typeof pluginEntry === "string" ? pluginEntry : pluginEntry?.plugin;
+            const pluginName = typeof pluginEntry === "string" ? pluginEntry : pluginEntry?.plugin;
             if (typeof pluginName === "string") {
               const pkgName = pluginName.startsWith("@")
                 ? pluginName.split("/").slice(0, 2).join("/")
@@ -151,8 +147,8 @@ export const NxPlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default NxPlugin;

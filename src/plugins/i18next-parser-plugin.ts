@@ -10,7 +10,7 @@ const I18NEXT_PARSER_CONFIG_FILES = [
   "i18next-parser.config.cts",
   "i18next-parser.config.mts",
   "i18next-parser.config.json",
-  ".i18next-parser.json"
+  ".i18next-parser.json",
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
@@ -36,7 +36,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if ("i18next-parser" in allDeps || pkg["i18next-parser"]) {
@@ -49,7 +49,9 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("i18next-parser ") || s === "i18next-parser" || s.includes("i18next-parser"))
+              (s.includes("i18next-parser ") ||
+                s === "i18next-parser" ||
+                s.includes("i18next-parser")),
           )
         ) {
           return true;
@@ -71,7 +73,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasParserDep = "i18next-parser" in allDeps;
@@ -102,10 +104,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking i18next-parser CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("i18next-parser")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("i18next-parser")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("i18next-parser");
           }
@@ -114,10 +113,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
 
       // 5. Inspect JSON-based config files (.i18next-parser.json) for input/output paths
       if (!parserConfig) {
-        for (const jsonConfigName of [
-          "i18next-parser.config.json",
-          ".i18next-parser.json"
-        ]) {
+        for (const jsonConfigName of ["i18next-parser.config.json", ".i18next-parser.json"]) {
           const content = await adapter.readFile(jsonConfigName);
           if (content) {
             const parsed = parseJsonc(content);
@@ -143,7 +139,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "i18next-parser configuration found, but 'i18next-parser' is not listed in package.json.",
-          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.["i18next-parser"] }
+          evidence: { hasConfigFile, hasPkgBlock: !!pkg?.["i18next-parser"] },
         });
       }
     },
@@ -215,10 +211,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
                 }
 
                 // Extract output template path: output: 'public/locales/$LOCALE/$NAMESPACE.json'
-                if (
-                  prop.key.name === "output" &&
-                  t.isStringLiteral(prop.value)
-                ) {
+                if (prop.key.name === "output" && t.isStringLiteral(prop.value)) {
                   adapter.markAsUsed(prop.value.value);
                 }
               }
@@ -230,8 +223,8 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function processParserConfigObj(configObj: Record<string, any>, adapter: any): void {

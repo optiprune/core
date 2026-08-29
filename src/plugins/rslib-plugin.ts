@@ -8,7 +8,7 @@ const RSLIB_CONFIG_FILES = [
   "rslib.config.mjs",
   "rslib.config.cjs",
   "rslib.config.mts",
-  "rslib.config.cts"
+  "rslib.config.cts",
 ];
 
 const RSLIB_PACKAGES = ["@rslib/core", "@rsbuild/core"];
@@ -23,7 +23,7 @@ export const RslibPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
       if (RSLIB_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
@@ -31,11 +31,7 @@ export const RslibPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("rslib")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("rslib"))) {
           return true;
         }
       }
@@ -54,7 +50,7 @@ export const RslibPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRslibDep = RSLIB_PACKAGES.some((p) => p in allDeps);
@@ -94,7 +90,7 @@ export const RslibPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Rslib configuration file found, but '@rslib/core' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -142,11 +138,7 @@ export const RslibPlugin: AnalyzerPlugin = {
         }
 
         // Extract lib.entry configurations: lib: [{ format: 'esm', syntax: 'es2021', entry: { index: './src/index.ts' } }]
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "lib"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "lib") {
           if (t.isArrayExpression(node.value)) {
             node.value.elements.forEach((libTarget: any) => {
               if (t.isObjectExpression(libTarget)) {
@@ -172,8 +164,8 @@ export const RslibPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default RslibPlugin;

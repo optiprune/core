@@ -9,7 +9,7 @@ const CODEGEN_CONFIG_FILES = [
   "codegen.cjs",
   "codegen.yml",
   "codegen.yaml",
-  "codegen.json"
+  "codegen.json",
 ];
 
 const CODEGEN_PACKAGES = [
@@ -24,7 +24,7 @@ const CODEGEN_PACKAGES = [
   "@graphql-codegen/schema-ast",
   "@graphql-codegen/fragment-matcher",
   "@graphql-codegen/introspection",
-  "graphql"
+  "graphql",
 ];
 
 export const GraphQLCodegenPlugin: AnalyzerPlugin = {
@@ -37,13 +37,12 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) =>
-            dep === "@graphql-codegen/cli" || dep.startsWith("@graphql-codegen/")
+          (dep) => dep === "@graphql-codegen/cli" || dep.startsWith("@graphql-codegen/"),
         )
       ) {
         return true;
@@ -55,7 +54,7 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("graphql-codegen") || s.includes("graphql-coder"))
+              (s.includes("graphql-codegen") || s.includes("graphql-coder")),
           )
         ) {
           return true;
@@ -76,20 +75,17 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasCodegen = Object.keys(allDeps).some(
-        (p) => p === "@graphql-codegen/cli" || p.startsWith("@graphql-codegen/")
+        (p) => p === "@graphql-codegen/cli" || p.startsWith("@graphql-codegen/"),
       );
 
       // 1. Safeguard installed @graphql-codegen/* packages in package.json
       if (hasCodegen) {
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "graphql" ||
-            depName.startsWith("@graphql-codegen/")
-          ) {
+          if (depName === "graphql" || depName.startsWith("@graphql-codegen/")) {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -113,10 +109,7 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking graphql-codegen CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("graphql-codegen")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("graphql-codegen")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@graphql-codegen/cli");
           }
@@ -132,7 +125,7 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "GraphQL Code Generator configuration file found, but '@graphql-codegen/cli' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -181,17 +174,12 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
         }
 
         // Extract plugins and presets inside generates map keys or plugin arrays
-        if (
-          t.isObjectProperty(node) &&
-          t.isIdentifier(node.key) &&
-          node.key.name === "generates"
-        ) {
+        if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "generates") {
           if (t.isObjectExpression(node.value)) {
             node.value.properties.forEach((targetProp: any) => {
               // Extract target generated file path (e.g. 'src/gql/': { preset: 'client' })
               if (targetProp.key) {
-                const targetFilePath =
-                  targetProp.key.value || targetProp.key.name;
+                const targetFilePath = targetProp.key.value || targetProp.key.name;
                 if (typeof targetFilePath === "string") {
                   adapter.markAsUsed(targetFilePath);
 
@@ -211,10 +199,7 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
                   if (!t.isIdentifier(innerProp.key)) return;
 
                   // Extract preset: 'client' -> @graphql-codegen/client-preset
-                  if (
-                    innerProp.key.name === "preset" &&
-                    t.isStringLiteral(innerProp.value)
-                  ) {
+                  if (innerProp.key.name === "preset" && t.isStringLiteral(innerProp.value)) {
                     const presetName = innerProp.value.value;
                     const fullPkg = presetName.startsWith("@")
                       ? presetName
@@ -223,10 +208,7 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
                   }
 
                   // Extract plugins: ['typescript', 'typescript-operations']
-                  if (
-                    innerProp.key.name === "plugins" &&
-                    t.isArrayExpression(innerProp.value)
-                  ) {
+                  if (innerProp.key.name === "plugins" && t.isArrayExpression(innerProp.value)) {
                     innerProp.value.elements.forEach((pluginEl: any) => {
                       let pluginName: string | null = null;
                       if (t.isStringLiteral(pluginEl)) {
@@ -252,8 +234,8 @@ export const GraphQLCodegenPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default GraphQLCodegenPlugin;

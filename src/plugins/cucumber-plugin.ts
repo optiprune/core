@@ -13,7 +13,7 @@ const CUCUMBER_CONFIG_FILES = [
   "cucumber.yaml",
   "cucumber.yml",
   ".cucumberrc",
-  ".cucumberrc.json"
+  ".cucumberrc.json",
 ];
 
 const CUCUMBER_PACKAGES = [
@@ -24,7 +24,7 @@ const CUCUMBER_PACKAGES = [
   "@cucumber/html-formatter",
   "@cucumber/pretty-formatter",
   "cucumber-html-reporter",
-  "cucumber-console-formatter"
+  "cucumber-console-formatter",
 ];
 
 /**
@@ -40,7 +40,12 @@ function processCucumberConfig(config: Record<string, any>, adapter: any): void 
     for (const fmt of formatList) {
       if (typeof fmt === "string") {
         const formatterName = fmt.split(":")[0]?.trim();
-        if (formatterName && (formatterName.startsWith("@") || formatterName.includes("formatter") || formatterName.includes("reporter"))) {
+        if (
+          formatterName &&
+          (formatterName.startsWith("@") ||
+            formatterName.includes("formatter") ||
+            formatterName.includes("reporter"))
+        ) {
           adapter.markPackageAsUsed(formatterName);
         }
       }
@@ -55,7 +60,9 @@ function processCucumberConfig(config: Record<string, any>, adapter: any): void 
       if (typeof req === "string" && !req.includes("*")) {
         // If it's a package reference (e.g. "ts-node/register" or "tsconfig-paths/register")
         if (!req.startsWith(".") && !req.startsWith("/")) {
-          const pkgName = req.startsWith("@") ? req.split("/").slice(0, 2).join("/") : req.split("/")[0];
+          const pkgName = req.startsWith("@")
+            ? req.split("/").slice(0, 2).join("/")
+            : req.split("/")[0];
           if (pkgName) adapter.markPackageAsUsed(pkgName);
         } else {
           adapter.markAsUsed(req);
@@ -85,7 +92,7 @@ export const CucumberPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (CUCUMBER_PACKAGES.some((p) => p in allDeps)) {
@@ -96,7 +103,7 @@ export const CucumberPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\bcucumber-js\b/.test(s) || /\bcucumber\b/.test(s))
+            (s) => typeof s === "string" && (/\bcucumber-js\b/.test(s) || /\bcucumber\b/.test(s)),
           )
         ) {
           return true;
@@ -127,7 +134,7 @@ export const CucumberPlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
@@ -161,14 +168,13 @@ export const CucumberPlugin: AnalyzerPlugin = {
       }
 
       // 5. Parse standalone JSON config files if present
-      const jsonConfigFile =
-        (await adapter.folderExists("cucumber.json"))
-          ? "cucumber.json"
-          : (await adapter.folderExists(".cucumberrc.json"))
+      const jsonConfigFile = (await adapter.folderExists("cucumber.json"))
+        ? "cucumber.json"
+        : (await adapter.folderExists(".cucumberrc.json"))
           ? ".cucumberrc.json"
           : (await adapter.folderExists(".cucumberrc"))
-          ? ".cucumberrc"
-          : null;
+            ? ".cucumberrc"
+            : null;
 
       if (jsonConfigFile) {
         const configData = await adapter.readJson(jsonConfigFile);
@@ -233,7 +239,7 @@ export const CucumberPlugin: AnalyzerPlugin = {
               if (val.startsWith("@") || val.includes("formatter")) {
                 const pkgName = val.split(":")[0];
                 if (pkgName) {
-                adapter.markPackageAsUsed(pkgName);
+                  adapter.markPackageAsUsed(pkgName);
                 }
               }
             } else if (t.isArrayExpression(node.value)) {
@@ -252,8 +258,8 @@ export const CucumberPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default CucumberPlugin;

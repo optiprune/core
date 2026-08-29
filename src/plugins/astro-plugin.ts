@@ -7,22 +7,17 @@ const ASTRO_CONFIG_FILES = [
   "astro.config.js",
   "astro.config.ts",
   "astro.config.cjs",
-  "astro.config.mts"
+  "astro.config.mts",
 ];
 
 const MARKDOC_CONFIG_FILES = [
   "markdoc.config.mjs",
   "markdoc.config.js",
   "markdoc.config.ts",
-  "markdoc.config.cjs"
+  "markdoc.config.cjs",
 ];
 
-const ASTRO_DB_FILES = [
-  "db/config.ts",
-  "db/config.js",
-  "db/seed.ts",
-  "db/seed.js"
-];
+const ASTRO_DB_FILES = ["db/config.ts", "db/config.js", "db/seed.ts", "db/seed.js"];
 
 const ASTRO_API_EXPORTS = new Set([
   "GET",
@@ -34,7 +29,7 @@ const ASTRO_API_EXPORTS = new Set([
   "OPTIONS",
   "ALL",
   "getStaticPaths",
-  "prerender"
+  "prerender",
 ]);
 
 /**
@@ -59,7 +54,7 @@ function markCssDependency(cssEntry: string, sourceFileId: string, adapter: any)
       adapter.markPackageAsUsed(pkgName);
     }
   } else {
-      adapter.markRelativeFileAsUsed(sourceFileId, cssEntry);
+    adapter.markRelativeFileAsUsed(sourceFileId, cssEntry);
   }
 }
 
@@ -89,7 +84,7 @@ export const AstroPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -98,7 +93,7 @@ export const AstroPlugin: AnalyzerPlugin = {
         "@astrojs/db" in allDeps ||
         "astro-og-canvas" in allDeps ||
         Object.keys(allDeps).some(
-          (dep) => dep.startsWith("@astrojs/") || dep.startsWith("starlight-")
+          (dep) => dep.startsWith("@astrojs/") || dep.startsWith("starlight-"),
         )
       ) {
         return true;
@@ -114,7 +109,7 @@ export const AstroPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasAstroDep = !!allDeps["astro"];
@@ -179,9 +174,8 @@ export const AstroPlugin: AnalyzerPlugin = {
           severity: "error",
           confidence: "high",
           file: "package.json",
-          message:
-            "Astro configuration found but 'astro' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          message: "Astro configuration found but 'astro' is not listed in package.json.",
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -243,10 +237,7 @@ export const AstroPlugin: AnalyzerPlugin = {
       }
 
       // 7. Mark config files
-      if (
-        ASTRO_CONFIG_FILES.includes(fileName) ||
-        MARKDOC_CONFIG_FILES.includes(fileName)
-      ) {
+      if (ASTRO_CONFIG_FILES.includes(fileName) || MARKDOC_CONFIG_FILES.includes(fileName)) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -378,8 +369,8 @@ export const AstroPlugin: AnalyzerPlugin = {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default AstroPlugin;

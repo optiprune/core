@@ -9,7 +9,7 @@ const DOCUSAURUS_CONFIG_FILES = [
   "docusaurus.config.cjs",
   "sidebars.js",
   "sidebars.ts",
-  "sidebars.json"
+  "sidebars.json",
 ];
 
 const DOCUSAURUS_PACKAGES = [
@@ -28,7 +28,7 @@ const DOCUSAURUS_PACKAGES = [
   "@docusaurus/plugin-google-analytics",
   "@docusaurus/plugin-google-gtag",
   "@docusaurus/plugin-ideal-image",
-  "@docusaurus/module-type-aliases"
+  "@docusaurus/module-type-aliases",
 ];
 
 export const DocusaurusPlugin: AnalyzerPlugin = {
@@ -41,12 +41,12 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) => dep === "@docusaurus/core" || dep.startsWith("@docusaurus/")
+          (dep) => dep === "@docusaurus/core" || dep.startsWith("@docusaurus/"),
         )
       ) {
         return true;
@@ -54,11 +54,7 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && s.includes("docusaurus")
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && s.includes("docusaurus"))) {
           return true;
         }
       }
@@ -68,10 +64,7 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return (
-      (await adapter.folderExists("docs")) &&
-      (await adapter.folderExists("src/pages"))
-    );
+    return (await adapter.folderExists("docs")) && (await adapter.folderExists("src/pages"));
   },
 
   lifecycle: {
@@ -80,11 +73,11 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasDocusaurus = Object.keys(allDeps).some(
-        (p) => p === "@docusaurus/core" || p.startsWith("@docusaurus/")
+        (p) => p === "@docusaurus/core" || p.startsWith("@docusaurus/"),
       );
 
       // 1. Safeguard all installed @docusaurus/* packages in package.json
@@ -109,10 +102,7 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking Docusaurus CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            scriptContent.includes("docusaurus")
-          ) {
+          if (typeof scriptContent === "string" && scriptContent.includes("docusaurus")) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@docusaurus/core");
           }
@@ -128,7 +118,7 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Docusaurus configuration found, but '@docusaurus/core' is not listed in package.json.",
-          evidence: { hasConfigFile }
+          evidence: { hasConfigFile },
         });
       }
     },
@@ -200,16 +190,12 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
                 const presetName = el.elements[0];
                 if (t.isStringLiteral(presetName)) {
                   const val = presetName.value;
-                  const fullPkg = val.startsWith("@")
-                    ? val
-                    : `@docusaurus/preset-${val}`;
+                  const fullPkg = val.startsWith("@") ? val : `@docusaurus/preset-${val}`;
                   adapter.markPackageAsUsed(fullPkg);
                 }
               } else if (t.isStringLiteral(el)) {
                 const val = el.value;
-                const fullPkg = val.startsWith("@")
-                  ? val
-                  : `@docusaurus/preset-${val}`;
+                const fullPkg = val.startsWith("@") ? val : `@docusaurus/preset-${val}`;
                 adapter.markPackageAsUsed(fullPkg);
               }
             });
@@ -227,17 +213,15 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
 
               if (t.isStringLiteral(pluginNameNode)) {
                 const val = pluginNameNode.value;
-                const fullPkg = val.startsWith("@")
-                  ? val
-                  : `@docusaurus/plugin-${val}`;
+                const fullPkg = val.startsWith("@") ? val : `@docusaurus/plugin-${val}`;
                 adapter.markPackageAsUsed(fullPkg);
               }
             });
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default DocusaurusPlugin;

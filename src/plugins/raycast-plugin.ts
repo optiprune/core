@@ -2,14 +2,9 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const RAYCAST_PACKAGES = [
-  "@raycast/api",
-  "@raycast/utils"
-];
+const RAYCAST_PACKAGES = ["@raycast/api", "@raycast/utils"];
 
-const RAYCAST_CONFIG_FILES = [
-  "raycast.config.json"
-];
+const RAYCAST_CONFIG_FILES = ["raycast.config.json"];
 
 export const RaycastPlugin: AnalyzerPlugin = {
   name: "raycast-plugin",
@@ -22,7 +17,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
@@ -37,8 +32,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-              typeof s === "string" && (s.includes("raycast ") || s === "raycast")
+            (s) => typeof s === "string" && (s.includes("raycast ") || s === "raycast"),
           )
         ) {
           return true;
@@ -61,7 +55,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasRaycastApi = "@raycast/api" in allDeps;
@@ -96,7 +90,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
                 `src/${cmd.name}.tsx`,
                 `src/${cmd.name}.ts`,
                 `src/${cmd.name}.jsx`,
-                `src/${cmd.name}.js`
+                `src/${cmd.name}.js`,
               ];
 
               for (const entry of possibleEntries) {
@@ -143,7 +137,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Raycast Extension configuration or commands found, but '@raycast/api' is not listed in package.json.",
-          evidence: { hasConfigFile, hasCommands: !!pkg?.commands }
+          evidence: { hasConfigFile, hasCommands: !!pkg?.commands },
         });
       }
     },
@@ -159,10 +153,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
       }
 
       // Protect asset files inside assets/
-      if (
-        normalized.includes("/assets/") ||
-        normalized.startsWith("assets/")
-      ) {
+      if (normalized.includes("/assets/") || normalized.startsWith("assets/")) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -183,8 +174,8 @@ export const RaycastPlugin: AnalyzerPlugin = {
       if (t.isExportDefaultDeclaration(node)) {
         adapter.markAsUsed(fileId, "default");
       }
-    }
-  }
+    },
+  },
 };
 
 export default RaycastPlugin;

@@ -7,7 +7,7 @@ const MOON_WORKSPACE_FILES = [
   ".moon/toolchain.yml",
   ".moon/toolchain.yaml",
   ".moon/tasks.yml",
-  ".moon/tasks.yaml"
+  ".moon/tasks.yaml",
 ];
 
 const MOON_PACKAGES = ["@moonrepo/cli", "@moonrepo/types"];
@@ -40,7 +40,7 @@ export const MoonrepoPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       // 1. Mark workspace config files and .moon/ folder as used
@@ -68,8 +68,7 @@ export const MoonrepoPlugin: AnalyzerPlugin = {
 
       // 4. Scan .moon/tasks.yml or project-level moon.yml for CLI tools and scripts
       const tasksContent =
-        (await adapter.readFile(".moon/tasks.yml")) ||
-        (await adapter.readFile(".moon/tasks.yaml"));
+        (await adapter.readFile(".moon/tasks.yml")) || (await adapter.readFile(".moon/tasks.yaml"));
 
       if (tasksContent) {
         // Extract command executions (e.g., command: "eslint .", command: "vite build")
@@ -94,15 +93,11 @@ export const MoonrepoPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Protect moon.yml project configs and files under .moon/
-      if (
-        basename === "moon.yml" ||
-        basename === "moon.yaml" ||
-        normalized.includes(".moon/")
-      ) {
+      if (basename === "moon.yml" || basename === "moon.yaml" || normalized.includes(".moon/")) {
         adapter.markAsUsed(fileId);
       }
-    }
-  }
+    },
+  },
 };
 
 export default MoonrepoPlugin;

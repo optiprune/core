@@ -44,7 +44,7 @@ const NODE_BUILTINS = new Set([
   "vm",
   "wasi",
   "worker_threads",
-  "zlib"
+  "zlib",
 ]);
 
 interface NodePluginState {
@@ -64,7 +64,7 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg?.dependencies,
         ...pkg?.devDependencies,
-        ...pkg?.peerDependencies
+        ...pkg?.peerDependencies,
       };
 
       const hasTypesNode = "@types/node" in allDeps;
@@ -75,7 +75,7 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
 
       (adapter as any).__nodePluginState = {
         hasTypesNode,
-        usedBuiltins: new Set<string>()
+        usedBuiltins: new Set<string>(),
       } as NodePluginState;
     },
     onASTNode: (node: any, fileId, adapter) => {
@@ -95,8 +95,7 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
 
       // 2. CommonJS require('fs') and dynamic import('node:fs')
       if (t.isCallExpression(node)) {
-        const isRequire =
-          t.isIdentifier(node.callee) && node.callee.name === "require";
+        const isRequire = t.isIdentifier(node.callee) && node.callee.name === "require";
         const isImport = node.callee.type === "Import";
 
         if (isRequire || isImport) {
@@ -123,7 +122,7 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("@types/node");
         }
       }
-    },  
+    },
 
     onAnalysisComplete: async (adapter) => {
       const state = (adapter as any).__nodePluginState as NodePluginState | undefined;
@@ -138,12 +137,12 @@ export const NodeBuiltinPlugin: AnalyzerPlugin = {
           message: `Node.js built-in module(s) [${Array.from(state.usedBuiltins).join(", ")}] are used, but '@types/node' is missing from package.json.`,
           evidence: {
             usedBuiltins: Array.from(state.usedBuiltins),
-            missingPackage: "@types/node"
-          }
+            missingPackage: "@types/node",
+          },
         });
       }
-    }
-  }
+    },
+  },
 };
 
 export default NodeBuiltinPlugin;

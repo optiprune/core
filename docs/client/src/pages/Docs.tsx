@@ -1,15 +1,6 @@
 /* Calm OptiPrune docs system: retain the editorial right-rail layout while making reference pages practical, source-backed, and free from implementation internals. */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Copy,
-  Menu,
-  Search,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Copy, Menu, Search, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { plugins, type PluginRecord } from "@/lib/pluginData";
 
@@ -58,41 +49,27 @@ const sourceLinks = {
   cli: "https://github.com/optiprune/cli",
   npmCli: "https://www.npmjs.com/package/@optiprune/cli",
   npmCore: "https://www.npmjs.com/package/@optiprune/core",
-  vscode:
-    "https://marketplace.visualstudio.com/items?itemName=dreamlongyt.optiprune-vscode",
+  vscode: "https://marketplace.visualstudio.com/items?itemName=dreamlongyt.optiprune-vscode",
 };
 
-const schemaUrl =
-  "https://raw.githubusercontent.com/optiprune/core/main/schema.json";
+const schemaUrl = "https://raw.githubusercontent.com/optiprune/core/main/schema.json";
 const orderedDocs = groups.flatMap((group) => group.items);
 
 const cliOptions = [
   ["-r, --rootDir <path>", "Choose the project directory to analyze."],
-  [
-    "-e, --entry <patterns...>",
-    "Set one or more entry files, paths, or glob patterns.",
-  ],
-  [
-    "-x, --extensions <exts...>",
-    "Replace the default list of source extensions.",
-  ],
+  ["-e, --entry <patterns...>", "Set one or more entry files, paths, or glob patterns."],
+  ["-x, --extensions <exts...>", "Replace the default list of source extensions."],
   ["-i, --ignore <patterns...>", "Exclude matching paths from analysis."],
   ["--no-report-unused-exports", "Turn off unused-export findings."],
   ["--no-conventional-entries", "Do not infer conventional entry files."],
-  [
-    "--include-entry-exports",
-    "Include unused exports declared directly in entry files.",
-  ],
+  ["--include-entry-exports", "Include unused exports declared directly in entry files."],
   ["--cycles", "Print detected dependency cycles."],
   ["--ignore-tests", "Ignore test files and test directories."],
   [
     "--ignore-unknown-import",
     "Do not retain uncertain dynamic-import paths as possible reachability evidence.",
   ],
-  [
-    "--fail-on <confidence>",
-    "Exit non-zero from the selected confidence level.",
-  ],
+  ["--fail-on <confidence>", "Exit non-zero from the selected confidence level."],
   ["--json", "Write the structured analysis report as JSON."],
   ["--sarif", "Write SARIF output for code-scanning workflows."],
   ["--skip-3 / --skip-4", "Skip the SMT or concolic proof pass."],
@@ -104,22 +81,10 @@ const cliOptions = [
     "--fix <rules...>",
     "Select files, exports, dependencies, devDependencies, conditions, or json fixes.",
   ],
-  [
-    "--fix-json",
-    "Safely repair recoverable package.json JSON syntax; shorthand for --fix json.",
-  ],
-  [
-    "--node-llama-cpp",
-    "Enable the specialized node-llama-cpp analysis plugin explicitly.",
-  ],
-  [
-    "--confidence <level>",
-    "Set the minimum confidence for fixes: high, medium+, low+, or all.",
-  ],
-  [
-    "--force",
-    "Allow a selected fix where the source edit would otherwise be treated as unsafe.",
-  ],
+  ["--fix-json", "Safely repair recoverable package.json JSON syntax; shorthand for --fix json."],
+  ["--node-llama-cpp", "Enable the specialized node-llama-cpp analysis plugin explicitly."],
+  ["--confidence <level>", "Set the minimum confidence for fixes: high, medium+, low+, or all."],
+  ["--force", "Allow a selected fix where the source edit would otherwise be treated as unsafe."],
   ["--dry-run", "Show planned fixes without writing files."],
   [
     "--cache-from / --cache-to <path>",
@@ -140,10 +105,7 @@ const coreFunctions = [
     "applyFixes(report, rootDir, fixConfig)",
     "Applies explicitly requested, confidence-gated fixes to a completed report.",
   ],
-  [
-    "exportCache(rootDir, targetPath)",
-    "Writes the project cache to a portable JSON file.",
-  ],
+  ["exportCache(rootDir, targetPath)", "Writes the project cache to a portable JSON file."],
   [
     "importCache(rootDir, sourcePath)",
     "Loads a compatible cache JSON file into the project cache.",
@@ -158,13 +120,7 @@ const schemaPreview = `{
   "plugins": { "nextjs-plugin": true }
 }`;
 
-function CodeBlock({
-  code,
-  label = "Terminal",
-}: {
-  code: string;
-  label?: string;
-}) {
+function CodeBlock({ code, label = "Terminal" }: { code: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard?.writeText(code);
@@ -262,20 +218,15 @@ function SchemaReference() {
     <section className="schema-reference">
       <h2>Configuration fields</h2>
       <p>
-        This reference reads <code>schema.json</code> from the Core repository.
-        The example is intentionally short; each field below explains its
-        purpose, accepted values, and default where the schema provides one.
+        This reference reads <code>schema.json</code> from the Core repository. The example is
+        intentionally short; each field below explains its purpose, accepted values, and default
+        where the schema provides one.
       </p>
       <CodeBlock label="optiprune.json" code={schemaPreview} />
       <div className="docs-callout">
         <strong>Schema source</strong>
         <span>
-          <a
-            className="docs-inline"
-            href={schemaUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a className="docs-inline" href={schemaUrl} target="_blank" rel="noreferrer">
             schema.json in optiprune/core
           </a>{" "}
           supplies validation and editor completion metadata.
@@ -285,27 +236,20 @@ function SchemaReference() {
         <div className="docs-callout">
           <strong>Schema unavailable</strong>
           <span>
-            The source link above remains available; refresh this page to retry
-            the field reference.
+            The source link above remains available; refresh this page to retry the field reference.
           </span>
         </div>
       ) : schema ? (
         <div className="docs-table">
           {fields.map(([name, rawValue]) => {
             const value = rawValue as any;
-            const nested = value.properties
-              ? Object.entries(value.properties)
-              : [];
+            const nested = value.properties ? Object.entries(value.properties) : [];
             const metadata = [
               value.type,
               value.oneOf
-                ? value.oneOf
-                    .map((item: any) => item.type || "variant")
-                    .join(" or ")
+                ? value.oneOf.map((item: any) => item.type || "variant").join(" or ")
                 : "",
-              value.default !== undefined
-                ? `default: ${JSON.stringify(value.default)}`
-                : "",
+              value.default !== undefined ? `default: ${JSON.stringify(value.default)}` : "",
               value.enum ? `values: ${value.enum.join(", ")}` : "",
             ]
               .filter(Boolean)
@@ -317,8 +261,7 @@ function SchemaReference() {
                   <code>{name}</code>
                 </b>
                 <span>
-                  {value.description ||
-                    "No description is defined in the schema."}
+                  {value.description || "No description is defined in the schema."}
                   <small>{metadata}</small>
                   {nested.map(([childName, childRaw]) => {
                     const child = childRaw as any;
@@ -331,9 +274,7 @@ function SchemaReference() {
                         {child.default !== undefined
                           ? ` · default: ${JSON.stringify(child.default)}`
                           : ""}
-                        {child.enum
-                          ? ` · values: ${child.enum.join(", ")}`
-                          : ""}
+                        {child.enum ? ` · values: ${child.enum.join(", ")}` : ""}
                       </small>
                     );
                   })}
@@ -376,9 +317,7 @@ function pluginTitle(name: string) {
   return bare
     .split("-")
     .map((part) =>
-      part.length <= 3
-        ? part.toUpperCase()
-        : `${part[0].toUpperCase()}${part.slice(1)}`,
+      part.length <= 3 ? part.toUpperCase() : `${part[0].toUpperCase()}${part.slice(1)}`,
     )
     .join(" ");
 }
@@ -520,8 +459,7 @@ function pluginIcon(name: string) {
 }
 
 function pluginLogoSrc(icon: string) {
-  if (icon.startsWith("svgl:"))
-    return `https://api.svgl.app/svg/${icon.slice("svgl:".length)}.svg`;
+  if (icon.startsWith("svgl:")) return `https://api.svgl.app/svg/${icon.slice("svgl:".length)}.svg`;
   if (icon.startsWith("iconify:"))
     return `https://api.iconify.design/${icon.slice("iconify:".length)}.svg`;
   return `https://cdn.simpleicons.org/${icon}`;
@@ -556,11 +494,7 @@ function PluginLogo({ plugin }: { plugin: PluginRecord }) {
   if (failed) return null;
 
   return (
-    <span
-      className="docs-plugin-mark docs-plugin-logo"
-      role="img"
-      aria-label={`${title} logo`}
-    >
+    <span className="docs-plugin-mark docs-plugin-logo" role="img" aria-label={`${title} logo`}>
       <img src={pluginLogoSrc(icon)} alt="" onError={() => setFailed(true)} />
     </span>
   );
@@ -587,8 +521,7 @@ function pluginNarrative(plugin: PluginRecord): PluginNarrative {
         "It preserves framework-owned routes and runtime exports that may not have ordinary local import references, and checks whether an observed Next configuration is backed by the declared dependency.",
     },
     "node-llama-cpp-plugin": {
-      summary:
-        "Adds semantic awareness for node-llama-cpp model and sequence usage.",
+      summary: "Adds semantic awareness for node-llama-cpp model and sequence usage.",
       activation:
         "It turns on when node-llama-cpp is declared and source files contain compatible package usage.",
       looksFor:
@@ -597,8 +530,7 @@ function pluginNarrative(plugin: PluginRecord): PluginNarrative {
         "It keeps observed node-llama-cpp usage connected to the package declaration and can identify a mismatch between imported runtime code and package metadata.",
     },
     "onnxruntime-node-plugin": {
-      summary:
-        "Adds awareness for server-side ONNX Runtime inference sessions.",
+      summary: "Adds awareness for server-side ONNX Runtime inference sessions.",
       activation: "It turns on when the workspace declares onnxruntime-node.",
       looksFor:
         "It examines imports or require calls, session and inference-resource usage, and the dependency declaration.",
@@ -606,30 +538,24 @@ function pluginNarrative(plugin: PluginRecord): PluginNarrative {
         "It treats genuine ONNX Runtime usage as runtime evidence so inference dependencies are not removed simply because the pattern is indirect.",
     },
     "tensorflowjs-plugin": {
-      summary:
-        "Adds awareness for TensorFlow.js inference and tensor lifecycle code.",
-      activation:
-        "It turns on when a TensorFlow.js package is declared in the workspace.",
+      summary: "Adds awareness for TensorFlow.js inference and tensor lifecycle code.",
+      activation: "It turns on when a TensorFlow.js package is declared in the workspace.",
       looksFor:
         "It examines TensorFlow.js imports, tensor-producing calls, disposal-oriented lifecycle patterns, and package usage.",
       behavior:
         "It connects model-runtime code to its dependencies and retains evidence that would otherwise be hard to infer from a plain import graph.",
     },
     "transformersjs-plugin": {
-      summary:
-        "Adds awareness for Transformers.js package usage and inference calls.",
-      activation:
-        "It turns on when @huggingface/transformers is declared in the project.",
+      summary: "Adds awareness for Transformers.js package usage and inference calls.",
+      activation: "It turns on when @huggingface/transformers is declared in the project.",
       looksFor:
         "It examines package imports, compatible CommonJS access, and inference-oriented calls.",
       behavior:
         "It recognizes the package as runtime evidence when the surrounding model pipeline is reachable through the application’s execution paths.",
     },
     "vercel-ai-sdk-plugin": {
-      summary:
-        "Adds awareness for Vercel AI SDK generation and streaming flows.",
-      activation:
-        "It turns on when the ai or @ai-sdk/ai package is declared in the workspace.",
+      summary: "Adds awareness for Vercel AI SDK generation and streaming flows.",
+      activation: "It turns on when the ai or @ai-sdk/ai package is declared in the workspace.",
       looksFor:
         "It examines imports, compatible require calls, and AI SDK generation-oriented APIs.",
       behavior:
@@ -645,18 +571,15 @@ function pluginNarrative(plugin: PluginRecord): PluginNarrative {
         "It retains contract files and their supporting package usage when they are part of the API workflow rather than ordinary imported application modules.",
     },
     "langchainjs-plugin": {
-      summary:
-        "Adds awareness for LangChain.js model, tool, and loader integrations.",
-      activation:
-        "It turns on when compatible LangChain packages are declared by the workspace.",
+      summary: "Adds awareness for LangChain.js model, tool, and loader integrations.",
+      activation: "It turns on when compatible LangChain packages are declared by the workspace.",
       looksFor:
         "It examines package imports, loader and chain construction, tool calls, and related runtime dependency evidence.",
       behavior:
         "It treats the model-pipeline conventions as meaningful runtime usage, reducing false unused-dependency reports for indirect AI integrations.",
     },
     "graphql-runtime-plugin": {
-      summary:
-        "Adds awareness for GraphQL runtime packages and execution paths.",
+      summary: "Adds awareness for GraphQL runtime packages and execution paths.",
       activation:
         "It turns on when GraphQL runtime packages are declared or used by the workspace.",
       looksFor:
@@ -702,10 +625,7 @@ function pluginNarrative(plugin: PluginRecord): PluginNarrative {
 function PluginsPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
-  const categories = [
-    "All",
-    ...Array.from(new Set(plugins.map((plugin) => plugin.category))),
-  ];
+  const categories = ["All", ...Array.from(new Set(plugins.map((plugin) => plugin.category)))];
 
   const filtered = useMemo(
     () =>
@@ -722,16 +642,15 @@ function PluginsPage() {
   return (
     <>
       <PageIntro eyebrow="Reference / Plugins" title="Plugins">
-        Plugins with an official visual mark or an explicit emoji display it
-        here; wordmark-only and plain-text plugins remain text-only. Each entry
-        explains the project evidence it recognizes, when it activates, and how
-        that evidence changes analysis.
+        Plugins with an official visual mark or an explicit emoji display it here; wordmark-only and
+        plain-text plugins remain text-only. Each entry explains the project evidence it recognizes,
+        when it activates, and how that evidence changes analysis.
       </PageIntro>
       <div className="docs-callout">
         <strong>{plugins.length} Core plugins</strong>
         <span>
-          Search by package, plugin name, or category. Open any item for its
-          activation criteria, search focus, and behavior.
+          Search by package, plugin name, or category. Open any item for its activation criteria,
+          search focus, and behavior.
         </span>
       </div>
       <div className="plugin-controls">
@@ -743,10 +662,7 @@ function PluginsPage() {
             placeholder="Search plugins or packages"
           />
         </label>
-        <select
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-        >
+        <select value={category} onChange={(event) => setCategory(event.target.value)}>
           {categories.map((item) => (
             <option key={item}>{item}</option>
           ))}
@@ -797,17 +713,14 @@ function PluginDetailPage({ plugin }: { plugin: PluginRecord }) {
   const narrative = pluginNarrative(plugin);
   return (
     <>
-      <PageIntro
-        eyebrow={`Plugins / ${plugin.category}`}
-        title={pluginTitle(plugin.name)}
-      >
+      <PageIntro eyebrow={`Plugins / ${plugin.category}`} title={pluginTitle(plugin.name)}>
         {narrative.summary}
       </PageIntro>
       <div className="docs-callout">
         <strong>Package</strong>
         <span>
-          <code>{plugin.name}</code> · Version {plugin.version} · Activate or
-          disable this plugin directly in the{" "}
+          <code>{plugin.name}</code> · Version {plugin.version} · Activate or disable this plugin
+          directly in the{" "}
           <a className="docs-inline" href="/docs/configuration">
             configuration
           </a>
@@ -830,9 +743,9 @@ function PluginDetailPage({ plugin }: { plugin: PluginRecord }) {
       </div>
       <h2>Configuration override</h2>
       <p>
-        Plugins are detected automatically, but the schema also supports an
-        explicit override. Set the plugin to <code>true</code> to require it or{" "}
-        <code>false</code> to keep it disabled for this project.
+        Plugins are detected automatically, but the schema also supports an explicit override. Set
+        the plugin to <code>true</code> to require it or <code>false</code> to keep it disabled for
+        this project.
       </p>
       <CodeBlock
         label="optiprune.json"
@@ -858,9 +771,9 @@ function CliPage() {
   return (
     <>
       <PageIntro eyebrow="Reference / CLI" title="CLI commands & options">
-        The <code>@optiprune/cli</code> package runs the Core engine from the
-        command line. The default command is <code>analyze</code>; command-line
-        values take precedence over file configuration.
+        The <code>@optiprune/cli</code> package runs the Core engine from the command line. The
+        default command is <code>analyze</code>; command-line values take precedence over file
+        configuration.
       </PageIntro>
       <CodeBlock
         label="Commands"
@@ -877,26 +790,16 @@ function CliPage() {
       <h2>Cache subcommands</h2>
       <Table
         rows={[
-          [
-            "export-cache <targetPath>",
-            "Export the local analysis cache to JSON.",
-          ],
-          [
-            "import-cache <sourcePath>",
-            "Import a cache JSON file into the current project cache.",
-          ],
-          [
-            "-r, --rootDir <path>",
-            "Use a different project root with either cache command.",
-          ],
+          ["export-cache <targetPath>", "Export the local analysis cache to JSON."],
+          ["import-cache <sourcePath>", "Import a cache JSON file into the current project cache."],
+          ["-r, --rootDir <path>", "Use a different project root with either cache command."],
         ]}
       />
       <div className="docs-callout">
         <strong>Safe fixes first</strong>
         <span>
-          <code>--confidence</code>, <code>--force</code>, and{" "}
-          <code>--dry-run</code> work with <code>--fix</code> or{" "}
-          <code>--fix-json</code>. Use a dry run before allowing any file
+          <code>--confidence</code>, <code>--force</code>, and <code>--dry-run</code> work with{" "}
+          <code>--fix</code> or <code>--fix-json</code>. Use a dry run before allowing any file
           changes.
         </span>
       </div>
@@ -908,9 +811,9 @@ function ConfigPage() {
   return (
     <>
       <PageIntro eyebrow="Configuration & discovery" title="Configuration">
-        Place an OptiPrune configuration beside your project, or use the{" "}
-        <code>optiprune</code> field in <code>package.json</code>. Core merges
-        it with its defaults; command-line options are explicit overrides.
+        Place an OptiPrune configuration beside your project, or use the <code>optiprune</code>{" "}
+        field in <code>package.json</code>. Core merges it with its defaults; command-line options
+        are explicit overrides.
       </PageIntro>
       <h2>Where configuration is read</h2>
       <Table
@@ -925,10 +828,9 @@ function ConfigPage() {
       />
       <h2>How options are merged</h2>
       <p>
-        Command-line options override file values. Ignore patterns are combined
-        with built-in ignores; nested rules, plugins, and layers are merged by
-        key. The source of truth for every valid field is the Core{" "}
-        <code>schema.json</code> reference below.
+        Command-line options override file values. Ignore patterns are combined with built-in
+        ignores; nested rules, plugins, and layers are merged by key. The source of truth for every
+        valid field is the Core <code>schema.json</code> reference below.
       </p>
       <SchemaReference />
     </>
@@ -939,9 +841,8 @@ function FixesPage() {
   return (
     <>
       <PageIntro eyebrow="Reference / fixes" title="Automated fixes">
-        Fixes are opt-in and confidence-gated. Begin with a dry run, review the
-        proposed changes, then run the same command without{" "}
-        <code>--dry-run</code> only when the result is acceptable.
+        Fixes are opt-in and confidence-gated. Begin with a dry run, review the proposed changes,
+        then run the same command without <code>--dry-run</code> only when the result is acceptable.
       </PageIntro>
       <CodeBlock
         label="CLI"
@@ -968,8 +869,8 @@ function FixesPage() {
       <div className="docs-callout">
         <strong>Safety boundary</strong>
         <span>
-          <code>--force</code> changes the safety decision for a selected fix;
-          it does not make an unverified finding correct.
+          <code>--force</code> changes the safety decision for a selected fix; it does not make an
+          unverified finding correct.
         </span>
       </div>
     </>
@@ -980,9 +881,9 @@ function CoreApiPage() {
   return (
     <>
       <PageIntro eyebrow="Reference / Core" title="Core functions">
-        Use <code>@optiprune/core</code> when the CLI is not the right
-        integration boundary. The package returns structured results for CI,
-        editors, dashboards, and custom developer tooling.
+        Use <code>@optiprune/core</code> when the CLI is not the right integration boundary. The
+        package returns structured results for CI, editors, dashboards, and custom developer
+        tooling.
       </PageIntro>
       <CodeBlock
         label="TypeScript / ESM"
@@ -1000,9 +901,9 @@ function CoreApiPage() {
       <Table rows={coreFunctions} />
       <h2>Report result</h2>
       <p>
-        An <code>AnalysisReport</code> contains the project root, discovered
-        entry points, findings, summary counters, module records, export
-        information, dependency edges, and strongly connected components.
+        An <code>AnalysisReport</code> contains the project root, discovered entry points, findings,
+        summary counters, module records, export information, dependency edges, and strongly
+        connected components.
       </p>
     </>
   );
@@ -1012,9 +913,8 @@ function AnalysisPage() {
   return (
     <>
       <PageIntro eyebrow="Reference / engine" title="Analysis & findings">
-        Core combines source parsing, module graphs, dynamic-path analysis,
-        project metadata, and optional proof layers to decide what is reachable
-        in a JavaScript or TypeScript workspace.
+        Core combines source parsing, module graphs, dynamic-path analysis, project metadata, and
+        optional proof layers to decide what is reachable in a JavaScript or TypeScript workspace.
       </PageIntro>
       <div className="layer-list">
         {[
@@ -1065,10 +965,7 @@ function AnalysisPage() {
             "Reachability",
             "Unused exports or members, unreachable files, and unreachable statements.",
           ],
-          [
-            "Logic",
-            "Constant conditions, contradictory guards, and unreachable dynamic paths.",
-          ],
+          ["Logic", "Constant conditions, contradictory guards, and unreachable dynamic paths."],
           [
             "Imports",
             "Unresolved imports, unknown dynamic imports, and parse recovery information.",
@@ -1088,8 +985,8 @@ function ReportersPage() {
   return (
     <>
       <PageIntro eyebrow="Reference / output" title="Reporters & output">
-        Core separates analysis from presentation. Choose the format that
-        matches a local review, automation, or code-scanning workflow.
+        Core separates analysis from presentation. Choose the format that matches a local review,
+        automation, or code-scanning workflow.
       </PageIntro>
       <Table
         rows={[
@@ -1111,8 +1008,8 @@ function CachePage() {
   return (
     <>
       <PageIntro eyebrow="Reference / cache" title="Cache commands">
-        Use JSON cache files to reuse analysis work locally or in CI. Cache
-        import and export are available from the CLI and the public Core API.
+        Use JSON cache files to reuse analysis work locally or in CI. Cache import and export are
+        available from the CLI and the public Core API.
       </PageIntro>
       <CodeBlock
         label="CLI"
@@ -1126,10 +1023,7 @@ function CachePage() {
         rows={[
           ["--cache-from <path>", "Import a JSON cache before analysis."],
           ["--cache-to <path>", "Export the resulting cache after analysis."],
-          [
-            "exportCache",
-            "Core helper that writes a portable cache JSON file.",
-          ],
+          ["exportCache", "Core helper that writes a portable cache JSON file."],
           ["importCache", "Core helper that loads a portable cache JSON file."],
         ]}
       />
@@ -1176,16 +1070,14 @@ function QuickReferencePage() {
   ];
 
   const filtered = entries.filter((item) =>
-    `${item.kind} ${item.name} ${item.text}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+    `${item.kind} ${item.name} ${item.text}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
     <>
       <PageIntro eyebrow="Reference / search" title="Search the reference">
-        Search current CLI flags, public Core functions, and configuration
-        fields without leaving the documentation.
+        Search current CLI flags, public Core functions, and configuration fields without leaving
+        the documentation.
       </PageIntro>
       <div className="plugin-controls">
         <label>
@@ -1234,16 +1126,11 @@ function DocsArticle({ slug }: { slug: string }) {
     return (
       <>
         <PageIntro eyebrow="Start here" title="Getting Started">
-          Install the CLI, run an analysis, then use this reference to choose
-          the configuration, Core, fix, cache, or plugin surface that fits your
-          workflow.
+          Install the CLI, run an analysis, then use this reference to choose the configuration,
+          Core, fix, cache, or plugin surface that fits your workflow.
         </PageIntro>
         <h2>Install and run</h2>
-        <CodeBlock
-          code={
-            "npm install --save-dev @optiprune/cli\nnpx @optiprune/cli analyze"
-          }
-        />
+        <CodeBlock code={"npm install --save-dev @optiprune/cli\nnpx @optiprune/cli analyze"} />
         <div className="docs-next-grid">
           <LinkCard
             href="/docs/configuration"
@@ -1263,9 +1150,8 @@ function DocsArticle({ slug }: { slug: string }) {
     return (
       <>
         <PageIntro eyebrow="Start here" title="How OptiPrune works">
-          OptiPrune combines parser-backed source data, module reachability,
-          optional proof layers, dependency analysis, and plugin context to
-          identify unreachable code with evidence.
+          OptiPrune combines parser-backed source data, module reachability, optional proof layers,
+          dependency analysis, and plugin context to identify unreachable code with evidence.
         </PageIntro>
         <LinkCard
           href="/docs/analysis"
@@ -1279,31 +1165,24 @@ function DocsArticle({ slug }: { slug: string }) {
     return (
       <>
         <PageIntro eyebrow="Start here" title="Why use OptiPrune?">
-          Use OptiPrune when import graphs alone cannot explain framework entry
-          points, package scripts, dynamic imports, contracts, workspace
-          topology, or safe cleanup boundaries.
+          Use OptiPrune when import graphs alone cannot explain framework entry points, package
+          scripts, dynamic imports, contracts, workspace topology, or safe cleanup boundaries.
         </PageIntro>
         <div className="reason-grid">
           <div>
             <strong>Context-aware</strong>
             <p>
-              Plugins recognize frameworks and tools that own runtime files
-              outside conventional imports.
+              Plugins recognize frameworks and tools that own runtime files outside conventional
+              imports.
             </p>
           </div>
           <div>
             <strong>Traceable fixes</strong>
-            <p>
-              Fixes are explicit, confidence-gated, and can be reviewed with
-              dry-run first.
-            </p>
+            <p>Fixes are explicit, confidence-gated, and can be reviewed with dry-run first.</p>
           </div>
           <div>
             <strong>Headless first</strong>
-            <p>
-              Use Core directly in CI, dashboards, editor integrations, and
-              custom tooling.
-            </p>
+            <p>Use Core directly in CI, dashboards, editor integrations, and custom tooling.</p>
           </div>
         </div>
       </>
@@ -1313,8 +1192,8 @@ function DocsArticle({ slug }: { slug: string }) {
     return (
       <>
         <PageIntro eyebrow="Integration" title="Integrations">
-          Run the CLI locally or in CI, upload SARIF to code scanning, or embed
-          Core in custom developer tooling.
+          Run the CLI locally or in CI, upload SARIF to code scanning, or embed Core in custom
+          developer tooling.
         </PageIntro>
         <div className="integration-list">
           <a href={sourceLinks.vscode} target="_blank" rel="noreferrer">
@@ -1329,10 +1208,7 @@ function DocsArticle({ slug }: { slug: string }) {
           </a>
           <a href={sourceLinks.cli} target="_blank" rel="noreferrer">
             <strong>CLI package</strong>
-            <span>
-              Run analysis, JSON output, SARIF, and cache commands from
-              automation.
-            </span>
+            <span>Run analysis, JSON output, SARIF, and cache commands from automation.</span>
             <ArrowUpRight size={15} />
           </a>
         </div>
@@ -1343,10 +1219,9 @@ function DocsArticle({ slug }: { slug: string }) {
     return (
       <>
         <PageIntro eyebrow="Contributing" title="Plugin guidance">
-          A useful plugin documents three things clearly: the project evidence
-          that activates it, the files or APIs it recognizes, and the behavior
-          it contributes to analysis. Keep recognition narrow enough that
-          unrelated projects are not affected.
+          A useful plugin documents three things clearly: the project evidence that activates it,
+          the files or APIs it recognizes, and the behavior it contributes to analysis. Keep
+          recognition narrow enough that unrelated projects are not affected.
         </PageIntro>
         <Table
           rows={[
@@ -1376,24 +1251,21 @@ function DocsArticle({ slug }: { slug: string }) {
     return (
       <>
         <PageIntro eyebrow="Contributing / source" title="Source repositories">
-          The reference tracks the public Core and CLI repositories, with
-          configuration fields read from the Core schema.
+          The reference tracks the public Core and CLI repositories, with configuration fields read
+          from the Core schema.
         </PageIntro>
         <div className="integration-list">
           <a href={sourceLinks.core} target="_blank" rel="noreferrer">
             <strong>optiprune/core</strong>
             <span>
-              Headless analysis engine, schema, public functions, reporters,
-              cache helpers, and built-in plugins.
+              Headless analysis engine, schema, public functions, reporters, cache helpers, and
+              built-in plugins.
             </span>
             <ArrowUpRight size={15} />
           </a>
           <a href={sourceLinks.cli} target="_blank" rel="noreferrer">
             <strong>optiprune/cli</strong>
-            <span>
-              Command-line package and option definitions for local and CI
-              workflows.
-            </span>
+            <span>Command-line package and option definitions for local and CI workflows.</span>
             <ArrowUpRight size={15} />
           </a>
           <a href={sourceLinks.npmCore} target="_blank" rel="noreferrer">
@@ -1403,9 +1275,7 @@ function DocsArticle({ slug }: { slug: string }) {
           </a>
           <a href={sourceLinks.npmCli} target="_blank" rel="noreferrer">
             <strong>@optiprune/cli</strong>
-            <span>
-              Install the command-line package as a development dependency.
-            </span>
+            <span>Install the command-line package as a development dependency.</span>
             <ArrowUpRight size={15} />
           </a>
         </div>
@@ -1415,14 +1285,11 @@ function DocsArticle({ slug }: { slug: string }) {
   if (slug === "monorepos") {
     return (
       <>
-        <PageIntro
-          eyebrow="Configuration & discovery"
-          title="Monorepos & workspaces"
-        >
-          Core inspects workspace packages, manifests, scripts, exported
-          surfaces, and package boundaries. Place the configuration at the
-          workspace root and use <code>entry</code>, <code>ignore</code>, and{" "}
-          <code>externalContracts</code> to clarify project-specific boundaries.
+        <PageIntro eyebrow="Configuration & discovery" title="Monorepos & workspaces">
+          Core inspects workspace packages, manifests, scripts, exported surfaces, and package
+          boundaries. Place the configuration at the workspace root and use <code>entry</code>,{" "}
+          <code>ignore</code>, and <code>externalContracts</code> to clarify project-specific
+          boundaries.
         </PageIntro>
         <LinkCard
           href="/docs/configuration"
@@ -1435,8 +1302,8 @@ function DocsArticle({ slug }: { slug: string }) {
   return (
     <>
       <PageIntro eyebrow="Configuration & discovery" title="Entry files">
-        OptiPrune begins from explicit entries, package metadata, exports, bins,
-        scripts, conventional framework files, and workspace topology.
+        OptiPrune begins from explicit entries, package metadata, exports, bins, scripts,
+        conventional framework files, and workspace topology.
       </PageIntro>
       <CodeBlock
         code={
@@ -1445,8 +1312,7 @@ function DocsArticle({ slug }: { slug: string }) {
       />
       <p>
         Use <code>externalContracts</code> for public symbols and{" "}
-        <code>includeConventionalEntries</code> to control discovery of familiar
-        application roots.
+        <code>includeConventionalEntries</code> to control discovery of familiar application roots.
       </p>
     </>
   );
@@ -1460,9 +1326,7 @@ export default function Docs() {
   const pluginSlug = parts[2] ? decodeURIComponent(parts[2]) : undefined;
   const pluginDetail =
     slug === "plugins" && pluginSlug
-      ? plugins.find(
-          (plugin) => plugin.name.replace(/-plugin$/, "") === pluginSlug,
-        )
+      ? plugins.find((plugin) => plugin.name.replace(/-plugin$/, "") === pluginSlug)
       : undefined;
   const currentIndex = Math.max(
     0,
@@ -1526,10 +1390,7 @@ export default function Docs() {
         <aside className="docs-nav">
           <div className="docs-nav-head">
             <span>DOCUMENTATION</span>
-            <button
-              onClick={() => setMobileOpen(false)}
-              aria-label="Close navigation"
-            >
+            <button onClick={() => setMobileOpen(false)} aria-label="Close navigation">
               <X size={16} />
             </button>
           </div>

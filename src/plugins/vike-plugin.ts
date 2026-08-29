@@ -5,12 +5,7 @@ import path from "pathe";
 /**
  * Recognized Vike configuration and extension files
  */
-const VIKE_CONFIG_FILES = [
-  "+config.h.js",
-  "+config.h.ts",
-  "vike.config.js",
-  "vike.config.ts"
-];
+const VIKE_CONFIG_FILES = ["+config.h.js", "+config.h.ts", "vike.config.js", "vike.config.ts"];
 
 const VIKE_CORE_PACKAGES = [
   "vike",
@@ -18,7 +13,7 @@ const VIKE_CORE_PACKAGES = [
   "vike-vue",
   "vike-solid",
   "vike-node",
-  "vite-plugin-ssr"
+  "vite-plugin-ssr",
 ];
 
 /**
@@ -34,17 +29,14 @@ export const VikePlugin: AnalyzerPlugin = {
 
   detect: async (adapter) => {
     // 1. Check for pages/ or renderer/ directories
-    if (
-      (await adapter.folderExists("pages")) ||
-      (await adapter.folderExists("renderer"))
-    ) {
+    if ((await adapter.folderExists("pages")) || (await adapter.folderExists("renderer"))) {
       // Verify vike or vite-plugin-ssr dependency in package.json
       const pkg = await adapter.readJson("package.json");
       if (pkg) {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
         if (VIKE_CORE_PACKAGES.some((p) => p in allDeps)) {
           return true;
@@ -58,12 +50,12 @@ export const VikePlugin: AnalyzerPlugin = {
       const allDeps = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
-        ...pkg.peerDependencies
+        ...pkg.peerDependencies,
       };
 
       if (
         Object.keys(allDeps).some(
-          (dep) => dep === "vike" || dep.startsWith("vike-") || dep === "vite-plugin-ssr"
+          (dep) => dep === "vike" || dep.startsWith("vike-") || dep === "vite-plugin-ssr",
         )
       ) {
         return true;
@@ -90,15 +82,11 @@ export const VikePlugin: AnalyzerPlugin = {
         const allDeps = {
           ...pkg.dependencies,
           ...pkg.devDependencies,
-          ...pkg.peerDependencies
+          ...pkg.peerDependencies,
         };
 
         for (const depName of Object.keys(allDeps)) {
-          if (
-            depName === "vike" ||
-            depName.startsWith("vike-") ||
-            depName === "vite-plugin-ssr"
-          ) {
+          if (depName === "vike" || depName.startsWith("vike-") || depName === "vite-plugin-ssr") {
             // A manifest entry alone is not evidence that this package is used.
             // Usage is marked by the config, script, import, or file hooks below.
           }
@@ -156,8 +144,8 @@ export const VikePlugin: AnalyzerPlugin = {
           adapter.markAsUsed(fileId);
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default VikePlugin;

@@ -13,9 +13,16 @@ afterEach(async () => {
 async function rootWith(source: string, includeDependency = true): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "optiprune-node-llama-cpp-"));
   roots.push(root);
-  await fs.writeFile(path.join(root, "package.json"), JSON.stringify({
-    ...(includeDependency && { dependencies: { "node-llama-cpp": "^3.0.0" } }),
-  }, null, 2));
+  await fs.writeFile(
+    path.join(root, "package.json"),
+    JSON.stringify(
+      {
+        ...(includeDependency && { dependencies: { "node-llama-cpp": "^3.0.0" } }),
+      },
+      null,
+      2,
+    ),
+  );
   await fs.mkdir(path.join(root, "src"), { recursive: true });
   await fs.writeFile(path.join(root, "src", "index.ts"), source, "utf8");
   return root;
@@ -72,7 +79,9 @@ describe("node-llama-cpp plugin", () => {
       }
     `);
 
-    const finding = report.findings.find((candidate) => candidate.rule === "node-llama-missing-disposal");
+    const finding = report.findings.find(
+      (candidate) => candidate.rule === "node-llama-missing-disposal",
+    );
     expect(finding).toMatchObject({
       severity: "warning",
       confidence: "high",
@@ -105,7 +114,9 @@ describe("node-llama-cpp plugin", () => {
       app.post("/chat", async (req, res) => session.prompt(req.body));
     `);
 
-    const finding = report.findings.find((candidate) => candidate.rule === "node-llama-shared-sequence");
+    const finding = report.findings.find(
+      (candidate) => candidate.rule === "node-llama-shared-sequence",
+    );
     expect(finding).toMatchObject({
       severity: "warning",
       confidence: "high",
@@ -141,11 +152,13 @@ describe("node-llama-cpp plugin", () => {
       }
     `);
 
-    expect(rules(report)).toEqual(expect.arrayContaining([
-      "node-llama-batch-exceeds-context",
-      "node-llama-invalid-sequences",
-      "node-llama-memory-safety-disabled",
-    ]));
+    expect(rules(report)).toEqual(
+      expect.arrayContaining([
+        "node-llama-batch-exceeds-context",
+        "node-llama-invalid-sequences",
+        "node-llama-memory-safety-disabled",
+      ]),
+    );
   });
 
   it("keeps same-named contexts isolated across function scopes", async () => {
@@ -162,8 +175,12 @@ describe("node-llama-cpp plugin", () => {
       }
     `);
 
-    const batchFindings = report.findings.filter((candidate) => candidate.rule === "node-llama-batch-exceeds-context");
-    const disposalFindings = report.findings.filter((candidate) => candidate.rule === "node-llama-missing-disposal");
+    const batchFindings = report.findings.filter(
+      (candidate) => candidate.rule === "node-llama-batch-exceeds-context",
+    );
+    const disposalFindings = report.findings.filter(
+      (candidate) => candidate.rule === "node-llama-missing-disposal",
+    );
     expect(batchFindings).toHaveLength(1);
     expect(disposalFindings).toHaveLength(1);
     expect(disposalFindings[0]?.evidence.scope).toContain("unsafe");
@@ -189,12 +206,15 @@ describe("node-llama-cpp plugin", () => {
   });
 
   it("reports an imported node-llama-cpp package missing from package.json", async () => {
-    const root = await rootWith(`${imports}
+    const root = await rootWith(
+      `${imports}
       export async function create() {
         ${setup}
         return model.createContext();
       }
-    `, false);
+    `,
+      false,
+    );
     const report = await analyze({
       rootDir: root,
       entry: ["src/index.ts"],
@@ -206,7 +226,10 @@ describe("node-llama-cpp plugin", () => {
     expect(report.findings.find((finding) => finding.rule === "missing-dependency")).toMatchObject({
       severity: "error",
       confidence: "high",
-      evidence: { package: "node-llama-cpp", importedFrom: expect.stringContaining("src/index.ts") },
+      evidence: {
+        package: "node-llama-cpp",
+        importedFrom: expect.stringContaining("src/index.ts"),
+      },
     });
   });
 });

@@ -21,10 +21,7 @@ export const WorkerPlugin: AnalyzerPlugin = {
     onASTNode: (node: any, fileId, adapter) => {
       // 1. Detect 'new Worker("./worker.js")' or 'new SharedWorker("./shared.js")'
       if (t.isNewExpression(node) && t.isIdentifier(node.callee)) {
-        if (
-          node.callee.name === "Worker" ||
-          node.callee.name === "SharedWorker"
-        ) {
+        if (node.callee.name === "Worker" || node.callee.name === "SharedWorker") {
           adapter.markAsUsed(fileId);
 
           // Attempt to mark the referenced worker script file as used
@@ -32,9 +29,7 @@ export const WorkerPlugin: AnalyzerPlugin = {
           if (t.isStringLiteral(firstArg)) {
             const relativeWorkerPath = firstArg.value;
             const dir = path.dirname(fileId);
-            const resolvedWorker = path.normalize(
-              path.join(dir, relativeWorkerPath)
-            );
+            const resolvedWorker = path.normalize(path.join(dir, relativeWorkerPath));
             adapter.markAsUsed(resolvedWorker);
           }
         }
@@ -59,15 +54,13 @@ export const WorkerPlugin: AnalyzerPlugin = {
           if (t.isStringLiteral(firstArg)) {
             const relativeSwPath = firstArg.value;
             const dir = path.dirname(fileId);
-            const resolvedSw = path.normalize(
-              path.join(dir, relativeSwPath)
-            );
+            const resolvedSw = path.normalize(path.join(dir, relativeSwPath));
             adapter.markAsUsed(resolvedSw);
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 export default WorkerPlugin;
