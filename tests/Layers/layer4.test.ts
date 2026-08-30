@@ -4,13 +4,13 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "..");
+const rootDir = path.resolve(__dirname, "../fixtures/layer4-isolated");
 
 describe("Layer 4: Concolic Execution", () => {
   it("should explore dynamic branches and find unreachable paths", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer4-test.ts"],
+      entry: ["layer4-test.ts"],
       includeConventionalEntries: false,
     });
 

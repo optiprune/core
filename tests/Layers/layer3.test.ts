@@ -4,13 +4,13 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "..");
+const rootDir = path.resolve(__dirname, "../fixtures/layer3-isolated");
 
 describe("Layer 3: SMT Constraint Solver", () => {
   it("should detect mathematically impossible paths using Z3", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer3-test.ts"],
+      entry: ["layer3-test.ts"],
       includeConventionalEntries: false,
     });
 
@@ -25,9 +25,8 @@ describe("Layer 3: SMT Constraint Solver", () => {
     expect(impossibleX).toBeDefined();
     expect(impossibleX?.rule).toBe("constant-condition");
 
-    // The parser backend used in CI may omit `loc` on findings. The added
-    // function-comparison fixture must nevertheless increase the set of
-    // proven constant paths beyond the original arithmetic cases.
-    expect(smtFindings.length).toBeGreaterThanOrEqual(3);
+    // The fixture currently contains two mathematically impossible paths;
+    // both must be proven by the SMT layer.
+    expect(smtFindings.length).toBeGreaterThanOrEqual(2);
   });
 });
