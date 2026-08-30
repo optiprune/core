@@ -57,7 +57,7 @@ export function formatTerminal(
 
 export function formatSarif(report: AnalysisReport): string {
   const sarif = {
-    $schema: "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+    $schema: "https://www.schemastore.org/sarif-2.1.0-rtm.5.json",
     version: "2.1.0",
     runs: [
       {
