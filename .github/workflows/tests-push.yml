@@ -1,14 +1,12 @@
-name: Testing
+name: Testing-Push
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-      - testing
-      - testing-adding-tests-from-knip
 
 jobs:
   find-matrix:
@@ -94,10 +92,12 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
           - windows-latest
         node-version:
           - 20
           - 22
+          - 24
         folder: ${{ fromJSON(needs.find-matrix.outputs.folders) }}
 
     name: Test ${{ matrix.folder }} (${{ matrix.os }}, Node ${{ matrix.node-version }})
