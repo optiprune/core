@@ -172,10 +172,24 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
   if (!hasCssCompiler && (packageDeps.less !== undefined || packageDeps.stylus !== undefined)) {
     merged.extensions = merged.extensions.filter((extension) => extension !== ".css");
   }
+  const compilerExtensions: Record<string, string[]> = {
+    md: [".md", ".mdx"],
+    markdown: [".md", ".mdx"],
+    mdx: [".mdx"],
+    css: [".css"],
+    scss: [".scss", ".sass"],
+    sass: [".sass", ".scss"],
+    less: [".less"],
+    stylus: [".styl", ".stylus"],
+    tsrx: [".tsrx"],
+  };
   for (const [name, value] of Object.entries(configuredCompilers)) {
     if (value !== false && value !== undefined) {
       const pluginName = `${name.toLowerCase()}-plugin`;
       merged.plugins[pluginName] = true;
+      for (const extension of compilerExtensions[name.toLowerCase()] ?? []) {
+        if (!merged.extensions.includes(extension)) merged.extensions.push(extension);
+      }
     }
   }
 
@@ -646,6 +660,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       for (const e of expanded) {
         const normalized = path.normalize(e);
         if (isRoot && includeConventionalEntries) {
+          // Storybook's .storybook/main.* is configuration, not a project entry.
+          if (normalized.includes(`${path.sep}.storybook${path.sep}`)) continue;
           entryPoints.add(normalized);
           publicEntryPoints.add(normalized);
         }

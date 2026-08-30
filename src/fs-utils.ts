@@ -50,8 +50,6 @@ export const DEFAULT_EXTENSIONS = [
   ".less",
   ".styl",
   ".stylus",
-  ".md",
-  ".mdx",
   ".prisma",
   ".tsrx",
   ".jpg",
