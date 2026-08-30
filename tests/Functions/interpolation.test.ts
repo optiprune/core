@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("String Interpolation Dynamic Import", () => {
-  const rootDir = path.resolve(__dirname, "..");
-  const fixtureDir = path.join(__dirname, "fixtures/interpolation-test");
+  const fixtureDir = path.join(__dirname, "../fixtures/interpolation-test");
+  const rootDir = fixtureDir;
 
   it("should resolve dynamic import with string interpolation using Layer 4", async () => {
     const results = await analyze({
       rootDir,
-      entryPoints: [path.join(fixtureDir, "main.ts")],
+      entryPoints: ["main.ts"],
       reportUnusedExports: true,
       verbose: true,
       layers: { skip3: false, skip4: false },
@@ -34,7 +34,7 @@ describe("String Interpolation Dynamic Import", () => {
   it("should handle data-flow with variables in dynamic imports (Nightmare Case)", async () => {
     const results = await analyze({
       rootDir,
-      entryPoints: [path.join(fixtureDir, "nightmare.ts")],
+      entryPoints: ["nightmare.ts"],
       reportUnusedExports: true,
       verbose: true,
       layers: { skip3: false, skip4: false },
@@ -51,7 +51,7 @@ describe("String Interpolation Dynamic Import", () => {
   it("should handle outer-scope variables in dynamic imports", async () => {
     const results = await analyze({
       rootDir,
-      entryPoints: [path.join(fixtureDir, "outer-scope.ts")],
+      entryPoints: ["outer-scope.ts"],
       reportUnusedExports: true,
       verbose: true,
       layers: { skip3: false, skip4: false },

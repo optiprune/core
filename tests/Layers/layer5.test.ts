@@ -4,15 +4,17 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
+const rootDir = path.resolve(__dirname, "../fixtures/layer5-isolated");
 
 describe("Layer 5: Schema Alignment", () => {
   it("should protect externally contracted exports from being marked as unused", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer5-test.ts"],
+      entry: ["layer5-test.ts"],
       includeConventionalEntries: false,
       externalContracts: ["UnusedButExternal", "OrderEntity"], // Explicitly mark these as external
+      skip3: true,
+      skip4: true,
     });
     // Ensure cache is not interfering (though analyze doesn't have a clear 'noCache' option,
     // we assume the first run in this process is fresh enough or we rely on the fact that

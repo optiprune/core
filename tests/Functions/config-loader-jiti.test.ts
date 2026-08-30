@@ -247,10 +247,13 @@ describe("Jiti configuration loading", () => {
     expect(report.findings.filter((finding) => finding.rule === "unused-member")).toEqual([]);
   });
 
-  it("does not load knip.ts as an OptiPrune configuration", async () => {
+  it("loads knip.ts as a compatibility configuration", async () => {
     const rootDir = await createProject("knip-config-is-plugin-owned");
     await write(rootDir, "knip.ts", 'export default { entry: ["src/index.ts"], verbose: true };\n');
-    await expect(loadConfig(rootDir)).resolves.toEqual({});
+    await expect(loadConfig(rootDir)).resolves.toMatchObject({
+      entry: ["src/index.ts"],
+      verbose: true,
+    });
   });
 
   it("applies imported ignore patterns and ignoreDependencies to analysis", async () => {

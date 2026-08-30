@@ -5,13 +5,14 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
+const rootDir = path.resolve(__dirname, "../fixtures/puzzle-isolated");
 
 describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
-  const fixturePath = path.join(rootDir, "tests/fixtures/puzzle-test.ts");
+  const fixturePath = path.join(rootDir, "puzzle-test.ts");
   const configPath = path.join(rootDir, "optiprune.config.ts");
 
   beforeEach(() => {
+    fs.mkdirSync(rootDir, { recursive: true });
     fs.writeFileSync(
       fixturePath,
       `

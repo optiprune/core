@@ -4,13 +4,13 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "..");
+const rootDir = path.resolve(__dirname, "../fixtures/smt-isolated");
 
 describe("Layer 3: SMT Fixes", () => {
   it("should detect all complex mathematically impossible paths", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/smt-fix-fixture.ts"],
+      entry: ["smt-fix-fixtures.ts"],
       includeConventionalEntries: false,
     });
 

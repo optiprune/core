@@ -4,13 +4,13 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "..");
+const rootDir = path.resolve(__dirname, "../fixtures/layer2-isolated");
 
 describe("Layer 2: Control Flow Graph Analysis", () => {
   it("should detect unreachable statements after return and throw", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer2-test.ts"],
+      entry: ["layer2-test.ts"],
       includeConventionalEntries: false,
     });
 
@@ -31,7 +31,7 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
   it("should detect constant conditions", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer2-test.ts"],
+      entry: ["layer2-test.ts"],
       includeConventionalEntries: false,
     });
 
@@ -53,7 +53,7 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
   it("should detect contradictory guards", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer2-test.ts"],
+      entry: ["layer2-test.ts"],
       includeConventionalEntries: false,
     });
 
@@ -65,7 +65,7 @@ describe("Layer 2: Control Flow Graph Analysis", () => {
   it("should detect type narrowing exhaustion (assertNever)", async () => {
     const report = await analyze({
       rootDir,
-      entry: ["tests/fixtures/layer2-test.ts"],
+      entry: ["layer2-test.ts"],
       includeConventionalEntries: false,
     });
 

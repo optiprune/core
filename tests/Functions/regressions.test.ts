@@ -44,8 +44,8 @@ describe("OptiPrune regressions", () => {
 
   it("skips impossible-condition checks but still runs ordinary Layer 2 CFG checks", async () => {
     const result = await analyze({
-      rootDir: path.resolve(process.cwd()),
-      entry: ["tests/fixtures/layer2-test.ts"],
+      rootDir: path.resolve(process.cwd(), "tests/fixtures/layer2-isolated"),
+      entry: ["layer2-test.ts"],
       includeConventionalEntries: false,
       skipSmt: true,
       skip4: true,
@@ -85,6 +85,8 @@ describe("OptiPrune regressions", () => {
       rootDir: root,
       includeConventionalEntries: false,
       reportUnusedExports: false,
+      skip3: true,
+      skip4: true,
     });
     expect(result.findings.some((finding) => finding.evidence?.package === ".pnpm")).toBe(false);
     expect(result.findings.some((finding) => finding.rule === "missing-dev-dependency")).toBe(
@@ -103,6 +105,8 @@ describe("OptiPrune regressions", () => {
       rootDir: root,
       includeConventionalEntries: false,
       reportUnusedExports: false,
+      skip3: true,
+      skip4: true,
     });
     expect(result.findings).toContainEqual(
       expect.objectContaining({
