@@ -243,6 +243,26 @@ describe("Plugin configuration integration", () => {
     expect(unusedDependencies).toEqual(expect.arrayContaining(["tsx", "esbuild", "vite"]));
   });
 
+  it("falls back to regex extraction when knip.ts imports an unavailable package", async () => {
+    const adapter = {
+      folderExists: async (file: string) => file === "knip.ts",
+      readFile: async (file: string) =>
+        file === "knip.ts"
+          ? [
+              'import "missing-knip-compiler";',
+              "export default {",
+              '  entry: ["src/main.ts"],',
+              "  compilers: { markdown: true },",
+              "};",
+            ].join("\n")
+          : null,
+      readJson: async () => ({}),
+      markAsUsed: () => undefined,
+    } as any;
+
+    await expect(KnipPlugin.detect!(adapter)).resolves.toBe(true);
+  });
+
   it("claims a Knip configuration only through a Knip-specific location or package key", async () => {
     const adapter = {
       folderExists: async (file: string) => file === "knip.json",

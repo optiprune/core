@@ -71,16 +71,20 @@ function parseJsonc(content: string): Record<string, StaticConfigValue> | undefi
  * - `const config = { ... }; export default config;`
  */
 function extractStaticJsTsObject(code: string): Record<string, StaticConfigValue> | undefined {
-  const cleanCode = code.replace(
-    /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g,
-    (match, str) => (str ? str : ""),
-  );
+  const cleanCode = code
+    .replace(/^\s*import[\s\S]*?;\s*/gm, "")
+    .replace(
+      /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g,
+      (match, str) => (str ? str : ""),
+    );
 
   // Match default exports (including arrow/function wraps) or variable declarations
   const match =
     cleanCode.match(
-      /(?:export\s+default\s+(?:defineConfig\s*\(\s*)?(?:(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>\s*\(?)?|module\.exports\s*=\s*)([\s\S]+?)(?:\s*\)\s*)?(?:;|\n|$)/,
-    ) || cleanCode.match(/(?:const|let|var)\s+config(?:\s*:\s*[A-Za-z0-9_<>]+)?\s*=\s*([\s\S]+?);/);
+      /(?:export\s+default\s+(?:defineConfig\s*\(\s*)?(?:(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>\s*\(?)?|module\.exports\s*=\s*)([\s\S]*?\})\s*\)?\s*;?\s*$/,
+    ) ||
+    cleanCode.match(/(?:const|let|var)\s+config(?:\s*:\s*[A-Za-z0-9_<>]+)?\s*=\s*([\s\S]+?);/) ||
+    cleanCode.match(/export\s+default[\s\S]*?(\{[\s\S]*\})/);
 
   if (!match) return undefined;
 
