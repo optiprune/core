@@ -1,7 +1,18 @@
-import { describe, it } from "vitest";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { test } from "vitest";
+import { applyFixes } from "../../src/fixer.js";
+import { main } from "../../src/index.js";
+import { join } from "../../src/util/path.js";
+import { copyFixture } from "../helpers/copy-fixture.js";
+import { createOptions } from "../helpers/create-options.js";
 
-// Original Knip test: e2e/fix-tsc.test.ts
-// Skipped because OptiPrune does not expose the imported module ../../src/util/string.js.
-describe("e2e/fix-tsc.test.ts", () => {
-  it.todo("OptiPrune compatibility for missing module ../../src/util/string.js");
+test("E2E fix pipeline analyzes and formats a TypeScript project", async () => {
+  const cwd = await copyFixture("fixtures/fix");
+  const report = await main(await createOptions({ cwd, tags: ["-lintignore"] }));
+  const applied = await applyFixes(report, cwd, { rules: ["exports"], force: true });
+  assert.ok(applied >= 1);
+  const fixed = await readFile(join(cwd, "reexported.ts"), "utf8");
+  assert.equal(fixed.includes("export { Two, Three }"), false);
+  assert.equal(fixed.includes("export { Four as Fourth, Five as Fifth }"), false);
 });
