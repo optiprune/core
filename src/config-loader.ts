@@ -9,7 +9,8 @@
  *   3. optiprune.config.ts  – TypeScript ESM default export
  *   4. optiprune.config.js  – JavaScript ESM default export
  *   5. optiprune.config.mjs – JavaScript ESM default export
- *   6. package.json "optiprune" field
+ *   6. knip.ts / knip.js / knip.mjs – Knip-compatible compiler registrations
+ *   7. package.json "optiprune" field
  *
  * All sources are normalised through `mergeConfig` so the rest of the
  * codebase only ever sees a fully-resolved `ResolvedOptions` object.
@@ -145,11 +146,17 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     }
   }
 
-  // ── 3-5. optiprune.config.{ts,js,mjs} ───────────────────────────────────
+  // ── 3-6. optiprune.config.* and Knip-compatible config files ───────────
+  // Keep OptiPrune's native config names first so that a project can retain a
+  // dedicated OptiPrune configuration while also carrying a Knip config during
+  // migration. Knip files are used as a compatibility fallback.
   const scriptPaths = [
     path.join(rootDir, "optiprune.config.ts"),
     path.join(rootDir, "optiprune.config.js"),
     path.join(rootDir, "optiprune.config.mjs"),
+    path.join(rootDir, "knip.ts"),
+    path.join(rootDir, "knip.js"),
+    path.join(rootDir, "knip.mjs"),
   ];
 
   for (const configPath of scriptPaths) {
@@ -206,7 +213,7 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     }
   }
 
-  // ── 6. package.json "optiprune" field ────────────────────────────────────
+  // ── 7. package.json "optiprune" field ───────────────────────────────────
   const pkgPath = path.join(rootDir, "package.json");
   if (fs.existsSync(pkgPath)) {
     const raw = tryReadFile(pkgPath);

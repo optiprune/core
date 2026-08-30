@@ -356,7 +356,7 @@ export function resolveLocalSpecifier(
     }
   }
 
-    // Strategy D: Search for index file
+  // Strategy D: Search for index file
   for (const ext of extensions) {
     const candidate = `${absoluteBasePath}/index${ext}`;
     if (existsInKnown(candidate)) {
@@ -371,7 +371,9 @@ export function resolveLocalSpecifier(
     const partial = join(parentDir, `_${baseName}`);
     if (existsInKnown(partial)) return partial;
   } else {
-    for (const ext of extensions.filter((value) => /^(?:\.scss|\.sass|\.less|\.styl|\.stylus)$/i.test(value))) {
+    for (const ext of extensions.filter((value) =>
+      /^(?:\.scss|\.sass|\.less|\.styl|\.stylus)$/i.test(value),
+    )) {
       const partial = join(parentDir, `_${baseName}${ext}`);
       if (existsInKnown(partial)) return partial;
     }
@@ -431,7 +433,10 @@ export function expandEntryPatterns(
   const normalizedRoot = normalizeAbsolute(rootDir);
   const normalizedSourceFiles = sourceFiles.map((f) => normalizeAbsolute(f));
 
-  for (const pattern of patterns) {
+  for (const rawPattern of patterns) {
+    // Knip uses a trailing ! to force an entry pattern. The force marker is
+    // metadata, not part of the filesystem path or glob.
+    const pattern = rawPattern.endsWith("!") ? rawPattern.slice(0, -1) : rawPattern;
     // 1. Direct absolute or relative path resolution
     const direct = normalizeAbsolute(isAbsolute(pattern) ? pattern : resolve(rootDir, pattern));
 

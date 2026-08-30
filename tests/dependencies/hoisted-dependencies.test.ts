@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { main } from "../../src/index.js";
-import baseCounters from "../helpers/baseCounters.js";
-import { createOptions } from "../helpers/create-options.js";
-import { resolve } from "../helpers/resolve.js";
+import baseCounters from "../helpers/baseCounters.ts";
+import { createOptions } from "../helpers/create-options.ts";
+import { resolve } from "../helpers/resolve.ts";
 
 test("Resolve hoisted binaries from a workspace package run as single project", async () => {
   const cwd = resolve("fixtures/dependencies/hoisted-dependencies/packages/foo");

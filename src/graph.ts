@@ -74,13 +74,27 @@ function resolveEdge(
   // package imports use the explicit `~` or `pkg:` forms handled by the
   // stylesheet compiler plugin.
   const isStylesheetSource = /\.(?:css|scss|sass|less|styl|stylus)$/i.test(source.id);
-  const isExplicitStylesheetPackage = edge.rawSpecifier.startsWith("~") || edge.rawSpecifier.startsWith("pkg:");
-  const isKnownTailwindPackage = edge.rawSpecifier === "tailwindcss" || edge.rawSpecifier.startsWith("@tailwindcss/");
-  const localSpecifier = isStylesheetSource && !edge.rawSpecifier.startsWith(".") && !edge.rawSpecifier.startsWith("/") && !isExplicitStylesheetPackage
-    ? `./${edge.rawSpecifier}`
-    : edge.rawSpecifier;
+  const isExplicitStylesheetPackage =
+    edge.rawSpecifier.startsWith("~") || edge.rawSpecifier.startsWith("pkg:");
+  const isKnownTailwindPackage =
+    edge.rawSpecifier === "tailwindcss" || edge.rawSpecifier.startsWith("@tailwindcss/");
+  const localSpecifier =
+    isStylesheetSource &&
+    !edge.rawSpecifier.startsWith(".") &&
+    !edge.rawSpecifier.startsWith("/") &&
+    !isExplicitStylesheetPackage
+      ? `./${edge.rawSpecifier}`
+      : edge.rawSpecifier;
   let target = resolveLocalSpecifier(source.id, localSpecifier, knownFiles, options.extensions);
-  if (isStylesheetSource && !target && !edge.rawSpecifier.startsWith(".") && !edge.rawSpecifier.startsWith("/") && !isExplicitStylesheetPackage && !isKnownTailwindPackage && options.pathAliases.size === 0) {
+  if (
+    isStylesheetSource &&
+    !target &&
+    !edge.rawSpecifier.startsWith(".") &&
+    !edge.rawSpecifier.startsWith("/") &&
+    !isExplicitStylesheetPackage &&
+    !isKnownTailwindPackage &&
+    options.pathAliases.size === 0
+  ) {
     edge.resolution = "unresolved";
     return;
   }
@@ -147,6 +161,22 @@ function resolveEdge(
         const substituted =
           wildcardIndex >= 0 ? candidate.replace(/\*/g, wildcardValue) : candidate;
         target = resolveLocalSpecifier(source.id, substituted, knownFiles, options.extensions);
+        if (!target && options.monorepo && !substituted.startsWith(".")) {
+          for (const [pkgName, pkg] of options.monorepo.packageMap.entries()) {
+            if (substituted !== pkgName && !substituted.startsWith(`${pkgName}/`)) continue;
+            const subPath = substituted.slice(pkgName.length).replace(/^\//, "");
+            const workspaceCandidate = subPath
+              ? path.join(pkg.location, subPath)
+              : path.join(pkg.location, "index.ts");
+            target = resolveLocalSpecifier(
+              source.id,
+              workspaceCandidate,
+              knownFiles,
+              options.extensions,
+            );
+            if (target) break;
+          }
+        }
         if (target) break;
       }
       if (target) break;

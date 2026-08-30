@@ -4,6 +4,7 @@ import { parseModule } from "../parser.js";
 import { _resolveModuleSync } from "../util/resolve.js";
 import { buildFileDescriptor } from "./file-descriptor.js";
 import type { File } from "./types.js";
+import { buildPackageJsonDescriptor } from "./package-json-descriptor.js";
 import type { AnalyzerOptions } from "../types.js";
 import type { FileNode, ImportMaps, ModuleGraph } from "../types/module-graph.js";
 
@@ -104,7 +105,21 @@ async function buildGraph(root: string): Promise<{ graph: ModuleGraph; entries: 
     const sourceNode = graph.get(module.id)!;
     for (const edge of module.edges) {
       const target = edge.target ?? resolveTarget(edge.rawSpecifier, module.id, root);
-      if (!target || !graph.has(target)) continue;
+      if (!target || !graph.has(target)) {
+        if (!edge.rawSpecifier.startsWith(".")) {
+          sourceNode.imports.external.add({
+            specifier: edge.rawSpecifier,
+            filePath: undefined,
+            identifier: undefined,
+            isTypeOnly: edge.isTypeOnly ?? false,
+            modifiers: 0,
+            pos: (edge.location?.start.column ?? 0) + 1,
+            line: (edge.location?.start.line ?? 0) + 1,
+            col: (edge.location?.start.column ?? 0) + 1,
+          });
+        }
+        continue;
+      }
       edge.target = target;
       const maps = sourceNode.imports.internal.get(target) ?? emptyImportMaps();
       const names = edge.importedNames.length ? edge.importedNames : ["*"];
@@ -179,6 +194,9 @@ export async function createSession(options: AnalyzerOptions) {
     },
     getIssues() {
       return { issues };
+    },
+    describePackageJson() {
+      return buildPackageJsonDescriptor(graph, entries);
     },
     getEntryPaths() {
       return entries;

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { main } from "../../src/index.js";
-import baseCounters from "../helpers/baseCounters.js";
-import { createOptions } from "../helpers/create-options.js";
-import { resolve } from "../helpers/resolve.js";
+import baseCounters from "../helpers/baseCounters.ts";
+import { createOptions } from "../helpers/create-options.ts";
+import { resolve } from "../helpers/resolve.ts";
 
 test("import resolved transitively via a declared peer is not flagged unlisted", async () => {
   const cwd = resolve("fixtures/dependencies/peer-transitive");
