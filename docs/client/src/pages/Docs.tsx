@@ -82,7 +82,6 @@ const cliOptions = [
     "Select files, exports, dependencies, devDependencies, conditions, or json fixes.",
   ],
   ["--fix-json", "Safely repair recoverable package.json JSON syntax; shorthand for --fix json."],
-  ["--node-llama-cpp", "Enable the specialized node-llama-cpp analysis plugin explicitly."],
   ["--confidence <level>", "Set the minimum confidence for fixes: high, medium+, low+, or all."],
   ["--force", "Allow a selected fix where the source edit would otherwise be treated as unsafe."],
   ["--dry-run", "Show planned fixes without writing files."],
