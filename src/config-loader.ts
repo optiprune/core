@@ -150,6 +150,8 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     path.join(rootDir, "optiprune.config.ts"),
     path.join(rootDir, "optiprune.config.js"),
     path.join(rootDir, "optiprune.config.mjs"),
+    // Knip-compatible project config used by imported compiler fixtures.
+    path.join(rootDir, "knip.ts"),
   ];
 
   for (const configPath of scriptPaths) {
@@ -183,6 +185,24 @@ export async function loadConfig(rootDir: string): Promise<Config> {
         return exported as Config;
       }
     } catch (error) {
+      // A Knip config may import an optional compiler package that is not
+      // installed in the analyzed project. Preserve its declarative compiler
+      // registrations without executing the unavailable dependency.
+      if (path.basename(configPath).startsWith("knip")) {
+        const source = tryReadFile(configPath) ?? "";
+        const compilerBlock = source.match(/compilers\s*:\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+        const compilers: Record<string, true> = {};
+        for (const match of compilerBlock.matchAll(/(?:^|[,\n])\s*([A-Za-z0-9_.-]+)\s*:/g)) {
+          const name = match[1];
+          if (name) compilers[name] = true;
+        }
+        if (Object.keys(compilers).length > 0) {
+          if (process.env.OPTIPRUNE_DEBUG) {
+            console.debug(`[Config] Statically loaded compilers from ${path.basename(configPath)}`);
+          }
+          return { compilers };
+        }
+      }
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[Config] Failed to load ${path.basename(configPath)}: ${message}`);
     }
@@ -231,10 +251,14 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     : (userConfig.includeConventionalEntries ?? base.includeConventionalEntries);
 
   // ── extensions ───────────────────────────────────────────────────────────
-  const extensions =
+  const configuredExtensions =
     Array.isArray(userConfig.extensions) && userConfig.extensions.length > 0
       ? userConfig.extensions
       : base.extensions;
+  const compilerExtensions = Object.entries(userConfig.compilers ?? {})
+    .filter(([, compiler]) => compiler !== false && compiler !== undefined)
+    .map(([name]) => (name.startsWith(".") ? name : `.${name}`));
+  const extensions = Array.from(new Set([...configuredExtensions, ...compilerExtensions]));
 
   // ── ignore ───────────────────────────────────────────────────────────────
   const userIgnore = Array.isArray(userConfig.ignore) ? userConfig.ignore : [];

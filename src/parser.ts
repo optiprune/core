@@ -207,6 +207,7 @@ export function resolveParserLang(filePath: string): "ts" | "tsx" | "jsx" | "js"
   if (filePath.endsWith(".vue")) return "ts";
   if (filePath.endsWith(".svelte")) return "ts";
   if (filePath.endsWith(".astro")) return "ts";
+  if (filePath.endsWith(".tsrx")) return "tsx";
   return "tsx"; // safe catch-all
 }
 import type {
@@ -1375,12 +1376,13 @@ function isStylesheetPath(filePath: string): boolean {
 function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
   const edges: DependencyEdge[] = [];
   const seenOffsets = new Set<number>();
+  const scanText = sourceText.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
 
   // CSS, Sass, Less, and Stylus support quoted imports. CSS url(...) imports
   // are included, while ordinary asset URLs are intentionally ignored so
   // fonts and images do not become false unresolved-import findings.
-  const quotedImport = /@(?:import|use|forward)\s+(?:(?:url\(\s*)?)["']([^"']+)["']\s*\)?/gi;
-  for (const match of sourceText.matchAll(quotedImport)) {
+  const quotedImport = /@(?:import|use|forward|plugin|require)\s*(?:\([^)]*\)\s*)*(?:(?:url\(\s*)?)["']([^"']+)["']\s*\)?/gi;
+  for (const match of scanText.matchAll(quotedImport)) {
     const specifier = match[1];
     const offset = match.index ?? 0;
     if (!specifier || seenOffsets.has(offset)) continue;
@@ -1396,7 +1398,7 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
   }
 
   const unquotedUrlImport = /@(?:import|use|forward)\s+url\(\s*([^'"\s)]+)\s*\)/gi;
-  for (const match of sourceText.matchAll(unquotedUrlImport)) {
+  for (const match of scanText.matchAll(unquotedUrlImport)) {
     const specifier = match[1];
     const offset = match.index ?? 0;
     if (!specifier || seenOffsets.has(offset)) continue;
@@ -1499,6 +1501,25 @@ export function parseModule(
   if (isStylesheetPath(file)) {
     return parseStylesheetModule(sourceText, file);
   }
+  // Binary assets are discoverable graph nodes, but must never be fed to the
+  // JavaScript fallback parser, which can invent false import edges from bytes.
+  if (/\.(?:jpg|jpeg|png|gif|svg|webp)$/i.test(file)) {
+    return {
+      id: file,
+      relativePath: file,
+      parseStatus: "parsed",
+      parseDiagnostics: [],
+      ast: undefined,
+      sourceText,
+      exports: [],
+      edges: [],
+      hasUnknownDynamicBoundary: false,
+      hasParseError: false,
+      hasUnresolvedCommonJsExports: false,
+      scannedDirectories: [],
+      dynamicImportCandidates: [],
+    };
+  }
 
   try {
     // -----------------------------------------------------------------------
@@ -1533,6 +1554,15 @@ export function parseModule(
       }
       textToParse = extracted.scriptContent;
       parserLang = extracted.lang;
+    } else if (file.endsWith(".mdx")) {
+      // MDX is a mixed Markdown/JSX format. For graph analysis we only need
+      // its module-level imports/exports; parsing those declarations as TSX
+      // avoids treating Markdown prose as JavaScript while preserving reachability.
+      textToParse = sourceText
+        .split(/\r?\n/)
+        .filter((line) => /^\s*(?:import|export)\b/.test(line))
+        .join("\n");
+      parserLang = "tsx";
     } else {
       parserLang = resolveParserLang(file);
     }

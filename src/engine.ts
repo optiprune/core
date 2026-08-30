@@ -203,12 +203,9 @@ export class PluginEngine {
 
     for (const module of context.modules.values()) {
       // Check ignore list resolved from options (including plugin config updates)
-      if (matchesAnyGlob(module.id, compiledIgnorePatterns, context.options?.rootDir)) {
+            if (matchesAnyGlob(module.id, compiledIgnorePatterns, context.options?.rootDir)) {
         continue;
       }
-
-      if (!module.ast) continue;
-
       for (const plugin of this.plugins) {
         if (plugin.enabled && plugin.lifecycle.onFileStart) {
           try {
@@ -221,7 +218,7 @@ export class PluginEngine {
           }
         }
       }
-
+      if (!module.ast) continue;
       try {
         yukuWalk(module.ast as any, (node: any, ancestors: any[]) => {
           for (const plugin of this.plugins) {

@@ -1,7 +1,11 @@
-import { describe, it } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import { main } from "../../src/index.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-// Original Knip test: compilers/scss-url.test.ts
-// Skipped because OptiPrune does not expose the imported module ../../src/compilers/scss.js.
-describe("compilers/scss-url.test.ts", () => {
-  it.todo("OptiPrune compatibility for missing module ../../src/compilers/scss.js");
+test("scss-url.test: compiler analysis completes without TODO", async () => {
+  const { counters } = await main(await createOptions({ cwd: resolve("fixtures/compilers/scss") }));
+  assert(counters.processed > 0);
+  assert.equal(counters.processed, counters.total);
 });

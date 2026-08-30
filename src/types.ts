@@ -249,6 +249,8 @@ export interface Config {
   rootDir?: string;
   entry?: string[];
   extensions?: string[];
+  /** Compiler extensions enabled by project configuration, e.g. { mdx: true }. */
+  compilers?: Record<string, boolean | object | ((...args: unknown[]) => unknown)>;
   ignore?: string[];
   /**
    * Dependencies (npm package names) that OptiPrune should never flag as

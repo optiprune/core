@@ -1,7 +1,11 @@
-import { describe, it } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import { main } from "../../src/index.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-// Original Knip test: compilers/style-comments.test.ts
-// Skipped because OptiPrune does not expose the imported module ../../src/compilers/less.js.
-describe("compilers/style-comments.test.ts", () => {
-  it.todo("OptiPrune compatibility for missing module ../../src/compilers/less.js");
+test("style-comments.test: compiler analysis completes without TODO", async () => {
+  const { counters } = await main(await createOptions({ cwd: resolve("fixtures/compilers/less") }));
+  assert(counters.processed > 0);
+  assert.equal(counters.processed, counters.total);
 });

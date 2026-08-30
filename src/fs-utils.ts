@@ -5,6 +5,8 @@ import {
   resolve,
   dirname,
   extname,
+  basename,
+  dirname as patheDirname,
   relative as patheRelative,
   isAbsolute,
   join,
@@ -48,6 +50,16 @@ export const DEFAULT_EXTENSIONS = [
   ".less",
   ".styl",
   ".stylus",
+  ".md",
+  ".mdx",
+  ".prisma",
+  ".tsrx",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".svg",
+  ".webp",
 ];
 
 export const DEFAULT_IGNORE = [
@@ -346,14 +358,26 @@ export function resolveLocalSpecifier(
     }
   }
 
-  // Strategy D: Search for index file
+    // Strategy D: Search for index file
   for (const ext of extensions) {
     const candidate = `${absoluteBasePath}/index${ext}`;
     if (existsInKnown(candidate)) {
       return candidate;
     }
   }
-
+  // Strategy E: Sass/Less/Stylus partials omit the leading underscore and
+  // commonly omit the extension in @use/@import statements.
+  const baseName = basename(absoluteBasePath);
+  const parentDir = patheDirname(absoluteBasePath);
+  if (/\.(?:scss|sass|less|styl|stylus)$/i.test(absoluteBasePath)) {
+    const partial = join(parentDir, `_${baseName}`);
+    if (existsInKnown(partial)) return partial;
+  } else {
+    for (const ext of extensions.filter((value) => /^(?:\.scss|\.sass|\.less|\.styl|\.stylus)$/i.test(value))) {
+      const partial = join(parentDir, `_${baseName}${ext}`);
+      if (existsInKnown(partial)) return partial;
+    }
+  }
   return undefined;
 }
 
@@ -807,6 +831,8 @@ function collectPackageExportStrings(value: unknown, collected: Set<string>): vo
 
 export function conventionalEntryPatterns(): string[] {
   return [
+    "index.*",
+    "main.*",
     "src/main.*",
     "src/index.*",
     "src/app.*",
@@ -826,6 +852,8 @@ export function conventionalEntryPatterns(): string[] {
 
 export function normalizedConventionalEntryPatterns(): string[] {
   return [
+    "index.*",
+    "main.*",
     "src/main.*",
     "src/index.*",
     "src/app.*",

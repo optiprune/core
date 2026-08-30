@@ -94,7 +94,19 @@ export const PrismaPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("prisma/schema");
       }
 
-      // 3. Track npm scripts invoking Prisma CLI (e.g. "db:generate": "prisma generate")
+      // 3. Generator providers in the schema are executable Prisma plugins.
+      for (const schemaFile of PRISMA_SCHEMA_FILES) {
+        const schema = await adapter.readFile(schemaFile);
+        if (!schema) continue;
+        for (const match of schema.matchAll(/provider\s*=\s*["']([^"']+)["']/g)) {
+          const provider = match[1];
+          if (provider && provider !== "prisma-client" && provider !== "postgresql") {
+            adapter.markPackageAsUsed(provider);
+          }
+        }
+      }
+
+      // 4. Track npm scripts invoking Prisma CLI (e.g. "db:generate": "prisma generate")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (

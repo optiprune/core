@@ -103,8 +103,9 @@ export const MdxPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("@mdx-js/react");
       }
 
-      // Automatically mark .mdx documents as used entry points
-      if (normalized.endsWith(".mdx") || normalized.endsWith(".md")) {
+      // MDX documents are compiler-managed entry content. Plain Markdown is
+      // not automatically reachable and must still be reported when unused.
+      if (normalized.endsWith(".mdx")) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@mdx-js/mdx");
       }

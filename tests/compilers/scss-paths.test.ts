@@ -1,13 +1,13 @@
-import assert from "node:assert/strict";
+import assert from 'node:assert/strict';
 import { test } from "vitest";
-import { main } from "../../src/index.js";
-import baseCounters from "../helpers/baseCounters.js";
-import { createOptions } from "../helpers/create-options.js";
-import { resolve } from "../helpers/resolve.js";
+import { main } from '../../src/index.js';
+import baseCounters from '../helpers/baseCounters.js';
+import { createOptions } from '../helpers/create-options.js';
+import { resolve } from '../helpers/resolve.js';
 
-const cwd = resolve("fixtures/compilers/scss-paths");
+const cwd = resolve('fixtures/compilers/scss-paths');
 
-test("SCSS imports resolved via tsconfig `paths` (partial and non-partial)", async () => {
+test('SCSS imports resolved via tsconfig `paths` (partial and non-partial)', async () => {
   const options = await createOptions({ cwd });
   const { issues, counters } = await main(options);
 

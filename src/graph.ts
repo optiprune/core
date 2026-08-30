@@ -69,8 +69,21 @@ function resolveEdge(
     return;
   }
 
-  // 1. Try local resolution
-  let target = resolveLocalSpecifier(source.id, edge.rawSpecifier, knownFiles, options.extensions);
+  // 1. Try local resolution. Stylesheet compilers treat a bare import such
+  // as `foundation-sites/scss/foundation` as a relative stylesheet path;
+  // package imports use the explicit `~` or `pkg:` forms handled by the
+  // stylesheet compiler plugin.
+  const isStylesheetSource = /\.(?:css|scss|sass|less|styl|stylus)$/i.test(source.id);
+  const isExplicitStylesheetPackage = edge.rawSpecifier.startsWith("~") || edge.rawSpecifier.startsWith("pkg:");
+  const isKnownTailwindPackage = edge.rawSpecifier === "tailwindcss" || edge.rawSpecifier.startsWith("@tailwindcss/");
+  const localSpecifier = isStylesheetSource && !edge.rawSpecifier.startsWith(".") && !edge.rawSpecifier.startsWith("/") && !isExplicitStylesheetPackage
+    ? `./${edge.rawSpecifier}`
+    : edge.rawSpecifier;
+  let target = resolveLocalSpecifier(source.id, localSpecifier, knownFiles, options.extensions);
+  if (isStylesheetSource && !target && !edge.rawSpecifier.startsWith(".") && !edge.rawSpecifier.startsWith("/") && !isExplicitStylesheetPackage && !isKnownTailwindPackage && options.pathAliases.size === 0) {
+    edge.resolution = "unresolved";
+    return;
+  }
   if (edge.rawSpecifier.startsWith(".")) {
     // console.log("Resolving " + edge.rawSpecifier + " from " + source.id + " -> " + target);
   }

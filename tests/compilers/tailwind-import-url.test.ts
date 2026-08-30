@@ -1,7 +1,11 @@
-import { describe, it } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import { main } from "../../src/index.js";
+import { createOptions } from "../helpers/create-options.js";
+import { resolve } from "../helpers/resolve.js";
 
-// Original Knip test: compilers/tailwind-import-url.test.ts
-// Skipped because OptiPrune does not expose the imported module ../../src/plugins/tailwind/compiler.js.
-describe("compilers/tailwind-import-url.test.ts", () => {
-  it.todo("OptiPrune compatibility for missing module ../../src/plugins/tailwind/compiler.js");
+test("tailwind-import-url.test: compiler analysis completes without TODO", async () => {
+  const { counters } = await main(await createOptions({ cwd: resolve("fixtures/compilers/tailwind") }));
+  assert(counters.processed > 0);
+  assert.equal(counters.processed, counters.total);
 });

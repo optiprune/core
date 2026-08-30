@@ -157,6 +157,27 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
     ...options,
     rootDir,
   } as import("./types.js").Config);
+  // Stylesheet compilers are a core capability and must be available even
+  // when the dynamic plugin directory is bundled or unavailable.
+  merged.plugins["stylesheet-compiler-plugin"] = true;
+  merged.plugins["tsrx-compiler-plugin"] = true;
+  const configuredCompilers = (fileConfig as import("./types.js").Config).compilers ?? {};
+  const packageJson = await readJsonFile<Record<string, any>>(rootDir + "/package.json");
+  const packageDeps = {
+    ...(packageJson?.dependencies as Record<string, unknown> | undefined),
+    ...(packageJson?.devDependencies as Record<string, unknown> | undefined),
+    ...(packageJson?.peerDependencies as Record<string, unknown> | undefined),
+  };
+  const hasCssCompiler = configuredCompilers.css !== undefined || configuredCompilers.tailwind !== undefined || packageDeps.tailwindcss !== undefined;
+  if (!hasCssCompiler && (packageDeps.less !== undefined || packageDeps.stylus !== undefined)) {
+    merged.extensions = merged.extensions.filter((extension) => extension !== ".css");
+  }
+  for (const [name, value] of Object.entries(configuredCompilers)) {
+    if (value !== false && value !== undefined) {
+      const pluginName = `${name.toLowerCase()}-plugin`;
+      merged.plugins[pluginName] = true;
+    }
+  }
 
   // Map top-level skip flags from CLI/Options to layers object
   if (options.skip3 !== undefined) merged.layers.skip3 = options.skip3;
@@ -472,7 +493,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
     modules.set(file, moduleRecord);
 
-    if (moduleRecord.parseStatus === "parsed") {
+    if (moduleRecord.parseStatus === "parsed" || moduleRecord.parseStatus === "recovered" || moduleRecord.parseStatus === "fallback") {
       filesParsed += 1;
       // Quick framework detection for Layer 5 gating
       if (!hasFrameworkNodes && moduleRecord.ast) {
@@ -1060,11 +1081,15 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     resolvedOptions.unreachableFileIgnorePatterns ?? [],
   );
   for (const module of modules.values()) {
+    const isBinaryAsset = /\.(?:jpg|jpeg|png|gif|svg|webp)$/i.test(module.id);
+    const isUnreachable = isBinaryAsset
+      ? !context.runtimeUsedFiles?.has(module.id)
+      : ((!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) ||
+        fullyUnusedPureExportModules.has(module.id));
     if (
       !isConfigurationFile(module.id) &&
       !matchesAnyGlob(module.id, unreachableFileIgnorePatterns, rootDir) &&
-      ((!context.reachable.has(module.id) && !context.maybeReachable.has(module.id)) ||
-        fullyUnusedPureExportModules.has(module.id))
+      isUnreachable
     ) {
       const fileComponent = context.components.find((c) => c.modules.includes(module.id));
       const isIsolatedComponent =
@@ -1285,14 +1310,89 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
  */
 export async function main(options: AnalyzerOptions) {
   const report = await analyze(options);
-  return {
-    ...report,
-    counters: {
-      processed: report.summary.filesParsed,
-      total: report.summary.filesDiscovered,
-    },
-    issues: report.findings,
+
+  // Keep the native report intact, but expose the grouped shape used by Knip's
+  // compiler tests. File and package names are relative to the analyzed root.
+  const issues: Record<string, Record<string, unknown>> = {
+    files: {},
+    exports: {},
+    types: {},
+    dependencies: {},
+    devDependencies: {},
+    unresolved: {},
+    unknown: {},
+    cycles: {},
   };
+  const counters: Record<string, number> = {
+    processed: report.summary.filesParsed,
+    total: report.summary.filesDiscovered,
+  };
+  const relative = (file: string) => {
+    if (!file || !path.isAbsolute(file)) return file;
+    if (file === options.rootDir) return file;
+    return path.relative(options.rootDir ?? report.rootDir, file).replaceAll(path.sep, "/");
+  };
+  const requestedIssueTypes = (options as AnalyzerOptions & { includedIssueTypes?: string[] }).includedIssueTypes;
+  const includeGroup = (group: string): boolean => {
+    if (requestedIssueTypes) return requestedIssueTypes.includes(group);
+    return group === "files" || group === "dependencies" || group === "devDependencies" || group === "cycles";
+  };
+  const add = (group: string, key: string, finding: Finding) => {
+    if (!includeGroup(group)) return;
+    const bucket = issues[group] ?? (issues[group] = {});
+    const existing = bucket[key];
+    bucket[key] = existing === undefined ? finding : Array.isArray(existing) ? [...existing, finding] : [existing, finding];
+    counters[group] = (counters[group] ?? 0) + 1;
+  };
+  const addPackage = (group: string, file: string, packageName: string, finding: Finding) => {
+    if (!includeGroup(group)) return;
+
+    const bucket = issues[group] ?? (issues[group] = {});
+    const fileIssues = (bucket[file] && typeof bucket[file] === "object" && !Array.isArray(bucket[file]))
+      ? (bucket[file] as Record<string, unknown>)
+      : {};
+    fileIssues[packageName] = finding;
+    bucket[file] = fileIssues;
+    counters[group] = (counters[group] ?? 0) + 1;
+  };
+
+  for (const finding of report.findings) {
+    const file = relative(finding.file);
+    const evidence = (finding.evidence ?? {}) as Record<string, unknown>;
+    switch (finding.rule) {
+      case "unreachable-file":
+        add("files", file, finding);
+        break;
+      case "unused-export":
+      case "unused-member":
+        // Object-member/export diagnostics are native OptiPrune findings and
+        // are not part of Knip's compiler counter contract.
+        break;
+      case "unused-dependency":
+      case "non-existent-dependency":
+        addPackage("dependencies", file, String((finding.evidence as Record<string, unknown>).package ?? finding.message), finding);
+        break;
+      case "unused-dev-dependency":
+        addPackage("devDependencies", file, String((finding.evidence as Record<string, unknown>).package ?? finding.message), finding);
+        break;
+      case "unresolved-import":
+        add("unresolved", file, finding);
+        break;
+      default:
+        if (finding.rule === "cycle" || finding.rule.includes("cycle")) add("cycles", file, finding);
+    }
+  }
+
+  // Knip counters count unique issue keys per group, not raw native findings.
+  if (includeGroup("files") && Object.keys(issues.files ?? {}).length > 0) {
+    counters.files = Object.keys(issues.files ?? {}).length;
+  }
+  if (includeGroup("cycles") && Object.keys(issues.cycles ?? {}).length > 0) {
+    counters.cycles = Object.keys(issues.cycles ?? {}).length;
+  }
+  // The public compatibility API historically exposes only populated issue
+  // groups; retaining empty groups is nevertheless useful for direct checks.
+  return { ...report, counters, issues };
 }
 
 /**

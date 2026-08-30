@@ -265,7 +265,14 @@ export const KnipPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const loaded = await loadKnipConfig(adapter);
-      if (loaded) applyKnipConfig(loaded.config, adapter);
+      if (loaded) {
+        applyKnipConfig(loaded.config, adapter);
+        // The configuration object is consumed by this plugin; do not report
+        // its `compilers` property as an unused object member.
+        if (loaded.config.compilers !== undefined) {
+          adapter.markConfigMemberAsUsed(loaded.source, "default", "compilers");
+        }
+      }
 
       const pkg = await adapter.readJson("package.json");
       const allDependencies = {
