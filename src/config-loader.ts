@@ -150,8 +150,6 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     path.join(rootDir, "optiprune.config.ts"),
     path.join(rootDir, "optiprune.config.js"),
     path.join(rootDir, "optiprune.config.mjs"),
-    // Knip-compatible project config used by imported compiler fixtures.
-    path.join(rootDir, "knip.ts"),
   ];
 
   for (const configPath of scriptPaths) {
