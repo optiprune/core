@@ -16,7 +16,7 @@ export default function Home() {
     <div className="welcome-page">
       <header className="welcome-header">
         <a className="welcome-brand" href="/">
-          <img src="/optiprune-logo.svg" alt="OptiPrune logo" />
+          <img src="/optiprune-animation.svg" alt="OptiPrune logo" />
           <span>
             <b>OPTI</b>
             <em>PRUNE</em>
@@ -86,10 +86,10 @@ export default function Home() {
           </div>
           <div className="welcome-art">
             <div className="welcome-art-visual">
-              <img className="welcome-art-logo" src="/optiprune-logo.svg" alt="OptiPrune logo" />
+              <img className="welcome-art-logo" src="/optiprune-animation.svg" alt="OptiPrune logo" />
               <img
                 className="welcome-art-animation"
-                src="/optiprune-animation.svg"
+                src="/optiprune-logo.svg"
                 alt="OptiPrune analyzer animation"
               />
             </div>

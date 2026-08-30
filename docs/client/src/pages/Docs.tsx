@@ -1341,7 +1341,7 @@ export default function Docs() {
     <div className="docs-app">
       <header className="docs-topbar">
         <a className="docs-brand" href="/">
-          <img src="/optiprune-logo.svg" alt="OptiPrune logo" />
+          <img src="/optiprune-animation.svg" alt="OptiPrune logo" />
           <span>
             <b>OPTI</b>
             <em>PRUNE</em>
