@@ -86,7 +86,11 @@ export default function Home() {
           </div>
           <div className="welcome-art">
             <div className="welcome-art-visual">
-              <img className="welcome-art-logo" src="/optiprune-animation.svg" alt="OptiPrune logo" />
+              <img
+                className="welcome-art-logo"
+                src="/optiprune-animation.svg"
+                alt="OptiPrune logo"
+              />
               <img
                 className="welcome-art-animation"
                 src="/optiprune-logo.svg"

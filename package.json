@@ -81,7 +81,8 @@
     "build": "tsc -p tsconfig.json",
     "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism",
-    "format": "npx -y oxfmt --ignore-path .oxfmtignore --check"
+    "format:check": "npx -y oxfmt --ignore-path .oxfmtignore --check",
+    "format": "npx -y oxfmt --ignore-path .oxfmtignore "
   },
   "dependencies": {
     "esbuild": "^0.28.2",
