@@ -12,6 +12,8 @@ describe("Dynamic Import Analysis Reproduction", () => {
     const results = await analyze({
       rootDir,
       entryPoints: [path.join(rootDir, "src/engine.ts")],
+      projectPatterns: ["src/engine.ts", "src/plugins/**"],
+      ignoreTests: true,
       reportUnusedExports: true,
       verbose: true,
       layers: { skip3: false, skip4: false },
