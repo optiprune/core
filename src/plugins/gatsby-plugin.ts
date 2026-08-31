@@ -36,7 +36,16 @@ export const GatsbyPlugin: AnalyzerPlugin = {
   version: "1.0.0",
 
   detect: async (adapter) => {
-    // 1. Check package.json dependencies
+    // Astro owns src/pages when an Astro package is present; do not claim it as Gatsby.
+    const projectPackage = await adapter.readJson("package.json");
+    const projectDeps = {
+      ...projectPackage?.dependencies,
+      ...projectPackage?.devDependencies,
+      ...projectPackage?.peerDependencies,
+    };
+    if ("astro" in projectDeps) return false;
+
+    // 1. Check for package.json dependencies
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
       const allDeps = {

@@ -1621,6 +1621,12 @@ export function parseModule(
     } as any;
 
     const mod = extractAstModule(textToParse, file, ast as unknown as AstNode, []);
+    // Generated Vue Unplugin declaration files describe a registry of possible
+    // targets, not unconditional runtime imports. Their concrete targets are
+    // resolved by the unplugin plugin from actual template usage.
+    if (/(?:^|\/)auto-imports\.d\.ts$/.test(file) || /(?:^|\/)components\.d\.ts$/.test(file)) {
+      mod.edges = [];
+    }
     mod.parserBackend = getParserBackend() ?? "regex";
 
     // ── SFC post-processing ─────────────────────────────────────────────────

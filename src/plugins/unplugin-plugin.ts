@@ -61,7 +61,7 @@ export const UnpluginPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
@@ -72,6 +72,37 @@ export const UnpluginPlugin: AnalyzerPlugin = {
         basename === "typed-router.d.ts"
       ) {
         adapter.markAsUsed(fileId);
+      }
+
+      if (basename.endsWith(".vue")) {
+        const source = await adapter.readFile(fileId);
+        if (!source) return;
+        const declarationFiles = await adapter.findFilesByGlob([
+          "**/auto-imports.d.ts",
+          "**/components.d.ts",
+        ]);
+        for (const declarationFile of declarationFiles) {
+          const declarations = await adapter.readFile(declarationFile);
+          if (!declarations) continue;
+          const declarationPatterns = [
+            /const\s+([A-Za-z_$][\w$]*)\s*:[^\n]*?typeof\s+import\(["']([^"']+)["']\)/g,
+            /(^|\n)\s*([A-Za-z_$][\w$]*)\s*:[^\n]*?typeof\s+import\(["']([^"']+)["']\)/g,
+          ];
+          for (const declarationPattern of declarationPatterns) {
+            for (const match of declarations.matchAll(declarationPattern)) {
+              const symbol = declarationPattern.source.startsWith("const") ? match[1] : match[2];
+              const target = declarationPattern.source.startsWith("const") ? match[2] : match[3];
+            if (!symbol || !target) continue;
+            const isTemplateComponent = new RegExp(`<${symbol}(?:\\s|>|\\/)`).test(source);
+            const isAutoImport = new RegExp(`\\b${symbol}\\s*\\(`).test(source);
+            if (!isTemplateComponent && !isAutoImport) continue;
+            adapter.markRelativeFileAsUsed(declarationFile, target);
+              for (const extension of [".ts", ".tsx", ".js", ".jsx", ".vue"]) {
+                adapter.markRelativeFileAsUsed(declarationFile, `${target}${extension}`);
+              }
+            }
+          }
+        }
       }
     },
 

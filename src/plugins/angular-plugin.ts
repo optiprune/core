@@ -126,13 +126,122 @@ export const AngularPlugin: AnalyzerPlugin = {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
+
+          // Angular builders are executable package entry points. Preserve
+          // their package names even when they only occur in angular.json.
+          const angularConfig = await adapter.readJson(configFile);
+          const builderPackages = new Set<string>();
+          const collectBuilders = (value: unknown): void => {
+            if (Array.isArray(value)) {
+              for (const item of value) collectBuilders(item);
+              return;
+            }
+            if (!value || typeof value !== "object") return;
+            for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+              if (key === "builder" && typeof child === "string") {
+                builderPackages.add(child.split(":")[0] ?? child);
+              }
+              collectBuilders(child);
+            }
+          };
+          collectBuilders(angularConfig);
+          if ((adapter.getConfig() as { isProduction?: boolean }).isProduction && angularConfig?.projects) {
+            const productionEntries = new Set<string>();
+            const addConfiguredEntries = (value: unknown): void => {
+              if (typeof value === "string") {
+                productionEntries.add(value);
+                return;
+              }
+              if (Array.isArray(value)) {
+                for (const item of value) addConfiguredEntries(item);
+                return;
+              }
+              if (!value || typeof value !== "object") return;
+              for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+                if (["browser", "main", "server", "entry", "polyfills", "scripts"].includes(key)) {
+                  addConfiguredEntries(child);
+                }
+              }
+            };
+            for (const project of Object.values(angularConfig.projects as Record<string, any>)) {
+              const buildTarget = project?.architect?.build;
+              addConfiguredEntries(buildTarget?.options);
+              addConfiguredEntries(buildTarget?.configurations?.production);
+            }
+            if (productionEntries.size > 0) {
+              adapter.addEntryPatterns([...productionEntries]);
+              adapter.addIgnorePatterns([
+                "**/*-for-non-prod.*",
+                "**/*-for-non-prod/**",
+                "**/main-for-testing.*",
+              ]);
+              adapter.addProjectPatterns([
+                "src/**",
+                "!src/**/*-for-non-prod.*",
+                "!src/main-for-testing.*",
+              ]);
+            }
+          }
+
+          for (const packageName of builderPackages) {
+            if (packageName && !(packageName in allDeps)) {
+              adapter.emitFinding({
+                rule: "missing-dependency",
+                severity: "error",
+                confidence: "high",
+                file: configFile,
+                message: `Angular builder '${packageName}' is not listed in package.json.`,
+                evidence: { package: packageName },
+              });
+            } else if (packageName) {
+              adapter.markPackageAsUsed(packageName);
+            }
+          }
           break;
         }
       }
 
-      // Safeguard core framework package if present
-      if (hasCoreDep) {
-        adapter.markPackageAsUsed("@angular/core");
+      const specConfig = await adapter.readJson("tsconfig.spec.json");
+      const specTypes = Array.isArray(specConfig?.compilerOptions?.types)
+        ? specConfig.compilerOptions.types
+        : [];
+      for (const typeName of specTypes) {
+        if (typeof typeName !== "string") continue;
+        if (!(typeName in allDeps)) {
+          adapter.emitFinding({
+            rule: "unresolved-import",
+            severity: "warning",
+            confidence: "high",
+            file: "tsconfig.spec.json",
+            message: `Type package '${typeName}' could not be resolved.`,
+            evidence: { package: typeName },
+          });
+        }
+      }
+
+      // Safeguard core framework package if present. Angular projects may
+      // intentionally omit @angular/core in config-only fixtures, so do not
+      // manufacture a missing dependency solely from angular.json.
+      if (hasCoreDep) adapter.markPackageAsUsed("@angular/core");
+      if (hasConfigFile && "zone.js" in allDeps) adapter.markPackageAsUsed("zone.js");
+
+      if (hasConfigFile) {
+        // Angular's config references the build/test toolchain directly.
+        for (const packageName of [
+          "@angular-devkit/build-angular",
+          "@angular/build",
+          "@angular-builders/custom-esbuild",
+          "@angular/ssr",
+          "karma-chrome-launcher",
+          "karma-coverage",
+          "karma-jasmine",
+          "karma-jasmine-html-reporter",
+          "jasmine-core",
+          "typescript",
+          "sass",
+        ]) {
+          if (packageName in allDeps) adapter.markPackageAsUsed(packageName);
+        }
       }
 
       // Track npm scripts invoking Angular CLI (e.g. "build": "ng build")
@@ -140,7 +249,7 @@ export const AngularPlugin: AnalyzerPlugin = {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
             typeof scriptContent === "string" &&
-            (scriptContent.includes("ng ") || scriptContent.includes("ng build"))
+            (scriptContent === "ng" || scriptContent.includes("ng "))
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("@angular/cli");
@@ -148,17 +257,6 @@ export const AngularPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasConfigFile && !hasCoreDep) {
-        adapter.emitFinding({
-          rule: "missing-dependency",
-          severity: "error",
-          confidence: "high",
-          file: "package.json",
-          message:
-            "Angular configuration (angular.json) found but '@angular/core' is not listed in package.json.",
-          evidence: { hasConfigFile },
-        });
-      }
     },
 
     onFileStart: (fileId, adapter) => {

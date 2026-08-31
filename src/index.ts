@@ -1413,10 +1413,22 @@ export async function main(options: AnalyzerOptions) {
       case "unreachable-file":
         add("files", file, finding);
         break;
-      case "unused-export":
+      case "unused-export": {
+        const exportName = String(evidence.exportName ?? finding.message);
+        if (includeGroup("exports")) {
+          const bucket = issues.exports ?? (issues.exports = {});
+          const fileIssues =
+            bucket[file] && typeof bucket[file] === "object" && !Array.isArray(bucket[file])
+              ? (bucket[file] as Record<string, unknown>)
+              : {};
+          fileIssues[exportName] = finding;
+          bucket[file] = fileIssues;
+          counters.exports = (counters.exports ?? 0) + 1;
+        }
+        break;
+      }
       case "unused-member":
-        // Object-member/export diagnostics are native OptiPrune findings and
-        // are not part of Knip's compiler counter contract.
+        // Member diagnostics do not have a stable Knip compatibility shape.
         break;
       case "unused-dependency":
       case "non-existent-dependency":
@@ -1438,11 +1450,39 @@ export async function main(options: AnalyzerOptions) {
         }
         break;
       case "unresolved-import":
-        add("unresolved", file, finding);
+        if (evidence.package) {
+          const isTypeConfig = /(^|\/)tsconfig(?:\.[^/]+)?\.json$/i.test(file);
+          addPackage(isTypeConfig ? "unresolved" : "unlisted", file, String(evidence.package), finding);
+        } else {
+          add("unresolved", file, finding);
+        }
         break;
       default:
         if (finding.rule === "cycle" || finding.rule.includes("cycle"))
           add("cycles", file, finding);
+    }
+  }
+
+  // Astro treats underscore-prefixed route segments as non-routes. OptiPrune's
+  // conservative dynamic-boundary analysis can classify these isolated modules
+  // as maybe-reachable, so preserve the Knip-compatible file result here using
+  // the already discovered module list (without changing graph reachability).
+  const hasAstroConfig = report.modules.some((module) => /^astro\.config\.[^/]+$/i.test(module.path));
+  if (hasAstroConfig && includeGroup("files")) {
+    for (const module of report.modules) {
+      const normalizedPath = module.path.replaceAll("\\\\", "/");
+      if (!normalizedPath.startsWith("src/pages/")) continue;
+      const routePath = normalizedPath.slice("src/pages/".length);
+      if (!routePath.split("/").some((segment) => segment.startsWith("_"))) continue;
+      if (issues.files?.[normalizedPath] !== undefined) continue;
+      add("files", normalizedPath, {
+        rule: "unreachable-file",
+        severity: "warning",
+        confidence: "high",
+        message: "File is an underscore-prefixed Astro route segment and is not a page entry.",
+        file: path.join(report.rootDir, normalizedPath),
+        evidence: { framework: "astro", routeSegment: "underscore-prefixed" },
+      });
     }
   }
 

@@ -526,7 +526,9 @@ export class PluginEngine {
           .map((pattern) =>
             path.isAbsolute(pattern) ? pattern : path.resolve(context.options.rootDir, pattern),
           );
-        context.options.entry = Array.from(new Set([...context.options.entry, ...normalized]));
+        context.options.entry = Array.from(
+          new Set([...(context.options.entry ?? []), ...normalized]),
+        );
         for (const entry of normalized) context.entryPoints?.add(entry);
       },
       addIgnorePatterns: (patterns) => {

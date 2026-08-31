@@ -16,6 +16,27 @@ const VUE_PACKAGES = [
   "vue-demi",
 ];
 
+function markStyleReferences(source: string, fileId: string, adapter: any): void {
+  const importPattern = /@(use|import|require)\s+["']([^"']+)["']/g;
+  for (const match of source.matchAll(importPattern)) {
+    const specifier = match[2];
+    if (!specifier || !/^\.?\/?[^@][^:]*$/.test(specifier)) continue;
+    const candidates = new Set([
+      specifier,
+      `${specifier}.scss`,
+      `${specifier}.less`,
+      `${specifier}.styl`,
+      `${specifier}.css`,
+    ]);
+    const slash = specifier.lastIndexOf("/");
+    const base = slash >= 0 ? specifier.slice(slash + 1) : specifier;
+    if (!base.startsWith("_")) {
+      candidates.add(`${slash >= 0 ? specifier.slice(0, slash + 1) : "_"}_${base}.scss`);
+    }
+    for (const candidate of candidates) adapter.markRelativeFileAsUsed(fileId, candidate);
+  }
+}
+
 const VUE_COMPOSITION_APIS = new Set([
   // Lifecycle hooks
   "onMounted",
@@ -132,7 +153,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
 
@@ -141,6 +162,8 @@ export const VueJsPlugin: AnalyzerPlugin = {
       // or via template tag extraction in the parser.
       if (normalized.endsWith(".vue")) {
         adapter.markPackageAsUsed("vue");
+        const source = await adapter.readFile(fileId);
+        if (source) markStyleReferences(source, fileId, adapter);
       }
 
       // 2. Vue / Nuxt config files

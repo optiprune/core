@@ -47,6 +47,21 @@ function extractPackageName(specifier: string): string | null {
 /**
  * Normalizes and extracts package dependencies from Starlight or Markdoc customCss options
  */
+function isUnderscoreRoute(normalizedFileId: string): boolean {
+  const marker = normalizedFileId.includes("/src/pages/")
+    ? "/src/pages/"
+    : normalizedFileId.includes("/src/routes/")
+      ? "/src/routes/"
+      : normalizedFileId.startsWith("src/pages/")
+        ? "src/pages/"
+        : normalizedFileId.startsWith("src/routes/")
+          ? "src/routes/"
+          : null;
+  if (!marker) return false;
+  const routePath = normalizedFileId.slice(normalizedFileId.indexOf(marker) + marker.length);
+  return routePath.split("/").some((segment) => segment.startsWith("_"));
+}
+
 function markCssDependency(cssEntry: string, sourceFileId: string, adapter: any): void {
   if (!cssEntry.startsWith(".") && !cssEntry.startsWith("/")) {
     const pkgName = extractPackageName(cssEntry);
@@ -63,6 +78,14 @@ export const AstroPlugin: AnalyzerPlugin = {
   version: "1.5.0",
 
   detect: async (adapter) => {
+    const pkg = await adapter.readJson("package.json");
+    const allDeps = {
+      ...pkg?.dependencies,
+      ...pkg?.devDependencies,
+      ...pkg?.peerDependencies,
+    };
+    if ("astro" in allDeps) adapter.declareFramework("astro");
+
     // 1. Check for dedicated Astro, Markdoc, Starlight, or DB folders/files
     if (
       (await adapter.folderExists("src/pages")) ||
@@ -79,7 +102,6 @@ export const AstroPlugin: AnalyzerPlugin = {
     }
 
     // 3. Check package.json dependencies
-    const pkg = await adapter.readJson("package.json");
     if (pkg) {
       const allDeps = {
         ...pkg.dependencies,
@@ -180,14 +202,45 @@ export const AstroPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const fileName = path.basename(normalized);
 
       // 1. Mark .astro component/page files and Markdoc .mdoc files
       if (normalized.endsWith(".astro") || normalized.endsWith(".mdoc")) {
-        adapter.markAsUsed(fileId);
+        if (!isUnderscoreRoute(normalized)) {
+          adapter.markAsUsed(fileId);
+        }
         adapter.markPackageAsUsed("astro");
+
+        if (normalized.endsWith(".astro")) {
+          const source = await adapter.readFile(fileId);
+          if (source) {
+            const styleImportPattern = /@(use|import|require)\s+["']([^"']+)["']/g;
+            for (const match of source.matchAll(styleImportPattern)) {
+              const specifier = match[2];
+              if (specifier && /^\.?\/?[^@][^:]*$/.test(specifier)) {
+                const candidates = new Set([
+                  specifier,
+                  `${specifier}.scss`,
+                  `${specifier}.less`,
+                  `${specifier}.styl`,
+                  `${specifier}.css`,
+                ]);
+                const lastSlash = specifier.lastIndexOf("/");
+                const baseName = lastSlash >= 0 ? specifier.slice(lastSlash + 1) : specifier;
+                if (!baseName.startsWith("_")) {
+                  candidates.add(
+                    `${lastSlash >= 0 ? specifier.slice(0, lastSlash + 1) : "_"}_${baseName}.scss`,
+                  );
+                }
+                for (const candidate of candidates) {
+                  adapter.markRelativeFileAsUsed(fileId, candidate);
+                }
+              }
+            }
+          }
+        }
         if (normalized.endsWith(".mdoc")) {
           adapter.markPackageAsUsed("@astrojs/markdoc");
         }
@@ -195,8 +248,8 @@ export const AstroPlugin: AnalyzerPlugin = {
 
       // 2. Mark Astro route pages & Starlight/Markdoc docs (src/pages/, src/routes/, src/content/docs/)
       if (
-        normalized.includes("/src/pages/") ||
-        normalized.includes("/src/routes/") ||
+        (normalized.includes("/src/pages/") || normalized.includes("/src/routes/")) &&
+          !isUnderscoreRoute(normalized) ||
         normalized.includes("/src/content/docs/") ||
         normalized.includes("/src/content/i18n/")
       ) {

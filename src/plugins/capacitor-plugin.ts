@@ -23,7 +23,11 @@ const CAPACITOR_CORE_PACKAGES = [
 /**
  * Helper to process capacitor.config properties
  */
-function processCapacitorConfig(config: Record<string, any>, adapter: any): void {
+function processCapacitorConfig(
+  config: Record<string, any>,
+  adapter: any,
+  configFile = "capacitor.config.json",
+): void {
   if (!config || typeof config !== "object") return;
 
   // Protect web build output directory (e.g. webDir: "dist" or "build" or "www")
@@ -31,12 +35,41 @@ function processCapacitorConfig(config: Record<string, any>, adapter: any): void
     adapter.markAsUsed(config.webDir);
   }
 
+  const configuredPackages = new Set<string>();
+  if (Array.isArray(config.includePlugins)) {
+    for (const plugin of config.includePlugins) {
+      if (typeof plugin === "string" && plugin.length > 0) configuredPackages.add(plugin);
+    }
+  }
+  for (const packageName of configuredPackages) {
+    adapter.markPackageAsUsed(packageName);
+    adapter.emitFinding({
+      rule: "missing-dependency",
+      severity: "error",
+      confidence: "high",
+      file: configFile,
+      message: `Capacitor plugin '${packageName}' is configured but not declared in package.json.`,
+      evidence: { package: packageName },
+    });
+  }
+
   // Protect custom plugin configurations if defined inside config.plugins
   if (config.plugins && typeof config.plugins === "object") {
     for (const pluginKey of Object.keys(config.plugins)) {
-      // Common mapping: Camera -> @capacitor/camera
+      // Common mapping: Camera -> @capacitor/camera. Config plugin keys
+      // are package references even when the package is not imported in TS.
       const possiblePkg = `@capacitor/${pluginKey.toLowerCase()}`;
       adapter.markPackageAsUsed(possiblePkg);
+      if (!configuredPackages.has(possiblePkg)) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: configFile,
+          message: `Capacitor plugin '${possiblePkg}' is configured but not declared in package.json.`,
+          evidence: { package: possiblePkg },
+        });
+      }
     }
   }
 }
@@ -112,12 +145,29 @@ export const CapacitorPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 2. Protect Capacitor native platform folders if present
+      // 2. Protect native platform folders and report only platforms present.
+      const platformPackages: string[] = [];
       if (await adapter.folderExists("android")) {
         adapter.markAsUsed("android");
+        platformPackages.push("@capacitor/android");
       }
       if (await adapter.folderExists("ios")) {
         adapter.markAsUsed("ios");
+        platformPackages.push("@capacitor/ios");
+      }
+      for (const configFile of CAPACITOR_CONFIG_FILES) {
+        if (!(await adapter.folderExists(configFile))) continue;
+        for (const packageName of platformPackages) {
+          adapter.markPackageAsUsed(packageName);
+          adapter.emitFinding({
+            rule: "missing-dependency",
+            severity: "error",
+            confidence: "high",
+            file: configFile,
+            message: `Capacitor plugin '${packageName}' is configured but not declared in package.json.`,
+            evidence: { package: packageName },
+          });
+        }
       }
 
       if (pkg) {
@@ -154,7 +204,7 @@ export const CapacitorPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists("capacitor.config.json")) {
         const configData = await adapter.readJson("capacitor.config.json");
         if (configData) {
-          processCapacitorConfig(configData, adapter);
+          processCapacitorConfig(configData, adapter, "capacitor.config.json");
         }
       }
     },
@@ -204,6 +254,31 @@ export const CapacitorPlugin: AnalyzerPlugin = {
           node.left.property.name === "exports"
         ) {
           adapter.markAsUsed(fileId);
+        }
+
+        // Read includePlugins from TypeScript/JavaScript config objects.
+        if (
+          t.isObjectProperty(node) &&
+          t.isIdentifier(node.key) &&
+          node.key.name === "includePlugins" &&
+          t.isArrayExpression(node.value)
+        ) {
+          for (const element of node.value.elements) {
+            const packageName =
+              t.isStringLiteral(element) || typeof (element as any)?.value === "string"
+                ? String((element as any).value)
+                : "";
+            if (!packageName) continue;
+            adapter.markPackageAsUsed(packageName);
+            adapter.emitFinding({
+              rule: "missing-dependency",
+              severity: "error",
+              confidence: "high",
+              file: basename,
+              message: `Capacitor plugin '${packageName}' is configured but not declared in package.json.`,
+              evidence: { package: packageName },
+            });
+          }
         }
 
         // AST Property Inspection for "webDir"
