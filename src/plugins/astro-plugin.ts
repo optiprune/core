@@ -138,10 +138,18 @@ export const AstroPlugin: AnalyzerPlugin = {
 
       let hasConfigFile = false;
       for (const file of ASTRO_CONFIG_FILES) {
-        if (await adapter.folderExists(file)) {
+        const source = await adapter.readFile(file);
+        if (source !== null) {
           hasConfigFile = true;
           adapter.markAsUsed(file);
-          break;
+          for (const line of source.split(/\r?\n/)) {
+            if (!line.includes("@/") && !line.includes("alias")) continue;
+            const target = [...line.matchAll(/["']([^"']+\.(?:ts|tsx|js|jsx|vue))["']/g)].at(-1)?.[1];
+            if (target) {
+              adapter.addEntryPatterns([target]);
+              adapter.markAsUsed(target);
+            }
+          }
         }
       }
 
@@ -289,9 +297,22 @@ export const AstroPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
       }
 
-      // 7. Mark config files
+      // 7. Mark config files and resolve Vite aliases declared in Astro config.
       if (ASTRO_CONFIG_FILES.includes(fileName) || MARKDOC_CONFIG_FILES.includes(fileName)) {
         adapter.markAsUsed(fileId);
+        if (ASTRO_CONFIG_FILES.includes(fileName)) {
+          const source = await adapter.readFile(fileId);
+          if (source) {
+            const aliasLines = source.split(/\r?\n/);
+            for (const line of aliasLines) {
+              if (!line.includes("alias") && !line.includes("@/")) continue;
+              const aliasMatch = line.match(/["']([^"']+)["']\s*:/);
+              const targetMatches = [...line.matchAll(/["']([^"']+\.(?:ts|tsx|js|jsx|vue))["']/g)];
+              const target = targetMatches.at(-1)?.[1];
+              if (aliasMatch?.[1] && target) adapter.markRelativeFileAsUsed(fileId, target);
+            }
+          }
+        }
       }
     },
 
