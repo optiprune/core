@@ -1298,6 +1298,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   // Persist the compact report only after all analysis layers have completed.
+  (report as any).pluginUsedPackages = [...context.usedPackages];
   newCache.version = "2.1";
   newCache.analysisKey = analysisKey;
   newCache.fileHashes = currentFileHashes;
@@ -1772,7 +1773,7 @@ export async function main(options: AnalyzerOptions) {
         }
       }
     }
-    const usedPackages = new Set<string>();
+    const usedPackages = new Set<string>(((report as any).pluginUsedPackages ?? []) as string[]);
     const typeOnlyPackages = new Set<string>();
     for (const module of report.modules ?? []) {
       for (const edge of module.edges ?? []) {

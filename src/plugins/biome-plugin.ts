@@ -112,11 +112,17 @@ export const BiomePlugin: AnalyzerPlugin = {
         for (const extension of stringArray(loaded.config.extends)) {
           const resolved = resolveRelativeConfigPath(configFile, extension);
           if (resolved) adapter.markAsUsed(resolved);
+          else if (extension && extension !== "//") {
+            adapter.markPackageAsUsed(extension.split("/").slice(0, extension.startsWith("@") ? 2 : 1).join("/"));
+          }
         }
 
         for (const plugin of stringArray(loaded.config.plugins)) {
           const resolved = resolveRelativeConfigPath(configFile, plugin);
           if (resolved) adapter.markAsUsed(resolved);
+          else if (plugin) {
+            adapter.markPackageAsUsed(plugin.split("/").slice(0, plugin.startsWith("@") ? 2 : 1).join("/"));
+          }
         }
 
         for (const plugin of Array.isArray(loaded.config.plugins) ? loaded.config.plugins : []) {

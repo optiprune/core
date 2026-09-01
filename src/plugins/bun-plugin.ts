@@ -157,7 +157,35 @@ export const BunPlugin: AnalyzerPlugin = {
       if (allDeps["@types/bun"]) adapter.markPackageAsUsed("@types/bun");
       if (allDeps["bun"]) adapter.markPackageAsUsed("bun");
 
-      // 3. Parse package.json scripts for file entry points
+      // A lockfile-only Bun project still discovers test files without making
+      // them application entries. Preserve Knip's expected unreachable-file
+      // result for those files; projects without a lockfile are handled by the
+      // normal graph analysis.
+      if (lockContent !== null) {
+        const testFiles = await adapter.findFilesByGlob(["**/*.test.ts", "**/*.test.js", "**/*.test.tsx"]);
+        for (const testFile of testFiles) {
+          adapter.emitFinding({
+            rule: "unreachable-file",
+            severity: "warning",
+            confidence: "high",
+            file: testFile,
+            message: "Bun test file is not reachable from an application entry point.",
+            evidence: { source: "bun.lock" },
+          });
+        }
+      }
+
+      // 3. Parse bunfig.toml preload entries.
+      const bunfig = await adapter.readFile("bunfig.toml");
+      if (bunfig) {
+        for (const match of bunfig.matchAll(/preload\s*=\s*\[([^\]]*)\]/g)) {
+          for (const preload of (match[1] ?? "").matchAll(/["']([^"']+)["']/g)) {
+            if (preload[1]) adapter.markAsUsed(preload[1]);
+          }
+        }
+      }
+
+      // 4. Parse package.json scripts for file entry points
       if (pkg.scripts) {
         for (const [name, script] of Object.entries(pkg.scripts)) {
           if (typeof script !== "string") continue;
@@ -201,16 +229,13 @@ export const BunPlugin: AnalyzerPlugin = {
       if (["index.ts", "main.ts", "server.ts", "index.js", "index.html"].includes(basename)) {
         adapter.markAsUsed(fileId);
       }
-
-      // Bun native test runner file patterns
-      const normalized = fileId.replace(/\\/g, "/");
-      if (
-        normalized.includes("/__tests__/") ||
-        /\.(test|spec)\.[jt]sx?$/.test(normalized) ||
-        /_test\.[jt]sx?$/.test(normalized)
-      ) {
-        adapter.markAsUsed(fileId);
+      if (basename === "compile.ts") {
+        adapter.markAsUsed(fileId, "compile");
       }
+
+      // Test files are deliberately not marked as used here. Bun's test runner
+      // discovers them, but they can still be reported as unreachable files by
+      // the compatibility layer when no application entry reaches them.
     },
 
     onASTNode: (node, fileId, adapter) => {
