@@ -103,10 +103,11 @@ export class PluginEngine {
     context: AnalysisContext,
     runOptions: { skipDetection?: boolean } = {},
   ): Promise<Finding[]> {
-    // Each pass owns its findings. The analyzer calls the engine twice: once for
-    // early project configuration and once after source discovery. Keeping a
-    // shared array makes the second pass re-return findings from the first pass.
-    this.findings = [];
+    // The analyzer runs the engine twice: the first pass executes project-level
+    // config hooks, while the final skipDetection pass analyzes discovered files.
+    // Preserve findings from the first pass so config-derived unresolved and
+    // missing-dependency diagnostics survive into the compatibility mapper.
+    if (!runOptions.skipDetection) this.findings = [];
 
     const verbose = context.options?.verbose;
     const adapter = this.createAdapter(context);

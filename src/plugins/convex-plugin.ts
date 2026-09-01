@@ -94,6 +94,11 @@ export const ConvexPlugin: AnalyzerPlugin = {
       }
 
       const hasConvexDir = await adapter.folderExists("convex");
+      const convexConfig = await adapter.readJson("convex.json");
+      if (typeof convexConfig?.functions === "string" && convexConfig.functions.trim()) {
+        const functionsPath = convexConfig.functions.replace(/\\/g, "/").replace(/\/$/, "");
+        adapter.addIgnorePatterns([`${functionsPath}/**`]);
+      }
       if (hasConvexDir) {
         adapter.markAsUsed("convex");
       }

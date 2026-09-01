@@ -67,7 +67,7 @@ export const ChangesetsPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      if ((hasDirectory || hasConfig || hasScriptInvocation) && cliDeclared) {
+      if (hasScriptInvocation && cliDeclared) {
         adapter.markPackageAsUsed(CHANGESETS_CLI_PACKAGE);
       }
 
@@ -86,9 +86,33 @@ export const ChangesetsPlugin: AnalyzerPlugin = {
       if (!hasConfig) return;
       const config = await adapter.readJson(CHANGESET_CONFIG_FILE);
       if (!config || typeof config !== "object") return;
+      if (typeof (config as Record<string, unknown>).$schema === "string") {
+        const schema = (config as Record<string, unknown>).$schema as string;
+        if (schema.includes("@changesets/config")) adapter.markPackageAsUsed("@changesets/config");
+      }
 
       const configuredChangelog = changelogPackage(config);
-      if (configuredChangelog) adapter.markPackageAsUsed(configuredChangelog);
+      if (configuredChangelog) {
+        adapter.markPackageAsUsed(configuredChangelog);
+        const declared = Object.prototype.hasOwnProperty.call(
+          {
+            ...packageJson?.dependencies,
+            ...packageJson?.devDependencies,
+            ...packageJson?.peerDependencies,
+          },
+          configuredChangelog,
+        );
+        if (!declared) {
+          adapter.emitFinding({
+            rule: "missing-dependency",
+            severity: "error",
+            confidence: "high",
+            file: CHANGESET_CONFIG_FILE,
+            message: `Changesets changelog '${configuredChangelog}' is not listed in package.json.`,
+            evidence: { package: configuredChangelog, importingFiles: [CHANGESET_CONFIG_FILE] },
+          });
+        }
+      }
     },
 
     onFileStart: (fileId, adapter) => {

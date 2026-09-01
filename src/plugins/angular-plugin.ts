@@ -145,6 +145,22 @@ export const AngularPlugin: AnalyzerPlugin = {
             }
           };
           collectBuilders(angularConfig);
+          const collectFileReplacements = (value: unknown): void => {
+            if (Array.isArray(value)) {
+              for (const item of value) collectFileReplacements(item);
+              return;
+            }
+            if (!value || typeof value !== "object") return;
+            const record = value as Record<string, unknown>;
+            for (const key of ["replace", "with"]) {
+              if (typeof record[key] === "string") {
+                adapter.markAsUsed(record[key]);
+                adapter.addProtectedExportPatterns([record[key] as string]);
+              }
+            }
+            for (const child of Object.values(record)) collectFileReplacements(child);
+          };
+          collectFileReplacements(angularConfig);
           if ((adapter.getConfig() as { isProduction?: boolean }).isProduction && angularConfig?.projects) {
             const productionEntries = new Set<string>();
             const addConfiguredEntries = (value: unknown): void => {

@@ -77,6 +77,20 @@ export const AvaPlugin: AnalyzerPlugin = {
       if (pkg?.ava) {
         hasConfigFile = true;
         adapter.markAsUsed("package.json", "ava");
+        for (const argument of Array.isArray(pkg.ava.nodeArguments) ? pkg.ava.nodeArguments : []) {
+          if (typeof argument !== "string" || !argument.startsWith("--loader=")) continue;
+          const specifier = argument.slice("--loader=".length);
+          if (specifier && !specifier.startsWith(".")) {
+            adapter.emitFinding({
+              rule: "unresolved-import",
+              severity: "warning",
+              confidence: "high",
+              file: "package.json",
+              message: `Ava loader '${specifier}' could not be resolved.`,
+              evidence: { specifier, package: specifier },
+            });
+          }
+        }
 
         // Protect require modules defined in package.json ava block
         if (Array.isArray(pkg.ava.require)) {
@@ -95,6 +109,26 @@ export const AvaPlugin: AnalyzerPlugin = {
         // Protect @ava/typescript if typescript key exists in package.json ava block
         if (pkg.ava.typescript && "@ava/typescript" in allDeps) {
           adapter.markPackageAsUsed("@ava/typescript");
+        }
+      }
+
+      for (const configFile of AVA_CONFIG_FILES) {
+        const source = await adapter.readFile(configFile);
+        if (!source) continue;
+        for (const match of source.matchAll(/require\s*:\s*\[([^\]]*)\]/g)) {
+          for (const specifier of (match[1] ?? "").matchAll(/["']([^"']+)["']/g)) {
+            const value = specifier[1];
+            if (value && !value.startsWith(".")) {
+              adapter.emitFinding({
+                rule: "unresolved-import",
+                severity: "warning",
+                confidence: "high",
+                file: configFile,
+                message: `Ava require '${value}' could not be resolved.`,
+                evidence: { specifier: value, package: value },
+              });
+            }
+          }
         }
       }
 
@@ -136,12 +170,24 @@ export const AvaPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("ava");
       }
 
+      if (normalized.startsWith("__tests__/__helpers__/") || normalized.includes("/__tests__/__helpers__/")) {
+        adapter.emitFinding({
+          rule: "unreachable-file",
+          severity: "warning",
+          confidence: "high",
+          file: fileId,
+          message: `File '${normalized}' is not reachable from the project entry points.`,
+          evidence: { file: normalized },
+        });
+      }
+
       // Protect test files in test/ or matching *.test.* / *.spec.*
       if (
         normalized.includes(".test.") ||
         normalized.includes(".spec.") ||
-        normalized.includes("/test/") ||
-        normalized.includes("/tests/")
+        basename === "test.js" ||
+        (normalized.startsWith("__tests__/") && !normalized.includes("/__helpers__/")) ||
+        normalized.includes("/test/")
       ) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("ava");

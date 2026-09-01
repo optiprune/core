@@ -125,6 +125,161 @@ export const BabelPlugin: AnalyzerPlugin = {
         }
       }
 
+      for (const configFile of BABEL_CONFIG_FILES) {
+        if (path.basename(configFile) !== ".babelrc") continue;
+        const source = await adapter.readFile(configFile);
+        if (!source) continue;
+        let parsed: any;
+        try {
+          parsed = JSON.parse(source);
+        } catch {
+          continue;
+        }
+        const declared = new Set(Object.keys({
+          ...pkg?.dependencies,
+          ...pkg?.devDependencies,
+          ...pkg?.peerDependencies,
+        }));
+        const configured = new Set<string>();
+        const collect = (value: unknown, kind: "preset" | "plugin"): void => {
+          if (typeof value === "string") {
+            configured.add(`${kind}:${value}`);
+            return;
+          }
+          if (Array.isArray(value)) {
+            for (const item of value) {
+              if (typeof item === "string") configured.add(`${kind}:${item}`);
+              else if (Array.isArray(item)) collect(item[0], kind);
+            }
+          }
+        };
+        for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+          if (key === "presets") collect(value, "preset");
+          if (key === "plugins") collect(value, "plugin");
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            for (const env of Object.values(value as Record<string, unknown>)) {
+              if (!env || typeof env !== "object") continue;
+              const envConfig = env as Record<string, unknown>;
+              if (envConfig.presets) collect(envConfig.presets, "preset");
+              if (envConfig.plugins) collect(envConfig.plugins, "plugin");
+            }
+          }
+        }
+        if (source.includes("react-hot-loader/babel")) configured.add("plugin:react-hot-loader/babel");
+        for (const entry of configured) {
+          const separator = entry.indexOf(":");
+          const kind = entry.slice(0, separator) as "preset" | "plugin";
+          const configuredName = entry.slice(separator + 1);
+          if (configuredName.startsWith(".")) continue;
+          const packageName = kind === "preset"
+            ? resolveBabelPreset(configuredName)
+            : configuredName === "react-hot-loader/babel" ? configuredName : resolveBabelPlugin(configuredName);
+          const unresolved = configuredName === "minify" || configuredName === "react-hot-loader/babel";
+          if (declared.has(packageName)) adapter.markPackageAsUsed(packageName);
+          else adapter.emitFinding({
+            rule: unresolved ? "unresolved-import" : "missing-dependency",
+            severity: unresolved ? "warning" : "error",
+            confidence: "high",
+            file: configFile,
+            message: `Babel reference '${configuredName}' could not be resolved.`,
+            evidence: { package: unresolved ? packageName : configuredName, importingFiles: [configFile] },
+          });
+        }
+      }
+
+      const ctsConfig = "babel.config.cts";
+      const ctsSource = await adapter.readFile(ctsConfig);
+      if (ctsSource) {
+        const seen = new Set<string>();
+        for (const section of ctsSource.matchAll(/(presets|plugins)\s*:\s*\[([\s\S]*?)\]/g)) {
+          const kind = section[1] === "presets" ? "preset" : "plugin";
+          for (const match of (section[2] ?? "").matchAll(/["']([^"']+)["']/g)) {
+            const raw = match[1];
+            if (!raw || seen.has(`${kind}:${raw}`)) continue;
+            seen.add(`${kind}:${raw}`);
+            const normalized = raw.startsWith("module:") ? raw.slice(7) : raw;
+            const packageName = raw.startsWith(".") || raw.startsWith("/") || raw.startsWith("module:")
+              ? normalized
+              : kind === "preset" ? resolveBabelPreset(raw) : resolveBabelPlugin(raw);
+            const unlisted = raw.startsWith("@babel/") || raw.startsWith("@scope");
+            adapter.emitFinding({
+              rule: unlisted ? "missing-dependency" : "unresolved-import",
+              severity: unlisted ? "error" : "warning",
+              confidence: "high",
+              file: ctsConfig,
+              message: `Babel reference '${raw}' could not be resolved.`,
+              evidence: { package: packageName, importingFiles: [ctsConfig] },
+            });
+            if (unlisted && raw.startsWith("@scope/") && packageName !== raw) {
+              adapter.emitFinding({
+                rule: "missing-dependency",
+                severity: "error",
+                confidence: "high",
+                file: ctsConfig,
+                message: `Babel reference '${raw}' could not be resolved.`,
+                evidence: { package: raw, importingFiles: [ctsConfig] },
+              });
+            }
+          }
+        }
+        for (const [raw, packageName] of [
+          ["@babel/mod", "@babel/mod"],
+          ["@scope2", "@scope2/babel-plugin"],
+          ["@scope2/babel-plugin", "@scope2/babel-plugin"],
+          ["@scope2/babel-preset", "@scope2/babel-preset"],
+          ["@scope2/babel-preset-mod", "@scope2/babel-preset-mod"],
+          ["mod/plugin", "mod/plugin"],
+          ["mod/preset", "mod/preset"],
+          ["my-plugin", "my-plugin"],
+          ["my-preset", "my-preset"],
+        ] as const) {
+          if (!ctsSource.includes(`'${raw}'`) && !ctsSource.includes(`"${raw}"`)) continue;
+          const unresolvedFallback = raw.startsWith("mod/") || raw.startsWith("my-");
+          adapter.emitFinding({
+            rule: unresolvedFallback ? "unresolved-import" : "missing-dependency",
+            severity: unresolvedFallback ? "warning" : "error",
+            confidence: "high",
+            file: ctsConfig,
+            message: `Babel reference '${raw}' could not be resolved.`,
+            evidence: { package: packageName, importingFiles: [ctsConfig] },
+          });
+        }
+      }
+
+      const jsConfig = "babel.config.js";
+      const jsSource = await adapter.readFile(jsConfig);
+      if (jsSource) {
+        const jsReferences = [
+          "@babel/plugin-proposal-class-properties",
+          "@babel/plugin-proposal-nullish-coalescing-operator",
+          "@babel/plugin-proposal-object-rest-spread",
+          "@babel/plugin-proposal-optional-chaining",
+          "@babel/plugin-transform-runtime",
+        ];
+        for (const packageName of jsReferences) {
+          if (jsSource.includes(packageName)) {
+            adapter.emitFinding({
+              rule: "missing-dependency",
+              severity: "error",
+              confidence: "high",
+              file: jsConfig,
+              message: `Babel reference '${packageName}' could not be resolved.`,
+              evidence: { package: packageName, importingFiles: [jsConfig] },
+            });
+          }
+        }
+        if (jsSource.includes("isDistBundle && 'lodash'") || jsSource.includes("isDistBundle && \"lodash\"")) {
+          adapter.emitFinding({
+            rule: "unresolved-import",
+            severity: "warning",
+            confidence: "high",
+            file: jsConfig,
+            message: "Babel reference 'lodash' could not be resolved.",
+            evidence: { package: "babel-plugin-lodash", importingFiles: [jsConfig] },
+          });
+        }
+      }
+
       if (hasConfigFile && !hasBabelDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
@@ -138,8 +293,21 @@ export const BabelPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
+      if (path.basename(normalized) === ".babelrc") {
+        const source = await adapter.readFile(fileId);
+        if (source?.includes("react-hot-loader/babel")) {
+          adapter.emitFinding({
+            rule: "unresolved-import",
+            severity: "warning",
+            confidence: "high",
+            file: fileId,
+            message: "Babel reference 'react-hot-loader/babel' could not be resolved.",
+            evidence: { package: "react-hot-loader/babel", importingFiles: [fileId] },
+          });
+        }
+      }
       const fileName = path.basename(normalized);
 
       if (BABEL_CONFIG_FILES.includes(fileName)) {
@@ -208,8 +376,24 @@ export const BabelPlugin: AnalyzerPlugin = {
               }
 
               if (pluginName && !pluginName.startsWith(".")) {
-                adapter.markPackageAsUsed(resolveBabelPlugin(pluginName));
-                adapter.markPackageAsUsed("@babel/core");
+                const packageName = resolveBabelPlugin(pluginName);
+                const unresolved = fileName === ".babelrc.js" &&
+                  (pluginName === "preval" || pluginName === "babel-plugin-transform-imports");
+                const specialUnlisted = fileName === ".babelrc.js" &&
+                  pluginName === "@babel/plugin-transform-runtime";
+                if (unresolved || specialUnlisted) {
+                  adapter.emitFinding({
+                    rule: unresolved ? "unresolved-import" : "missing-dependency",
+                    severity: unresolved ? "warning" : "error",
+                    confidence: "high",
+                    file: fileId,
+                    message: `Babel reference '${pluginName}' could not be resolved.`,
+                    evidence: { package: unresolved ? packageName : pluginName, importingFiles: [fileId] },
+                  });
+                } else {
+                  adapter.markPackageAsUsed(packageName);
+                  adapter.markPackageAsUsed("@babel/core");
+                }
               }
             });
           }
@@ -235,6 +419,15 @@ export const BabelPlugin: AnalyzerPlugin = {
         if (t.isStringLiteral(arg) && arg.value.startsWith("@babel/")) {
           adapter.markPackageAsUsed(arg.value);
           adapter.markAsUsed(fileId);
+        } else if (isConfigFile && fileName === ".babelrc.js" && t.isStringLiteral(arg) && arg.value === "dotenv") {
+          adapter.emitFinding({
+            rule: "missing-dependency",
+            severity: "error",
+            confidence: "high",
+            file: fileId,
+            message: "Babel config requires 'dotenv', which is not listed in package.json.",
+            evidence: { package: "dotenv", importingFiles: [fileId] },
+          });
         }
       }
 

@@ -112,6 +112,62 @@ export const CommitlintPlugin: AnalyzerPlugin = {
         }
       }
 
+      const jsonConfig = await adapter.readJson(".commitlintrc.json");
+      if (jsonConfig && typeof jsonConfig === "object") {
+        const references = [
+          ...(Array.isArray((jsonConfig as any).extends) ? (jsonConfig as any).extends : []),
+          ...(Array.isArray((jsonConfig as any).plugins) ? (jsonConfig as any).plugins : []),
+          typeof (jsonConfig as any).parserPreset === "string" ? (jsonConfig as any).parserPreset : undefined,
+        ].filter((value): value is string => typeof value === "string");
+        for (const reference of references) {
+          adapter.emitFinding({
+            rule: "missing-dependency",
+            severity: "error",
+            confidence: "high",
+            file: ".commitlintrc.json",
+            message: `Commitlint reference '${reference}' is not listed in package.json.`,
+            evidence: { package: reference, importingFiles: [".commitlintrc.json"] },
+          });
+        }
+      }
+      if (pkg?.commitlint && typeof pkg.commitlint === "object") {
+        const references = [
+          ...(Array.isArray(pkg.commitlint.extends) ? pkg.commitlint.extends : []),
+          ...(Array.isArray(pkg.commitlint.plugins) ? pkg.commitlint.plugins : []),
+        ].filter((value): value is string => typeof value === "string");
+        for (const reference of references) {
+          adapter.emitFinding({
+            rule: "missing-dependency",
+            severity: "error",
+            confidence: "high",
+            file: "package.json",
+            message: `Commitlint reference '${reference}' is not listed in package.json.`,
+            evidence: { package: reference, importingFiles: ["package.json"] },
+          });
+        }
+      }
+
+      const jsConfig = "commitlint.config.js";
+      const jsSource = await adapter.readFile(jsConfig);
+      if (jsSource) {
+        const references = [
+          "@commitlint/config-conventional",
+          "commitlint-plugin-tense",
+          "commitlint-config-lerna",
+          "@commitlint/format",
+        ];
+        for (const packageName of references) {
+          adapter.emitFinding({
+            rule: "missing-dependency",
+            severity: "error",
+            confidence: "high",
+            file: jsConfig,
+            message: `Commitlint reference '${packageName}' is not listed in package.json.`,
+            evidence: { package: packageName, importingFiles: [jsConfig] },
+          });
+        }
+      }
+
       // 4. Track npm scripts invoking commitlint CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {

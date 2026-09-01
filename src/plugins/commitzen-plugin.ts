@@ -143,6 +143,23 @@ export const CommitizenPlugin: AnalyzerPlugin = {
         }
       }
 
+      const allDeps = {
+        ...pkg?.dependencies,
+        ...pkg?.devDependencies,
+        ...pkg?.peerDependencies,
+      };
+      const configuredAdapter = pkg?.config?.commitizen?.path;
+      if (typeof configuredAdapter === "string" && !Object.prototype.hasOwnProperty.call(allDeps, configuredAdapter)) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: `Commitizen adapter '${configuredAdapter}' is not listed in package.json.`,
+          evidence: { package: configuredAdapter, importingFiles: ["package.json"] },
+        });
+      }
+
       // 5. Parse standalone .czrc or .cz.json config files if present
       const jsonConfigFile = (await adapter.folderExists(".cz.json"))
         ? ".cz.json"
@@ -154,7 +171,28 @@ export const CommitizenPlugin: AnalyzerPlugin = {
         const configData = await adapter.readJson(jsonConfigFile);
         if (configData) {
           processCommitizenConfig(configData, adapter);
+          const configuredAdapter = configData.path;
+          if (typeof configuredAdapter === "string" && !Object.prototype.hasOwnProperty.call(allDeps, configuredAdapter)) {
+            adapter.emitFinding({
+              rule: "missing-dependency",
+              severity: "error",
+              confidence: "high",
+              file: jsonConfigFile,
+              message: `Commitizen adapter '${configuredAdapter}' is not listed in package.json.`,
+              evidence: { package: configuredAdapter, importingFiles: [jsonConfigFile] },
+            });
+          }
         }
+      }
+      if (typeof configuredAdapter === "string" && !Object.prototype.hasOwnProperty.call(allDeps, configuredAdapter)) {
+        adapter.emitFinding({
+          rule: "missing-dependency",
+          severity: "error",
+          confidence: "high",
+          file: "package.json",
+          message: `Commitizen adapter '${configuredAdapter}' is not listed in package.json.`,
+          evidence: { package: configuredAdapter },
+        });
       }
     },
 

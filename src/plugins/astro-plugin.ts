@@ -153,8 +153,12 @@ export const AstroPlugin: AnalyzerPlugin = {
         }
       }
 
-      // Protect core astro package if installed
-      if (hasAstroDep) {
+      // A Markdoc-only configuration uses @astrojs/markdoc directly but does
+      // not imply a direct runtime use of the core astro package.
+      const hasMarkdocConfig = (await Promise.all(
+        MARKDOC_CONFIG_FILES.map((file) => adapter.folderExists(file)),
+      )).some(Boolean);
+      if (hasAstroDep && (hasConfigFile || !hasMarkdocConfig)) {
         adapter.markPackageAsUsed("astro");
       }
 
