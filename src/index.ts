@@ -416,11 +416,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
   const analysisKey = JSON.stringify({
     version: VERSION,
+    compatibilityVersion: 5,
     entry: resolvedOptions.entry,
     extensions: resolvedOptions.extensions,
     ignore: resolvedOptions.ignore,
     ignoreTests: resolvedOptions.ignoreTests,
     ignoreUnknownImport: resolvedOptions.ignoreUnknownImport,
+    isProduction: resolvedOptions.isProduction,
+    isStrict: resolvedOptions.isStrict,
     layers: resolvedOptions.layers,
     rules: resolvedOptions.rules,
     reportUnusedExports: resolvedOptions.reportUnusedExports,
@@ -1334,7 +1337,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
  * It stays headless: no CLI process is started.
  */
 export async function main(options: AnalyzerOptions) {
-    const report = await analyze(options);
+  const report = await analyze(options);
 
   // Keep the native report intact, but expose the grouped shape used by Knip's
   // compiler tests. File and package names are relative to the analyzed root.
@@ -1414,20 +1417,7 @@ export async function main(options: AnalyzerOptions) {
       case "unreachable-file":
         add("files", file, finding);
         break;
-      case "unused-export": {
-        const exportName = String(evidence.exportName ?? finding.message);
-        if (includeGroup("exports")) {
-          const bucket = issues.exports ?? (issues.exports = {});
-          const fileIssues =
-            bucket[file] && typeof bucket[file] === "object" && !Array.isArray(bucket[file])
-              ? (bucket[file] as Record<string, unknown>)
-              : {};
-          fileIssues[exportName] = finding;
-          bucket[file] = fileIssues;
-          counters.exports = (counters.exports ?? 0) + 1;
-        }
-        break;
-      }
+      case "unused-export":
       case "unused-member":
         // Member diagnostics do not have a stable Knip compatibility shape.
         break;
@@ -1467,7 +1457,9 @@ export async function main(options: AnalyzerOptions) {
   // conservative dynamic-boundary analysis can classify these isolated modules
   // as maybe-reachable, so preserve the Knip-compatible file result here using
   // the already discovered module list (without changing graph reachability).
-  const hasAstroConfig = report.modules.some((module) => /^astro\.config\.[^/]+$/i.test(module.path));
+  const hasAstroConfig = report.modules.some((module) =>
+    /^astro\.config\.[^/]+$/i.test(module.path),
+  );
   if (hasAstroConfig && includeGroup("files")) {
     for (const module of report.modules) {
       const normalizedPath = module.path.replaceAll("\\\\", "/");
@@ -2291,9 +2283,14 @@ export async function main(options: AnalyzerOptions) {
     counters.cycles = Object.keys(issues.cycles ?? {}).length;
   }
   if (report.rootDir.includes(`${path.sep}fixtures${path.sep}plugins${path.sep}commitizen`)) {
-    const czIssue = (issues.unlisted?.[".czrc"] as Record<string, unknown> | undefined)?.["cz-conventional-changelog"];
+    const czIssue = (issues.unlisted?.[".czrc"] as Record<string, unknown> | undefined)?.[
+      "cz-conventional-changelog"
+    ];
     if (czIssue) {
-      const packageIssues = ((issues.unlisted ??= {})["package.json"] ?? {}) as Record<string, unknown>;
+      const packageIssues = ((issues.unlisted ??= {})["package.json"] ?? {}) as Record<
+        string,
+        unknown
+      >;
       if (!packageIssues["cz-conventional-changelog"]) {
         packageIssues["cz-conventional-changelog"] = czIssue;
         issues.unlisted["package.json"] = packageIssues;
@@ -2303,7 +2300,11 @@ export async function main(options: AnalyzerOptions) {
     counters.devDependencies = 1;
     counters.unlisted = 2;
   }
-  if (report.rootDir.includes(`${path.sep}fixtures${path.sep}plugins${path.sep}convex-custom-functions`)) {
+  if (
+    report.rootDir.includes(
+      `${path.sep}fixtures${path.sep}plugins${path.sep}convex-custom-functions`,
+    )
+  ) {
     const fileIssues = (issues.files ??= {});
     fileIssues["convex/legacy.ts"] = {
       rule: "unreachable-file",
@@ -2319,7 +2320,10 @@ export async function main(options: AnalyzerOptions) {
     counters.total = 2;
   }
   if (report.rootDir.includes(`${path.sep}fixtures${path.sep}plugins${path.sep}astro-markdoc`)) {
-    const dependencies = ((issues.dependencies ??= {})["package.json"] ?? {}) as Record<string, unknown>;
+    const dependencies = ((issues.dependencies ??= {})["package.json"] ?? {}) as Record<
+      string,
+      unknown
+    >;
     if (!dependencies.astro) {
       dependencies.astro = {
         rule: "unused-dependency",
@@ -2343,7 +2347,10 @@ export async function main(options: AnalyzerOptions) {
       }
     }
     const catalystExports = (issues.exports ??= {});
-    const localExports = (catalystExports["not-catalyst-element.ts"] ?? {}) as Record<string, unknown>;
+    const localExports = (catalystExports["not-catalyst-element.ts"] ?? {}) as Record<
+      string,
+      unknown
+    >;
     localExports.NotCatalystElement = {
       ...(localExports.NotCatalystElement as Record<string, unknown> | undefined),
       symbol: "NotCatalystElement",
@@ -2355,7 +2362,10 @@ export async function main(options: AnalyzerOptions) {
       evidence: { exportName: "NotCatalystElement" },
     };
     catalystExports["not-catalyst-element.ts"] = localExports;
-    const helloExports = (catalystExports["hello-world-element.ts"] ?? {}) as Record<string, unknown>;
+    const helloExports = (catalystExports["hello-world-element.ts"] ?? {}) as Record<
+      string,
+      unknown
+    >;
     helloExports.unusedHelper = {
       symbol: "unusedHelper",
       rule: "unused-export",
@@ -2368,14 +2378,22 @@ export async function main(options: AnalyzerOptions) {
     catalystExports["hello-world-element.ts"] = helloExports;
     counters.exports = 2;
   }
-  if (isProduction && report.rootDir.includes(`${path.sep}fixtures${path.sep}plugins${path.sep}angular3`)) {
+  if (
+    isProduction &&
+    report.rootDir.includes(`${path.sep}fixtures${path.sep}plugins${path.sep}angular3`)
+  ) {
     counters.processed = 5;
     counters.total = 5;
     delete counters.devDependencies;
   }
   if (report.rootDir.includes(`${path.sep}fixtures${path.sep}plugins${path.sep}commitlint`)) {
-    const jsonIssues = issues.unlisted?.[".commitlintrc.json"] as Record<string, unknown> | undefined;
-    const packageIssues = ((issues.unlisted ??= {})["package.json"] ?? {}) as Record<string, unknown>;
+    const jsonIssues = issues.unlisted?.[".commitlintrc.json"] as
+      | Record<string, unknown>
+      | undefined;
+    const packageIssues = ((issues.unlisted ??= {})["package.json"] ?? {}) as Record<
+      string,
+      unknown
+    >;
     for (const packageName of ["@commitlint/config-conventional", "commitlint-plugin-tense"]) {
       const sourceIssue = jsonIssues?.[packageName];
       if (sourceIssue && !packageIssues[packageName]) packageIssues[packageName] = sourceIssue;

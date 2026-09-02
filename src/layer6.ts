@@ -121,6 +121,26 @@ function checkPkgBin(pkgJsonPath: string, pkgName: string, token: string): strin
  * example `next`), while npm's package contract requires peers such as
  * `react` and `react-dom` to be present in the consuming application.
  */
+function packageFromPathAlias(specifier: string, aliases: Map<string, string[]>): string | null {
+  for (const [alias, targets] of aliases) {
+    const wildcardIndex = alias.indexOf("*");
+    const matches =
+      wildcardIndex >= 0
+        ? specifier.startsWith(alias.slice(0, wildcardIndex))
+        : specifier === alias;
+    if (!matches) continue;
+    for (const target of targets) {
+      const nodeModulesIndex = target.indexOf("node_modules/");
+      if (nodeModulesIndex < 0) continue;
+      const packagePath = target.slice(nodeModulesIndex + "node_modules/".length);
+      const parts = packagePath.split("/");
+      if (parts[0]?.startsWith("@") && parts[1]) return `${parts[0]}/${parts[1]}`;
+      if (parts[0]) return parts[0];
+    }
+  }
+  return null;
+}
+
 function expandRequiredPeerDependencies(usedPackages: Set<string>, manifestRoots: string[]): void {
   const queue = [...usedPackages];
   const visited = new Set<string>();
@@ -380,20 +400,28 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       context.reachable.has(module.id) || context.maybeReachable.has(module.id);
 
     for (const edge of module.edges) {
-      if (edge.resolution === "external") {
-        const specifier = edge.rawSpecifier;
-        if (!specifier) continue;
+      const specifier = edge.rawSpecifier;
+      if (!specifier) continue;
 
+      if (edge.resolution === "external") {
         const cleanSpec = specifier.startsWith("node:") ? specifier.slice(5) : specifier;
         if (specifier.startsWith("node:")) continue;
-        if (projectHasTypesNode && (NODE_BUILTINS.has(specifier) || NODE_BUILTINS.has(cleanSpec))) {
+
+        const aliasedPackage = packageFromPathAlias(specifier, context.options.pathAliases);
+        const parts = cleanSpec.split("/");
+        const pkgName =
+          aliasedPackage ??
+          (cleanSpec.startsWith("@") ? `${parts[0] ?? ""}/${parts[1] ?? ""}` : (parts[0] ?? ""));
+
+        if (pkgName && NODE_BUILTINS.has(pkgName)) {
+          pkgImports.add(pkgName);
+          globalImports.add(pkgName);
+          const importingFiles = packageFiles.get(pkgName) || new Set<string>();
+          importingFiles.add(module.id);
+          packageFiles.set(pkgName, importingFiles);
+          if (moduleIsReachable) reachableGlobalImports.add(pkgName);
           continue;
         }
-
-        const parts = cleanSpec.split("/");
-        const pkgName = cleanSpec.startsWith("@")
-          ? `${parts[0] ?? ""}/${parts[1] ?? ""}`
-          : (parts[0] ?? "");
 
         if (pkgName && !NODE_BUILTINS.has(pkgName) && !NODE_BUILTINS.has(`node:${pkgName}`)) {
           pkgImports.add(pkgName);
@@ -411,6 +439,16 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             if (moduleIsReachable) reachableGlobalImports.add(pkgName);
             break;
           }
+        }
+      } else {
+        const aliasedPackage = packageFromPathAlias(specifier, context.options.pathAliases);
+        if (aliasedPackage) {
+          pkgImports.add(aliasedPackage);
+          globalImports.add(aliasedPackage);
+          const importingFiles = packageFiles.get(aliasedPackage) || new Set<string>();
+          importingFiles.add(module.id);
+          packageFiles.set(aliasedPackage, importingFiles);
+          if (moduleIsReachable) reachableGlobalImports.add(aliasedPackage);
         }
       }
     }
@@ -441,7 +479,16 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       const pkg = await readJsonFile<Record<string, any>>(manifestPath);
       if (!pkg) continue;
 
-      const dependencies = pkg.dependencies || {};
+      const dependencies = {
+        ...(pkg.dependencies || {}),
+        ...(context.options.isStrict
+          ? Object.fromEntries(
+              Object.entries(pkg.peerDependencies || {}).filter(
+                ([name]) => pkg.peerDependenciesMeta?.[name]?.optional !== true,
+              ),
+            )
+          : {}),
+      };
       const devDependencies = pkg.devDependencies || {};
       const scripts = pkg.scripts || {};
       const relativeManifest = path.posix.relative(projectRoot, manifestPath);
@@ -518,6 +565,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         "start",
         "stop",
         "restart",
+        "generate",
         "dev",
         "serve",
         "query",
@@ -696,6 +744,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
               shellCommands.has(token) ||
               token.startsWith(".") ||
               token.startsWith("/") ||
+              (token.includes("/") && !token.startsWith("@")) ||
               token.endsWith(".ts") ||
               token.endsWith(".js")
             ) {
@@ -724,6 +773,10 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             if (resolvedPackage) {
               scriptUsages.add(token);
               scriptPackages.add(resolvedPackage);
+            } else {
+              // Preserve unknown executable tokens so they can be reported as
+              // unlisted binaries instead of being silently discarded.
+              scriptUsages.add(token);
             }
           }
         }
@@ -888,6 +941,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const isUsed =
           isMarkedUsed ||
           hasReachableImport(dep) ||
+          reachableGlobalImports.has(dep) ||
+          (NODE_BUILTINS.has(dep) && importFilesFor(dep).length > 0) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||
           scriptPackages.has(dep) ||
@@ -913,6 +968,28 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             },
           });
         }
+      }
+
+      if (context.options.isProduction) {
+        if (context.options.isStrict) {
+          for (const dep of Object.keys(devDependencies)) {
+            const importingFiles = [...(packageImportFiles.get(pkgName)?.get(dep) ?? [])];
+            if (!importingFiles.length || !reachableGlobalImports.has(dep)) continue;
+            findings.push({
+              rule: "missing-dev-dependency",
+              severity: "error",
+              confidence: "high",
+              message: `Package '${dep}' is imported in production but declared only in devDependencies.`,
+              file: relativeManifest,
+              evidence: {
+                package: dep,
+                type: "devDependency",
+                importingFiles,
+              },
+            });
+          }
+        }
+        continue;
       }
 
       for (const dep of Object.keys(devDependencies)) {

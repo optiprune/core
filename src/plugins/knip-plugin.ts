@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "pathe";
 import type { AnalyzerPlugin, PluginAdapter } from "../types.js";
 import {
   loadStaticPluginConfig,
@@ -20,6 +22,51 @@ const KNIP_CONFIG_FILES = [
   "knip.config.mjs",
   "knip.config.cjs",
 ];
+
+export function discoverKnipCompilerNames(rootDir: string): Record<string, true> {
+  for (const file of KNIP_CONFIG_FILES) {
+    const configPath = path.join(rootDir, file);
+    if (!fs.existsSync(configPath)) continue;
+    let source: string;
+    try {
+      source = fs.readFileSync(configPath, "utf8");
+    } catch {
+      continue;
+    }
+    const start = source.search(/\bcompilers\s*:\s*\{/);
+    if (start < 0) continue;
+    const open = source.indexOf("{", start);
+    let depth = 0;
+    let close = -1;
+    let quote = "";
+    for (let index = open; index < source.length; index++) {
+      const char = source[index];
+      if (quote) {
+        if (char === "\\") index++;
+        else if (char === quote) quote = "";
+        continue;
+      }
+      if (char === '"' || char === "'" || char === "`") {
+        quote = char;
+      } else if (char === "{") {
+        depth++;
+      } else if (char === "}" && --depth === 0) {
+        close = index;
+        break;
+      }
+    }
+    if (close < 0) continue;
+    const names: Record<string, true> = {};
+    for (const match of source
+      .slice(open + 1, close)
+      .matchAll(/(?:^|[,\n])\s*([A-Za-z0-9_.-]+)\s*:/g)) {
+      const name = match[1];
+      if (name) names[name] = true;
+    }
+    if (Object.keys(names).length > 0) return names;
+  }
+  return {};
+}
 
 const KNIP_CONFIG_KEYS = new Set([
   "$schema",

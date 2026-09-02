@@ -196,6 +196,10 @@ export interface AnalyzerOptions {
   ignoreTests?: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
   ignoreUnknownImport?: boolean;
+  /** Knip-compatible production dependency mode. */
+  isProduction?: boolean;
+  /** Knip-compatible strict peer-dependency mode. */
+  isStrict?: boolean;
   skip3?: boolean;
   skip4?: boolean;
   /** Skip SMT analysis and suppress impossible-condition findings from Layer 2. */
@@ -269,6 +273,10 @@ export interface Config {
   ignoreTests?: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
   ignoreUnknownImport?: boolean;
+  /** Knip-compatible production dependency mode. */
+  isProduction?: boolean;
+  /** Knip-compatible strict peer-dependency mode. */
+  isStrict?: boolean;
   failOn?: FailOn;
   /** @deprecated Use `output` instead. */
   json?: boolean;
@@ -322,6 +330,8 @@ export interface ResolvedOptions {
   ignoreTests: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
   ignoreUnknownImport: boolean;
+  isProduction: boolean;
+  isStrict: boolean;
   monorepo?: MonorepoGraph;
   pathAliases: Map<string, string[]>;
   /** Node.js package.json#imports aliases, resolved to project-local targets. */

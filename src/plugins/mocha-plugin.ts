@@ -79,12 +79,9 @@ export const MochaPlugin: AnalyzerPlugin = {
 
       const hasMochaDep = "mocha" in allDeps;
 
-      // 1. Protect core Mocha package if present
-      if (hasMochaDep) {
-        adapter.markPackageAsUsed("mocha");
-      }
-
-      // 2. Protect standalone config files and package.json mocha config block
+      // A declaration alone is not usage evidence. Scripts, config files, test
+      // files, and explicit imports mark Mocha as used below.
+      // 1. Protect standalone config files and package.json mocha config block
       let hasConfigFile = false;
       for (const configFile of MOCHA_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
