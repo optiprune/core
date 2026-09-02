@@ -21,7 +21,6 @@ export async function onRequestGet({ env }) {
     )
   )
     .filter(Boolean)
-    .filter((post) => post.show_on_website === true)
     .sort(
       (a, b) =>
         new Date(b.published_at || b.created_at || 0) -

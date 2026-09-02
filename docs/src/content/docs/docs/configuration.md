@@ -1,25 +1,32 @@
 ---
 title: Configuration
-description: Configure entry points, confidence gates, and plugin overrides.
+description: Configure roots, rules, plugins, contracts, output, and analysis layers.
 ---
 
-Keep configuration in the repository root so local scans and CI use the same contract.
+The loader accepts `optiprune.json`, `optiprune.jsonc`, `optiprune.config.ts`, `optiprune.config.js`, `optiprune.config.mjs`, and the supported package configuration field. CLI values override project configuration.
 
-```json
-{
-  "entry": ["src/index.ts"],
-  "plugins": {
-    "nextjs-plugin": true,
-    "nestjs-plugin": false
+```ts
+import { defineConfig } from "@optiprune/core";
+
+export default defineConfig({
+  rootDir: ".",
+  entry: ["src/index.ts", "src/worker.ts"],
+  extensions: [".ts", ".tsx", ".js", ".jsx", ".vue"],
+  ignore: ["**/fixtures/**", "**/generated/**"],
+  reportUnusedExports: true,
+  includeConventionalEntries: true,
+  failOn: "high",
+  output: "terminal",
+  rules: {
+    "unused-export": "warning",
+    "unreachable-file": "warning",
+    "constant-condition": "warning",
   },
-  "failOn": "high"
-}
+  plugins: {},
+  layers: {},
+});
 ```
 
-## Plugin overrides
+Use `externalContracts` for public APIs consumed outside the local workspace. Use `ignoreDependencies` for packages intentionally provided by a host. Keep ignores narrow: an overly broad ignore removes evidence from the graph and can hide real problems.
 
-Use a plugin name as the key. Set it to `true` to force-enable detection or `false` to disable it even when automatic detection would enable it.
-
-## Confidence thresholds
-
-`failOn: "high"` is a conservative CI default. It blocks only findings with the strongest evidence. Raise the threshold only after reviewing the project’s dynamic behavior and generated artifacts.
+The authoritative machine-readable schema is `schema.json` in the Core repository.

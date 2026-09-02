@@ -8,6 +8,7 @@ export default defineConfig({
     starlight({
       title: "OptiPrune Docs",
       logo: { src: "./src/assets/optiprune-logo.svg", alt: "OptiPrune" },
+      favicon: "./src/assets/favicon.svg",
       sidebar: [
         {
           label: "Start here",
@@ -15,18 +16,32 @@ export default defineConfig({
         },
         {
           label: "Core concepts",
-          items: ["docs/architecture", "docs/reachability", "docs/confidence"],
+          items: ["docs/architecture", "docs/reachability", "docs/confidence", "docs/output"],
         },
         {
           label: "Reference",
-          items: ["docs/configuration", "docs/cli", "docs/reporters", "docs/plugins"],
+          items: [
+            "docs/configuration",
+            "docs/cli",
+            "docs/quick-reference",
+            "docs/output",
+            "docs/reporters",
+            "docs/headless-api",
+            "docs/cache",
+            "docs/language-server",
+            "docs/plugins",
+            "docs/plugin-authoring",
+          ],
         },
         {
           label: "Guides",
-          items: ["docs/ci", "docs/monorepos", "docs/troubleshooting", "docs/api"],
+          items: ["docs/ci", "docs/monorepos", "docs/fixes", "docs/troubleshooting", "docs/api"],
         },
       ],
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/optiprune/core" }],
+      social: [
+        { icon: "github", label: "GitHub", href: "https://github.com/optiprune/core" },
+        { icon: "npm", label: "npm", href: "https://www.npmjs.com/package/@optiprune/cli" },
+      ],
     }),
   ],
 });

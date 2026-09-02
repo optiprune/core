@@ -1,16 +1,31 @@
 ---
 title: Plugins
-description: Framework, test-runner, and tooling conventions supported by Core.
+description: How Core understands framework, tooling, runtime, and workspace conventions.
 ---
 
-OptiPrune discovers plugins from the current Core source tree and uses them to understand conventions that a generic module graph cannot infer.
+A generic import graph cannot know that a framework discovers routes, a test runner loads files by pattern, a bundler consumes configuration, or a package manager exposes a binary. OptiPrune plugins add that project context as explicit graph evidence.
 
-The [full plugin explorer](/plugins) provides search, category filters, and source links for every shipped plugin.
+## What a plugin can do
 
-## Plugin lifecycle
+A plugin can recognize project markers, add carefully scoped entry patterns, interpret package metadata, mark files or packages as used, inspect AST and dependency information, and contribute findings during the analysis-complete phase. Plugins should not mutate source files or silently convert uncertainty into reachability.
 
-A plugin can participate during project initialization, file discovery, AST analysis, or analysis completion. Plugins report evidence to the same graph rather than mutating files directly.
+The repository currently ships 163 source plugins across frameworks, build tools, testing, package management, runtime conventions, documentation tools, and workspace orchestration. The [Plugin Explorer](/plugins) is generated from the current `src/plugins` directory and links each card to its source file.
 
-## When to override
+## Enablement and overrides
 
-Use an override when your project has an unusual convention, a generated directory, or a framework integration that automatic detection cannot safely infer. Keep the override in version control and explain it in the project README.
+Automatic detection is preferred. Set a plugin to `true` to force-enable it or `false` to disable it when a repository uses a nonstandard convention:
+
+```json
+{
+  "plugins": {
+    "nextjs-plugin": true,
+    "nestjs-plugin": false
+  }
+}
+```
+
+Keep overrides in version control and explain why they exist. A broad plugin entry pattern can hide real findings, so prefer the smallest pattern that represents the framework contract.
+
+## Testing a plugin
+
+Every plugin should have a fixture that proves its positive behavior, a negative case where the project marker is absent, and a regression case for a previous false positive. The plugin authoring guide covers the `AnalyzerPlugin` contract and adapter boundaries.
