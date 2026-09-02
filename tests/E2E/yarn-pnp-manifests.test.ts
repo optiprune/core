@@ -21,6 +21,8 @@ describe("Yarn PnP package manifests", () => {
         finding.evidence?.package === "pnp-cli-provider",
     );
     expect(unusedPnpCli).toBeUndefined();
-    expect(report.rootDir).toBe(fixtureRoot.replace(/\/$/, ""));
+    expect(report.rootDir.replace(/\\/g, "/")).toBe(
+      fixtureRoot.replace(/\\/g, "/").replace(/\/$/, ""),
+    );
   });
 });

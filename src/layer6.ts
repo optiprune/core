@@ -447,7 +447,12 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         }
       } else if (edge.resolution === "resolved" && edge.target && context.options.monorepo) {
         for (const [pkgName, pkg] of context.options.monorepo.packageMap.entries()) {
-          if (edge.target.startsWith(pkg.location + path.sep) || edge.target === pkg.location) {
+          const normalizedTarget = edge.target.replace(/\\/g, "/");
+          const normalizedWorkspaceLocation = pkg.location.replace(/\\/g, "/").replace(/\/$/, "");
+          if (
+            normalizedTarget.startsWith(`${normalizedWorkspaceLocation}/`) ||
+            normalizedTarget === normalizedWorkspaceLocation
+          ) {
             pkgImports.add(pkgName);
             globalImports.add(pkgName);
             if (moduleIsReachable) reachableGlobalImports.add(pkgName);
@@ -511,7 +516,27 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       // observations, so a workspace import cannot retain a root dependency.
       const packagePeerUsage = new Set(context.usedPackages ?? []);
       for (const importedPackage of importedInThisPackage) {
-        if (hasReachableImport(importedPackage)) packagePeerUsage.add(importedPackage);
+        // The import edge itself is sufficient evidence for peer traversal;
+        // reachability filtering is applied later when emitting findings.
+        packagePeerUsage.add(importedPackage);
+      }
+      // Some package-manager graphs expose the host relationship in manifests
+      // even when the host's source entry cannot be resolved by the analyzer.
+      // Seed only dependencies that actually declare peer contracts; ordinary
+      // unused dependencies remain eligible for diagnostics.
+      for (const dependencyName of Object.keys(dependencies)) {
+        const hostManifest = findPackageManifest(path.dirname(manifestPath), dependencyName);
+        if (!hostManifest) continue;
+        try {
+          const hostPackage = JSON.parse(fs.readFileSync(hostManifest, "utf8")) as {
+            peerDependencies?: Record<string, string>;
+          };
+          if (Object.keys(hostPackage.peerDependencies ?? {}).length > 0) {
+            packagePeerUsage.add(dependencyName);
+          }
+        } catch {
+          // Ignore malformed installed manifests.
+        }
       }
       expandRequiredPeerDependencies(packagePeerUsage, [path.dirname(manifestPath), projectRoot]);
 
@@ -1060,7 +1085,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const isHostProvided =
           dependencies[dep] !== undefined || devDependencies[dep] !== undefined;
         if (optional || isHostProvided || ignoreDeps.has(dep)) continue;
-        if (context.usedPackages?.has(dep) || OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
+        if (packagePeerUsage.has(dep) || OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
 
         const isUsed =
           hasReachableImport(dep) ||
