@@ -15,6 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Dependencies
+        run: |
+          npm ci
+
       - name: Generate PR Template from tests/
         run: |
           node -e '
@@ -51,6 +55,9 @@ jobs:
           fs.mkdirSync(path.dirname(templatePath), { recursive: true });
           fs.writeFileSync(templatePath, templateContent, "utf8");
           '
+      - name: Format PR Template
+        run: |
+          npm run format
 
       - name: Commit and Push if Changed
         run: |
