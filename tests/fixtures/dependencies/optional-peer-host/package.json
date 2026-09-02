@@ -1,0 +1,1 @@
+{"name":"optional-peer-host","dependencies":{"optional-host-runtime":"1.0.0"},"peerDependencies":{"optional-host-runtime":"*"},"peerDependenciesMeta":{"optional-host-runtime":{"optional":true}}}

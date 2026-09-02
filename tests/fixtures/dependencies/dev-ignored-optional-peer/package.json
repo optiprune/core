@@ -1,0 +1,1 @@
+{"name":"dev-ignored-optional-peer","devDependencies":{"optional-dev-peer":"1.0.0"},"peerDependencies":{"optional-dev-peer":"*"},"peerDependenciesMeta":{"optional-dev-peer":{"optional":true}}}

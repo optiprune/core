@@ -1,0 +1,1 @@
+{"name":"yarn-pnp-manifests","packageManager":"yarn@4.0.0","scripts":{"check":"pnp-cli"},"devDependencies":{"pnp-cli-provider":"1.0.0"}}

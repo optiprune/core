@@ -1,0 +1,3 @@
+catalogs:
+  runtime:
+    pnpm-catalog-runtime: ^1.0.0

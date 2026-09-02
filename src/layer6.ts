@@ -47,8 +47,52 @@ function packageNameFromResolvedPath(resolvedPath: string): string | null {
   return null;
 }
 
-function resolveBinaryDependency(token: string, projectRoot: string): string | null {
-  // 1. Direct Binary Check: Check if `node_modules/.bin/<token>` exists
+/**
+ * Locate an installed package manifest without assuming a mutable node_modules
+ * tree. Yarn PnP exposes unplugged packages under `.yarn/unplugged`; looking
+ * there avoids executing an untrusted project `.pnp.cjs` loader.
+ */
+function findPackageManifest(projectRoot: string, packageName: string): string | null {
+  const packageSegments = packageName.split("/");
+  let lookupRoot = projectRoot;
+  while (true) {
+    const nodeModulesManifest = path.join(
+      lookupRoot,
+      "node_modules",
+      ...packageSegments,
+      "package.json",
+    );
+    if (fs.existsSync(nodeModulesManifest)) return nodeModulesManifest;
+    const parentRoot = path.dirname(lookupRoot);
+    if (parentRoot === lookupRoot) break;
+    lookupRoot = parentRoot;
+  }
+
+  const unpluggedRoot = path.join(projectRoot, ".yarn", "unplugged");
+  if (!fs.existsSync(unpluggedRoot)) return null;
+  try {
+    for (const entry of fs.readdirSync(unpluggedRoot)) {
+      const manifestPath = path.join(
+        unpluggedRoot,
+        entry,
+        "node_modules",
+        ...packageSegments,
+        "package.json",
+      );
+      if (fs.existsSync(manifestPath)) return manifestPath;
+    }
+  } catch {
+    // Treat a partial or unavailable PnP cache as unresolved.
+  }
+  return null;
+}
+
+function resolveBinaryDependency(
+  token: string,
+  projectRoot: string,
+  declaredPackages: Iterable<string> = [],
+): string | null {
+  // 1. Direct Binary Check: Check if `node_modules/.bin/<token>` exists.
   const binPath = path.join(projectRoot, "node_modules", ".bin", token);
   if (fs.existsSync(binPath)) {
     try {
@@ -56,20 +100,25 @@ function resolveBinaryDependency(token: string, projectRoot: string): string | n
       const packageName = packageNameFromResolvedPath(realPath);
       if (packageName) return packageName;
     } catch {
-      // Fallback to manifest scanning if realpath fails
+      // Fallback to manifest scanning if realpath fails.
     }
   }
 
-  // 2. Manifest Check: Scan `package.json` files in `node_modules` for matching "bin" entries
+  // 2. Resolve directly from declared package manifests. This is both bounded
+  // and compatible with Yarn PnP's filesystem-visible unplugged manifests.
+  for (const packageName of declaredPackages) {
+    const manifestPath = findPackageManifest(projectRoot, packageName);
+    const resolved = manifestPath ? checkPkgBin(manifestPath, packageName, token) : null;
+    if (resolved) return resolved;
+  }
+
+  // 3. Fallback scan for ordinary node_modules installations.
   const nodeModulesPath = path.join(projectRoot, "node_modules");
   if (fs.existsSync(nodeModulesPath)) {
     try {
       const packages = fs.readdirSync(nodeModulesPath);
-
       for (const pkgName of packages) {
-        if (pkgName.startsWith(".")) continue; // Skip .bin, .cache, etc.
-
-        // Handle scoped packages (@types, @babel, etc.)
+        if (pkgName.startsWith(".")) continue;
         if (pkgName.startsWith("@")) {
           const scopePath = path.join(nodeModulesPath, pkgName);
           const scopedPkgs = fs.readdirSync(scopePath);
@@ -81,16 +130,14 @@ function resolveBinaryDependency(token: string, projectRoot: string): string | n
           }
           continue;
         }
-
         const pkgJsonPath = path.join(nodeModulesPath, pkgName, "package.json");
         const resolved = checkPkgBin(pkgJsonPath, pkgName, token);
         if (resolved) return resolved;
       }
     } catch {
-      // Fall through if node_modules reading fails
+      // Fall through if node_modules reading fails.
     }
   }
-
   return null;
 }
 
@@ -131,13 +178,8 @@ function expandRequiredPeerDependencies(usedPackages: Set<string>, manifestRoots
     visited.add(packageName);
 
     for (const root of manifestRoots) {
-      const manifestPath = path.join(
-        root,
-        "node_modules",
-        ...packageName.split("/"),
-        "package.json",
-      );
-      if (!fs.existsSync(manifestPath)) continue;
+      const manifestPath = findPackageManifest(root, packageName);
+      if (!manifestPath) continue;
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as {
           peerDependencies?: Record<string, string>;
@@ -424,14 +466,6 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     }
   }
 
-  // Plugins mark the tool/framework package they observe. Resolve its package
-  // contract once before dependency diagnostics so required peers are retained
-  // as well (optional peers remain eligible for unused-dependency findings).
-  expandRequiredPeerDependencies(context.usedPackages ?? new Set<string>(), [
-    projectRoot,
-    ...Array.from(context.options.monorepo?.packageMap.values() ?? [], (pkg) => pkg.location),
-  ]);
-
   // Build a Set of dependencies the user explicitly wants to ignore so we
   // never emit unused-dependency / unused-dev-dependency findings for them.
   const globallyIgnoredDependencies = new Set<string>(context.options.ignoreDependencies ?? []);
@@ -443,6 +477,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
 
       const dependencies = pkg.dependencies || {};
       const devDependencies = pkg.devDependencies || {};
+      const peerDependencies = pkg.peerDependencies || {};
+      const peerDependenciesMeta = pkg.peerDependenciesMeta || {};
       const scripts = pkg.scripts || {};
       const relativeManifest = path.posix.relative(projectRoot, manifestPath);
       const ignoreDeps = new Set<string>([
@@ -469,6 +505,15 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const files = importFilesFor(dependency);
         return files.length > 0 && !hasReachableImport(dependency) ? files : [];
       };
+
+      // Peer contracts must remain package-local in a monorepo. Seed the
+      // traversal with only this manifest's reachable imports plus plugin
+      // observations, so a workspace import cannot retain a root dependency.
+      const packagePeerUsage = new Set(context.usedPackages ?? []);
+      for (const importedPackage of importedInThisPackage) {
+        if (hasReachableImport(importedPackage)) packagePeerUsage.add(importedPackage);
+      }
+      expandRequiredPeerDependencies(packagePeerUsage, [path.dirname(manifestPath), projectRoot]);
 
       const scriptUsages = new Set<string>();
       const scriptPackages = new Set<string>();
@@ -648,7 +693,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
             // 3. Handle the other package managers: npm run <script>, npx <pkg>
             if (["npx", "npm", "pnpm", "yarn"].includes(token)) {
               let pkgIndex = consumeCommandFlags(tokens, i + 1, token);
-              if (tokens[pkgIndex] === "run" || tokens[pkgIndex] === "exec") {
+              if (["run", "exec", "dlx"].includes(tokens[pkgIndex] ?? "")) {
                 pkgIndex = consumeCommandFlags(tokens, pkgIndex + 1, token);
               }
               const pkg = tokens[pkgIndex]?.replace(/^["']|["']$/g, "");
@@ -656,7 +701,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
               if (pkg && !pkg.startsWith("-") && !scripts[pkg] && !shellCommands.has(pkg)) {
                 scriptUsages.add(pkg);
                 const resolved =
-                  resolveBinaryDependency(pkg, projectRoot) || STATIC_BINARY_FALLBACKS[pkg] || pkg;
+                  resolveBinaryDependency(pkg, projectRoot, allDeclaredDeps) ||
+                  STATIC_BINARY_FALLBACKS[pkg] ||
+                  pkg;
                 scriptPackages.add(resolved);
               }
               break; // Token handled via package manager handler
@@ -672,7 +719,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
                 ? `${tokenParts[0]}/${tokenParts[1]}`
                 : null
               : tokenParts[0];
-            const tokenBinaryPackage = resolveBinaryDependency(token, projectRoot);
+            const tokenBinaryPackage = resolveBinaryDependency(token, projectRoot, allDeclaredDeps);
             const tokenResolvedPackage =
               tokenBinaryPackage && tokenBinaryPackage !== ".bin"
                 ? tokenBinaryPackage
@@ -710,7 +757,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
                 ? `${parts[0]}/${parts[1]}`
                 : null
               : parts[0];
-            const resolved = resolveBinaryDependency(token, projectRoot);
+            const resolved = resolveBinaryDependency(token, projectRoot, allDeclaredDeps);
             const resolvedPackage =
               resolved && resolved !== ".bin"
                 ? resolved
@@ -774,7 +821,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       }
 
       for (const bin of scriptUsages) {
-        const resolved = resolveBinaryDependency(bin, projectRoot);
+        const resolved = resolveBinaryDependency(bin, projectRoot, allDeclaredDeps);
         const mappedPkg =
           resolved && resolved !== ".bin" ? resolved : STATIC_BINARY_FALLBACKS[bin] || bin;
 
@@ -843,7 +890,20 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       ];
 
       for (const dep of Object.keys(dependencies)) {
-        if (context.usedPackages?.has(dep)) continue;
+        if (devDependencies[dep] !== undefined) {
+          findings.push({
+            rule: "duplicate-dependency-section",
+            severity: "warning",
+            confidence: "high",
+            message: `Package '${dep}' is declared in both dependencies and devDependencies in ${relativeManifest}.`,
+            file: relativeManifest,
+            evidence: { package: dep, type: "duplicateDependencySection" },
+          });
+        }
+      }
+
+      for (const dep of Object.keys(dependencies)) {
+        if (packagePeerUsage.has(dep)) continue;
         if (OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
         if (dep === "@types/node") continue;
 
@@ -919,8 +979,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (pkg.name && dep === pkg.name) {
           continue;
         }
+        // Optional peers commonly appear in devDependencies to support local
+        // development. Their host relationship, not a direct import, is usage.
+        if (peerDependenciesMeta[dep]?.optional === true) continue;
 
-        if (context.usedPackages?.has(dep)) continue;
+        if (packagePeerUsage.has(dep)) continue;
         if (OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
         if (dep.startsWith("@types/")) {
           const basePkg = dep.slice(7).replace("__", "/");
@@ -988,6 +1051,32 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
                 removalRequiresFiles: onlyUsedByUnreachableFiles(dep),
               }),
             },
+          });
+        }
+      }
+
+      for (const dep of Object.keys(peerDependencies)) {
+        const optional = peerDependenciesMeta[dep]?.optional === true;
+        const isHostProvided =
+          dependencies[dep] !== undefined || devDependencies[dep] !== undefined;
+        if (optional || isHostProvided || ignoreDeps.has(dep)) continue;
+        if (context.usedPackages?.has(dep) || OPTIPRUNE_PROTECTED_PACKAGES.has(dep)) continue;
+
+        const isUsed =
+          hasReachableImport(dep) ||
+          reachableGlobalImports.has(dep) ||
+          scriptUsages.has(dep) ||
+          scriptPackages.has(dep) ||
+          context.usedExports?.has(`${relativeManifest}:peerDependencies:${dep}`) ||
+          context.usedExports?.has(`package.json:peerDependencies:${dep}`);
+        if (!isUsed) {
+          findings.push({
+            rule: "unused-peer-dependency",
+            severity: "info",
+            confidence: "medium",
+            message: `Peer dependency '${dep}' in ${relativeManifest} appears unused.`,
+            file: relativeManifest,
+            evidence: { package: dep, type: "peerDependency" },
           });
         }
       }

@@ -1,0 +1,1 @@
+import "pnpm-catalog-runtime";

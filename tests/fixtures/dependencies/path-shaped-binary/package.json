@@ -1,0 +1,1 @@
+{"name":"path-shaped-binary","scripts":{"build":"./scripts/path-shaped-tool"},"devDependencies":{"path-shaped-tool":"1.0.0"}}

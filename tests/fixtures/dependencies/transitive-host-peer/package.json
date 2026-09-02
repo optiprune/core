@@ -1,0 +1,1 @@
+{"name":"transitive-host-peer","dependencies":{"transitive-host":"1.0.0"},"peerDependencies":{"hosted-transitive-peer":"*"}}

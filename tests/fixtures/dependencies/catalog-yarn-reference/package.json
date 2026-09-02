@@ -1,0 +1,1 @@
+{"name":"catalog-yarn-reference","packageManager":"yarn@4.0.0","dependencies":{"yarn-catalog-runtime":"catalog:runtime"}}

@@ -1,0 +1,1 @@
+{"name":"aliased-package-dependency","dependencies":{"aliased-runtime":"npm:real-runtime@1.0.0"}}

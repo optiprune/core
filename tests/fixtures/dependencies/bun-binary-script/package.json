@@ -1,0 +1,1 @@
+{"name":"bun-binary-script","scripts":{"check":"bunx bun-tool"},"devDependencies":{"bun-tool":"1.0.0"}}

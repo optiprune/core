@@ -41,4 +41,15 @@ all.txt
 # Versionierte Monorepo-Fixture; darf nicht durch die generische lib/-Regel verschwinden.
 !tests/fixtures/monorepo-config-layering/packages/lib/
 !tests/fixtures/monorepo-config-layering/packages/lib/**
+
+# Self-contained resolver fixtures intentionally model installed manifests.
+# Keep these tiny test assets visible while `.optiprune/` remains ignored.
+!tests/fixtures/dependencies/**/node_modules/
+!tests/fixtures/dependencies/**/node_modules/**
+!tests/fixtures/dependencies/**/dist/
+!tests/fixtures/dependencies/**/dist/**
+!tests/fixtures/dependencies/declaration-graph-placement/dist/
+!tests/fixtures/dependencies/declaration-graph-placement/dist/**
+!tests/fixtures/e2e/yarn-pnp-manifests/.yarn/
+!tests/fixtures/e2e/yarn-pnp-manifests/.yarn/**
 !wouter@3.7.1.patch

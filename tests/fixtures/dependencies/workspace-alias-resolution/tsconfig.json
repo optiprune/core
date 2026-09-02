@@ -1,0 +1,1 @@
+{"compilerOptions":{"baseUrl":".","paths":{"@scope/shared":["packages/shared/src/index.ts"]}}}

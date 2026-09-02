@@ -1,0 +1,1 @@
+{"name":"circular-peer-dependencies","dependencies":{"peer-a":"1.0.0"},"peerDependencies":{"peer-a":"*"}}
