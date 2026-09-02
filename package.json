@@ -78,7 +78,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:core && npm --prefix docs run build",
+    "build:core": "tsc -p tsconfig.json",
     "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism",
     "format:check": "npx -y oxfmt --ignore-path .oxfmtignore --check",

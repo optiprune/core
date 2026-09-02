@@ -1,6 +1,6 @@
 name = "optiprune"
 compatibility_date = "2026-09-02"
-pages_build_output_dir = "./docs/dist"
+pages_build_output_dir = "docs/dist"
 
 [[kv_namespaces]]
 binding = "BLOG"

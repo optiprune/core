@@ -6,6 +6,6 @@
   "scripts": {
     "build": "node ../scripts/build-site.mjs",
     "dev": "node ../scripts/dev-server.mjs",
-    "check": "node --check ../worker/index.js && node --check ../scripts/build-site.mjs"
+    "check": "node --check ../functions/api/blog.js && node --check ../functions/api/blog/[id].js && node --check ../scripts/build-site.mjs"
   }
 }
