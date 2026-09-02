@@ -1,0 +1,16 @@
+:root {
+  --sl-color-accent-low: #eee9ff;
+  --sl-color-accent: #7046ff;
+  --sl-color-accent-high: #3f268f;
+  --sl-font: system-ui, sans-serif;
+  --sl-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+[data-theme="dark"] {
+  --sl-color-accent-low: #2a2052;
+  --sl-color-accent-high: #d7cbff;
+}
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  letter-spacing: -0.03em;
+}

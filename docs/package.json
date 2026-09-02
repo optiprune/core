@@ -4,8 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node ../scripts/build-site.mjs",
-    "dev": "node ../scripts/dev-server.mjs",
-    "check": "node --check ../functions/api/blog.js && node --check ../functions/api/blog/[id].js && node --check ../scripts/build-site.mjs"
+    "build": "node ../scripts/build-site.mjs && astro build",
+    "dev": "node ../scripts/build-site.mjs && astro dev",
+    "check": "astro check && node --check ../functions/api/blog.js && node --check ../functions/api/blog/[id].js",
+    "format": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.0",
+    "astro": "^6.0.0"
   }
 }

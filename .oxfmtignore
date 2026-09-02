@@ -2,3 +2,6 @@
 **/test-repos/**
 tests/fixtures/**
 tests/test-repos/**
+docs/.astro/**
+docs/dist/**
+docs/public/plugins.json
