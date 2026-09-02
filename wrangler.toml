@@ -1,8 +1,0 @@
-name = "optiprune"
-compatibility_date = "2026-09-02"
-pages_build_output_dir = "docs/dist"
-
-[[kv_namespaces]]
-binding = "BLOG"
-id = "f473e9d0041948bfa8c1135382b40e51"
-preview_id = "f473e9d0041948bfa8c1135382b40e51"
