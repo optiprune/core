@@ -455,6 +455,9 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           ) {
             pkgImports.add(pkgName);
             globalImports.add(pkgName);
+            const importingFiles = packageFiles.get(pkgName) || new Set<string>();
+            importingFiles.add(module.id);
+            packageFiles.set(pkgName, importingFiles);
             if (moduleIsReachable) reachableGlobalImports.add(pkgName);
             break;
           }
@@ -516,9 +519,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       // observations, so a workspace import cannot retain a root dependency.
       const packagePeerUsage = new Set(context.usedPackages ?? []);
       for (const importedPackage of importedInThisPackage) {
-        // The import edge itself is sufficient evidence for peer traversal;
-        // reachability filtering is applied later when emitting findings.
-        packagePeerUsage.add(importedPackage);
+        if (hasReachableImport(importedPackage)) packagePeerUsage.add(importedPackage);
       }
       // Some package-manager graphs expose the host relationship in manifests
       // even when the host's source entry cannot be resolved by the analyzer.
