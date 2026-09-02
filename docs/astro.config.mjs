@@ -3,7 +3,7 @@ import starlight from "@astrojs/starlight";
 
 export default defineConfig({
   site: "https://opti.drml.int.yt",
-  outDir: "./dist/public",
+  outDir: "./dist",
   integrations: [
     starlight({
       title: "OptiPrune Docs",
