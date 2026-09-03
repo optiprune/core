@@ -293,6 +293,33 @@ button {
   max-width: 420px;
   color: var(--muted);
 }
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 20px;
+}
+.badges a {
+  display: inline-flex;
+  line-height: 0;
+}
+.badges img {
+  height: 20px;
+}
+.card-link {
+  color: inherit;
+  text-decoration: none;
+}
+.card-link h3 {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition: text-decoration-color 160ms ease;
+}
+.card-link:hover h3,
+.card-link:focus-visible h3 {
+  text-decoration-color: currentColor;
+}
 .feature-grid,
 .plugin-grid,
 .blog-grid {

@@ -1,5 +1,27 @@
 ---
 const title = 'OptiPrune — Prove what your code uses';
+const badges = [
+  {
+    alt: 'npm version for @optiprune/core',
+    src: 'https://img.shields.io/npm/v/%40optiprune%2Fcore?label=%40optiprune%2Fcore',
+    href: 'https://www.npmjs.com/package/@optiprune/core',
+  },
+  {
+    alt: 'npm version for @optiprune/cli',
+    src: 'https://img.shields.io/npm/v/%40optiprune%2Fcli?label=%40optiprune%2Fcli',
+    href: 'https://www.npmjs.com/package/@optiprune/cli',
+  },
+  {
+    alt: 'OptiPrune tests status',
+    src: 'https://img.shields.io/github/actions/workflow/status/optiprune/core/tests.yml?branch=main&label=tests',
+    href: 'https://github.com/optiprune/core/actions/workflows/tests.yml',
+  },
+  {
+    alt: 'MIT license',
+    src: 'https://img.shields.io/github/license/optiprune/core',
+    href: 'https://github.com/optiprune/core/blob/main/LICENSE',
+  },
+];
 ---
 <html lang="en">
   <head>
@@ -15,15 +37,16 @@ const title = 'OptiPrune — Prove what your code uses';
     <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div><div class="grid-noise"></div>
     <header class="site-header">
       <a class="brand" href="/" aria-label="OptiPrune home"><img src="/assets/optiprune-logo.svg" alt="" /><span>OPTI<span>PRUNE</span></span></a>
-      <nav class="nav" aria-label="Primary"><a href="/docs">Docs</a><a href="/plugins">Plugins</a><a href="/blog">Blog</a><a href="https://github.com/optiprune/core">GitHub</a><a class="npm-link" href="https://www.npmjs.com/package/@optiprune/cli" aria-label="Open the OptiPrune CLI npm package"><span class="npm-icon">npm</span></a></nav>
+      <nav class="nav" aria-label="Primary"><a href="/docs">Docs</a><a href="/plugins">Plugins</a><a href="/blog">Blog</a><a href="https://github.com/optiprune">GitHub org</a><a href="https://marketplace.visualstudio.com/items?itemName=optiprune.vscode">VS Code</a><a class="npm-link" href="https://www.npmjs.com/package/@optiprune/cli" aria-label="Open the OptiPrune CLI npm package"><span class="npm-icon">npm</span></a></nav>
       <button class="theme-toggle" type="button" aria-label="Toggle color mode" data-theme-toggle><span>◐</span><span class="toggle-label">Color mode</span></button>
     </header>
     <div id="announcement" class="announcement" hidden></div>
     <main class="page">
-      <section class="hero"><div><div class="kicker">A static Code Analyzer</div><h1>Stop guessing.<br /><em>Start proving.</em></h1><p class="lede">OptiPrune builds a dependency graph from your real entry points and shows what is never reached — files, imports, exports, packages, and logic.</p><div class="actions"><a class="button primary" href="/docs">Read the docs →</a><a class="button secondary" href="/plugins">Explore plugins</a></div><p class="blog-meta">npm install --save-dev @optiprune/cli · inspect first, fix deliberately</p></div><div class="hero-art"><img src="/assets/optiprune-animation.svg" alt="OptiPrune dependency graph animation" /></div></section>
+      <section class="hero"><div><div class="kicker">A static Code Analyzer</div><h1>Stop guessing.<br /><em>Start proving.</em></h1><p class="lede">OptiPrune builds a dependency graph from your real entry points and shows what is never reached — files, imports, exports, packages, and logic.</p><div class="actions"><a class="button primary" href="/docs">Read the docs →</a><a class="button secondary" href="https://github.com/optiprune/core">View on GitHub</a></div><p class="blog-meta">npm install --save-dev @optiprune/cli · inspect first, fix deliberately</p><div class="badges" aria-label="Project status and package badges">{badges.map((badge) => <a href={badge.href}><img src={badge.src} alt={badge.alt} /></a>)}</div></div><div class="hero-art"><img src="/assets/optiprune-animation.svg" alt="OptiPrune dependency graph animation" /></div></section>
 
       <section class="section"><div class="section-head"><div><div class="kicker">Why OptiPrune</div><h2>Understand your codebase.</h2></div><p>Designed for safe cleanup: inspect the graph, review confidence, then remove only what your codebase can prove is unreachable.</p></div><div class="feature-grid"><div class="card"><span class="number">01 / GRAPH</span><h3>Reachability, not heuristics</h3><p>Entry points create a real module graph instead of relying on naming guesses or arbitrary percentages.</p></div><div class="card"><span class="number">02 / CONTEXT</span><h3>Context-aware findings</h3><p>Dynamic dispatch, test conventions, generated files, and package metadata stay visible in the analysis.</p></div><div class="card"><span class="number">03 / CONTROL</span><h3>Dry-run first</h3><p>Every fix is explicit. Preview changes, use confidence gates, and keep a clean audit trail in CI.</p></div></div></section>
       <section class="section"><div class="section-head"><div><div class="kicker">A small proof</div><h2>Scan. Verify. Prune.</h2></div></div><div class="terminal"><div>$ npx @optiprune/cli analyze</div><div class="warn">✖ [high] src/legacy/orphan.ts — unreachable-file</div><div class="warn">⚠ [medium] src/legacy/index.ts — unused-export: legacyFn</div><div class="ok">Analysis complete · review findings before applying fixes</div></div></section>
+      <section class="section ecosystem"><div class="section-head"><div><div class="kicker">Use OptiPrune where you work</div><h2>One analyzer, three entry points.</h2></div><p>Start with the CLI, integrate the Core API, or review findings in VS Code.</p></div><div class="feature-grid"><a class="card card-link" href="https://www.npmjs.com/package/@optiprune/cli"><span class="number">CLI / NPM</span><h3>Install the CLI →</h3><p>Run analysis locally or in CI with <code>@optiprune/cli</code>.</p></a><a class="card card-link" href="https://github.com/optiprune/core"><span class="number">CORE / GITHUB</span><h3>Read the source →</h3><p>Explore the analyzer, issue tracker, and contribution workflow.</p></a><a class="card card-link" href="https://marketplace.visualstudio.com/items?itemName=optiprune.vscode"><span class="number">EDITOR / VS CODE</span><h3>Open the extension →</h3><p>Bring reachability findings into your editor workflow.</p></a></div></section>
     </main>
     <footer class="site-footer"><span>MIT License · DreamLongYT</span><span>Built for teams that ship less dead code.</span><a href="/docs">Read the documentation →</a></footer>
     <script src="/site.js" defer></script>
