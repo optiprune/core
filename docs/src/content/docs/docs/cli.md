@@ -35,13 +35,13 @@ The CLI discovers configuration, parses supported JavaScript and TypeScript file
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `analyze [options]` | Analyze the current project. This is the default command. |
-| `export-cache <targetPath>` | Export the current analysis cache. |
-| `import-cache <sourcePath>` | Import an analysis cache before a run. |
-| `--help` | Print command and option help. |
-| `--version` | Print the CLI and detected Core versions. |
+| Command                     | Purpose                                                   |
+| --------------------------- | --------------------------------------------------------- |
+| `analyze [options]`         | Analyze the current project. This is the default command. |
+| `export-cache <targetPath>` | Export the current analysis cache.                        |
+| `import-cache <sourcePath>` | Import an analysis cache before a run.                    |
+| `--help`                    | Print command and option help.                            |
+| `--version`                 | Print the CLI and detected Core versions.                 |
 
 ## Reports and CI
 
@@ -64,16 +64,16 @@ The CLI accepts project configuration from `optiprune.json`, `optiprune.jsonc`, 
 
 Common options include:
 
-| Option | Meaning |
-| --- | --- |
-| `--rootDir <path>` | Analyze a different project root. |
-| `--entry <patterns...>` | Add entry-point files or globs. |
-| `--extensions <exts...>` | Set source extensions; the default includes `.ts`, `.tsx`, `.js`, `.jsx`, and `.vue`. |
-| `--ignore <patterns...>` | Ignore matching paths. |
-| `--no-conventional-entries` | Disable automatic conventional entries such as `src/index.ts`. |
-| `--cycles` | Include dependency-cycle information in human-readable output. |
-| `--ignore-tests` | Exclude conventional test files. |
-| `--verbose` | Include additional analyzer diagnostics. |
+| Option                      | Meaning                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `--rootDir <path>`          | Analyze a different project root.                                                     |
+| `--entry <patterns...>`     | Add entry-point files or globs.                                                       |
+| `--extensions <exts...>`    | Set source extensions; the default includes `.ts`, `.tsx`, `.js`, `.jsx`, and `.vue`. |
+| `--ignore <patterns...>`    | Ignore matching paths.                                                                |
+| `--no-conventional-entries` | Disable automatic conventional entries such as `src/index.ts`.                        |
+| `--cycles`                  | Include dependency-cycle information in human-readable output.                        |
+| `--ignore-tests`            | Exclude conventional test files.                                                      |
+| `--verbose`                 | Include additional analyzer diagnostics.                                              |
 
 ## Controlled fixes
 

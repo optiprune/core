@@ -18,15 +18,15 @@ OptiPrune is a static analyzer for TypeScript and JavaScript workspaces. The **C
 
 ## Choose your path
 
-| If you want to… | Start here |
-| --- | --- |
-| Run a scan locally or in CI | [CLI](/docs/cli/) |
-| Embed analysis in an application or integration | [Core API](/docs/headless-api/) |
-| Understand reports and confidence | [Output](/docs/output/) and [Confidence](/docs/confidence/) |
-| Configure entries, rules, and plugins | [Configuration](/docs/configuration/) |
-| Understand the engine | [Architecture](/docs/architecture/) |
-| Build a framework or tool integration | [Plugins](/docs/plugins/) and [Writing a plugin](/docs/plugin-authoring/) |
-| Bring diagnostics into an editor | [Language Server](/docs/language-server/) and the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=optiprune.vscode) |
+| If you want to…                                 | Start here                                                                                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Run a scan locally or in CI                     | [CLI](/docs/cli/)                                                                                                                           |
+| Embed analysis in an application or integration | [Core API](/docs/headless-api/)                                                                                                             |
+| Understand reports and confidence               | [Output](/docs/output/) and [Confidence](/docs/confidence/)                                                                                 |
+| Configure entries, rules, and plugins           | [Configuration](/docs/configuration/)                                                                                                       |
+| Understand the engine                           | [Architecture](/docs/architecture/)                                                                                                         |
+| Build a framework or tool integration           | [Plugins](/docs/plugins/) and [Writing a plugin](/docs/plugin-authoring/)                                                                   |
+| Bring diagnostics into an editor                | [Language Server](/docs/language-server/) and the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=optiprune.vscode) |
 
 ## Recommended learning route
 
@@ -56,11 +56,11 @@ const report = await analyze({
 
 ## Official links
 
-| Resource | Link |
-| --- | --- |
-| GitHub organisation | [github.com/optiprune](https://github.com/optiprune) |
-| Core repository | [github.com/optiprune/core](https://github.com/optiprune/core) |
-| CLI repository | [github.com/optiprune/cli](https://github.com/optiprune/cli) |
-| CLI package | [@optiprune/cli on npm](https://www.npmjs.com/package/@optiprune/cli) |
-| Core package | [@optiprune/core on npm](https://www.npmjs.com/package/@optiprune/core) |
-| VS Code extension | [OptiPrune on Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=optiprune.vscode) |
+| Resource            | Link                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| GitHub organisation | [github.com/optiprune](https://github.com/optiprune)                                                           |
+| Core repository     | [github.com/optiprune/core](https://github.com/optiprune/core)                                                 |
+| CLI repository      | [github.com/optiprune/cli](https://github.com/optiprune/cli)                                                   |
+| CLI package         | [@optiprune/cli on npm](https://www.npmjs.com/package/@optiprune/cli)                                          |
+| Core package        | [@optiprune/core on npm](https://www.npmjs.com/package/@optiprune/core)                                        |
+| VS Code extension   | [OptiPrune on Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=optiprune.vscode) |

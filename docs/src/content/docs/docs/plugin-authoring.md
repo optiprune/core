@@ -36,13 +36,13 @@ The example is intentionally conservative: it activates only when its project ma
 
 Core runs plugins in an early pass and a later pass after source discovery. The practical order is:
 
-| Phase | Hook | Typical responsibility |
-| --- | --- | --- |
-| Detection | `detect(adapter)` | Inspect package metadata, config files, or folders and return whether the plugin applies. |
-| Project initialization | `onProjectInit(adapter)` | Add entries, project/config patterns, ignore rules, protected exports, package usage, or repository metadata. |
-| File start | `onFileStart(fileId, adapter)` | React to each discovered file and mark framework-consumed files as used. |
-| AST traversal | `onASTNode(node, fileId, adapter, ancestors)` | Inspect syntax and record runtime or configuration contracts. |
-| Completion | `onAnalysisComplete(adapter)` | Emit findings or perform analysis that needs the complete graph. |
+| Phase                  | Hook                                          | Typical responsibility                                                                                        |
+| ---------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Detection              | `detect(adapter)`                             | Inspect package metadata, config files, or folders and return whether the plugin applies.                     |
+| Project initialization | `onProjectInit(adapter)`                      | Add entries, project/config patterns, ignore rules, protected exports, package usage, or repository metadata. |
+| File start             | `onFileStart(fileId, adapter)`                | React to each discovered file and mark framework-consumed files as used.                                      |
+| AST traversal          | `onASTNode(node, fileId, adapter, ancestors)` | Inspect syntax and record runtime or configuration contracts.                                                 |
+| Completion             | `onAnalysisComplete(adapter)`                 | Emit findings or perform analysis that needs the complete graph.                                              |
 
 When no `detect()` hook exists, the plugin is enabled by default. A repository configuration can override detection with `plugins: { "example-plugin": true }` or disable it with `false`.
 
@@ -52,21 +52,21 @@ Plugins communicate with Core through `PluginAdapter`, rather than reaching into
 
 Evidence and configuration operations include:
 
-| Adapter method | Purpose |
-| --- | --- |
-| `emitFinding(finding)` | Add a plugin finding with severity, confidence, file, message, and evidence. |
-| `markAsUsed(fileId, symbol?)` | Keep a file or symbol reachable because a convention consumes it. |
-| `markRelativeFileAsUsed(sourceFileId, path)` | Mark a referenced file relative to the declaring file. |
-| `markPackageAsUsed(name)` | Record package usage that is not visible as a normal import. |
-| `markConfigMemberAsUsed(file, object, member)` | Preserve configuration members consumed by a tool. |
-| `addEntryPatterns(patterns)` | Add framework-discovered entry files. |
-| `addProjectPatterns(patterns)` | Declare configuration or project files in scope. |
-| `addIgnorePatterns(patterns)` | Add framework-specific ignore patterns. |
-| `addUnreachableFileIgnorePatterns(patterns)` | Exclude known generated/contract files from unreachable-file findings. |
-| `addProtectedExportPatterns(patterns)` | Protect externally consumed exports. |
-| `addExternalContracts(names)` | Record symbols consumed outside the static graph. |
-| `setWorkspaceGlobs(patterns)` / `setRepoType(type)` | Contribute workspace classification. |
-| `declareFramework(name)` | Declare a verified framework for overlap-aware behavior. |
+| Adapter method                                      | Purpose                                                                      |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `emitFinding(finding)`                              | Add a plugin finding with severity, confidence, file, message, and evidence. |
+| `markAsUsed(fileId, symbol?)`                       | Keep a file or symbol reachable because a convention consumes it.            |
+| `markRelativeFileAsUsed(sourceFileId, path)`        | Mark a referenced file relative to the declaring file.                       |
+| `markPackageAsUsed(name)`                           | Record package usage that is not visible as a normal import.                 |
+| `markConfigMemberAsUsed(file, object, member)`      | Preserve configuration members consumed by a tool.                           |
+| `addEntryPatterns(patterns)`                        | Add framework-discovered entry files.                                        |
+| `addProjectPatterns(patterns)`                      | Declare configuration or project files in scope.                             |
+| `addIgnorePatterns(patterns)`                       | Add framework-specific ignore patterns.                                      |
+| `addUnreachableFileIgnorePatterns(patterns)`        | Exclude known generated/contract files from unreachable-file findings.       |
+| `addProtectedExportPatterns(patterns)`              | Protect externally consumed exports.                                         |
+| `addExternalContracts(names)`                       | Record symbols consumed outside the static graph.                            |
+| `setWorkspaceGlobs(patterns)` / `setRepoType(type)` | Contribute workspace classification.                                         |
+| `declareFramework(name)`                            | Declare a verified framework for overlap-aware behavior.                     |
 
 Use `emitFinding()` only when the plugin has a specific, explainable diagnostic. Include evidence that makes the result reviewable and choose confidence honestly.
 

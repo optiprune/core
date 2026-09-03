@@ -33,16 +33,16 @@ if (shouldFail(report, "high")) process.exitCode = 1;
 
 ## Public exports
 
-| Export | Use |
-| --- | --- |
-| `analyze(options)` | Run discovery, parsing, graph analysis, plugins, and finding generation. |
-| `shouldFail(report, failOn)` | Apply a confidence threshold to decide a CI exit status. |
-| `applyFixes(report, rootDir, config)` | Apply explicitly selected, confidence-gated fixes. Use `dryRun` first. |
-| `defineConfig(config)` | Type-safe configuration helper; it returns the supplied config. |
-| `loadConfig(rootDir)` | Load supported project configuration. |
-| `mergeConfig(base, override)` | Merge configuration values. |
-| `DEFAULT_CONFIG` | Inspect the Core defaults. |
-| `exportCache` / `importCache` | Move cache state between environments. |
+| Export                                | Use                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| `analyze(options)`                    | Run discovery, parsing, graph analysis, plugins, and finding generation. |
+| `shouldFail(report, failOn)`          | Apply a confidence threshold to decide a CI exit status.                 |
+| `applyFixes(report, rootDir, config)` | Apply explicitly selected, confidence-gated fixes. Use `dryRun` first.   |
+| `defineConfig(config)`                | Type-safe configuration helper; it returns the supplied config.          |
+| `loadConfig(rootDir)`                 | Load supported project configuration.                                    |
+| `mergeConfig(base, override)`         | Merge configuration values.                                              |
+| `DEFAULT_CONFIG`                      | Inspect the Core defaults.                                               |
+| `exportCache` / `importCache`         | Move cache state between environments.                                   |
 
 Additional entry points expose reporter functions and public types:
 
@@ -55,13 +55,13 @@ import type { AnalysisReport, AnalyzerOptions, Finding } from "@optiprune/core/t
 
 ## Core API versus CLI
 
-| Concern | `@optiprune/cli` | `@optiprune/core` |
-| --- | --- | --- |
-| Installation | Ready-to-run command | Library dependency |
-| Invocation | `npx @optiprune/cli analyze` | `await analyze(options)` |
-| Output | Terminal, JSON, or SARIF flags | Structured `AnalysisReport`, plus reporter helpers |
-| Process policy | CLI handles command exit behavior | Caller decides whether to fail, display, or store results |
-| Fix workflow | CLI flags such as `--fix` and `--dry-run` | `applyFixes(report, rootDir, config)` |
+| Concern        | `@optiprune/cli`                          | `@optiprune/core`                                         |
+| -------------- | ----------------------------------------- | --------------------------------------------------------- |
+| Installation   | Ready-to-run command                      | Library dependency                                        |
+| Invocation     | `npx @optiprune/cli analyze`              | `await analyze(options)`                                  |
+| Output         | Terminal, JSON, or SARIF flags            | Structured `AnalysisReport`, plus reporter helpers        |
+| Process policy | CLI handles command exit behavior         | Caller decides whether to fail, display, or store results |
+| Fix workflow   | CLI flags such as `--fix` and `--dry-run` | `applyFixes(report, rootDir, config)`                     |
 
 Use [CLI](/docs/cli/) for the standard command workflow. Use this page when another program is the integration boundary.
 

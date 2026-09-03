@@ -33,7 +33,13 @@ export default defineConfig({
         },
         {
           label: "Guides",
-          items: ["docs/ci", "docs/monorepos", "docs/fixes", "docs/plugin-authoring", "docs/troubleshooting"],
+          items: [
+            "docs/ci",
+            "docs/monorepos",
+            "docs/fixes",
+            "docs/plugin-authoring",
+            "docs/troubleshooting",
+          ],
         },
       ],
       social: [
