@@ -72,8 +72,19 @@ Common options include:
 | `--ignore <patterns...>`    | Ignore matching paths.                                                                |
 | `--no-conventional-entries` | Disable automatic conventional entries such as `src/index.ts`.                        |
 | `--cycles`                  | Include dependency-cycle information in human-readable output.                        |
-| `--ignore-tests`            | Exclude conventional test files.                                                      |
+| `--ignore-tests`              | Exclude conventional test files.                                                      |
+| `--ignore-unknown-import`     | Ignore uncertain dynamic-import paths.                                                |
 | `--verbose`                 | Include additional analyzer diagnostics.                                              |
+| `--plugins <names...>`       | Force-enable built-in plugins, for example `astro vite vitest`; the `-plugin` suffix is optional. Unknown names produce a familiar-name suggestion when available. |
+| `--fix <rules...>`           | Select fix targets: `files`, `exports`, `dependencies`, `devDependencies`, `conditions`, or `json`. |
+| `--fix-json`                 | Safely repair recoverable `package.json` JSON errors.                                |
+| `--confidence <level>`       | Set the minimum fix confidence: `high`, `medium+`, `low+`, or `all`.                  |
+| `--force`                    | Allow an otherwise unsafe selected fix.                                               |
+| `--dry-run`                  | Show planned fixes without writing files.                                             |
+| `--cache-from <path>`        | Import a cache before analysis.                                                       |
+| `--cache-to <path>`          | Export the resulting cache after analysis.                                            |
+
+`--confidence`, `--force`, and `--dry-run` require `--fix` or `--fix-json`. `--plugins` force-enables every requested built-in plugin and preserves other project plugin settings.
 
 ## Controlled fixes
 
@@ -87,7 +98,3 @@ npx @optiprune/cli analyze \
 ```
 
 Supported fix targets are `files`, `exports`, `dependencies`, `devDependencies`, `conditions`, and safely recoverable `json` changes. Review the proposed diff before running without `--dry-run`; see [Fixes](/docs/fixes/) for safety boundaries.
-
-## CLI versus Core API
-
-Choose the CLI when you need a ready-to-run developer or CI command. Choose the Core API when another program owns orchestration, output, authentication, or user experience. The CLI and Core use the same analysis concepts, but they are separate npm packages and should be installed and documented separately.
