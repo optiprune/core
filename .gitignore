@@ -53,3 +53,7 @@ all.txt
 !tests/fixtures/e2e/yarn-pnp-manifests/.yarn/
 !tests/fixtures/e2e/yarn-pnp-manifests/.yarn/**
 !wouter@3.7.1.patch
+
+# Astro generated files
+docs/.astro/
+docs/dist/
