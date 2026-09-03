@@ -9,21 +9,17 @@ const json = (data, status = 200) =>
 
 export async function onRequestGet({ env, params }) {
   const requestedId = decodeURIComponent(params.id);
-  const aliases = new Set([
-    requestedId,
-    requestedId === "version1-16-0" ? "version-1-16-0" : requestedId,
-    requestedId === "version-1-16-0" ? "version1-16-0" : requestedId,
-  ]);
-
-  for (const id of aliases) {
-    const direct = await env.BLOG.get(`post:${id}`, "json");
-    if (direct) return json(direct);
-  }
-
   const listed = await env.BLOG.list({ prefix: "post:" });
+
   for (const key of listed.keys) {
     const post = await env.BLOG.get(key.name, "json");
-    if (post && aliases.has(String(post.id || post.slug || ""))) {
+    if (!post) continue;
+
+    const recordId = String(post.id || "");
+    const recordSlug = String(post.slug || "");
+    const keyId = key.name.startsWith("post:") ? key.name.slice(5) : key.name;
+
+    if (requestedId === recordId || requestedId === recordSlug || requestedId === keyId) {
       return json(post);
     }
   }
