@@ -9,6 +9,7 @@ export default defineConfig({
       title: "OptiPrune Docs",
       logo: { src: "./src/assets/optiprune-logo.svg", alt: "OptiPrune" },
       favicon: "./src/assets/favicon.svg",
+      components: { Banner: "./src/components/DocsBanner.astro" },
       sidebar: [
         {
           label: "Start here",

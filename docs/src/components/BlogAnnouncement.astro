@@ -1,0 +1,11 @@
+<div class="docs-announcement" data-docs-announcement hidden aria-live="polite">
+  <span class="docs-announcement-label">Latest update</span>
+  <a data-docs-announcement-link href="/blog">Read the latest release note →</a>
+</div>
+<script src="/docs-announcement.js" defer></script>
+<style>
+  .docs-announcement { display:flex; gap:.65rem; align-items:center; padding:.65rem 1rem; margin:0 auto 1rem; max-width:72rem; border:1px solid var(--sl-color-purple); background:color-mix(in srgb, var(--sl-color-purple-low) 68%, transparent); font-size:.875rem; }
+  .docs-announcement[hidden] { display:none; }
+  .docs-announcement-label { font-weight:700; }
+  .docs-announcement a { color:inherit; text-decoration:underline; }
+</style>

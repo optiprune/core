@@ -139,7 +139,7 @@ async function show() {
           Date.now() - new Date(p.published_at || p.created_at).getTime() < 172800000,
       );
       const a = document.querySelector("#announcement");
-      if (fresh && path !== "/blog/" + fresh.id) {
+      if (fresh && ["/", "/blog", "/docs"].includes(path)) {
         a.hidden = false;
         a.innerHTML = `↗ ${esc(fresh.title)} <a href="/blog/${encodeURIComponent(fresh.id)}">Learn more →</a>`;
       }
