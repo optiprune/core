@@ -240,20 +240,24 @@ async function show() {
   const rawPath = window.location.pathname;
   const path = rawPath === "/" ? "/" : rawPath.replace(/\/+$/, "") || "/";
 
-  if (path === "/") app.innerHTML = home();
-  else if (path === "/docs") app.innerHTML = docs();
-  else if (path === "/plugins") {
-    app.innerHTML = await pluginsPage();
+  if (path === "/") {
+    if (app) app.innerHTML = home();
+  } else if (path === "/docs") {
+    if (app) app.innerHTML = docs();
+  } else if (path === "/plugins") {
+    if (app) app.innerHTML = await pluginsPage();
     bindPlugins();
-  } else if (path === "/blog") app.innerHTML = await blogPage();
-  else if (path.startsWith("/blog/"))
-    app.innerHTML = await blogDetail(decodeURIComponent(path.slice(6)));
-  else
+  } else if (path === "/blog") {
+    if (app) app.innerHTML = await blogPage();
+  } else if (path.startsWith("/blog/")) {
+    if (app) app.innerHTML = await blogDetail(decodeURIComponent(path.slice(6)));
+  } else if (app) {
     app.innerHTML = layout(
       '<div class="empty">The page you requested does not exist.</div>',
       "404",
       "Not found.",
     );
+  }
 
   fetch("/api/blog")
     .then((r) => (r.ok ? r.json() : []))
@@ -277,6 +281,21 @@ async function show() {
     })
     .catch(() => {});
 }
+
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href]");
+  if (!link || event.defaultPrevented || event.button !== 0) return;
+  if (link.target || link.hasAttribute("download") || event.metaKey || event.ctrlKey) return;
+
+  const url = new URL(link.href, window.location.href);
+  if (url.origin !== window.location.origin || !url.pathname.startsWith("/blog/")) return;
+
+  event.preventDefault();
+  window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  show();
+});
+
+window.addEventListener("popstate", show);
 
 function bindPlugins() {
   const q = document.querySelector("#plugin-search"),
