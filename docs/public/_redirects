@@ -1,1 +1,2 @@
-/blog/*    /blog    200
+# Blog detail pages are served by docs/functions/blog/[id].js.
+# Do not rewrite /blog/* to /blog: that self-rewrite causes redirect loops.

@@ -8,8 +8,9 @@ const json = (data, status = 200) =>
   });
 
 export async function onRequestGet({ env, params }) {
-  // Normalize the incoming identifier (strip trailing slashes and decode)
-  const rawId = decodeURIComponent(params.id || "").trim();
+  // Normalize the incoming identifier (strip trailing slashes and decode once).
+  const rawParam = String(params.id || "").trim();
+  const rawId = decodeURIComponent(rawParam);
   const requestedId = rawId.endsWith("/") ? rawId.slice(0, -1) : rawId;
 
   if (!requestedId) {
