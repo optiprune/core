@@ -41,11 +41,17 @@ export async function onRequestGet({ env, params }) {
       const candidate = await env.BLOG.get(key.name, "json");
       if (!candidate) continue;
 
-      if (String(candidate.id) === requestedId || String(candidate.slug) === requestedId) {
+      if (
+        String(candidate.id) === requestedId ||
+        String(candidate.slug) === requestedId
+      ) {
         post = candidate;
         // Self-heal: populate the direct slug index for next time
         if (candidate.slug) {
-          await env.BLOG.put(`slug:${candidate.slug}`, String(candidate.id || key.name));
+          await env.BLOG.put(
+            `slug:${candidate.slug}`,
+            String(candidate.id || key.name)
+          );
         }
         break;
       }
