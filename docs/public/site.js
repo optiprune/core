@@ -19,35 +19,127 @@ const safeHtml = (s) => {
   );
   return t.innerHTML;
 };
-const md = (s = "") => {
-  if (/^\s*</.test(s)) return safeHtml(s);
-  return s
-    .split(/\n\n+/)
-    .map((block) => {
-      if (/^```/.test(block)) return `<pre>${esc(block.replace(/^```\w*\n?|```$/g, ""))}</pre>`;
-      if (/^#{1,3}\s/.test(block)) {
-        const m = block.match(/^(#{1,3})\s+(.+)/);
-        return `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`;
-      }
-      if (/^>/.test(block))
-        return `<blockquote>${inline(block.replace(/^>\s?/gm, ""))}</blockquote>`;
-      if (/^[-*]\s/.test(block))
-        return `<ul>${block
-          .split("\n")
-          .map((x) => `<li>${inline(x.replace(/^[-*]\s/, ""))}</li>`)
-          .join("")}</ul>`;
-      return `<p>${inline(block.replace(/\n/g, "<br>"))}</p>`;
+const authors = (post) => {
+  const value = post?.authors ?? post?.author;
+  const values = Array.isArray(value) ? value : value == null ? [] : [value];
+  return values
+    .map((author) => {
+      if (typeof author === "string") return author.trim();
+      if (author && typeof author === "object")
+        return String(
+          author.name || author.displayName || author.username || author.email || "",
+        ).trim();
+      return "";
     })
-    .join("");
+    .filter(Boolean);
 };
-const inline = (s) =>
-  s
+const authorMeta = (post) => {
+  const names = authors(post);
+  return names.length ? ` · By ${esc(names.join(", "))}` : "";
+};
+const inline = (source = "") => {
+  const htmlTokens = [];
+  const protectedSource = String(source).replace(/<\/?[a-z][^>]*>/gi, (tag) => {
+    const index = htmlTokens.push(safeHtml(tag)) - 1;
+    return `\u0000HTML${index}\u0000`;
+  });
+  let output = esc(protectedSource)
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/_([^_]+)_/g, "<em>$1</em>")
     .replace(
       /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
       '<a href="$2" target="_blank" rel="noreferrer">$1</a>',
-    );
+    )
+    .replace(/  \n/g, "<br>");
+  return output.replace(/\u0000HTML(\d+)\u0000/g, (_, index) => htmlTokens[Number(index)] || "");
+};
+const md = (source = "") => {
+  const lines = String(source).replace(/\r\n?/g, "\n").split("\n");
+  const output = [];
+  let paragraph = [];
+  let list = null;
+  let code = null;
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      output.push(`<p>${inline(paragraph.join("\n"))}</p>`);
+      paragraph = [];
+    }
+  };
+  const closeList = () => {
+    if (list) {
+      output.push(`</${list}>`);
+      list = null;
+    }
+  };
+  for (const line of lines) {
+    const fence = line.match(/^\s*```(.*)$/);
+    if (fence) {
+      if (code) {
+        output.push(`<pre><code>${esc(code.text)}</code></pre>`);
+        code = null;
+      } else {
+        flushParagraph();
+        closeList();
+        code = { text: "", language: fence[1].trim() };
+      }
+      continue;
+    }
+    if (code) {
+      code.text += `${line}\n`;
+      continue;
+    }
+    if (!line.trim()) {
+      flushParagraph();
+      closeList();
+      continue;
+    }
+    const heading = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (heading) {
+      flushParagraph();
+      closeList();
+      output.push(`<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`);
+      continue;
+    }
+    const quote = line.match(/^\s*>\s?(.*)$/);
+    if (quote) {
+      flushParagraph();
+      closeList();
+      output.push(`<blockquote>${inline(quote[1])}</blockquote>`);
+      continue;
+    }
+    const item = line.match(/^\s*([-*+] |\d+[.] )(.*)$/);
+    if (item) {
+      flushParagraph();
+      const type = /^\d/.test(item[1]) ? "ol" : "ul";
+      if (list !== type) {
+        closeList();
+        list = type;
+        output.push(`<${list}>`);
+      }
+      output.push(`<li>${inline(item[2])}</li>`);
+      continue;
+    }
+    if (
+      /^\s*<(?:(?:article|aside|div|figure|p|section|table|ul|ol|h[1-6]|blockquote|pre|details|hr)\b|!--)/i.test(
+        line,
+      )
+    ) {
+      flushParagraph();
+      closeList();
+      output.push(safeHtml(line));
+      continue;
+    }
+    closeList();
+    paragraph.push(line);
+  }
+  flushParagraph();
+  closeList();
+  if (code) output.push(`<pre><code>${esc(code.text)}</code></pre>`);
+  return safeHtml(output.join(""));
+};
 const layout = (content, kicker, title, lede = "") =>
   `<div class="page"><div class="kicker">${kicker}</div><div class="section-head"><div><h1 class="article-title">${title}</h1>${lede ? `<p class="lede">${lede}</p>` : ""}</div></div>${content}</div>`;
 const home = () =>
@@ -90,7 +182,7 @@ async function blogPage() {
     .catch(() => []);
   return layout(
     posts.length
-      ? `<div class="blog-grid">${posts.map((p) => `<a class="card blog-card" href="/blog/${encodeURIComponent(p.id)}"><span class="kicker">${esc(p.category || "Engineering")}</span><h3>${esc(p.title)}</h3><p>${esc(p.excerpt || "Read the latest from OptiPrune.")}</p><div class="blog-meta">${new Date(p.published_at || p.created_at).toLocaleDateString()} · Read more →</div></a>`).join("")}</div>`
+      ? `<div class="blog-grid">${posts.map((p) => `<a class="card blog-card" href="/blog/${encodeURIComponent(p.id)}"><span class="kicker">${esc(p.category || "Engineering")}</span><h3>${esc(p.title)}</h3><p>${esc(p.excerpt || "Read the latest from OptiPrune.")}</p><div class="blog-meta">${new Date(p.published_at || p.created_at).toLocaleDateString()}${authorMeta(p)} · Read more →</div></a>`).join("")}</div>`
       : `<div class="empty">No Posts are here yet</div>`,
     "Journal / Updates",
     "The OptiPrune blog.",
@@ -108,7 +200,7 @@ async function blogDetail(id) {
       "Post not found.",
     );
   return layout(
-    `<article class="article blog-post"><div class="blog-meta">${new Date(p.published_at || p.created_at).toLocaleDateString()} · ${esc(p.category || "Engineering")}</div><div>${md(p.body || p.content || "")}</div></article>`,
+    `<article class="article blog-post"><div class="blog-meta">${new Date(p.published_at || p.created_at).toLocaleDateString()} · ${esc(p.category || "Engineering")}${authorMeta(p)}</div><div>${md(p.body || p.content || "")}</div></article>`,
     "Blog / " + esc(p.category || "Update"),
     esc(p.title),
     esc(p.excerpt || ""),
