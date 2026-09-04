@@ -7,8 +7,9 @@ export default defineConfig({
   outDir: "./dist",
   output: "static",
   adapter: cloudflare({
+    imageService: "passthrough", // Avoids reserving internal image/assets worker bindings
     platformProxy: {
-      enabled: true,
+      enabled: false, // Prevents wrangler runtime collision during Pages build
     },
   }),
   vite: {
