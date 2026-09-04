@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
-const fixtureRoot = fileURLToPath(new URL("../fixtures/monorepo-config-layering", import.meta.url));
+const fixtureRoot = fileURLToPath(
+  new URL("../fixtures/functions/monorepo-config-layering", import.meta.url),
+);
 
 describe("monorepo configuration layering", () => {
   it("combines root defaults with the nearest package configuration without leaking package rules", async () => {

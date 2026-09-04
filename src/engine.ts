@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { compileGlobs, matchesAnyGlob } from "./fs-utils.js";
+import { resolveLocalSpecifier } from "./fs-utils.js";
 import { ObjectMemberPlugin } from "./plugins/object-member-plugin.js";
 
 // ── Verbose debug helper ────────────────────────────────────────────────────
@@ -93,10 +94,30 @@ export class PluginEngine {
                 if (registerPlugins) this.register(plugin);
               }
             }
-          } catch (err) {}
+          } catch (err) {
+            // A broken optional plugin must not disappear silently. Keep the
+            // analysis running, but expose the failure to callers.
+            this.findings.push({
+              rule: "plugin-error",
+              severity: "warning",
+              confidence: "medium",
+              message: `Failed to load plugin '${file}': ${String(err)}`,
+              file: context.options.rootDir,
+              evidence: { pluginFile: file, phase: "load" },
+            });
+          }
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      this.findings.push({
+        rule: "plugin-error",
+        severity: "warning",
+        confidence: "medium",
+        message: `Failed to discover plugins: ${String(err)}`,
+        file: context.options.rootDir,
+        evidence: { phase: "discovery" },
+      });
+    }
   }
 
   async run(
@@ -174,7 +195,16 @@ export class PluginEngine {
           }
         } catch (err) {
           plugin.enabled = false;
-          dbg(verbose, `[Plugin Engine] ${plugin.name}: DISABLED (detect() threw: ${err})`);
+          const message = `[Plugin Engine] ${plugin.name}: DISABLED (detect() threw: ${String(err)})`;
+          dbg(verbose, message);
+          this.findings.push({
+            rule: "plugin-error",
+            severity: "warning",
+            confidence: "medium",
+            message: `Plugin '${plugin.name}' detection failed: ${String(err)}`,
+            file: context.options.rootDir,
+            evidence: { plugin: plugin.name, phase: "detect" },
+          });
         }
       }
 
@@ -228,7 +258,17 @@ export class PluginEngine {
             if (plugin.enabled && plugin.lifecycle.onASTNode) {
               try {
                 plugin.lifecycle.onASTNode(node, module.id, adapter, ancestors);
-              } catch (err) {}
+              } catch (err) {
+                this.findings.push({
+                  rule: "plugin-error",
+                  severity: "warning",
+                  confidence: "medium",
+                  message: `Plugin '${plugin.name}' failed while analyzing '${module.id}': ${String(err)}`,
+                  file: module.id,
+                  evidence: { plugin: plugin.name, phase: "onASTNode" },
+                });
+                plugin.enabled = false;
+              }
             }
           }
         });
@@ -447,9 +487,10 @@ export class PluginEngine {
         } as Finding);
       },
       markAsUsed: (fileId, symbol) => {
-        const absolutePath = path.isAbsolute(fileId)
+        const requestedPath = path.isAbsolute(fileId)
           ? fileId
           : path.resolve(context.options.rootDir, fileId);
+        const absolutePath = resolvePluginPath(requestedPath);
         context.reachable?.add(absolutePath);
         context.runtimeUsedFiles?.add(absolutePath);
         if (symbol) {
@@ -463,9 +504,10 @@ export class PluginEngine {
         ) {
           return;
         }
-        const absolutePath = path.isAbsolute(referencedPath)
+        const requestedPath = path.isAbsolute(referencedPath)
           ? referencedPath
           : path.resolve(path.dirname(sourceFileId), referencedPath);
+        const absolutePath = resolvePluginPath(requestedPath);
         context.reachable?.add(absolutePath);
         context.runtimeUsedFiles?.add(absolutePath);
       },
@@ -597,5 +639,18 @@ export class PluginEngine {
       },
       hasFramework: (name) => context.options.frameworks?.includes(name) ?? false,
     };
+
+    function resolvePluginPath(requestedPath: string): string {
+      const canonical = path.normalize(requestedPath);
+      if (context.modules.has(canonical)) return canonical;
+      return (
+        resolveLocalSpecifier(
+          path.join(context.options.rootDir, "__optiprune_plugin__.js"),
+          canonical,
+          new Set(context.modules.keys()),
+          context.options.extensions,
+        ) ?? canonical
+      );
+    }
   }
 }

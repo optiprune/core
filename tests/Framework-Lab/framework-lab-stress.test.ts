@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import path from "pathe";
 import { analyze } from "../../src/index.js";
 
-const fixtureRoot = path.resolve(__dirname, "../fixtures/framework-lab-monorepo");
+const fixtureRoot = path.resolve(__dirname, "../fixtures/framework/framework-lab-monorepo");
 
 function findingKey(finding: any): string {
   const evidence = finding.evidence ?? {};

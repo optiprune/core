@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "..");
+const svelteRoot = path.resolve(__dirname, "../fixtures/plugins/svelte");
+const angularRoot = path.resolve(__dirname, "../fixtures/plugins/angular");
 
 describe("Plugin Functional Verification", () => {
   it("should protect Svelte components and store usage", async () => {
     const report = await analyze({
-      rootDir,
+      rootDir: svelteRoot,
       entry: [], // Empty entry
       includeConventionalEntries: false,
       reportUnusedExports: true,
@@ -25,12 +26,12 @@ describe("Plugin Functional Verification", () => {
 
   it("should protect Angular components and decorators", async () => {
     // We create a dummy angular.json to trigger detection in the test
-    const angularJsonPath = path.join(rootDir, "angular.json");
+    const angularJsonPath = path.join(angularRoot, "angular.json");
     await fs.writeFile(angularJsonPath, "{}");
 
     try {
       const report = await analyze({
-        rootDir,
+        rootDir: angularRoot,
         entry: [],
         includeConventionalEntries: false,
         reportUnusedExports: true,

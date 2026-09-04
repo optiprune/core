@@ -7,7 +7,13 @@ import { applyFixes } from "../../src/fixer.js";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const fixturesRoot = path.join(__dirname, "..", "fixtures", "false-positive-guardrails");
+const fixturesRoot = path.join(
+  __dirname,
+  "..",
+  "fixtures",
+  "functions",
+  "false-positive-guardrails",
+);
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {

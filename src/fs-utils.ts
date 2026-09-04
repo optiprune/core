@@ -382,7 +382,15 @@ export function resolveDynamicPattern(
     return [];
   }
   const matches: string[] = [];
+  // A directory-shaped prefix describes a real directory, not just a string
+  // prefix. Enforce containment before comparing generated specifiers so a
+  // pattern rooted at `./plugins/` can never retain a sibling directory.
+  const directoryPrefix = prefix.endsWith("/") ? prefix.slice(0, -1) : undefined;
+  const directoryRoot = directoryPrefix
+    ? normalizeCanonicalPath(resolve(dirname(normalizeCanonicalPath(fromFile)), directoryPrefix))
+    : undefined;
   for (const candidate of knownFiles) {
+    if (directoryRoot && !pathInside(directoryRoot, candidate)) continue;
     const forms = candidateSpecifiers(fromFile, candidate);
     if (forms.some((form) => form.startsWith(prefix) && form.endsWith(suffix))) {
       matches.push(candidate);

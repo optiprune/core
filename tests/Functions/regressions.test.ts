@@ -44,8 +44,8 @@ describe("OptiPrune regressions", () => {
 
   it("skips impossible-condition checks but still runs ordinary Layer 2 CFG checks", async () => {
     const result = await analyze({
-      rootDir: path.resolve(process.cwd()),
-      entry: ["tests/fixtures/layer2-test.ts"],
+      rootDir: path.resolve(process.cwd(), "tests/fixtures/layers/layer2"),
+      entry: ["layer-2-test.ts"],
       includeConventionalEntries: false,
       skipSmt: true,
       skip4: true,

@@ -107,7 +107,10 @@ export const AngularPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return false;
+    return (
+      (await adapter.findFilesByGlob(["**/*.component.ts", "**/*.directive.ts", "**/*.pipe.ts"]))
+        .length > 0
+    );
   },
 
   lifecycle: {

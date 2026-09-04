@@ -9,7 +9,7 @@ const fixturesDir = path.resolve(__dirname, "..", "fixtures");
 
 describe("Optiprune Analyzer", () => {
   it("should handle circular dependencies and report unused exports within a cycle", async () => {
-    const circularDepsDir = path.join(fixturesDir, "circular-deps");
+    const circularDepsDir = path.join(fixturesDir, "functions/circular-deps");
     const report = await analyze({
       rootDir: circularDepsDir,
       entry: ["circular-a.ts"],
@@ -82,7 +82,7 @@ describe("Optiprune Analyzer", () => {
   });
 
   it("should handle invalid syntax gracefully with fallback parsing", async () => {
-    const invalidSyntaxDir = path.join(fixturesDir, "invalid-syntax-test");
+    const invalidSyntaxDir = path.join(fixturesDir, "functions/invalid-syntax");
     const report = await analyze({
       rootDir: invalidSyntaxDir,
       entry: ["invalid-syntax.ts"],
@@ -110,7 +110,7 @@ describe("Optiprune Analyzer", () => {
   });
 
   it("should report unreachable files", async () => {
-    const unreachableDir = path.join(fixturesDir, "unreachable-test");
+    const unreachableDir = path.join(fixturesDir, "functions/unreachable");
     // Create a dummy file that is not an entry point
     await fs.promises.mkdir(unreachableDir, { recursive: true });
     await fs.promises.writeFile(path.join(unreachableDir, "unreachable.ts"), "export const x = 1;");
@@ -175,7 +175,7 @@ describe("Optiprune Analyzer", () => {
   });
 
   it("should mark package.json exports as used with low confidence and load TypeScript configs", async () => {
-    const testDir = path.join(fixturesDir, "public-api-and-config-test");
+    const testDir = path.join(fixturesDir, "functions/public-api-and-config");
     await fs.promises.mkdir(testDir, { recursive: true });
 
     // 1. Create a package.json with an exports map pointing to src/api.ts

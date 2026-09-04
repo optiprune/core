@@ -499,7 +499,14 @@ export function calculateReachability(
             const absoluteDir = path.resolve(path.dirname(module.id), dir);
             for (const candidate of modules.keys()) {
               if (!reachable.has(candidate) && !maybeReachable.has(candidate)) {
-                if (candidate.startsWith(absoluteDir)) {
+                // Require a real path boundary. Without the separator check,
+                // scanning `plugins` also keeps `plugins-old/**` alive.
+                const normalizedCandidate = path.normalize(candidate);
+                const normalizedDirectory = path.normalize(absoluteDir);
+                if (
+                  normalizedCandidate === normalizedDirectory ||
+                  normalizedCandidate.startsWith(`${normalizedDirectory}/`)
+                ) {
                   maybeReachable.add(candidate);
                 }
               }
@@ -517,13 +524,10 @@ export function calculateReachability(
     }
   }
 
-  if (hasReachableUnknownDynamicBoundary) {
-    for (const moduleId of modules.keys()) {
-      if (!reachable.has(moduleId)) {
-        maybeReachable.add(moduleId);
-      }
-    }
-  }
+  // Do not turn one unknown dynamic import into a repository-wide maybe edge.
+  // Directory scans above already scope uncertainty to the scanned directory.
+  // An unknown import with no discoverable directory remains represented by the
+  // flag, allowing callers to lower confidence without hiding every dead file.
 
   return { reachable, maybeReachable, hasReachableUnknownDynamicBoundary };
 }

@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("SCC Reachability Analysis", () => {
   it("should correctly identify isolated components and cycles as unreachable", async () => {
-    const rootDir = path.join(__dirname, "..", "fixtures", "scc-test");
+    const rootDir = path.join(__dirname, "..", "fixtures", "layers", "scc", "scc-test");
     const report = await analyze({
       rootDir,
       entry: ["entry.ts"],

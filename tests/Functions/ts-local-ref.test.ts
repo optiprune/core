@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("TypeScript Local Reference Tracking (Fix 3)", () => {
   it("should not flag interfaces used as type annotations in the same file as unused", async () => {
-    const rootDir = path.join(__dirname, "..", "fixtures", "ts-local-ref-test");
+    const rootDir = path.join(__dirname, "..", "fixtures", "functions", "ts-local-ref");
     const report = await analyze({
       rootDir,
       entry: ["entry.ts"],

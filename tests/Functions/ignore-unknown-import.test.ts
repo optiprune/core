@@ -7,7 +7,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("ignoreUnknownImport", () => {
   it("does not classify dynamic-scan files as maybe-reachable", async () => {
-    const rootDir = path.join(__dirname, "..", "fixtures", "dynamic-scan-test");
+    const rootDir = path.join(
+      __dirname,
+      "..",
+      "fixtures",
+      "layers",
+      "dynamic-scan",
+      "dynamic-scan-test",
+    );
     const report = await analyze({
       rootDir,
       entry: ["entry.ts"],

@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("String Interpolation Dynamic Import", () => {
-  const rootDir = path.resolve(__dirname, "..");
-  const fixtureDir = path.join(__dirname, "fixtures/interpolation-test");
+  const fixtureDir = path.resolve(__dirname, "../fixtures/layers/interpolation/interpolation-test");
+  const rootDir = fixtureDir;
 
   it("should resolve dynamic import with string interpolation using Layer 4", async () => {
     const results = await analyze({

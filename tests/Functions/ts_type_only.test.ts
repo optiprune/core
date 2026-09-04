@@ -260,8 +260,7 @@ describe("Analyser: TypeScript type-only exports (Fix 3 Precision)", () => {
   });
 
   it("uses the fixture directory: all type-only exports in types.ts are now flagged if unused", async () => {
-    // If fixtures remain at `tests/fixtures/`, resolve up one level from `tests/Language-Server/`:
-    const fixtureDir = path.join(__dirname, "..", "fixtures", "ts-type-only-test");
+    const fixtureDir = path.join(__dirname, "..", "fixtures", "functions", "ts-type-only");
 
     const report = await analyze({
       rootDir: fixtureDir,

@@ -145,6 +145,27 @@ function isPureExportOnlyModule(module: ModuleRecord): boolean {
   });
 }
 
+async function discoverCacheInputFiles(rootDir: string): Promise<string[]> {
+  const ignored = new Set(["node_modules", ".git", ".optiprune", "dist", "build", "coverage"]);
+  const files: string[] = [];
+  const visit = async (directory: string): Promise<void> => {
+    let entries;
+    try {
+      entries = await fsp.readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (ignored.has(entry.name)) continue;
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) await visit(absolute);
+      else if (entry.isFile()) files.push(absolute);
+    }
+  };
+  await visit(rootDir);
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
 async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions> {
   const rootDir = normalizeAbsolute(options.rootDir ?? process.cwd());
 
@@ -366,18 +387,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
         });
 
-  // Fast path: use size + mtime first. This avoids rereading and hashing every
-  // source file on the common unchanged-workspace path. SHA-256 remains the
-  // fallback when metadata is unavailable or differs.
-  const currentFileStats: Record<string, { size: number; mtimeMs: number }> = {};
-  for (const file of allSourceFiles) {
-    try {
-      const stat = await fsp.stat(file);
-      currentFileStats[file] = { size: stat.size, mtimeMs: stat.mtimeMs };
-    } catch {
-      // The normal parse loop handles files that disappear during analysis.
-    }
-  }
   const analysisKey = JSON.stringify({
     version: VERSION,
     entry: resolvedOptions.entry,
@@ -396,6 +405,31 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     externalContracts: resolvedOptions.externalContracts,
     plugins: resolvedOptions.plugins,
   });
+  // Include configuration and plugin metadata in cache inputs. File metadata is
+  // only a cheap hint, so hashes remain the correctness check for same-size,
+  // same-mtime rewrites.
+  const cacheInputFiles = await discoverCacheInputFiles(rootDir);
+  const currentFileStats: Record<string, { size: number; mtimeMs: number }> = {};
+  for (const file of cacheInputFiles) {
+    try {
+      const stat = await fsp.stat(file);
+      currentFileStats[file] = { size: stat.size, mtimeMs: stat.mtimeMs };
+    } catch {
+      // The normal parse loop handles files that disappear during analysis.
+    }
+  }
+  const currentFileHashes: Record<string, string> = {};
+  for (const file of cacheInputFiles) {
+    try {
+      currentFileHashes[file] = getFileHash(await fsp.readFile(file, "utf8"));
+    } catch {
+      // The normal parse loop handles files that disappear during analysis.
+    }
+  }
+  const sameHashes =
+    cache.fileHashes &&
+    Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length &&
+    Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
   const sameStats =
     cache.fileStats &&
     Object.keys(cache.fileStats).length === Object.keys(currentFileStats).length &&
@@ -408,27 +442,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     cache.version === "2.1" &&
     cache.report &&
     cache.analysisKey === analysisKey &&
-    sameStats
-  ) {
-    return cache.report;
-  }
-  const currentFileHashes: Record<string, string> = {};
-  for (const file of allSourceFiles) {
-    try {
-      currentFileHashes[file] = getFileHash(await fsp.readFile(file, "utf8"));
-    } catch {
-      // The normal parse loop handles files that disappear during analysis.
-    }
-  }
-  const sameHashes =
-    cache.fileHashes &&
-    Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length &&
-    Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
-  if (
-    !resolvedOptions.fix &&
-    cache.version === "2.1" &&
-    cache.report &&
-    cache.analysisKey === analysisKey &&
+    sameStats &&
     sameHashes
   ) {
     return cache.report;

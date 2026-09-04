@@ -7,7 +7,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("Dynamic Scan & Import Heuristic (Fix 2)", () => {
   it("should mark files in scanned directories as maybe-reachable when dynamic imports are present", async () => {
-    const rootDir = path.join(__dirname, "..", "fixtures", "dynamic-scan-test");
+    const rootDir = path.join(
+      __dirname,
+      "..",
+      "fixtures",
+      "layers",
+      "dynamic-scan",
+      "dynamic-scan-test",
+    );
     const report = await analyze({
       rootDir,
       entry: ["entry.ts"],

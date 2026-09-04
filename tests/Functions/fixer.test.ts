@@ -144,7 +144,7 @@ describe("fixer regression fixtures", () => {
   async function copyFixture(): Promise<string> {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "optiprune-fixer-fixture-"));
     temporaryRoots.push(root);
-    await fs.cp(path.resolve("tests/fixtures/fixer"), root, { recursive: true });
+    await fs.cp(path.resolve("tests/fixtures/functions/fixer"), root, { recursive: true });
     return root;
   }
 

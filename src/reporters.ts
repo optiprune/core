@@ -1,6 +1,25 @@
 import type { AnalysisReport, Finding } from "./types.js";
 import path from "pathe";
-import fs from "node:fs";
+
+function sarifUri(file: string, rootDir: string): string {
+  const normalizedFile = file.replace(/\\/g, "/");
+  const normalizedRoot = rootDir.replace(/\\/g, "/").replace(/\/$/, "");
+  if (normalizedFile.startsWith(`${normalizedRoot}/`)) {
+    return normalizedFile
+      .slice(normalizedRoot.length + 1)
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/");
+  }
+  if (!normalizedFile.startsWith("/") && !/^[A-Za-z]:\//.test(normalizedFile)) {
+    return normalizedFile.split("/").map(encodeURIComponent).join("/");
+  }
+  const drivePath = normalizedFile.replace(
+    /^([A-Za-z]):\//,
+    (_, drive: string) => `/${drive.toUpperCase()}:/`,
+  );
+  return `file://${drivePath.split("/").map(encodeURIComponent).join("/")}`;
+}
 
 export function formatTerminal(
   report: AnalysisReport,
@@ -38,7 +57,12 @@ export function formatTerminal(
       lines.push(`\x1b[1m\x1b[4m${currentFile}\x1b[0m`);
     }
 
-    const severityColor = finding.severity === "error" ? "\x1b[31m" : "\x1b[33m";
+    const severityColor =
+      finding.severity === "error"
+        ? "\x1b[31m"
+        : finding.severity === "warning"
+          ? "\x1b[33m"
+          : "\x1b[36m";
     const loc = finding.location
       ? `:${finding.location.start.line}:${finding.location.start.column}`
       : "";
@@ -74,12 +98,17 @@ export function formatSarif(report: AnalysisReport): string {
         },
         results: report.findings.map((finding) => ({
           ruleId: finding.rule,
-          level: finding.severity === "error" ? "error" : "warning",
+          level:
+            finding.severity === "error"
+              ? "error"
+              : finding.severity === "warning"
+                ? "warning"
+                : "note",
           message: { text: finding.message },
           locations: [
             {
               physicalLocation: {
-                artifactLocation: { uri: finding.file },
+                artifactLocation: { uri: sarifUri(finding.file, report.rootDir) },
                 region: finding.location
                   ? {
                       startLine: finding.location.start.line,

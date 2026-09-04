@@ -94,7 +94,8 @@ export const SveltePlugin: AnalyzerPlugin = {
     return (
       (await adapter.folderExists("src/routes")) ||
       (await adapter.folderExists("src/App.svelte")) ||
-      (await adapter.folderExists("App.svelte"))
+      (await adapter.folderExists("App.svelte")) ||
+      (await adapter.findFilesByGlob(["**/*.svelte"])).length > 0
     );
   },
 

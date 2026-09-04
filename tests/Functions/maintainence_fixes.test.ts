@@ -4,7 +4,7 @@ import path from "node:path";
 import fs from "node:fs";
 
 describe("Optiprune Maintenance Fixes", () => {
-  const rootDir = path.resolve("./tests/fixtures/maintenance-test");
+  const rootDir = path.resolve("./tests/fixtures/functions/maintenance");
 
   beforeAll(() => {
     if (!fs.existsSync(rootDir)) fs.mkdirSync(rootDir, { recursive: true });

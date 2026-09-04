@@ -18,7 +18,14 @@ const fixturesDir = join(__dirname, "..", "fixtures");
 // Helper
 // ---------------------------------------------------------------------------
 function fixture(name: string): string {
-  return readFileSync(join(fixturesDir, name), "utf8");
+  const category = name.endsWith(".vue")
+    ? "plugins/vue"
+    : name.endsWith(".svelte")
+      ? "plugins/svelte"
+      : name.endsWith(".astro")
+        ? "plugins/astro"
+        : "plugins/react";
+  return readFileSync(join(fixturesDir, category, name), "utf8");
 }
 
 // ---------------------------------------------------------------------------
