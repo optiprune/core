@@ -1,17 +1,10 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
-import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
   site: "https://opti.drml.int.yt",
   outDir: "./dist",
   output: "static",
-  adapter: cloudflare({
-    imageService: "passthrough", // Avoids reserving internal image/assets worker bindings
-    platformProxy: {
-      enabled: false, // Prevents wrangler runtime collision during Pages build
-    },
-  }),
   vite: {
     ssr: {
       external: ["@bruits/satteri-wasm32-wasi", "satteri"],

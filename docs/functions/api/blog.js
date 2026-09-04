@@ -3,7 +3,7 @@ const json = (data, status = 200) =>
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=60",
+      "cache-control": "no-cache, no-store, must-revalidate", // Guarantees fresh data instantly
     },
   });
 

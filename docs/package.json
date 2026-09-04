@@ -11,7 +11,6 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.3.0",
     "@astrojs/starlight": "0.42.0",
     "@bruits/satteri-wasm32-wasi": "0.10.5",
     "astro": "7.3.1"
