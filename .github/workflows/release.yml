@@ -41,6 +41,12 @@ jobs:
           npm run build
           npm test
 
+      - name: Check dirty Git files
+        run: |
+          echo "=== Git Status ==="
+          git status --porcelain
+          echo "=== Git Diff ==="
+          git diff
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
