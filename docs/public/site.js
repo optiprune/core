@@ -62,23 +62,27 @@ const md = (source = "") => {
   let paragraph = [];
   let list = null;
   let code = null;
+
   const flushParagraph = () => {
     if (paragraph.length) {
       output.push(`<p>${inline(paragraph.join("\n"))}</p>`);
       paragraph = [];
     }
   };
+
   const closeList = () => {
     if (list) {
       output.push(`</${list}>`);
       list = null;
     }
   };
+
   for (const line of lines) {
     const fence = line.match(/^\s*```(.*)$/);
     if (fence) {
       if (code) {
-        output.push(`<pre><code>${esc(code.text)}</code></pre>`);
+        // Trim trailing newline before pushing to output
+        output.push(`<pre><code class="${esc(code.language)}">${esc(code.text.replace(/\n$/, ""))}</code></pre>`);
         code = null;
       } else {
         flushParagraph();
@@ -87,6 +91,7 @@ const md = (source = "") => {
       }
       continue;
     }
+
     if (code) {
       code.text += `${line}\n`;
       continue;
