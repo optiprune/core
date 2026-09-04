@@ -1,9 +1,18 @@
 const app = document.querySelector("#app");
+
 const esc = (s = "") =>
   String(s).replace(
     /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c],
   );
+
 const safeHtml = (s) => {
   const t = document.createElement("template");
   t.innerHTML = s;
@@ -19,6 +28,7 @@ const safeHtml = (s) => {
   );
   return t.innerHTML;
 };
+
 const authors = (post) => {
   const value = post?.authors ?? post?.author;
   const values = Array.isArray(value) ? value : value == null ? [] : [value];
@@ -33,6 +43,7 @@ const authors = (post) => {
     })
     .filter(Boolean);
 };
+
 const authorMeta = (post) => {
   const names = authors(post);
   return names.length ? ` · By ${esc(names.join(", "))}` : "";
@@ -56,6 +67,7 @@ const inline = (source = "") => {
     .replace(/  \n/g, "<br>");
   return output.replace(/\u0000HTML(\d+)\u0000/g, (_, index) => htmlTokens[Number(index)] || "");
 };
+
 const md = (source = "") => {
   const lines = String(source).replace(/\r\n?/g, "\n").split("\n");
   const output = [];
@@ -81,8 +93,8 @@ const md = (source = "") => {
     const fence = line.match(/^\s*```(.*)$/);
     if (fence) {
       if (code) {
-        // Trim trailing newline before pushing to output
-        output.push(`<pre><code class="${esc(code.language)}">${esc(code.text.replace(/\n$/, ""))}</code></pre>`);
+        const langClass = code.language ? ` class="language-${esc(code.language)}"` : "";
+        output.push(`<pre><code${langClass}>${esc(code.text.replace(/\n$/, ""))}</code></pre>`);
         code = null;
       } else {
         flushParagraph();
@@ -96,11 +108,13 @@ const md = (source = "") => {
       code.text += `${line}\n`;
       continue;
     }
+
     if (!line.trim()) {
       flushParagraph();
       closeList();
       continue;
     }
+
     const heading = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
     if (heading) {
       flushParagraph();
@@ -108,6 +122,7 @@ const md = (source = "") => {
       output.push(`<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`);
       continue;
     }
+
     const quote = line.match(/^\s*>\s?(.*)$/);
     if (quote) {
       flushParagraph();
@@ -115,6 +130,7 @@ const md = (source = "") => {
       output.push(`<blockquote>${inline(quote[1])}</blockquote>`);
       continue;
     }
+
     const item = line.match(/^\s*([-*+] |\d+[.] )(.*)$/);
     if (item) {
       flushParagraph();
@@ -127,6 +143,7 @@ const md = (source = "") => {
       output.push(`<li>${inline(item[2])}</li>`);
       continue;
     }
+
     if (
       /^\s*<(?:(?:article|aside|div|figure|p|section|table|ul|ol|h[1-6]|blockquote|pre|details|hr)\b|!--)/i.test(
         line,
@@ -137,30 +154,34 @@ const md = (source = "") => {
       output.push(safeHtml(line));
       continue;
     }
+
     closeList();
     paragraph.push(line);
   }
+
   flushParagraph();
   closeList();
-  if (code) output.push(`<pre><code>${esc(code.text)}</code></pre>`);
+  if (code) {
+    const langClass = code.language ? ` class="language-${esc(code.language)}"` : "";
+    output.push(`<pre><code${langClass}>${esc(code.text.replace(/\n$/, ""))}</code></pre>`);
+  }
   return safeHtml(output.join(""));
 };
+
 const layout = (content, kicker, title, lede = "") =>
   `<div class="page"><div class="kicker">${kicker}</div><div class="section-head"><div><h1 class="article-title">${title}</h1>${lede ? `<p class="lede">${lede}</p>` : ""}</div></div>${content}</div>`;
+
 const home = () =>
   `<div class="page"><section class="hero"><div><div class="kicker">A static Code Analyzer</div><h1>Stop guessing.<br><em>Start proving.</em></h1><p class="lede">OptiPrune builds a dependency graph from your real entry points and shows what is never reached — files, imports, exports, packages, and logic.</p><div class="actions"><a class="button primary" href="/docs">Read the docs →</a><a class="button secondary" href="/plugins">Explore plugins</a></div><p class="blog-meta">npm install --save-dev @optiprune/cli · inspect first, fix deliberately</p></div><div class="hero-art"><img src="/assets/optiprune-animation.svg" alt="OptiPrune dependency graph animation" /></div></section><section class="section"><div class="section-head"><div><div class="kicker">Why OptiPrune</div><h2>Understand your codebase.</h2></div><p>Designed for safe cleanup: inspect the graph, review confidence, then remove only what your codebase can prove is unreachable.</p></div><div class="feature-grid"><div class="card"><span class="number">01 / GRAPH</span><h3>Reachability, not heuristics</h3><p>Entry points create a real module graph instead of relying on naming guesses or arbitrary percentages.</p></div><div class="card"><span class="number">02 / CONTEXT</span><h3>Context-aware findings</h3><p>Dynamic dispatch, test conventions, generated files, and package metadata stay visible in the analysis.</p></div><div class="card"><span class="number">03 / CONTROL</span><h3>Dry-run first</h3><p>Every fix is explicit. Preview changes, use confidence gates, and keep a clean audit trail in CI.</p></div></div></section><section class="section"><div class="section-head"><div><div class="kicker">A small proof</div><h2>Scan. Verify. Prune.</h2></div></div><div class="terminal"><div>$ npx @optiprune/cli analyze</div><div class="warn">✖ [high] src/legacy/orphan.ts — unreachable-file</div><div class="warn">⚠ [medium] src/legacy/index.ts — unused-export: legacyFn</div><div class="ok">Analysis complete · review findings before applying fixes</div></div></section></div>`;
+
 const docs = () =>
   layout(
-    `<div class="docs-layout"><aside class="toc"><a href="#install">01 Install</a><a href="#workflow">02 Workflow</a><a href="#config">03 Config</a><a href="#plugins">04 Plugins</a><a href="#guides">05 Guides</a></aside><article class="article"><section id="install"><h2>Install</h2><p>OptiPrune is a headless analyzer for TypeScript and JavaScript workspaces. Use the CLI for a quick scan or import Core when you need programmatic control.</p><pre>npm install --save-dev @optiprune/cli
-npm install @optiprune/core</pre><p>Run from the workspace root:</p><pre>npx optiprune ./src --entry src/index.ts --dry-run</pre></section><section id="workflow"><h2>A predictable workflow</h2><p>Start with a dry run, inspect high-confidence findings, then widen the scope. OptiPrune keeps analysis and mutation separate so a CI check cannot silently rewrite your repository.</p><div class="feature-grid"><div class="card"><span class="number">1</span><h3>Discover</h3><p>Declare entry points and let the graph reveal reachable modules.</p></div><div class="card"><span class="number">2</span><h3>Review</h3><p>Use high, medium, and low confidence as a review queue.</p></div><div class="card"><span class="number">3</span><h3>Fix</h3><p>Apply only approved changes with a reproducible command.</p></div></div></section><section id="config"><h2>Configuration</h2><p>Keep configuration close to the project. Plugin overrides let you force-enable a detector or disable one that does not match your runtime conventions.</p><pre>{
-  "entry": ["src/index.ts"],
-  "plugins": { "nextjs-plugin": true, "nestjs-plugin": false },
-  "failOn": "high"
-}</pre></section><section id="plugins"><h2>Plugins</h2><p>Plugins add framework, test-runner, and tooling conventions to the graph. Browse the full inventory on the <a href="/plugins">Plugins page</a>, including source links and lifecycle hooks.</p></section><section id="guides"><h2>Guides and reference</h2><p>For CI, use JSON or SARIF reporters. For monorepos, define workspace boundaries explicitly. For custom integrations, import the headless Core API and keep file mutation behind your own approval step.</p></section></article></div>`,
+    `<div class="docs-layout"><aside class="toc"><a href="#install">01 Install</a><a href="#workflow">02 Workflow</a><a href="#config">03 Config</a><a href="#plugins">04 Plugins</a><a href="#guides">05 Guides</a></aside><article class="article"><section id="install"><h2>Install</h2><p>OptiPrune is a headless analyzer for TypeScript and JavaScript workspaces. Use the CLI for a quick scan or import Core when you need programmatic control.</p><pre>npm install --save-dev @optiprune/cli\nnpm install @optiprune/core</pre><p>Run from the workspace root:</p><pre>npx optiprune ./src --entry src/index.ts --dry-run</pre></section><section id="workflow"><h2>A predictable workflow</h2><p>Start with a dry run, inspect high-confidence findings, then widen the scope. OptiPrune keeps analysis and mutation separate so a CI check cannot silently rewrite your repository.</p><div class="feature-grid"><div class="card"><span class="number">1</span><h3>Discover</h3><p>Declare entry points and let the graph reveal reachable modules.</p></div><div class="card"><span class="number">2</span><h3>Review</h3><p>Use high, medium, and low confidence as a review queue.</p></div><div class="card"><span class="number">3</span><h3>Fix</h3><p>Apply only approved changes with a reproducible command.</p></div></div></section><section id="config"><h2>Configuration</h2><p>Keep configuration close to the project. Plugin overrides let you force-enable a detector or disable one that does not match your runtime conventions.</p><pre>{\n  "entry": ["src/index.ts"],\n  "plugins": { "nextjs-plugin": true, "nestjs-plugin": false },\n  "failOn": "high"\n}</pre></section><section id="plugins"><h2>Plugins</h2><p>Plugins add framework, test-runner, and tooling conventions to the graph. Browse the full inventory on the <a href="/plugins">Plugins page</a>, including source links and lifecycle hooks.</p></section><section id="guides"><h2>Guides and reference</h2><p>For CI, use JSON or SARIF reporters. For monorepos, define workspace boundaries explicitly. For custom integrations, import the headless Core API and keep file mutation behind your own approval step.</p></section></article></div>`,
     "Documentation / Core + CLI",
     "A clear path from first scan to safe cleanup.",
     "No empty “go here” pages: the essentials, commands, configuration model, plugin behavior, and next steps live together.",
   );
+
 async function pluginsPage() {
   const data = await fetch("/plugins.json")
     .then((r) => r.json())
@@ -179,8 +200,10 @@ async function pluginsPage() {
     "Frameworks, test runners, build tools, and project conventions — documented with source links instead of vague promises.",
   );
 }
+
 const pluginCard = (p) =>
   `<article class="card plugin-card" data-name="${esc(p.name)}" data-category="${esc(p.category)}"><span class="tag">${esc(p.category)}</span><span class="version">v${esc(p.version || "1.0.0")}</span><h3>${esc(p.name)}</h3><p>${esc(p.summary || "Framework-aware reachability support for this tool.")}</p><a href="${esc(p.source)}" target="_blank" rel="noreferrer">View source ↗</a></article>`;
+
 async function blogPage() {
   const posts = await fetch("/api/blog")
     .then((r) => (r.ok ? r.json() : []))
@@ -194,6 +217,7 @@ async function blogPage() {
     "Release notes, architecture notes, and practical cleanup patterns.",
   );
 }
+
 async function blogDetail(id) {
   const p = await fetch("/api/blog/" + encodeURIComponent(id))
     .then((r) => (r.ok ? r.json() : null))
@@ -211,8 +235,11 @@ async function blogDetail(id) {
     esc(p.excerpt || ""),
   );
 }
+
 async function show() {
-  const path = location.pathname.replace(/\/$/, "") || "/";
+  const rawPath = window.location.pathname;
+  const path = rawPath === "/" ? "/" : rawPath.replace(/\/+$/, "") || "/";
+
   if (path === "/") app.innerHTML = home();
   else if (path === "/docs") app.innerHTML = docs();
   else if (path === "/plugins") {
@@ -227,6 +254,7 @@ async function show() {
       "404",
       "Not found.",
     );
+
   fetch("/api/blog")
     .then((r) => (r.ok ? r.json() : []))
     .then((posts) => {
@@ -236,36 +264,48 @@ async function show() {
           Date.now() - new Date(p.published_at || p.created_at).getTime() < 172800000,
       );
       const a = document.querySelector("#announcement");
-      if (fresh && ["/", "/blog", "/docs"].includes(path)) {
-        a.hidden = false;
-        a.innerHTML = `↗ ${esc(fresh.title)} <a href="/blog/${encodeURIComponent(fresh.id)}">Learn more →</a>`;
+      if (a) {
+        const allowedPaths = ["/", "/blog", "/docs"];
+        if (fresh && allowedPaths.includes(path)) {
+          a.hidden = false;
+          a.innerHTML = `↗ ${esc(fresh.title)} <a href="/blog/${encodeURIComponent(fresh.id)}">Learn more →</a>`;
+        } else {
+          a.hidden = true;
+          a.innerHTML = "";
+        }
       }
     })
     .catch(() => {});
 }
+
 function bindPlugins() {
   const q = document.querySelector("#plugin-search"),
     c = document.querySelector("#plugin-category");
+  if (!q || !c) return;
+
   const filter = () =>
-    document
-      .querySelectorAll(".plugin-card")
-      .forEach(
-        (x) =>
-          (x.style.display =
-            (!q.value || x.dataset.name.includes(q.value.toLowerCase())) &&
-            (!c.value || x.dataset.category === c.value)
-              ? ""
-              : "none"),
-      );
+    document.querySelectorAll(".plugin-card").forEach((x) => {
+      const matchesSearch =
+        !q.value || x.dataset.name.toLowerCase().includes(q.value.toLowerCase());
+      const matchesCategory = !c.value || x.dataset.category === c.value;
+      x.style.display = matchesSearch && matchesCategory ? "" : "none";
+    });
+
   q.oninput = filter;
   c.onchange = filter;
+
   const count = document.querySelector("#plugin-count");
   if (count) count.textContent = document.querySelectorAll(".plugin-card").length;
 }
-document.querySelector("[data-theme-toggle]").onclick = () => {
-  document.documentElement.dataset.theme =
-    document.documentElement.dataset.theme === "dark" ? "" : "dark";
-};
+
+const themeToggle = document.querySelector("[data-theme-toggle]");
+if (themeToggle) {
+  themeToggle.onclick = () => {
+    document.documentElement.dataset.theme =
+      document.documentElement.dataset.theme === "dark" ? "" : "dark";
+  };
+}
+
 fetch("/plugins.json")
   .then((r) => r.json())
   .then((items) => {
@@ -273,4 +313,5 @@ fetch("/plugins.json")
     if (count) count.textContent = items.length;
   })
   .catch(() => {});
+
 show();
