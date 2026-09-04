@@ -3,6 +3,7 @@ import path from "pathe";
 import { AnalysisReport, Finding, FixConfig } from "./types.js";
 import { readJsonFile } from "./fs-utils.js";
 import { repairJsonDocument } from "./json-utils.js";
+import { parseWithYukuBackend } from "./parser.js";
 
 const CONFIDENCE_LEVELS: Record<string, number> = {
   low: 1,
@@ -42,8 +43,16 @@ function getMinConfidence(config: FixConfig | boolean): number {
 function isRequestedRule(allowedRules: Set<string>, rule: string): boolean {
   if (allowedRules.has(rule)) return true;
   if (allowedRules.has("files") && rule === "unreachable-file") return true;
-  if (allowedRules.has("dependencies") && rule === "unused-dependency") return true;
-  if (allowedRules.has("devDependencies") && rule === "unused-dev-dependency") return true;
+  if (
+    allowedRules.has("dependencies") &&
+    (rule === "unused-dependency" || rule === "missing-dependency")
+  )
+    return true;
+  if (
+    allowedRules.has("devDependencies") &&
+    (rule === "unused-dev-dependency" || rule === "missing-dev-dependency")
+  )
+    return true;
   if (allowedRules.has("exports") && (rule === "unused-export" || rule === "unused-member"))
     return true;
   if (allowedRules.has("conditions") && rule === "constant-condition") return true;
@@ -278,6 +287,50 @@ function objectMemberEdit(source: string, finding: Finding): TextEdit | null {
   };
 }
 
+/**
+ * Force-mode fallback for multiline object members. The normal edit above only
+ * handles a member whose opening and closing braces are on the same line.
+ * Removing the complete member line is safe when the line contains a simple
+ * property and its comma; the result is validated before it is written.
+ */
+function forceObjectMemberEdit(source: string, finding: Finding): TextEdit | null {
+  const memberName = finding.evidence?.memberName;
+  if (typeof memberName !== "string" || !memberName) return null;
+  const bounds = finding.location ? lineBounds(source, finding.location.start.line) : null;
+  if (!bounds) return null;
+  const escaped = memberName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const property = new RegExp(String.raw`^\s*(?:["']${escaped}["']|${escaped})\s*:`);
+  if (!property.test(bounds.text)) return null;
+  let start = bounds.start;
+  let end = bounds.end;
+  if (finding.location && finding.location.end.line > finding.location.start.line) {
+    const endBounds = lineBounds(source, finding.location.end.line);
+    if (!endBounds) return null;
+    end = endBounds.end;
+  }
+  if (source[end] === "\\r") end++;
+  if (source[end] === "\\n") end++;
+  else if (start > 0 && source[start - 1] === "\\n") start--;
+  return { start, end, replacement: "" };
+}
+
+function sourceParses(source: string, file: string): boolean {
+  const extension = extensionOf(file);
+  if (!SUPPORTED_SOURCE_EXTENSIONS.has(extension) || extension === ".vue") return true;
+  try {
+    const lang =
+      extension === ".tsx" ? "tsx" : extension === ".jsx" ? "jsx" : extension === ".ts" ? "ts" : "js";
+    const result = parseWithYukuBackend(source, {
+      lang,
+      sourceType: "module",
+      semanticErrors: false,
+    });
+    return !result.diagnostics.some((diagnostic) => diagnostic.severity === "error");
+  } catch {
+    return false;
+  }
+}
+
 type IfRegion = {
   condition: string;
   start: number;
@@ -406,7 +459,8 @@ function buildSourceEdits(
             wholeExportDeclarationEdit(source, finding) ??
             (force ? forceExportEdit(source, finding) : null))
         : finding.rule === "unused-member"
-          ? objectMemberEdit(source, finding)
+          ? (objectMemberEdit(source, finding) ??
+            (force ? forceObjectMemberEdit(source, finding) : null))
           : finding.rule === "constant-condition"
             ? conditionEdit(source, finding, usedConditions)
             : null;
@@ -545,11 +599,24 @@ export async function applyFixes(
           const section =
             finding.rule === "unused-dev-dependency" ? "devDependencies" : "dependencies";
           const packageName = finding.evidence.package as string;
-          if (pkg[section]?.[packageName]) {
+          if (pkg[section] && Object.prototype.hasOwnProperty.call(pkg[section], packageName)) {
             delete pkg[section][packageName];
             changed = true;
             fixesApplied++;
             console.error(`[Fixer] ${file} -> ${packageName} (removed)`);
+          }
+        }
+        if (
+          finding.rule === "missing-dev-dependency" &&
+          typeof finding.evidence?.package === "string"
+        ) {
+          const packageName = finding.evidence.package;
+          pkg.devDependencies ??= {};
+          if (!Object.prototype.hasOwnProperty.call(pkg.devDependencies, packageName)) {
+            pkg.devDependencies[packageName] = "*";
+            changed = true;
+            fixesApplied++;
+            console.error(`[Fixer] ${file} -> ${packageName} (added as *)`);
           }
         }
       }
@@ -579,7 +646,12 @@ export async function applyFixes(
     const edits = buildSourceEdits(source, file, sourceFindings, force);
     if (edits.length === 0) continue;
     if (dryRun) continue;
-    await fs.writeFile(absolutePath, applyEdits(source, edits));
+    const editedSource = applyEdits(source, edits);
+    if (!sourceParses(editedSource, file)) {
+      console.error(`[Fixer] Skipping source fix because it would produce invalid syntax: ${file}`);
+      continue;
+    }
+    await fs.writeFile(absolutePath, editedSource);
     fixesApplied += edits.length;
     for (const finding of sourceFindings) {
       const label = sourceFindingLabel(finding);

@@ -139,3 +139,75 @@ describe("applyFixes", () => {
     expect(await fs.readFile(path.join(root, "src.ts"), "utf8")).toBe("");
   });
 });
+
+describe("fixer regression fixtures", () => {
+  async function copyFixture(): Promise<string> {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "optiprune-fixer-fixture-"));
+    temporaryRoots.push(root);
+    await fs.cp(path.resolve("tests/fixtures/fixer"), root, { recursive: true });
+    return root;
+  }
+
+  it("removes unused devDependencies when selected", async () => {
+    const root = await copyFixture();
+    expect(
+      await applyFixes(
+        report([finding("unused-dev-dependency", "high", "package.json", { package: "remove-dev" })]),
+        root,
+        { rules: ["devDependencies"] },
+      ),
+    ).toBe(1);
+    const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+    expect(pkg.devDependencies).toEqual({ "keep-dev": "1.0.0" });
+  });
+
+  it("adds missing development dependencies with version *", async () => {
+    const root = await copyFixture();
+    expect(
+      await applyFixes(
+        report([finding("missing-dev-dependency", "high", "package.json", { package: "typescript" })]),
+        root,
+        { rules: ["devDependencies"] },
+      ),
+    ).toBe(1);
+    const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+    expect(pkg.devDependencies.typescript).toBe("*");
+  });
+
+  it("force-removes a multiline object member", async () => {
+    const root = await copyFixture();
+    const sourcePath = path.join(root, "source.ts");
+    expect(
+      await applyFixes(
+        report([
+          {
+            ...finding("unused-member", "high", "source.ts", {
+              exportName: "heartbeat",
+              memberName: "remove",
+            }),
+            location: { start: { line: 3, column: 3 }, end: { line: 5, column: 4 } },
+          },
+        ]),
+        root,
+        { rules: ["exports"], force: true },
+      ),
+    ).toBe(1);
+    const edited = await fs.readFile(sourcePath, "utf8");
+    expect(edited).not.toContain("remove:");
+    expect(edited).toContain("return heartbeat.keep();");
+  });
+
+  it("keeps the original source when a proposed edit is invalid", async () => {
+    const root = await fixture({}, "export const value = 1;\n");
+    const sourcePath = path.join(root, "src.ts");
+    const before = await fs.readFile(sourcePath, "utf8");
+    const result = await applyFixes(
+      report([finding("unused-export", "high", "src.ts", { exportName: "value" })]),
+      root,
+      { rules: ["exports"], force: true },
+    );
+    expect(result).toBe(1);
+    expect(await fs.readFile(sourcePath, "utf8")).toBe("");
+    expect(before).toContain("export const value");
+  });
+});

@@ -1,0 +1,11 @@
+{
+  "name": "fixer-regression-fixture",
+  "dependencies": {
+    "keep-runtime": "1.0.0",
+    "remove-runtime": "1.0.0"
+  },
+  "devDependencies": {
+    "keep-dev": "1.0.0",
+    "remove-dev": "1.0.0"
+  }
+}
