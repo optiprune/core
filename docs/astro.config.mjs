@@ -1,9 +1,16 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
   site: "https://opti.drml.int.yt",
   outDir: "./dist",
+  output: "static", // Starlight docs stay fully static
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: true,
+    },
+  }),
   integrations: [
     starlight({
       title: "OptiPrune Docs",
