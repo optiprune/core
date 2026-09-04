@@ -5,12 +5,22 @@ import cloudflare from "@astrojs/cloudflare";
 export default defineConfig({
   site: "https://opti.drml.int.yt",
   outDir: "./dist",
-  output: "static", // Starlight docs stay fully static
+  output: "static",
   adapter: cloudflare({
     platformProxy: {
       enabled: true,
     },
   }),
+  vite: {
+    ssr: {
+      external: ["@bruits/satteri-wasm32-wasi", "satteri"],
+    },
+    build: {
+      rollupOptions: {
+        external: ["@bruits/satteri-wasm32-wasi"],
+      },
+    },
+  },
   integrations: [
     starlight({
       title: "OptiPrune Docs",
