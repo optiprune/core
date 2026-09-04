@@ -81,8 +81,9 @@
     "build": "tsc -p tsconfig.json",
     "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism",
-    "format:check": "npx -y oxfmt --ignore-path .oxfmtignore --check",
-    "format": "npx -y oxfmt --ignore-path .oxfmtignore "
+    "format:check": "oxfmt --ignore-path .oxfmtignore --check",
+    "format": "oxfmt --ignore-path .oxfmtignore ",
+    "release": "release-it"
   },
   "dependencies": {
     "esbuild": "^0.28.2",
@@ -102,7 +103,9 @@
     "z3-solver": "^5.0.0"
   },
   "devDependencies": {
+    "@release-it/conventional-changelog": "^10.0.6",
     "@types/node": "^22.15.3",
+    "release-it": "^19.2.4",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   },

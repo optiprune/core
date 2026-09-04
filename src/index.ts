@@ -61,7 +61,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = (await readJsonFile(path.join(__dirname, "..", "package.json"))) as {
   version?: string;
 } | null;
-const VERSION = pkg?.version ?? "1.8.2";
+if (!pkg?.version) {
+  throw new Error("Unable to determine @optiprune/core version from package.json");
+}
+const VERSION = pkg.version;
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 import { applyFixes as runFixes } from "./fixer.js";

@@ -319,7 +319,13 @@ function sourceParses(source: string, file: string): boolean {
   if (!SUPPORTED_SOURCE_EXTENSIONS.has(extension) || extension === ".vue") return true;
   try {
     const lang =
-      extension === ".tsx" ? "tsx" : extension === ".jsx" ? "jsx" : extension === ".ts" ? "ts" : "js";
+      extension === ".tsx"
+        ? "tsx"
+        : extension === ".jsx"
+          ? "jsx"
+          : extension === ".ts"
+            ? "ts"
+            : "js";
     const result = parseWithYukuBackend(source, {
       lang,
       sourceType: "module",

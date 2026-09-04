@@ -152,7 +152,9 @@ describe("fixer regression fixtures", () => {
     const root = await copyFixture();
     expect(
       await applyFixes(
-        report([finding("unused-dev-dependency", "high", "package.json", { package: "remove-dev" })]),
+        report([
+          finding("unused-dev-dependency", "high", "package.json", { package: "remove-dev" }),
+        ]),
         root,
         { rules: ["devDependencies"] },
       ),
@@ -165,7 +167,9 @@ describe("fixer regression fixtures", () => {
     const root = await copyFixture();
     expect(
       await applyFixes(
-        report([finding("missing-dev-dependency", "high", "package.json", { package: "typescript" })]),
+        report([
+          finding("missing-dev-dependency", "high", "package.json", { package: "typescript" }),
+        ]),
         root,
         { rules: ["devDependencies"] },
       ),
