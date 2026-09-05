@@ -68,6 +68,7 @@ const VERSION = pkg.version;
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 import { applyFixes as runFixes } from "./fixer.js";
+import { CompilerPlugin } from "./compiler-plugin.js";
 
 function isPureStaticExpression(node: any): boolean {
   if (!node) return true;
@@ -231,6 +232,7 @@ async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<v
   const ignores = new Set(options.ignore);
   const extensions = new Set(options.extensions);
   const externalContracts = new Set(options.externalContracts);
+  const compilers = { ...options.compilers };
   const packageIgnoreDependencies = new Map(options.packageIgnoreDependencies);
 
   for (const workspacePackage of workspaces) {
@@ -258,6 +260,8 @@ async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<v
       }
     }
 
+    Object.assign(compilers, packageConfig.compilers ?? {});
+
     const ignoredDependencies = (packageConfig.ignoreDependencies ?? []).filter(
       (dependency): dependency is string =>
         typeof dependency === "string" && dependency.trim().length > 0,
@@ -274,6 +278,7 @@ async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<v
   options.ignore = Array.from(ignores);
   options.extensions = Array.from(extensions);
   options.externalContracts = Array.from(externalContracts);
+  options.compilers = compilers;
   options.packageIgnoreDependencies = packageIgnoreDependencies;
 }
 
@@ -334,6 +339,9 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
+  if (CompilerPlugin.lifecycle.onProjectInit) {
+    await CompilerPlugin.lifecycle.onProjectInit(pluginEngine.createAdapter(earlyContext));
+  }
 
   // Package-manager and framework plugins can contribute workspace patterns
   // during their early configuration pass. Build topology only after those
@@ -404,6 +412,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     cycles: resolvedOptions.cycles,
     externalContracts: resolvedOptions.externalContracts,
     plugins: resolvedOptions.plugins,
+    compilers: Object.keys(resolvedOptions.compilers ?? {}).sort(),
   });
   // Include configuration and plugin metadata in cache inputs. File metadata is
   // only a cheap hint, so hashes remain the correctness check for same-size,
@@ -739,8 +748,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const finalPluginFindings = await pluginEngine.run(context, { skipDetection: true });
 
   // 3. Combine findings from both runs (init-time + execution-time)
-  findings.push(...pluginFindings);
-  findings.push(...finalPluginFindings);
+  const isCompilerLoaderDiagnostic = (finding: Finding): boolean =>
+    finding.rule === "plugin-error" && finding.evidence?.pluginFile === "compiler-plugin.ts";
+  findings.push(...pluginFindings.filter((finding) => !isCompilerLoaderDiagnostic(finding)));
+  findings.push(...finalPluginFindings.filter((finding) => !isCompilerLoaderDiagnostic(finding)));
 
   // --- RE-CALCULATE REACHABILITY ---
   // Ensure that plugin marks (reachable files) are propagated through the graph
@@ -1155,6 +1166,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   for (const finding of findings) {
     if (regexFallbackFiles.has(finding.file)) {
       finding.confidence = "low";
+    }
+  }
+  for (let index = findings.length - 1; index >= 0; index -= 1) {
+    if (
+      findings[index]?.rule === "plugin-error" &&
+      findings[index]?.evidence?.pluginFile === "compiler-plugin.ts"
+    ) {
+      findings.splice(index, 1);
     }
   }
 

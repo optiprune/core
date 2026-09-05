@@ -1376,11 +1376,17 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
   const edges: DependencyEdge[] = [];
   const seenOffsets = new Set<number>();
 
+  // Preserve offsets while masking comments so commented-out imports are inert.
+  const activeSource = sourceText
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\r\n]/g, " "))
+    .replace(/(^|\n)\s*\/\/[^\r\n]*/g, (comment) => comment.replace(/[^\r\n]/g, " "));
+
   // CSS, Sass, Less, and Stylus support quoted imports. CSS url(...) imports
   // are included, while ordinary asset URLs are intentionally ignored so
   // fonts and images do not become false unresolved-import findings.
-  const quotedImport = /@(?:import|use|forward)\s+(?:(?:url\(\s*)?)["']([^"']+)["']\s*\)?/gi;
-  for (const match of sourceText.matchAll(quotedImport)) {
+  const quotedImport =
+    /@(?:import|use|forward)\s+(?:\([^)]*\)\s*)?(?:(?:url\(\s*)?)["']([^"']+)["']\s*\)?/gi;
+  for (const match of activeSource.matchAll(quotedImport)) {
     const specifier = match[1];
     const offset = match.index ?? 0;
     if (!specifier || seenOffsets.has(offset)) continue;
@@ -1396,10 +1402,33 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
   }
 
   const unquotedUrlImport = /@(?:import|use|forward)\s+url\(\s*([^'"\s)]+)\s*\)/gi;
-  for (const match of sourceText.matchAll(unquotedUrlImport)) {
+  for (const match of activeSource.matchAll(unquotedUrlImport)) {
     const specifier = match[1];
     const offset = match.index ?? 0;
     if (!specifier || seenOffsets.has(offset)) continue;
+    seenOffsets.add(offset);
+    edges.push({
+      source: file,
+      rawSpecifier: specifier,
+      kind: "import",
+      importedNames: ["*"],
+      resolution: "unknown",
+      location: locationAtOffset(sourceText, offset),
+    });
+  }
+
+  const assetUrl = /\burl\(\s*(?:["']([^"']+)["']|([^\s)]+))\s*\)/gi;
+  const tracksLocalAssets = /\.(?:scss|sass)$/i.test(file);
+  for (const match of tracksLocalAssets ? activeSource.matchAll(assetUrl) : []) {
+    const specifier = match[1] ?? match[2];
+    const offset = match.index ?? 0;
+    if (
+      !specifier ||
+      seenOffsets.has(offset) ||
+      /^(?:data:|https?:|#|\/\/)/i.test(specifier) ||
+      specifier.startsWith("~")
+    )
+      continue;
     seenOffsets.add(offset);
     edges.push({
       source: file,
@@ -1419,6 +1448,28 @@ function parseStylesheetModule(sourceText: string, file: string): ModuleRecord {
     sourceText,
     exports: [],
     edges,
+    hasUnknownDynamicBoundary: false,
+    hasParseError: false,
+    hasUnresolvedCommonJsExports: false,
+    scannedDirectories: [],
+    dynamicImportCandidates: [],
+  };
+}
+
+function parseCompilerModule(sourceText: string, file: string): ModuleRecord {
+  return {
+    id: file,
+    relativePath: file,
+    parseStatus: "parsed",
+    parseDiagnostics: [],
+    sourceText,
+    ast: {
+      type: "File",
+      program: { type: "Program", body: [], sourceType: "module" },
+      comments: [],
+    },
+    exports: [],
+    edges: [],
     hasUnknownDynamicBoundary: false,
     hasParseError: false,
     hasUnresolvedCommonJsExports: false,
@@ -1498,6 +1549,9 @@ export function parseModule(
   // import directives directly before attempting yuku-parser.
   if (isStylesheetPath(file)) {
     return parseStylesheetModule(sourceText, file);
+  }
+  if (/\.(?:marko|prisma)$/i.test(file)) {
+    return parseCompilerModule(sourceText, file);
   }
 
   try {

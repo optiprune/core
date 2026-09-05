@@ -204,7 +204,19 @@ export interface AnalyzerOptions {
   fix?: boolean | FixConfig;
   cacheFrom?: string;
   cacheTo?: string;
+  /** User-defined compilers keyed by file extension. */
+  compilers?: Record<string, CompilerDefinition>;
 }
+
+export type CompilerDefinition =
+  | ((source: string, filePath: string) => string | { code?: string; dependencies?: string[] })
+  | {
+      compile?: (
+        source: string,
+        filePath: string,
+      ) => string | { code?: string; dependencies?: string[] };
+      dependencies?: string[];
+    };
 
 export type RuleSeverity = "error" | "warning" | "off";
 
@@ -294,6 +306,8 @@ export interface Config {
    * Use the plugin's `name` string as the key.
    */
   plugins?: PluginsConfig;
+  /** User-defined compilers keyed by file extension. */
+  compilers?: Record<string, CompilerDefinition>;
 }
 
 export interface ResolvedOptions {
@@ -347,6 +361,7 @@ export interface ResolvedOptions {
   protectedExportPatterns: string[];
   repositoryType?: "single-package" | "workspace" | "monorepo";
   frameworks: string[];
+  compilers: Record<string, CompilerDefinition>;
 }
 
 export interface AnalysisSummary {

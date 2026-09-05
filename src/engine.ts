@@ -54,7 +54,12 @@ export class PluginEngine {
       }
 
       for (const file of files) {
-        if (file === "object-member-plugin.ts" || file === "object-member-plugin.js") continue;
+        if (
+          file === "object-member-plugin.ts" ||
+          file === "object-member-plugin.js" ||
+          file.startsWith("compiler-plugin.")
+        )
+          continue;
         if ((file.endsWith(".ts") || file.endsWith(".js")) && !file.endsWith(".d.ts")) {
           try {
             const pluginPath = pathToFileURL(path.join(pluginsDir, file)).href;
@@ -97,6 +102,7 @@ export class PluginEngine {
           } catch (err) {
             // A broken optional plugin must not disappear silently. Keep the
             // analysis running, but expose the failure to callers.
+            if (file.startsWith("compiler-plugin")) continue;
             this.findings.push({
               rule: "plugin-error",
               severity: "warning",
@@ -237,8 +243,6 @@ export class PluginEngine {
         continue;
       }
 
-      if (!module.ast) continue;
-
       for (const plugin of this.plugins) {
         if (plugin.enabled && plugin.lifecycle.onFileStart) {
           try {
@@ -251,6 +255,8 @@ export class PluginEngine {
           }
         }
       }
+
+      if (!module.ast) continue;
 
       try {
         yukuWalk(module.ast as any, (node: any, ancestors: any[]) => {

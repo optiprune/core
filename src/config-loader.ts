@@ -53,6 +53,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   unreachableFileIgnorePatterns: [],
   protectedExportPatterns: [],
   frameworks: [],
+  compilers: {},
   pathAliases: new Map<string, string[]>(),
   packageImports: new Map<string, string[]>(),
   layers: {
@@ -307,6 +308,7 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     layers,
     rules,
     plugins,
+    compilers: { ...base.compilers, ...(userConfig.compilers ?? {}) },
     ...(userConfig.failOn !== undefined && { failOn: userConfig.failOn }),
     ...(userConfig.reportUnusedExports !== undefined && {
       reportUnusedExports: userConfig.reportUnusedExports,
