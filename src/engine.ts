@@ -38,6 +38,7 @@ export class PluginEngine {
   }
 
   register(plugin: AnalyzerPlugin) {
+    if (this.plugins.some((registered) => registered.name === plugin.name)) return;
     this.plugins.push(plugin);
   }
 
@@ -502,6 +503,23 @@ export class PluginEngine {
         if (symbol) {
           context.usedExports?.add(`${absolutePath}:${symbol}`);
         }
+      },
+      markConfigFileAsUsed: (fileId) => {
+        const requestedPath = path.isAbsolute(fileId)
+          ? fileId
+          : path.resolve(context.options.rootDir, fileId);
+        // This is intentionally distinct from markAsUsed: a configuration file
+        // remains non-reachable and never becomes an analysis entry point.
+        const absolutePath = resolvePluginPath(requestedPath);
+        context.protectedConfigFiles ??= new Set<string>();
+        context.options.configFiles ??= [];
+        context.protectedConfigFiles.add(absolutePath);
+        // Project-initialization hooks run before source discovery. Preserve the
+        // registration in resolved options so the file remains in scope even
+        // when project-pattern filtering would otherwise exclude it.
+        context.options.configFiles = Array.from(
+          new Set([...context.options.configFiles, absolutePath]),
+        );
       },
       markRelativeFileAsUsed: (sourceFileId, referencedPath) => {
         if (

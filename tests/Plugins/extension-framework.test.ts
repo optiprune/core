@@ -50,6 +50,7 @@ describe("framework false-positive regressions", () => {
       readFile: async () =>
         "import react from '@vitejs/plugin-react'; export default { plugins: [react()] };",
       markAsUsed: () => {},
+      markConfigFileAsUsed: () => {},
       markPackageAsUsed: (name: string) => packages.push(name),
       addEntryPatterns: (patterns: string[]) => entries.push(...patterns),
       emitFinding: () => {},

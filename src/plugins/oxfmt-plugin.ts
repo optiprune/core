@@ -59,7 +59,7 @@ export const OxfmtPlugin: AnalyzerPlugin = {
       // 1. Protect all dedicated oxfmt configuration & ignore files
       for (const configFile of OXFMT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -100,7 +100,7 @@ export const OxfmtPlugin: AnalyzerPlugin = {
 
       // Keep configuration files active
       if (OXFMT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

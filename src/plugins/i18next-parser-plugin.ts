@@ -89,7 +89,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       for (const configFile of I18NEXT_PARSER_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -150,7 +150,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
 
       // Protect i18next-parser configuration files
       if (I18NEXT_PARSER_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("i18next-parser");
       }
     },

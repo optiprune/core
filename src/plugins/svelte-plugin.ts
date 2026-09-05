@@ -115,7 +115,7 @@ export const SveltePlugin: AnalyzerPlugin = {
       for (const configFile of SVELTE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           break;
         }
       }
@@ -160,7 +160,7 @@ export const SveltePlugin: AnalyzerPlugin = {
 
       // 2. Svelte configuration files
       if (SVELTE_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("svelte");
       }
 

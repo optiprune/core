@@ -96,7 +96,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration files
       for (const configFile of SIZE_LIMIT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -159,7 +159,7 @@ export const SizeLimitPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (SIZE_LIMIT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed(SIZE_LIMIT_PACKAGE_NAME);
       }
     },

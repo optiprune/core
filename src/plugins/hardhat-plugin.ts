@@ -62,7 +62,7 @@ export const HardhatPlugin: AnalyzerPlugin = {
       for (const configFile of HARDHAT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           break;
         }
       }
@@ -102,7 +102,7 @@ export const HardhatPlugin: AnalyzerPlugin = {
 
       // 1. Configuration files
       if (HARDHAT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("hardhat");
       }
 

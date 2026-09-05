@@ -204,6 +204,8 @@ async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions
   return {
     ...merged,
     entry: merged.entry?.map((entry) => normalizeAbsolute(path.resolve(rootDir, entry))) ?? [],
+    configFiles:
+      merged.configFiles?.map((file) => normalizeAbsolute(path.resolve(rootDir, file))) ?? [],
     // DEFAULT_IGNORE is already baked into mergeConfig; avoid doubling it.
     ignore: merged.ignore,
     pathAliases,
@@ -220,14 +222,16 @@ function rebaseWorkspacePattern(rootDir: string, packageRoot: string, pattern: s
 /**
  * Applies only the configuration fields that have package-local semantics. The
  * root configuration remains the source of global analyzer options; workspace
- * configuration can contribute its own entry points, discovery ignores, source
- * extensions, external contracts, and manifest-scoped dependency exceptions.
+ * configuration can contribute its own entry points, protected configuration
+ * files, discovery ignores, source extensions, external contracts, and
+ * manifest-scoped dependency exceptions.
  */
 async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<void> {
   const workspaces = options.monorepo?.packageMap.values();
   if (!workspaces) return;
 
   const entries = new Set(options.entry);
+  const configFiles = new Set(options.configFiles);
   const ignores = new Set(options.ignore);
   const extensions = new Set(options.extensions);
   const externalContracts = new Set(options.externalContracts);
@@ -240,6 +244,11 @@ async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<v
     for (const entry of packageConfig.entry ?? []) {
       if (typeof entry !== "string" || entry.trim().length === 0) continue;
       entries.add(path.resolve(workspacePackage.location, entry));
+    }
+
+    for (const configFile of packageConfig.configFiles ?? []) {
+      if (typeof configFile !== "string" || configFile.trim().length === 0) continue;
+      configFiles.add(normalizeAbsolute(path.resolve(workspacePackage.location, configFile)));
     }
 
     for (const ignore of packageConfig.ignore ?? []) {
@@ -274,6 +283,7 @@ async function applyWorkspacePackageConfigs(options: ResolvedOptions): Promise<v
   }
 
   options.entry = Array.from(entries);
+  options.configFiles = Array.from(configFiles);
   options.ignore = Array.from(ignores);
   options.extensions = Array.from(extensions);
   options.externalContracts = Array.from(externalContracts);
@@ -381,19 +391,34 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     .map((pattern) => pattern.slice(1));
   const compiledIncludedProjectPatterns = compileGlobs(includedProjectPatterns);
   const compiledExcludedProjectPatterns = compileGlobs(excludedProjectPatterns);
-  const allSourceFiles =
-    projectPatterns.length === 0
-      ? discoveredSourceFiles
-      : discoveredSourceFiles.filter((file) => {
-          const included =
-            includedProjectPatterns.length === 0 ||
-            matchesAnyGlob(file, compiledIncludedProjectPatterns, rootDir);
-          return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
-        });
+  // Config files remain ordinary analysis modules. Ensure declarations are kept
+  // in scope even when framework project patterns would otherwise exclude them.
+  const configuredConfigFilePatterns = compileGlobs(
+    resolvedOptions.configFiles.map((file) => path.relative(rootDir, file).replace(/\\/g, "/")),
+  );
+  const configuredConfigFiles = expandEntryPatterns(
+    discoveredSourceFiles,
+    rootDir,
+    resolvedOptions.configFiles,
+  );
+  const allSourceFiles = Array.from(
+    new Set([
+      ...(projectPatterns.length === 0
+        ? discoveredSourceFiles
+        : discoveredSourceFiles.filter((file) => {
+            const included =
+              includedProjectPatterns.length === 0 ||
+              matchesAnyGlob(file, compiledIncludedProjectPatterns, rootDir);
+            return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
+          })),
+      ...configuredConfigFiles,
+    ]),
+  ).sort((left, right) => left.localeCompare(right));
 
   const analysisKey = JSON.stringify({
     version: VERSION,
     entry: resolvedOptions.entry,
+    configFiles: resolvedOptions.configFiles,
     extensions: resolvedOptions.extensions,
     ignore: resolvedOptions.ignore,
     ignoreTests: resolvedOptions.ignoreTests,
@@ -729,6 +754,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // ── PLUGIN LIFECYCLE SYNC ────────────────────────────────────────────────
   // 1. Transfer marks from earlyContext (onProjectInit effects) to the final context
+  for (const configFile of configuredConfigFiles) context.protectedConfigFiles.add(configFile);
+  for (const configFile of earlyContext.protectedConfigFiles) {
+    context.protectedConfigFiles.add(configFile);
+  }
   for (const r of earlyContext.reachable) context.reachable.add(r);
   for (const e of earlyContext.entryPoints) {
     context.entryPoints.add(e);
@@ -1137,6 +1166,27 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         context.entryPoints.has(finding.file)
       )
     ) {
+      findings.splice(index, 1);
+    }
+  }
+
+  // A protected configuration file is still parsed, represented in the graph,
+  // and available to plugins, but it must not produce any file-local finding.
+  // Keep this universal final gate after every layer and plugin has emitted so
+  // new file-local finding types inherit the same protection automatically.
+  const isProtectedConfigFinding = (finding: Finding): boolean => {
+    const file = finding.file;
+    if (!file || typeof file !== "string") return false;
+    const absoluteFile = normalizeAbsolute(
+      path.isAbsolute(file) ? file : path.resolve(rootDir, file),
+    );
+    return (
+      context.protectedConfigFiles.has(absoluteFile) ||
+      matchesAnyGlob(absoluteFile, configuredConfigFilePatterns, rootDir)
+    );
+  };
+  for (let index = findings.length - 1; index >= 0; index -= 1) {
+    if (findings[index] && isProtectedConfigFinding(findings[index]!)) {
       findings.splice(index, 1);
     }
   }

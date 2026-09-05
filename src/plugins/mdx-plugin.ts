@@ -72,7 +72,7 @@ export const MdxPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated MDX provider mapping files (e.g. mdx-components.tsx)
       for (const configFile of MDX_PROVIDER_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 

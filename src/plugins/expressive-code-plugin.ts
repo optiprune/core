@@ -93,7 +93,7 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Expressive Code config files
       for (const configFile of EXPRESSIVE_CODE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -118,7 +118,7 @@ export const ExpressiveCodePlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (EXPRESSIVE_CODE_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

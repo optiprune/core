@@ -93,7 +93,7 @@ export const LadlePlugin: AnalyzerPlugin = {
 
       for (const configFile of LADLE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 

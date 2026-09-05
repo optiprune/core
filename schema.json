@@ -22,6 +22,14 @@
       "default": [],
       "description": "Array of entry-point file patterns used as analysis roots. Their dependency chains are analyzed for reachability; only explicitly public entry APIs and package.json exports protect public exports from unused-export pruning."
     },
+    "configFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "File paths or glob patterns relative to root for tool configuration modules. Matching source files remain in analysis but are excluded from every file-local finding and never become entry points."
+    },
     "extensions": {
       "type": "array",
       "items": {

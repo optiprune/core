@@ -90,7 +90,7 @@ export const OxlintPlugin: AnalyzerPlugin = {
       const dependencyDeclared = hasOxlintDependency(packageJson);
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
         if (typeof script !== "string" || !isOxlintScript(script)) continue;
@@ -149,7 +149,7 @@ export const OxlintPlugin: AnalyzerPlugin = {
 
     onFileStart: (fileId, adapter) => {
       if (OXLINT_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)))) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

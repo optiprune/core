@@ -115,7 +115,7 @@ export const HerokuPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Heroku configuration files
       for (const configFile of HEROKU_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -167,7 +167,7 @@ export const HerokuPlugin: AnalyzerPlugin = {
 
       // Protect Procfile, Procfile.dev, static.json, heroku.yml
       if (HEROKU_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
   },

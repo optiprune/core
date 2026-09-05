@@ -223,7 +223,7 @@ export const NextjsPlugin: AnalyzerPlugin = {
 
       const configFiles = await adapter.findFiles(NEXT_CONFIG_FILES);
       for (const configFile of configFiles) {
-        adapter.markAsUsed(configFile);
+        adapter.markConfigFileAsUsed(configFile);
       }
 
       // Only a configuration at the analysis root can prove that the root
@@ -300,7 +300,7 @@ export const NextjsPlugin: AnalyzerPlugin = {
 
       // 4. Mark config files
       if (NEXT_CONFIG_FILES.includes(filename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

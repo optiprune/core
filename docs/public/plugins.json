@@ -35,6 +35,13 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/biome-plugin.ts"
   },
   {
+    "name": "borp-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for borp conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/borp-plugin.ts"
+  },
+  {
     "name": "bumpp-plugin",
     "version": "current",
     "category": "Project conventions",
@@ -84,6 +91,13 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/changesets-plugin.ts"
   },
   {
+    "name": "commitizen-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for commitizen conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/commitizen-plugin.ts"
+  },
+  {
     "name": "commitlint-plugin",
     "version": "current",
     "category": "Project conventions",
@@ -103,6 +117,13 @@
     "category": "Project conventions",
     "summary": "Project-aware analysis for Convex conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/convex-plugin.ts"
+  },
+  {
+    "name": "create-typescript-app-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for create-typescript-app conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/create-typescript-app-plugin.ts"
   },
   {
     "name": "cross-env-plugin",
@@ -131,6 +152,13 @@
     "category": "Testing & QA",
     "summary": "Project-aware analysis for Cypress conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/cypress-plugin.ts"
+  },
+  {
+    "name": "danger-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for danger conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/danger-plugin.ts"
   },
   {
     "name": "dependency-cruiser-plugin",
@@ -189,6 +217,13 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/eslint-plugin.ts"
   },
   {
+    "name": "eve-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for eve conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/eve-plugin.ts"
+  },
+  {
     "name": "execa-plugin",
     "version": "current",
     "category": "Project conventions",
@@ -243,6 +278,13 @@
     "category": "Frameworks",
     "summary": "Project-aware analysis for Gatsby conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/gatsby-plugin.ts"
+  },
+  {
+    "name": "github-action-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for github-action conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/github-action-plugin.ts"
   },
   {
     "name": "github-actions-plugin",
@@ -364,6 +406,13 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/lint-staged-plugin.ts"
   },
   {
+    "name": "linthtml-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for linthtml conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/linthtml-plugin.ts"
+  },
+  {
     "name": "lit-plugin",
     "version": "current",
     "category": "Project conventions",
@@ -383,6 +432,20 @@
     "category": "Project conventions",
     "summary": "Project-aware analysis for Lost Pixel conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/lost-pixel-plugin.ts"
+  },
+  {
+    "name": "lunaria-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for lunaria conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/lunaria-plugin.ts"
+  },
+  {
+    "name": "markdownlint-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for markdownlint conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/markdownlint-plugin.ts"
   },
   {
     "name": "marko-plugin",
@@ -434,6 +497,27 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/msw-plugin.ts"
   },
   {
+    "name": "nano-spawn-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for nano-spawn conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/nano-spawn-plugin.ts"
+  },
+  {
+    "name": "nano-staged-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for nano-staged conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/nano-staged-plugin.ts"
+  },
+  {
+    "name": "nest-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for nest conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/nest-plugin.ts"
+  },
+  {
     "name": "nestjs-plugin",
     "version": "current",
     "category": "Frameworks",
@@ -469,11 +553,25 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/node-llama-cpp-plugin.ts"
   },
   {
+    "name": "node-test-runner-nub-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for node-test-runner-nub conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/node-test-runner-nub-plugin.ts"
+  },
+  {
     "name": "node-types-plugin",
     "version": "current",
     "category": "Project conventions",
     "summary": "Project-aware analysis for Node Types conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/node-types-plugin.ts"
+  },
+  {
+    "name": "nodemon-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for nodemon conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/nodemon-plugin.ts"
   },
   {
     "name": "npm-package-json-lint-plugin",
@@ -586,6 +684,13 @@
     "category": "Project conventions",
     "summary": "Project-aware analysis for Payload Cms conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/payload-cms-plugin.ts"
+  },
+  {
+    "name": "pino-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for pino conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/pino-plugin.ts"
   },
   {
     "name": "playwright-plugin",
@@ -712,6 +817,13 @@
     "category": "Frameworks",
     "summary": "Project-aware analysis for React conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/react-plugin.ts"
+  },
+  {
+    "name": "relay-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for relay conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/relay-plugin.ts"
   },
   {
     "name": "release-it-plugin",
@@ -889,6 +1001,13 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/swc-plugin.ts"
   },
   {
+    "name": "syncpack-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for syncpack conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/syncpack-plugin.ts"
+  },
+  {
     "name": "tailwind-plugin",
     "version": "current",
     "category": "Tooling & ecosystem",
@@ -959,6 +1078,13 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/tsconfig-plus-plugin.ts"
   },
   {
+    "name": "tsd-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for tsd conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/tsd-plugin.ts"
+  },
+  {
     "name": "tsdown-plugin",
     "version": "current",
     "category": "Project conventions",
@@ -992,6 +1118,13 @@
     "category": "Project conventions",
     "summary": "Project-aware analysis for Typeorm conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/typeorm-plugin.ts"
+  },
+  {
+    "name": "typescript-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for typescript conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/typescript-plugin.ts"
   },
   {
     "name": "unbuild-plugin",
@@ -1106,11 +1239,25 @@
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/worker-plugin.ts"
   },
   {
+    "name": "workflow-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for workflow conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/workflow-plugin.ts"
+  },
+  {
     "name": "wrangler-plugin",
     "version": "current",
     "category": "Project conventions",
     "summary": "Project-aware analysis for Wrangler conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/src/plugins/wrangler-plugin.ts"
+  },
+  {
+    "name": "wxt-plugin",
+    "version": "current",
+    "category": "Tooling & ecosystem",
+    "summary": "Project-aware analysis for wxt conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/src/plugins/wxt-plugin.ts"
   },
   {
     "name": "xo-plugin",

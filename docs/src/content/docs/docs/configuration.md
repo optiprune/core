@@ -11,6 +11,7 @@ import { defineConfig } from "@optiprune/core";
 export default defineConfig({
   rootDir: ".",
   entry: ["src/index.ts", "src/worker.ts"],
+  configFiles: ["tooling/**/*.ts"],
   extensions: [".ts", ".tsx", ".js", ".jsx", ".vue"],
   ignore: ["**/fixtures/**", "**/generated/**"],
   reportUnusedExports: true,
@@ -26,6 +27,8 @@ export default defineConfig({
   layers: {},
 });
 ```
+
+Use `configFiles` for tool configuration modules that are loaded outside the static import graph. Its paths and glob patterns are relative to `rootDir`. Matching source files remain parsed and available to analysis, but every finding attached to them is suppressed. They are not added to `entryPoints` and do not become synthetic analysis roots.
 
 Use `externalContracts` for public APIs consumed outside the local workspace. Use `ignoreDependencies` for packages intentionally provided by a host. Keep ignores narrow: an overly broad ignore removes evidence from the graph and can hide real problems.
 

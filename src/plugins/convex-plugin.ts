@@ -89,7 +89,7 @@ export const ConvexPlugin: AnalyzerPlugin = {
       for (const configFile of CONVEX_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -131,7 +131,7 @@ export const ConvexPlugin: AnalyzerPlugin = {
 
       // Protect Convex config files
       if (CONVEX_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("convex");
       }
 

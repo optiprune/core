@@ -75,7 +75,7 @@ export const UnocssPlugin: AnalyzerPlugin = {
       for (const configFile of UNOCSS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           break;
         }
       }
@@ -115,7 +115,7 @@ export const UnocssPlugin: AnalyzerPlugin = {
 
       // 1. Mark UnoCSS configuration files
       if (UNOCSS_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("unocss");
       }
 

@@ -64,7 +64,7 @@ export const RslibPlugin: AnalyzerPlugin = {
       for (const configFile of RSLIB_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -101,7 +101,7 @@ export const RslibPlugin: AnalyzerPlugin = {
 
       // Protect Rslib config files
       if (RSLIB_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("@rslib/core");
       }
     },

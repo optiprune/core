@@ -127,7 +127,7 @@ export const EslintPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
 
       if (ESLINT_CONFIG_FILES.some((f) => normalized.endsWith(f))) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("eslint");
       }
 

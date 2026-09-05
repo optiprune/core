@@ -80,7 +80,7 @@ export const KnexPlugin: AnalyzerPlugin = {
       for (const configFile of KNEX_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -124,7 +124,7 @@ export const KnexPlugin: AnalyzerPlugin = {
 
       // Protect Knex configuration files
       if (KNEX_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("knex");
       }
 

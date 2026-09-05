@@ -85,7 +85,7 @@ export const FumadocsPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Fumadocs config files
       for (const configFile of FUMADOCS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -131,7 +131,7 @@ export const FumadocsPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (FUMADOCS_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // Protect docs content files (.md, .mdx, .json inside content/docs/ or content/)

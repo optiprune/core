@@ -96,7 +96,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration files
       for (const configFile of RELEASE_IT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -153,7 +153,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (RELEASE_IT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

@@ -46,7 +46,7 @@ export const MoonrepoPlugin: AnalyzerPlugin = {
       // 1. Mark workspace config files and .moon/ folder as used
       for (const configFile of MOON_WORKSPACE_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 

@@ -94,7 +94,7 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
       for (const configFile of OPENAPI_TS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -135,7 +135,7 @@ export const OpenApiTsPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (OPENAPI_TS_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("@hey-api/openapi-ts");
       }
     },

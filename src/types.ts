@@ -173,6 +173,8 @@ export interface Finding {
 export interface AnalyzerOptions {
   rootDir?: string;
   entry?: string[];
+  /** File paths or glob patterns relative to root that are analyzed but never reported. */
+  configFiles?: string[];
   extensions?: string[];
   ignore?: string[];
   reportUnusedExports?: boolean;
@@ -260,6 +262,8 @@ export interface FixConfig {
 export interface Config {
   rootDir?: string;
   entry?: string[];
+  /** File paths or glob patterns relative to root that are analyzed but never reported. */
+  configFiles?: string[];
   extensions?: string[];
   ignore?: string[];
   /**
@@ -313,6 +317,8 @@ export interface Config {
 export interface ResolvedOptions {
   rootDir: string;
   entry: string[];
+  /** Absolute file paths or glob patterns resolved from `configFiles`. */
+  configFiles: string[];
   extensions: string[];
   ignore: string[];
   /** npm package names that are always treated as used. */
@@ -445,6 +451,8 @@ export interface AnalysisContext {
   maybeReachable: Set<string>;
   /** Files explicitly executed or consumed by a runtime/tool contract. */
   runtimeUsedFiles?: Set<string>;
+  /** Configuration files that remain in analysis but are excluded from every file-local finding. */
+  protectedConfigFiles: Set<string>;
   /** Object members consumed by ecosystem configuration contracts. */
   semanticConfigMembers?: Set<string>;
   /** Object members observed through runtime registry or WASM execution. */
@@ -491,6 +499,8 @@ export interface PluginAdapter {
   // Writing Abilities
   emitFinding(finding: Omit<Finding, "rule"> & { rule?: string }): void;
   markAsUsed(fileId: string, symbol?: string): void;
+  /** Protect a configuration file from every finding without making it an entry point. */
+  markConfigFileAsUsed(fileId: string): void;
   /** Mark a file reference relative to the source file that declared it. */
   markRelativeFileAsUsed(sourceFileId: string, referencedPath: string): void;
   /** Mark an object member as consumed by a framework/tool configuration contract. */
@@ -560,6 +570,8 @@ export function defineConfig(config: Config): Config {
 export interface OptiPruneUserConfig {
   rootDir?: string;
   entry?: string[];
+  /** File paths or glob patterns relative to root that are analyzed but never reported. */
+  configFiles?: string[];
   extensions?: string[];
   ignore?: string[];
   ignoreDependencies?: string[];

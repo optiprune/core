@@ -106,7 +106,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
       for (const configFile of SERVERLESS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -152,7 +152,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
 
       // Protect Serverless configuration files
       if (SERVERLESS_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("serverless");
       }
     },

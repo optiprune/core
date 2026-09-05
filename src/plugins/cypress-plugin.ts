@@ -84,7 +84,7 @@ export const CypressPlugin: AnalyzerPlugin = {
       const isNxProject = await adapter.folderExists("nx.json");
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
       if (hasTestDirectory) adapter.markAsUsed("cypress");
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
@@ -115,7 +115,8 @@ export const CypressPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isCypressConfig(fileId) || isCypressTestFile(fileId)) adapter.markAsUsed(fileId);
+      if (isCypressConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
+      else if (isCypressTestFile(fileId)) adapter.markAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

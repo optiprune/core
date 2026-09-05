@@ -111,7 +111,7 @@ export const NestJsPlugin: AnalyzerPlugin = {
       for (const configFile of NEST_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           break;
         }
       }
@@ -178,7 +178,7 @@ export const NestJsPlugin: AnalyzerPlugin = {
 
       // 3. Config file
       if (NEST_CONFIG_FILES.includes(fileName)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

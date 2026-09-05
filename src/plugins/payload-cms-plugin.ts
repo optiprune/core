@@ -75,7 +75,7 @@ export const PayloadCMSPlugin: AnalyzerPlugin = {
       const hasCorePackage = packages.includes(PAYLOAD_PACKAGE);
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
         if (typeof script !== "string" || !isPayloadScript(script)) continue;
@@ -104,7 +104,7 @@ export const PayloadCMSPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isPayloadConfigFile(fileId)) adapter.markAsUsed(fileId);
+      if (isPayloadConfigFile(fileId)) adapter.markConfigFileAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

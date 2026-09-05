@@ -90,7 +90,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
       for (const configFile of SIMPLE_GIT_HOOKS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -154,7 +154,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
 
       // Protect simple-git-hooks configuration files
       if (SIMPLE_GIT_HOOKS_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("simple-git-hooks");
       }
     },

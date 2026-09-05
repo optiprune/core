@@ -135,7 +135,7 @@ export const StorybookPlugin: AnalyzerPlugin = {
       }
 
       if (rootConfigDirectory) adapter.markAsUsed(".storybook");
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
 
       let hasScriptInvocation = false;
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
