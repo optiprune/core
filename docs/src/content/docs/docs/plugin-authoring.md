@@ -74,11 +74,17 @@ Use `emitFinding()` only when the plugin has a specific, explainable diagnostic.
 
 When a plugin needs project configuration, prefer the static helpers in `plugin-config.ts`. `loadStaticPluginConfig()` reads JSON/JSONC and supported exported configuration objects without executing arbitrary project code. It can also read a plugin-owned key from `package.json`. Use `stringArray()` and `stringRecord()` to validate common shapes.
 
+## One package per source file
+
+Use one source file per package integration: `src/plugins/vite-plugin.ts`, `src/plugins/vitest-plugin.ts`, and `src/plugins/webpack-plugin.ts` are separate modules even when their tests share related fixtures. Keep numbered scenarios in test filenames only. A test named `vite3.test.ts` is a variant of the Vite integration, not a reason to create `vite3-plugin.ts`.
+
+Compiler integrations follow the same boundary. Tailwind logic belongs in `tailwind-plugin.ts`; Less, Sass/SCSS, Stylus, TSRX, and manual compiler configuration each have dedicated modules. Shared pure helpers may live in a utility module, but package detection, lifecycle behavior, and plugin identity must remain attributable to the owning package.
+
 ## Registration and distribution
 
 Built-in plugins live under [`src/plugins`](https://github.com/optiprune/core/tree/main/src/plugins). Core discovers plugin modules from the project’s configured plugin registry during analysis. A plugin should therefore be exported through the registry mechanism used by the repository and included in the published build; merely creating an unreferenced TypeScript file does not make it available to users.
 
-Before publishing a plugin, confirm how the target version loads dynamic plugins and test it through the same configuration path used by the CLI. Keep the plugin package and its compatibility assumptions documented.
+Before publishing a plugin, confirm how the target version loads dynamic plugins and test it through the same configuration path used by the CLI. Run the production naming audit as well as the complete suite; this catches numbered duplicate modules, missing base modules, and incorrect variant mappings. Keep the plugin package and its compatibility assumptions documented.
 
 ## Testing checklist
 
