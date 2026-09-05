@@ -1,0 +1,6 @@
+{
+  "name": "@plugins/ava2",
+  "knip": {
+    "ava": true
+  }
+}

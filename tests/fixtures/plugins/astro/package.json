@@ -1,0 +1,23 @@
+{
+  "name": "@plugins/astro",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "*",
+    "@astrojs/rss": "*",
+    "@astrojs/sitemap": "*",
+    "astro": "*",
+    "remote-config": "*",
+    "sharp": "*"
+  },
+  "devDependencies": {
+    "@astrojs/check": "*"
+  }
+}

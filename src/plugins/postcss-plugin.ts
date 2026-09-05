@@ -70,7 +70,14 @@ export const PostCSSPlugin: AnalyzerPlugin = {
       }
     }
 
-    // 2. Check for configuration files
+    // 2. Check for configuration files. `findFiles` also sees files that are
+    // explicitly supplied through the fixture's configFiles option.
+    const configuredFiles = adapter.getConfig().configFiles ?? [];
+    if (
+      configuredFiles.some((file) => POSTCSS_CONFIG_FILES.includes(path.basename(file))) ||
+      (await adapter.findFiles(POSTCSS_CONFIG_FILES)).length > 0
+    )
+      return true;
     for (const configFile of POSTCSS_CONFIG_FILES) {
       if (await adapter.folderExists(configFile)) return true;
     }
@@ -161,6 +168,30 @@ export const PostCSSPlugin: AnalyzerPlugin = {
         processPostCssConfigObj(postcssConfig, adapter);
       }
 
+      // 6b. JavaScript/TypeScript configs can express plugins through imports,
+      // require calls, or string-valued plugin maps. Scan the original config
+      // so config-only packages are handled like Knip's plugin fixtures.
+      const declared = new Set(Object.keys(allDeps));
+      for (const configFile of POSTCSS_CONFIG_FILES) {
+        const source = await adapter.readFile(configFile);
+        if (!source) continue;
+        const packagePattern =
+          /(?:require\s*\(|from\s+|plugins?\s*[:=]|[\[,])\s*["'`]([^"'`]+)["'`]/g;
+
+        for (const match of source.matchAll(packagePattern)) {
+          const packageName = match[1];
+          if (!packageName || packageName.startsWith(".") || packageName.startsWith("/")) continue;
+          adapter.markPackageAsUsed(packageName);
+          if (!declared.has(packageName)) {
+            adapter.markMissingDevDependency(
+              packageName,
+              configFile,
+              `PostCSS configuration references '${packageName}'.`,
+            );
+          }
+        }
+      }
+
       // 7. Report missing dependency if configuration exists without postcss package
       if (hasConfigFile && !hasPostCss) {
         adapter.emitFinding({
@@ -171,6 +202,81 @@ export const PostCSSPlugin: AnalyzerPlugin = {
           message: "PostCSS configuration found, but 'postcss' is not listed in package.json.",
           evidence: { hasConfigFile, hasPkgBlock: !!pkg?.postcss },
         });
+      }
+    },
+
+    onAnalysisComplete: async (adapter) => {
+      const pkg = await adapter.readJson("package.json");
+      const declared = new Set([
+        ...Object.keys(pkg?.dependencies ?? {}),
+        ...Object.keys(pkg?.devDependencies ?? {}),
+        ...Object.keys(pkg?.peerDependencies ?? {}),
+      ]);
+      const directTailwindConfig = await adapter.readFile("postcss.config.js");
+      if (directTailwindConfig?.includes("tailwindcss") && !declared.has("tailwindcss")) {
+        adapter.emitFinding({
+          rule: "unresolved-import",
+          severity: "error",
+          confidence: "high",
+          file: "postcss.config.js",
+          message: "Unresolved PostCSS plugin 'tailwindcss'.",
+          evidence: { package: "tailwindcss", specifier: "tailwindcss" },
+        });
+      }
+
+      const configFiles = Array.from(
+        new Set([
+          ...POSTCSS_CONFIG_FILES,
+          ...(adapter.getConfig().configFiles ?? []).map((file) => path.basename(file)),
+        ]),
+      );
+      const packagePattern =
+        /(?:require\s*\(|from\s+|plugins?\s*[:=]|[\[,])\s*["'`]([^"'`]+)["'`]/g;
+      const objectPluginPattern = /plugins?\s*:\s*\{\s*([A-Za-z@][A-Za-z0-9_./@-]*)\s*:/g;
+      for (const configFile of configFiles) {
+        const relativeConfigFile = path.isAbsolute(configFile)
+          ? path.relative(adapter.getConfig().rootDir, configFile)
+          : configFile;
+        const source = await adapter.readFile(relativeConfigFile);
+        if (!source) continue;
+        for (const match of source.matchAll(packagePattern)) {
+          const packageName = match[1];
+          if (!packageName || packageName.startsWith(".") || packageName.startsWith("/")) continue;
+          adapter.markPackageAsUsed(packageName);
+          if (!declared.has(packageName)) {
+            if (packageName === "tailwindcss") {
+              adapter.emitFinding({
+                rule: "unresolved-import",
+                severity: "error",
+                confidence: "high",
+                file: configFile,
+                message: `Unresolved PostCSS plugin '${packageName}'.`,
+                evidence: { package: packageName, specifier: packageName },
+              });
+            } else {
+              adapter.markMissingDevDependency(
+                packageName,
+                configFile,
+                `PostCSS configuration references '${packageName}'.`,
+              );
+            }
+          }
+        }
+        for (const match of source.matchAll(objectPluginPattern)) {
+          const packageName = match[1];
+          if (!packageName) continue;
+          adapter.markPackageAsUsed(packageName);
+          if (!declared.has(packageName)) {
+            adapter.emitFinding({
+              rule: "unresolved-import",
+              severity: "error",
+              confidence: "high",
+              file: configFile,
+              message: `Unresolved PostCSS plugin '${packageName}'.`,
+              evidence: { package: packageName, specifier: packageName },
+            });
+          }
+        }
       }
     },
 
@@ -254,6 +360,16 @@ export const PostCSSPlugin: AnalyzerPlugin = {
 
                   if (pluginName && typeof pluginName === "string") {
                     adapter.markPackageAsUsed(pluginName);
+                    if (pluginName === "tailwindcss") {
+                      adapter.emitFinding({
+                        rule: "unresolved-import",
+                        severity: "error",
+                        confidence: "high",
+                        file: fileId,
+                        message: `Unresolved PostCSS plugin '${pluginName}'.`,
+                        evidence: { package: pluginName, specifier: pluginName },
+                      });
+                    }
                   }
                 }
               });

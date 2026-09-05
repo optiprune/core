@@ -1,0 +1,5228 @@
+{
+  "_template": {
+    "assertions": [],
+    "tests": [
+      "_template.test.ts",
+      "fooi.test.ts"
+    ]
+  },
+  "angular": {
+    "assertions": [
+      {
+        "file": "tsconfig.spec.json",
+        "kind": "unresolved",
+        "value": "jasmine"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "karma"
+      }
+    ],
+    "tests": [
+      "angular.test.ts"
+    ]
+  },
+  "angular2": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "karma"
+      }
+    ],
+    "tests": [
+      "angular2.test.ts"
+    ]
+  },
+  "angular3": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@angular/cli"
+      }
+    ],
+    "tests": [
+      "angular3.test.ts"
+    ]
+  },
+  "astro": {
+    "assertions": [
+      {
+        "file": "src/consts.ts",
+        "kind": "exports",
+        "value": "UNUSED"
+      },
+      {
+        "file": "src/pages/_top-level-file-unused.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/_top-level-dir-unused/index.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/blog/_nested-unused-file.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/blog/_util/unused-component.astro",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/blog/_util/nested/deeply-nested-unused-file.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "astro.test.ts"
+    ]
+  },
+  "astro-db": {
+    "assertions": [],
+    "tests": [
+      "astro-db.test.ts"
+    ]
+  },
+  "astro-markdoc": {
+    "assertions": [],
+    "tests": [
+      "astro-markdoc.test.ts"
+    ]
+  },
+  "astro-og-canvas": {
+    "assertions": [],
+    "tests": [
+      "astro-og-canvas.test.ts"
+    ]
+  },
+  "astro-sharp-image-service": {
+    "assertions": [],
+    "tests": [
+      "astro-sharp-image-service.test.ts"
+    ]
+  },
+  "astro-styles": {
+    "assertions": [
+      {
+        "file": "src/styles/_unused.scss",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/styles/unused.less",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/styles/unused.styl",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "astro.test.ts"
+    ]
+  },
+  "astro2": {
+    "assertions": [],
+    "tests": [
+      "astro2.test.ts"
+    ]
+  },
+  "ava": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": "ts-node/esm/transpile-only"
+      },
+      {
+        "file": "ava.config.mjs",
+        "kind": "unresolved",
+        "value": "tsconfig-paths/register"
+      }
+    ],
+    "tests": [
+      "ava.test.ts"
+    ]
+  },
+  "ava2": {
+    "assertions": [
+      {
+        "file": "__tests__/__helpers__/index.cjs",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "ava2.test.ts"
+    ]
+  },
+  "ava3": {
+    "assertions": [
+      {
+        "file": "test.js",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "ava3.test.ts"
+    ]
+  },
+  "babel": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@babel/preset-react"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "babel-plugin-prismjs"
+      },
+      {
+        "file": ".babelrc",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-decorators"
+      },
+      {
+        "file": ".babelrc",
+        "kind": "unresolved",
+        "value": "react-hot-loader/babel"
+      },
+      {
+        "file": ".babelrc.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-transform-runtime"
+      },
+      {
+        "file": ".babelrc.js",
+        "kind": "unresolved",
+        "value": "babel-plugin-transform-imports"
+      },
+      {
+        "file": ".babelrc.js",
+        "kind": "unlisted",
+        "value": "dotenv"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@babel/mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@babel/plugin-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@babel/plugin-mod2"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@babel/preset-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@babel/preset-mod2"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope/babel-plugin"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope/babel-plugin-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope/babel-preset"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope/babel-preset-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope/mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope/prefix-babel-plugin-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope2/babel-plugin"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope2/babel-plugin-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope2/babel-preset"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unlisted",
+        "value": "@scope2/babel-preset-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "babel-plugin-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "babel-plugin-mod2"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "babel-preset-mod"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "babel-preset-mod2"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "mod/plugin"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "mod/preset"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "my-plugin"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "my-preset"
+      },
+      {
+        "file": "babel.config.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-class-properties"
+      },
+      {
+        "file": "babel.config.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-nullish-coalescing-operator"
+      },
+      {
+        "file": "babel.config.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-object-rest-spread"
+      },
+      {
+        "file": "babel.config.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-optional-chaining"
+      },
+      {
+        "file": "babel.config.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-transform-runtime"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "./dir/plugin.js"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "./dir/preset.js"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "/dir/plugin.js"
+      },
+      {
+        "file": "babel.config.cts",
+        "kind": "unresolved",
+        "value": "/dir/preset.js"
+      }
+    ],
+    "tests": [
+      "babel.test.ts"
+    ]
+  },
+  "biome": {
+    "assertions": [],
+    "tests": [
+      "biome.test.ts"
+    ]
+  },
+  "biome-workspace": {
+    "assertions": [],
+    "tests": [
+      "biome-workspace.test.ts"
+    ]
+  },
+  "borp": {
+    "assertions": [],
+    "tests": [
+      "borp.test.ts"
+    ]
+  },
+  "bumpp": {
+    "assertions": [],
+    "tests": [
+      "bumpp.test.ts"
+    ]
+  },
+  "bun": {
+    "assertions": [],
+    "tests": [
+      "bun.test.ts"
+    ]
+  },
+  "bun2": {
+    "assertions": [],
+    "tests": [
+      "bun2.test.ts"
+    ]
+  },
+  "bun3": {
+    "assertions": [],
+    "tests": [
+      "bun3.test.ts"
+    ]
+  },
+  "bun4": {
+    "assertions": [],
+    "tests": [
+      "bun4.test.ts"
+    ]
+  },
+  "bun5": {
+    "assertions": [],
+    "tests": [
+      "bun5.test.ts"
+    ]
+  },
+  "bun6": {
+    "assertions": [],
+    "tests": [
+      "bun6.test.ts"
+    ]
+  },
+  "bun7": {
+    "assertions": [
+      {
+        "file": "index.test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "bun7.test.ts"
+    ]
+  },
+  "bun8": {
+    "assertions": [
+      {
+        "file": "index.test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "bun8.test.ts"
+    ]
+  },
+  "capacitor": {
+    "assertions": [
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor-community/http"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor/android"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor/ios"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor/app"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor/splash-screen"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor/status-bar"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "@capacitor/storage"
+      },
+      {
+        "file": "capacitor.config.json",
+        "kind": "unlisted",
+        "value": "cordova-plugin-inappbrowser"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor-community/http"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/app"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/android"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/ios"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/splash-screen"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/status-bar"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/storage"
+      },
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "cordova-plugin-inappbrowser"
+      }
+    ],
+    "tests": [
+      "capacitor.test.ts"
+    ]
+  },
+  "capacitor-spm": {
+    "assertions": [
+      {
+        "file": "capacitor.config.ts",
+        "kind": "unlisted",
+        "value": "@capacitor/ios"
+      }
+    ],
+    "tests": [
+      "capacitor-spm.test.ts"
+    ]
+  },
+  "catalyst": {
+    "assertions": [
+      {
+        "file": "not-catalyst-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "hello-world-element.ts",
+        "kind": "exports",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "catalyst.test.ts"
+    ]
+  },
+  "changelogen": {
+    "assertions": [],
+    "tests": [
+      "changelogen.test.ts"
+    ]
+  },
+  "changelogithub": {
+    "assertions": [],
+    "tests": [
+      "changelogithub.test.ts"
+    ]
+  },
+  "changesets": {
+    "assertions": [
+      {
+        "file": ".changeset/config.json",
+        "kind": "unlisted",
+        "value": "@changesets/changelog-github"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "changesets.test.ts"
+    ]
+  },
+  "commitizen": {
+    "assertions": [
+      {
+        "file": ".czrc",
+        "kind": "unlisted",
+        "value": "cz-conventional-changelog"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "cz-conventional-changelog"
+      }
+    ],
+    "tests": [
+      "commitizen.test.ts"
+    ]
+  },
+  "commitlint": {
+    "assertions": [
+      {
+        "file": ".commitlintrc.json",
+        "kind": "unlisted",
+        "value": "@commitlint/config-conventional"
+      },
+      {
+        "file": ".commitlintrc.json",
+        "kind": "unlisted",
+        "value": "commitlint-plugin-tense"
+      },
+      {
+        "file": ".commitlintrc.json",
+        "kind": "unlisted",
+        "value": "conventional-changelog-atom"
+      },
+      {
+        "file": "commitlint.config.js",
+        "kind": "unlisted",
+        "value": "@commitlint/config-conventional"
+      },
+      {
+        "file": "commitlint.config.js",
+        "kind": "unlisted",
+        "value": "commitlint-plugin-tense"
+      },
+      {
+        "file": "commitlint.config.js",
+        "kind": "unlisted",
+        "value": "@commitlint/format"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@commitlint/config-conventional"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "commitlint-plugin-tense"
+      }
+    ],
+    "tests": [
+      "commitlint.test.ts"
+    ]
+  },
+  "convex": {
+    "assertions": [
+      {
+        "file": "convex/credentials.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/unrelated.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "convex.test.ts"
+    ]
+  },
+  "convex-custom-functions": {
+    "assertions": [
+      {
+        "file": "backend/http.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "convex/legacy.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "convex-custom-functions.test.ts"
+    ]
+  },
+  "create-typescript-app": {
+    "assertions": [],
+    "tests": [
+      "create-typescript-app.test.ts"
+    ]
+  },
+  "cspell": {
+    "assertions": [
+      {
+        "file": ".cspell.json",
+        "kind": "unlisted",
+        "value": "@cspell/dict-cryptocurrencies"
+      }
+    ],
+    "tests": [
+      "cspell.test.ts"
+    ]
+  },
+  "cucumber": {
+    "assertions": [],
+    "tests": [
+      "cucumber.test.ts"
+    ]
+  },
+  "cypress": {
+    "assertions": [
+      {
+        "file": "cypress.config.ts",
+        "kind": "unlisted",
+        "value": "@nrwl/cypress"
+      },
+      {
+        "file": "cypress/support/commands.ts",
+        "kind": "unlisted",
+        "value": "@faker-js/faker"
+      },
+      {
+        "file": "cypress/support/e2e.ts",
+        "kind": "unlisted",
+        "value": "@testing-library/cypress"
+      }
+    ],
+    "tests": [
+      "cypress.test.ts"
+    ]
+  },
+  "cypress-multi-reporter": {
+    "assertions": [
+      {
+        "file": "cypress.config.ts",
+        "kind": "unlisted",
+        "value": "@nrwl/cypress"
+      },
+      {
+        "file": "cypress/support/commands.ts",
+        "kind": "unlisted",
+        "value": "@faker-js/faker"
+      },
+      {
+        "file": "cypress/support/e2e.ts",
+        "kind": "unlisted",
+        "value": "@testing-library/cypress"
+      }
+    ],
+    "tests": [
+      "cypress-multi-reporter.test.ts"
+    ]
+  },
+  "cypress2": {
+    "assertions": [],
+    "tests": [
+      "cypress2.test.ts"
+    ]
+  },
+  "danger": {
+    "assertions": [],
+    "tests": [
+      "danger.test.ts"
+    ]
+  },
+  "dependency-cruiser": {
+    "assertions": [],
+    "tests": [
+      "dependency-cruiser.test.ts"
+    ]
+  },
+  "docusaurus": {
+    "assertions": [
+      {
+        "file": "docusaurus.config.js",
+        "kind": "unlisted",
+        "value": "@docusaurus/theme-search-algolia"
+      },
+      {
+        "file": "docusaurus.config.js",
+        "kind": "unlisted",
+        "value": "@docusaurus/plugin-content-blog"
+      }
+    ],
+    "tests": [
+      "docusaurus.test.ts"
+    ]
+  },
+  "drizzle": {
+    "assertions": [],
+    "tests": [
+      "drizzle.test.ts"
+    ]
+  },
+  "electron-vite": {
+    "assertions": [],
+    "tests": [
+      "electron-vite.test.ts"
+    ]
+  },
+  "electron-vite-html": {
+    "assertions": [
+      {
+        "file": "src/renderer/renderer.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "electron-vite-html.test.ts"
+    ]
+  },
+  "eleventy": {
+    "assertions": [],
+    "tests": [
+      "eleventy.test.ts"
+    ]
+  },
+  "eleventy2": {
+    "assertions": [
+      {
+        "file": "eleventy.config.cjs",
+        "kind": "unlisted",
+        "value": "prismjs"
+      }
+    ],
+    "tests": [
+      "eleventy2.test.ts"
+    ]
+  },
+  "eleventy3": {
+    "assertions": [],
+    "tests": [
+      "eleventy3.test.ts"
+    ]
+  },
+  "eleventy4": {
+    "assertions": [],
+    "tests": [
+      "eleventy4.test.ts"
+    ]
+  },
+  "esbuild": {
+    "assertions": [],
+    "tests": [
+      "esbuild.test.ts"
+    ]
+  },
+  "eslint": {
+    "assertions": [
+      {
+        "file": ".eslintrc.cjs",
+        "kind": "unlisted",
+        "value": "@scope/eslint-plugin-name"
+      },
+      {
+        "file": ".eslintrc.cjs",
+        "kind": "unlisted",
+        "value": "@scope/eslint-plugin"
+      },
+      {
+        "file": ".eslintrc.cjs",
+        "kind": "unlisted",
+        "value": "@shopify/eslint-plugin"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-decorators"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unlisted",
+        "value": "@next/eslint-plugin-next"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unlisted",
+        "value": "@org/eslint-plugin-name"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unlisted",
+        "value": "@scope-only/eslint-plugin"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unlisted",
+        "value": "@scope/eslint-config"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unlisted",
+        "value": "@scope/eslint-plugin"
+      },
+      {
+        "file": ".eslintrc.json",
+        "kind": "unlisted",
+        "value": "@babel/plugin-syntax-import-assertions"
+      },
+      {
+        "file": ".eslintrc.yml",
+        "kind": "unlisted",
+        "value": "@sinonjs/eslint-config"
+      },
+      {
+        "file": ".eslintrc.yml",
+        "kind": "unlisted",
+        "value": "@sinonjs/eslint-plugin-no-prototype-methods"
+      },
+      {
+        "file": ".eslintrc.cjs",
+        "kind": "unresolved",
+        "value": "eslint-config-airbnb"
+      },
+      {
+        "file": ".eslintrc.cjs",
+        "kind": "unresolved",
+        "value": "eslint-plugin-import"
+      },
+      {
+        "file": ".eslintrc.js",
+        "kind": "unresolved",
+        "value": "eslint-plugin-cypress"
+      }
+    ],
+    "tests": [
+      "eslint.test.ts"
+    ]
+  },
+  "eslint2": {
+    "assertions": [],
+    "tests": [
+      "eslint2.test.ts"
+    ]
+  },
+  "eslint3": {
+    "assertions": [],
+    "tests": [
+      "eslint3.test.ts"
+    ]
+  },
+  "eslint4": {
+    "assertions": [],
+    "tests": [
+      "eslint4.test.ts"
+    ]
+  },
+  "eslint5": {
+    "assertions": [],
+    "tests": [
+      "eslint5.test.ts"
+    ]
+  },
+  "eve": {
+    "assertions": [
+      {
+        "file": "agent/lib/weather.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": ""
+      },
+      {
+        "file": "agent/lib/unused.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/channels/slack.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/instrumentation.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/schedules/daily.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/instructions.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/instrumentation.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/skills/summarize.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/tools/get_weather.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/channels/slack.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/connections/search.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/connections/search.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/hooks/log.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/instructions.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/sandbox/sandbox.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/skills/summarize.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "agent/subagents/researcher/tools/search.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "eve.test.ts"
+    ]
+  },
+  "expo": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "expo-router"
+      }
+    ],
+    "tests": [
+      "expo.test.ts"
+    ]
+  },
+  "expo2": {
+    "assertions": [
+      {
+        "file": "app.config.js",
+        "kind": "unlisted",
+        "value": "expo-camera"
+      }
+    ],
+    "tests": [
+      "expo2.test.ts"
+    ]
+  },
+  "expo3": {
+    "assertions": [
+      {
+        "file": "app.json",
+        "kind": "unlisted",
+        "value": "react-native-ble-plx"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@expo/metro-runtime"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "expo-system-ui"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "expo-updates"
+      }
+    ],
+    "tests": [
+      "expo3.test.ts"
+    ]
+  },
+  "expo4": {
+    "assertions": [],
+    "tests": [
+      "expo4.test.ts"
+    ]
+  },
+  "expo5": {
+    "assertions": [],
+    "tests": [
+      "expo5.test.ts"
+    ]
+  },
+  "expressive-code": {
+    "assertions": [],
+    "tests": [
+      "expressive-code.test.ts"
+    ]
+  },
+  "expressive-code2": {
+    "assertions": [],
+    "tests": [
+      "expressive-code.test.ts"
+    ]
+  },
+  "expressive-code3": {
+    "assertions": [],
+    "tests": [
+      "expressive-code.test.ts"
+    ]
+  },
+  "fast": {
+    "assertions": [
+      {
+        "file": "my-fast-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "not-fast-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "imported-non-fast-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "unregistered-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "plain-define.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "scoped-define-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "directive-define.ts",
+        "kind": "exports",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "fast.test.ts"
+    ]
+  },
+  "fumadocs": {
+    "assertions": [],
+    "tests": [
+      "fumadocs.test.ts"
+    ]
+  },
+  "gatsby": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "gatsby"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "gatsby-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "gatsby-plugin-advanced-sitemap"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "gatsby-remark-prismjs"
+      },
+      {
+        "file": "gatsby-config.js",
+        "kind": "unresolved",
+        "value": "gatsby-plugin-webpack-bundle-analyser-v2"
+      },
+      {
+        "file": "gatsby-config.js",
+        "kind": "unresolved",
+        "value": "gatsby-remark-node-identity"
+      },
+      {
+        "file": "gatsby-config.js",
+        "kind": "unlisted",
+        "value": "@sentry/gatsby"
+      },
+      {
+        "file": "gatsby-node.js",
+        "kind": "unlisted",
+        "value": "@babel/plugin-proposal-function-bind"
+      },
+      {
+        "file": "gatsby-node.js",
+        "kind": "unlisted",
+        "value": "babel-plugin-transform-imports"
+      }
+    ],
+    "tests": [
+      "gatsby.test.ts"
+    ]
+  },
+  "github-action": {
+    "assertions": [],
+    "tests": [
+      "github-action.test.ts"
+    ]
+  },
+  "github-actions": {
+    "assertions": [
+      {
+        "file": ".github/workflows/test.yml",
+        "kind": "unresolved",
+        "value": "esbuild-register"
+      },
+      {
+        "file": ".github/workflows/test.yml",
+        "kind": "unresolved",
+        "value": "./script.js"
+      },
+      {
+        "file": ".github/actions/composite/action.yml",
+        "kind": "unresolved",
+        "value": "esbuild-register"
+      },
+      {
+        "file": ".github/actions/composite/helper.mjs",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "github-actions.test.ts"
+    ]
+  },
+  "github-actions-workspaces": {
+    "assertions": [],
+    "tests": [
+      "github-actions-workspaces.test.ts"
+    ]
+  },
+  "graphql-codegen": {
+    "assertions": [
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/near-operation-file-preset"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/schema-ast"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/introspection"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/typescript"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/typescript-operations"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/typescript-urql"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/typescript-msw"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/graphql-modules-preset"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "graphql-codegen-typescript-validation-schema"
+      },
+      {
+        "file": "codegen.ts",
+        "kind": "unlisted",
+        "value": "graphql-codegen-apollo-next-ssr"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/client-preset"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "graphql-codegen.test.ts"
+    ]
+  },
+  "graphql-codegen-graphql-config": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/client-preset"
+      }
+    ],
+    "tests": [
+      "graphql-codegen-graphql-config.test.ts"
+    ]
+  },
+  "graphql-codegen-graphql-config2": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/client-preset"
+      }
+    ],
+    "tests": [
+      "graphql-codegen-graphql-config2.test.ts"
+    ]
+  },
+  "graphql-codegen-output": {
+    "assertions": [
+      {
+        "file": "src/gql/graphql.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/gql/graphql.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "graphql-codegen-output.test.ts"
+    ]
+  },
+  "graphql-codegen-script-config": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@graphql-codegen/client-preset"
+      },
+      {
+        "file": "src/codegen.ts",
+        "kind": "files",
+        "value": ""
+      },
+      {
+        "file": "src/codegen-helpers.ts",
+        "kind": "files",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "graphql-codegen.test.ts"
+    ]
+  },
+  "hardhat": {
+    "assertions": [],
+    "tests": [
+      "hardhat.test.ts"
+    ]
+  },
+  "husky-lint-staged": {
+    "assertions": [],
+    "tests": [
+      "husky-legacy.test.ts"
+    ]
+  },
+  "husky-v8": {
+    "assertions": [],
+    "tests": [
+      "husky-v8.test.ts"
+    ]
+  },
+  "husky-v9": {
+    "assertions": [],
+    "tests": [
+      "husky-v9.test.ts"
+    ]
+  },
+  "husky-v9-1": {
+    "assertions": [],
+    "tests": [
+      "husky-v9-1.test.ts"
+    ]
+  },
+  "i18next-parser": {
+    "assertions": [],
+    "tests": [
+      "i18next-parser.test.ts"
+    ]
+  },
+  "jest": {
+    "assertions": [
+      {
+        "file": "jest.config.shared.js",
+        "kind": "unlisted",
+        "value": "@jest/types"
+      },
+      {
+        "file": "jest.setup.js",
+        "kind": "unlisted",
+        "value": "@testing-library/jest-dom"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unlisted",
+        "value": "@jest/types"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unlisted",
+        "value": "@side/jest-runtime"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unresolved",
+        "value": "identity-obj-proxy"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unresolved",
+        "value": "jest-junit"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unresolved",
+        "value": "jest-phabricator"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unresolved",
+        "value": "jest-runner-eslint"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unresolved",
+        "value": "jest-silent-reporter"
+      },
+      {
+        "file": "jest.config.js",
+        "kind": "unresolved",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "jest.test.ts"
+    ]
+  },
+  "jest-transform": {
+    "assertions": [],
+    "tests": [
+      "jest-transform.test.ts"
+    ]
+  },
+  "jest2": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "jest"
+      }
+    ],
+    "tests": [
+      "jest2.test.ts"
+    ]
+  },
+  "jest3": {
+    "assertions": [],
+    "tests": [
+      "jest3.test.ts"
+    ]
+  },
+  "jest4": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "jest"
+      }
+    ],
+    "tests": [
+      "jest4.test.ts"
+    ]
+  },
+  "karma": {
+    "assertions": [],
+    "tests": [
+      "karma.test.ts"
+    ]
+  },
+  "karma2": {
+    "assertions": [],
+    "tests": [
+      "karma2.test.ts"
+    ]
+  },
+  "karma3": {
+    "assertions": [
+      {
+        "file": "karma.conf.js",
+        "kind": "unlisted",
+        "value": "karma-jasmine"
+      },
+      {
+        "file": "karma.conf.js",
+        "kind": "unlisted",
+        "value": "karma-coverage"
+      }
+    ],
+    "tests": [
+      "karma3.test.ts"
+    ]
+  },
+  "knex": {
+    "assertions": [],
+    "tests": [
+      "knex.test.ts"
+    ]
+  },
+  "knex-inline": {
+    "assertions": [],
+    "tests": [
+      "knex-inline.test.ts"
+    ]
+  },
+  "ladle": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "react-dom"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@types/react-dom"
+      },
+      {
+        "file": ".ladle/vite.config.ts",
+        "kind": "unlisted",
+        "value": "vite"
+      }
+    ],
+    "tests": [
+      "ladle.test.ts"
+    ]
+  },
+  "laravel-vite-plugin": {
+    "assertions": [],
+    "tests": [
+      "laravel-vite-plugin.test.ts"
+    ]
+  },
+  "laravel-vite-plugin2": {
+    "assertions": [],
+    "tests": [
+      "laravel-vite-plugin.test.ts"
+    ]
+  },
+  "lefthook": {
+    "assertions": [],
+    "tests": [
+      "lefthook.test.ts"
+    ]
+  },
+  "lefthook-ci": {
+    "assertions": [],
+    "tests": [
+      "lefthook-ci.test.ts"
+    ]
+  },
+  "lefthook-v1": {
+    "assertions": [],
+    "tests": [
+      "lefthook-v1.test.ts"
+    ]
+  },
+  "lefthook-yaml": {
+    "assertions": [],
+    "tests": [
+      "lefthook-yaml.test.ts"
+    ]
+  },
+  "lint-staged": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "lint-staged"
+      }
+    ],
+    "tests": [
+      "lint-staged.test.ts"
+    ]
+  },
+  "lint-staged-comment": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "lint-staged"
+      }
+    ],
+    "tests": [
+      "lint-staged.test.ts"
+    ]
+  },
+  "linthtml": {
+    "assertions": [],
+    "tests": [
+      "linthtml.test.ts"
+    ]
+  },
+  "lit": {
+    "assertions": [
+      {
+        "file": "anonymous-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "my-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "not-lit-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "imported-non-lit-element.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "scoped-collision-element.ts",
+        "kind": "exports",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "lit.test.ts"
+    ]
+  },
+  "lockfile-lint": {
+    "assertions": [],
+    "tests": [
+      "lockfile-lint.test.ts"
+    ]
+  },
+  "lost-pixel": {
+    "assertions": [],
+    "tests": [
+      "lost-pixel.test.ts"
+    ]
+  },
+  "lunaria/core": {
+    "assertions": [],
+    "tests": [
+      "lunaria.test.ts"
+    ]
+  },
+  "lunaria/starlight": {
+    "assertions": [],
+    "tests": [
+      "lunaria.test.ts"
+    ]
+  },
+  "markdownlint": {
+    "assertions": [],
+    "tests": [
+      "markdownlint.test.ts"
+    ]
+  },
+  "markdownlint-cli2": {
+    "assertions": [],
+    "tests": [
+      "markdownlint-cli2.test.ts"
+    ]
+  },
+  "marko": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unused-library"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@orchard/unused-legacy-marko-tags"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@orchard/unused-marko-tags"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@orchard/marko-tags"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "combined-marko-tags"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "legacy-marko-tags"
+      },
+      {
+        "file": "src/components/fruit-basket/seasonal-price-helper.ts",
+        "kind": "files",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "marko.test.ts"
+    ]
+  },
+  "mdx": {
+    "assertions": [],
+    "tests": [
+      "mdx.test.ts"
+    ]
+  },
+  "mdxlint": {
+    "assertions": [],
+    "tests": [
+      "mdxlint.test.ts"
+    ]
+  },
+  "metro": {
+    "assertions": [],
+    "tests": [
+      "metro.test.ts"
+    ]
+  },
+  "metro-defaults": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "metro"
+      }
+    ],
+    "tests": [
+      "metro-defaults.test.ts"
+    ]
+  },
+  "metro-react-native": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "react"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "react-native"
+      }
+    ],
+    "tests": [
+      "metro-react-native.test.ts"
+    ]
+  },
+  "mocha": {
+    "assertions": [],
+    "tests": [
+      "mocha.test.ts"
+    ]
+  },
+  "moonrepo": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@moonrepo/cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "vite-node"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "eslint"
+      },
+      {
+        "file": "libs/b/package.json",
+        "kind": "devDependencies",
+        "value": "vitest"
+      },
+      {
+        "file": "libs/b/server/server.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "moonrepo.test.ts"
+    ]
+  },
+  "msw": {
+    "assertions": [],
+    "tests": [
+      "msw.test.ts"
+    ]
+  },
+  "nano-spawn": {
+    "assertions": [],
+    "tests": [
+      "nano-spawn.test.ts"
+    ]
+  },
+  "nano-staged": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "nano-staged"
+      }
+    ],
+    "tests": [
+      "nano-staged.test.ts"
+    ]
+  },
+  "nest": {
+    "assertions": [],
+    "tests": [
+      "nest.test.ts"
+    ]
+  },
+  "netlify": {
+    "assertions": [
+      {
+        "file": "netlify.toml",
+        "kind": "unlisted",
+        "value": "netlify-plugin-check-output-for-puppy-references"
+      },
+      {
+        "file": "netlify.toml",
+        "kind": "unlisted",
+        "value": "package-1"
+      },
+      {
+        "file": "netlify.toml",
+        "kind": "unlisted",
+        "value": "package-2"
+      },
+      {
+        "file": "netlify.toml",
+        "kind": "unlisted",
+        "value": "package-3"
+      },
+      {
+        "file": "netlify.toml",
+        "kind": "unlisted",
+        "value": "package-4"
+      }
+    ],
+    "tests": [
+      "netlify.test.ts"
+    ]
+  },
+  "next": {
+    "assertions": [
+      {
+        "file": "next.config.js",
+        "kind": "unlisted",
+        "value": "next-transpile-modules"
+      },
+      {
+        "file": "pages/[[...route]].tsx",
+        "kind": "unlisted",
+        "value": "react"
+      },
+      {
+        "file": "pages/[[...route]].tsx",
+        "kind": "unlisted",
+        "value": "react-helmet"
+      },
+      {
+        "file": "pages/home.tsx",
+        "kind": "unlisted",
+        "value": "react"
+      },
+      {
+        "file": "app/layout.tsx",
+        "kind": "unlisted",
+        "value": "react"
+      },
+      {
+        "file": "app/home/page.tsx",
+        "kind": "unlisted",
+        "value": "react"
+      },
+      {
+        "file": "app/unused.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "pages/unused.jsx",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "next.test.ts"
+    ]
+  },
+  "next-intl": {
+    "assertions": [],
+    "tests": [
+      "next-intl.test.ts"
+    ]
+  },
+  "next-mdx": {
+    "assertions": [
+      {
+        "file": "next.config.js",
+        "kind": "unlisted",
+        "value": "remark-frontmatter"
+      },
+      {
+        "file": "next.config.js",
+        "kind": "unlisted",
+        "value": "remark-mdx-frontmatter"
+      },
+      {
+        "file": "next.config.js",
+        "kind": "unlisted",
+        "value": "rehype-starry-night"
+      },
+      {
+        "file": "next.config.js",
+        "kind": "unlisted",
+        "value": "recma-export-filepath"
+      }
+    ],
+    "tests": [
+      "next-mdx.test.ts"
+    ]
+  },
+  "next-middleware": {
+    "assertions": [],
+    "tests": [
+      "next-middleware.test.ts"
+    ]
+  },
+  "next-mixed-routers": {
+    "assertions": [
+      {
+        "file": "unused.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "pages/home.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/app/page.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/app/layout.tsx",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "next-mixed-routers.test.ts"
+    ]
+  },
+  "next-page-extensions": {
+    "assertions": [
+      {
+        "file": "src/unused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "next-page-extensions.test.ts"
+    ]
+  },
+  "next-root-and-src": {
+    "assertions": [
+      {
+        "file": "src/app/page.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/legacy.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "pages/about.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/middleware.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "next-root-and-src.test.ts"
+    ]
+  },
+  "next-subdirectory": {
+    "assertions": [
+      {
+        "file": "web/src/app/unused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "next-subdirectory.test.ts"
+    ]
+  },
+  "nitro": {
+    "assertions": [
+      {
+        "file": "server/utils/fn.ts",
+        "kind": "exports",
+        "value": "unused"
+      }
+    ],
+    "tests": [
+      "nitro.test.ts"
+    ]
+  },
+  "node": {
+    "assertions": [],
+    "tests": [
+      "node.test.ts"
+    ]
+  },
+  "node-modules-inspector": {
+    "assertions": [],
+    "tests": [
+      "node-modules-inspector.test.ts"
+    ]
+  },
+  "node-test-reporter": {
+    "assertions": [
+      {
+        "file": "orphan.test.js",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "node-test-reporter.test.ts"
+    ]
+  },
+  "node-test-runner": {
+    "assertions": [],
+    "tests": [
+      "node-test-runner.test.ts"
+    ]
+  },
+  "node-test-runner-c8": {
+    "assertions": [],
+    "tests": [
+      "node-test-runner-c8.test.ts"
+    ]
+  },
+  "node-test-runner-nub": {
+    "assertions": [],
+    "tests": [
+      "node-test-runner-nub.test.ts"
+    ]
+  },
+  "nodemon": {
+    "assertions": [],
+    "tests": [
+      "nodemon.test.ts"
+    ]
+  },
+  "npm-package-json-lint": {
+    "assertions": [
+      {
+        "file": ".npmpackagejsonlintrc.json",
+        "kind": "unlisted",
+        "value": "npm-package-json-lint-config-default"
+      }
+    ],
+    "tests": [
+      "npm-package-json-lint.test.ts"
+    ]
+  },
+  "nuxt": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "vue"
+      },
+      {
+        "file": "utils/fn.ts",
+        "kind": "exports",
+        "value": "unused"
+      }
+    ],
+    "tests": [
+      "nuxt.test.ts"
+    ]
+  },
+  "nuxt-auto-import": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "vue"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@vueuse/nuxt"
+      },
+      {
+        "file": "utils/format.ts",
+        "kind": "exports",
+        "value": "formatNumber"
+      },
+      {
+        "file": "composables/useTheme.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "components/StatusBadge.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "nuxt-auto-import.test.ts"
+    ]
+  },
+  "nuxt-auto-import-disabled": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "vue"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@vueuse/nuxt"
+      },
+      {
+        "file": "utils/format.ts",
+        "kind": "exports",
+        "value": "formatNumber"
+      },
+      {
+        "file": "composables/useTheme.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "components/StatusBadge.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "nuxt-auto-import-disabled.test.ts"
+    ]
+  },
+  "nuxt-config": {
+    "assertions": [],
+    "tests": [
+      "nuxt-config.test.ts"
+    ]
+  },
+  "nuxt-config-extends": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "nuxt-config-extends.test.ts"
+    ]
+  },
+  "nuxt-config-string": {
+    "assertions": [],
+    "tests": [
+      "nuxt-config.test.ts"
+    ]
+  },
+  "nuxt-layers": {
+    "assertions": [
+      {
+        "file": "layers/orchard/components/BruisedApple.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "layers/orchard/components/FruitCard.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "layers/orchard/composables/useBasket.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "nuxt-layers.test.ts"
+    ]
+  },
+  "nuxt-no-root-tsconfig": {
+    "assertions": [
+      {
+        "file": "nuxt.config.ts",
+        "kind": "unlisted",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "nuxt-no-root-tsconfig.test.ts"
+    ]
+  },
+  "nuxt-shared": {
+    "assertions": [
+      {
+        "file": "shared-custom/utils/value.ts",
+        "kind": "files",
+        "value": ""
+      },
+      {
+        "file": "server/api/index.ts",
+        "kind": "unresolved",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "nuxt-shared.test.ts"
+    ]
+  },
+  "nuxtjs-i18n": {
+    "assertions": [
+      {
+        "file": "i18n/i18n.config.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "nuxtjs-i18n.test.ts"
+    ]
+  },
+  "nx": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nx/cypress"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nrwl/devkit"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nrwl/storybook"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nrwl/web"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nrwl/workspace"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "rimraf"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "nx"
+      },
+      {
+        "file": "apps/b/project.json",
+        "kind": "unlisted",
+        "value": "@js/cypress"
+      },
+      {
+        "file": "libs/b/project.json",
+        "kind": "unlisted",
+        "value": "nx"
+      },
+      {
+        "file": "libs/b/project.json",
+        "kind": "unlisted",
+        "value": "@nx/vitest"
+      },
+      {
+        "file": "libs/b/project.json",
+        "kind": "unlisted",
+        "value": "@nx/webpack"
+      }
+    ],
+    "tests": [
+      "nx.test.ts"
+    ]
+  },
+  "nx-crystal": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nx/cypress"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@nrwl/workspace"
+      },
+      {
+        "file": "nx.json",
+        "kind": "unlisted",
+        "value": "@nx/nuxt"
+      }
+    ],
+    "tests": [
+      "nx-crystal.test.ts"
+    ]
+  },
+  "nyc": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "nyc"
+      },
+      {
+        "file": ".nycrc.json",
+        "kind": "unlisted",
+        "value": "@istanbuljs/nyc-config-typescript"
+      }
+    ],
+    "tests": [
+      "nyc.test.ts"
+    ]
+  },
+  "oclif": {
+    "assertions": [],
+    "tests": [
+      "oclif.test.ts"
+    ]
+  },
+  "oclif-commands": {
+    "assertions": [],
+    "tests": [
+      "oclif-commands.test.ts"
+    ]
+  },
+  "openapi-ts": {
+    "assertions": [],
+    "tests": [
+      "openapi-ts.test.ts"
+    ]
+  },
+  "openclaw": {
+    "assertions": [
+      {
+        "file": "channel-plugin-api.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/dead.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "bootstrap.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "provider-discovery.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "openclaw.test.ts"
+    ]
+  },
+  "openclaw-manifest-only": {
+    "assertions": [
+      {
+        "file": "bootstrap.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "plugin/unrelated.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "openclaw.test.ts"
+    ]
+  },
+  "openclaw-plugin-manifest-only": {
+    "assertions": [
+      {
+        "file": "provider-discovery.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "unrelated.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "openclaw.test.ts"
+    ]
+  },
+  "openclaw-sdk-only": {
+    "assertions": [],
+    "tests": [
+      "openclaw.test.ts"
+    ]
+  },
+  "orval": {
+    "assertions": [],
+    "tests": [
+      "orval.test.ts"
+    ]
+  },
+  "oxfmt": {
+    "assertions": [],
+    "tests": [
+      "oxfmt.test.ts"
+    ]
+  },
+  "oxlint": {
+    "assertions": [],
+    "tests": [
+      "oxlint.test.ts"
+    ]
+  },
+  "oxlint-js-plugins": {
+    "assertions": [],
+    "tests": [
+      "oxlint2.test.ts"
+    ]
+  },
+  "oxlint-vite-config": {
+    "assertions": [],
+    "tests": [
+      "oxlint-vite-config.test.ts"
+    ]
+  },
+  "panda-css": {
+    "assertions": [
+      {
+        "file": "panda.config.ts",
+        "kind": "unlisted",
+        "value": "@pandacss/preset-panda"
+      },
+      {
+        "file": "panda.config.ts",
+        "kind": "unlisted",
+        "value": "@park-ui/panda-preset"
+      }
+    ],
+    "tests": [
+      "panda-css.test.ts"
+    ]
+  },
+  "parcel": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "parcel"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/config-default"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/transformer-js"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/transformer-react-refresh-wrap"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/transformer-svg-react"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/optimizer-terser"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/optimizer-cssnano"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/reporter-cli"
+      },
+      {
+        "file": ".parcelrc",
+        "kind": "unlisted",
+        "value": "@parcel/reporter-bundle-analyzer"
+      }
+    ],
+    "tests": [
+      "parcel.test.ts"
+    ]
+  },
+  "payload": {
+    "assertions": [
+      {
+        "file": "migrations/20260218.ts",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "src/components/ImportMapComponent.tsx",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "migrations/20260218.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/components/ImportMapComponent.tsx",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "payload.test.ts"
+    ]
+  },
+  "pino": {
+    "assertions": [],
+    "tests": [
+      "pino.test.ts"
+    ]
+  },
+  "playwright": {
+    "assertions": [],
+    "tests": [
+      "playwright.test.ts"
+    ]
+  },
+  "playwright-ct": {
+    "assertions": [],
+    "tests": [
+      "playwright-ct.test.ts"
+    ]
+  },
+  "playwright-ct2": {
+    "assertions": [
+      {
+        "file": "src/unused.spec.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "playwright-ct2.test.ts"
+    ]
+  },
+  "playwright2": {
+    "assertions": [],
+    "tests": [
+      "playwright2.test.ts"
+    ]
+  },
+  "plop": {
+    "assertions": [],
+    "tests": [
+      "plop.test.ts"
+    ]
+  },
+  "pm2": {
+    "assertions": [
+      {
+        "file": "src/another.js",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/unused.js",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "pm2.test.ts"
+    ]
+  },
+  "pm2-ecosystem": {
+    "assertions": [
+      {
+        "file": "src/another.js",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/unused.js",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "pm2.test.ts"
+    ]
+  },
+  "pnpm": {
+    "assertions": [],
+    "tests": [
+      "pnpm.test.ts"
+    ]
+  },
+  "pnpm-workspace": {
+    "assertions": [],
+    "tests": [
+      "pnpm.test.ts"
+    ]
+  },
+  "postcss": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": "autoprefixer"
+      },
+      {
+        "file": "postcss.config.js",
+        "kind": "unlisted",
+        "value": "autoprefixer"
+      }
+    ],
+    "tests": [
+      "postcss.test.ts"
+    ]
+  },
+  "postcss-cjs": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": "autoprefixer"
+      },
+      {
+        "file": "postcss.config.cjs",
+        "kind": "unlisted",
+        "value": "autoprefixer"
+      }
+    ],
+    "tests": [
+      "postcss-cjs.test.ts"
+    ]
+  },
+  "postcss-next": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": "autoprefixer"
+      },
+      {
+        "file": "postcss.config.json",
+        "kind": "unresolved",
+        "value": "autoprefixer"
+      }
+    ],
+    "tests": [
+      "postcss-next.test.ts"
+    ]
+  },
+  "postcss-tailwindcss": {
+    "assertions": [
+      {
+        "file": "postcss.config.js",
+        "kind": "unresolved",
+        "value": "tailwindcss"
+      }
+    ],
+    "tests": [
+      "postcss-tailwindcss.test.ts"
+    ]
+  },
+  "postcss-tailwindcss2": {
+    "assertions": [
+      {
+        "file": "postcss.config.mjs",
+        "kind": "unlisted",
+        "value": "@tailwindcss/postcss"
+      }
+    ],
+    "tests": [
+      "postcss-tailwindcss2.test.ts"
+    ]
+  },
+  "postcss-tailwindcss3": {
+    "assertions": [
+      {
+        "file": "postcss.config.ts",
+        "kind": "files",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "postcss-tailwindcss3.test.ts"
+    ]
+  },
+  "pre-commit": {
+    "assertions": [],
+    "tests": [
+      "pre-commit.test.ts"
+    ]
+  },
+  "preconstruct": {
+    "assertions": [],
+    "tests": [
+      "preconstruct.test.ts"
+    ]
+  },
+  "prettier": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "prettier"
+      },
+      {
+        "file": "prettier.config.js",
+        "kind": "unlisted",
+        "value": "prettier-plugin-xml"
+      },
+      {
+        "file": "prettier.config.js",
+        "kind": "unlisted",
+        "value": "prettier-plugin-astro"
+      },
+      {
+        "file": "prettier.config.js",
+        "kind": "unlisted",
+        "value": "prettier-plugin-java"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@company/prettier-config"
+      }
+    ],
+    "tests": [
+      "prettier.test.ts"
+    ]
+  },
+  "prettier-args": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "prettier"
+      },
+      {
+        "file": "my-prettier-settings.js",
+        "kind": "unlisted",
+        "value": "my-custom-prettier-plugin"
+      }
+    ],
+    "tests": [
+      "prettier.test.ts"
+    ]
+  },
+  "prettier-check-flag": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "prettier"
+      }
+    ],
+    "tests": [
+      "prettier.test.ts"
+    ]
+  },
+  "prettier-json5": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "prettier"
+      },
+      {
+        "file": ".prettierrc.json5",
+        "kind": "unlisted",
+        "value": "prettier-plugin-tailwindcss"
+      }
+    ],
+    "tests": [
+      "prettier.test.ts"
+    ]
+  },
+  "prettier-reexport": {
+    "assertions": [],
+    "tests": [
+      "prettier-re-exports.test.ts"
+    ]
+  },
+  "prisma": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "lint-staged"
+      }
+    ],
+    "tests": [
+      "prisma.test.ts"
+    ]
+  },
+  "prisma2": {
+    "assertions": [],
+    "tests": [
+      "prisma2.test.ts"
+    ]
+  },
+  "quasar": {
+    "assertions": [
+      {
+        "file": "src/boot/forgotten.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "quasar.test.ts"
+    ]
+  },
+  "qwik": {
+    "assertions": [],
+    "tests": [
+      "qwik.test.ts"
+    ]
+  },
+  "qwik-custom-dirs": {
+    "assertions": [
+      {
+        "file": "docs/extra-pages/index.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "docs/pages/guide.mdx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "docs/components/mdx-note.tsx",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "qwik.test.ts"
+    ]
+  },
+  "raycast": {
+    "assertions": [
+      {
+        "file": "src/search-bookmarks.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/shared/load-bookmarks.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/tools/organize-tabs.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/unused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "raycast.test.ts"
+    ]
+  },
+  "react-cosmos": {
+    "assertions": [],
+    "tests": [
+      "react-cosmos.test.ts"
+    ]
+  },
+  "react-email": {
+    "assertions": [],
+    "tests": [
+      "react-email.test.ts"
+    ]
+  },
+  "react-email-v6": {
+    "assertions": [],
+    "tests": [
+      "react-email.test.ts"
+    ]
+  },
+  "react-native": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "react-native"
+      }
+    ],
+    "tests": [
+      "react-native.test.ts"
+    ]
+  },
+  "react-router": {
+    "assertions": [],
+    "tests": [
+      "react-router.test.ts"
+    ]
+  },
+  "react-router-with-absolute-paths": {
+    "assertions": [],
+    "tests": [
+      "react-router.test.ts"
+    ]
+  },
+  "react-router-with-server-entry": {
+    "assertions": [],
+    "tests": [
+      "react-router.test.ts"
+    ]
+  },
+  "relay": {
+    "assertions": [
+      {
+        "file": "unused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "relay.test.ts"
+    ]
+  },
+  "relay2": {
+    "assertions": [
+      {
+        "file": "unused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "relay2.test.ts"
+    ]
+  },
+  "release-it": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "release-it"
+      },
+      {
+        "file": ".release-it.json",
+        "kind": "unlisted",
+        "value": "@release-it/bumper"
+      },
+      {
+        "file": ".release-it.json",
+        "kind": "unlisted",
+        "value": "@release-it/conventional-changelog"
+      }
+    ],
+    "tests": [
+      "release-it.test.ts"
+    ]
+  },
+  "remark": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      }
+    ],
+    "tests": [
+      "remark.test.ts"
+    ]
+  },
+  "remark-fallback-scoped": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "remark-fallback-scoped.test.ts"
+    ]
+  },
+  "remark-fallback-unscoped": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "remark-fallback-unscoped.test.ts"
+    ]
+  },
+  "remark-local-path": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": ""
+      },
+      {
+        "file": "index.js",
+        "kind": "files",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "remark-local-path.test.ts"
+    ]
+  },
+  "remark-missing-placeholder": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "remark-missing-placeholder.test.ts"
+    ]
+  },
+  "remark-primary-scoped": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "remark-primary-scoped.test.ts"
+    ]
+  },
+  "remark-primary-unscoped": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "remark-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "remark-primary-unscoped.test.ts"
+    ]
+  },
+  "remix": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "npm-run-all"
+      },
+      {
+        "file": "app/root.tsx",
+        "kind": "unresolved",
+        "value": "./session.server"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "dotenv"
+      },
+      {
+        "file": "app/entry.client.tsx",
+        "kind": "unlisted",
+        "value": "@remix-run/react"
+      },
+      {
+        "file": "app/entry.client.tsx",
+        "kind": "unlisted",
+        "value": "react"
+      },
+      {
+        "file": "app/entry.client.tsx",
+        "kind": "unlisted",
+        "value": "react-dom"
+      },
+      {
+        "file": "app/entry.server.tsx",
+        "kind": "unlisted",
+        "value": "@remix-run/node"
+      },
+      {
+        "file": "app/entry.server.tsx",
+        "kind": "unlisted",
+        "value": "@remix-run/react"
+      },
+      {
+        "file": "app/entry.server.tsx",
+        "kind": "unlisted",
+        "value": "react-dom"
+      },
+      {
+        "file": "app/root.tsx",
+        "kind": "unlisted",
+        "value": "@remix-run/node"
+      },
+      {
+        "file": "app/root.tsx",
+        "kind": "unlisted",
+        "value": "@remix-run/react"
+      },
+      {
+        "file": "app/utils.ts",
+        "kind": "unlisted",
+        "value": "@remix-run/react"
+      },
+      {
+        "file": "app/utils.ts",
+        "kind": "unlisted",
+        "value": "react"
+      },
+      {
+        "file": "app/routes/index.tsx",
+        "kind": "unlisted",
+        "value": "@remix-run/react"
+      }
+    ],
+    "tests": [
+      "remix.test.ts"
+    ]
+  },
+  "rolldown": {
+    "assertions": [],
+    "tests": [
+      "rolldown.test.ts"
+    ]
+  },
+  "rollup": {
+    "assertions": [
+      {
+        "file": "rollup.config.js",
+        "kind": "unlisted",
+        "value": "rollup-plugin-terser"
+      },
+      {
+        "file": "rollup.config.js",
+        "kind": "unlisted",
+        "value": "@rollup/plugin-node-resolve"
+      },
+      {
+        "file": "rollup.config.js",
+        "kind": "unlisted",
+        "value": "@rollup/plugin-commonjs"
+      },
+      {
+        "file": "rollup.config.js",
+        "kind": "unlisted",
+        "value": "acorn-jsx"
+      }
+    ],
+    "tests": [
+      "rollup.test.ts"
+    ]
+  },
+  "rsbuild": {
+    "assertions": [],
+    "tests": [
+      "rsbuild.test.ts"
+    ]
+  },
+  "rslib": {
+    "assertions": [],
+    "tests": [
+      "rslib.test.ts"
+    ]
+  },
+  "rslib2": {
+    "assertions": [],
+    "tests": [
+      "rslib.test.ts"
+    ]
+  },
+  "rspack": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@swc/plugin-emotion"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "swc-plugin-component-annotate"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@rspack/core"
+      },
+      {
+        "file": "src/forms/login.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/forms/signup.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "rspack.test.ts"
+    ]
+  },
+  "rstest": {
+    "assertions": [
+      {
+        "file": "not-included.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "rstest.test.ts"
+    ]
+  },
+  "rstest2": {
+    "assertions": [
+      {
+        "file": "not-included.spec.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "excluded.test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "rstest2.test.ts"
+    ]
+  },
+  "sanity": {
+    "assertions": [],
+    "tests": [
+      "sanity.test.ts"
+    ]
+  },
+  "semantic-release": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "semantic-release"
+      },
+      {
+        "file": ".releaserc",
+        "kind": "unlisted",
+        "value": "@semantic-release/changelog"
+      },
+      {
+        "file": ".releaserc",
+        "kind": "unlisted",
+        "value": "@semantic-release/git"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@semantic-release/changelog"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@semantic-release/git"
+      }
+    ],
+    "tests": [
+      "semantic-release.test.ts"
+    ]
+  },
+  "sentry": {
+    "assertions": [],
+    "tests": [
+      "sentry.test.ts"
+    ]
+  },
+  "serverless-framework": {
+    "assertions": [],
+    "tests": [
+      "serverless-framework.test.ts"
+    ]
+  },
+  "serverless-framework-typescript-plugins": {
+    "assertions": [],
+    "tests": [
+      "serverless-framework.test.ts"
+    ]
+  },
+  "simple-git-hooks": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "lint-staged"
+      }
+    ],
+    "tests": [
+      "simple-git-hooks.test.ts"
+    ]
+  },
+  "size-limit": {
+    "assertions": [],
+    "tests": [
+      "size-limit.test.ts"
+    ]
+  },
+  "sst": {
+    "assertions": [
+      {
+        "file": "handlers/other-auth.ts",
+        "kind": "unlisted",
+        "value": "sst-auth-handler-dep"
+      },
+      {
+        "file": "handlers/auth.ts",
+        "kind": "unlisted",
+        "value": "sst-auth-dep"
+      },
+      {
+        "file": "handlers/some-route.ts",
+        "kind": "unlisted",
+        "value": "sst-some-dep"
+      },
+      {
+        "file": "stacks/AuthHandlerStack.ts",
+        "kind": "unlisted",
+        "value": "sst-auth-handler-stack-dep"
+      },
+      {
+        "file": "stacks/AuthStack.ts",
+        "kind": "unlisted",
+        "value": "sst-auth-stack-dep"
+      },
+      {
+        "file": "sst.config.ts",
+        "kind": "unlisted",
+        "value": "sst-config-dep"
+      }
+    ],
+    "tests": [
+      "sst.test.ts"
+    ]
+  },
+  "sst2": {
+    "assertions": [],
+    "tests": [
+      "sst2.test.ts"
+    ]
+  },
+  "starlight/base": {
+    "assertions": [],
+    "tests": [
+      "starlight.test.ts"
+    ]
+  },
+  "starlight/custom-css": {
+    "assertions": [],
+    "tests": [
+      "starlight.test.ts"
+    ]
+  },
+  "stencil": {
+    "assertions": [
+      {
+        "file": "src/my-controller.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/components/unused.scss",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "stencil.test.ts"
+    ]
+  },
+  "storybook": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "storybook-addon-performance"
+      },
+      {
+        "file": ".storybook/main.js",
+        "kind": "unlisted",
+        "value": "@storybook/addon-knobs"
+      },
+      {
+        "file": ".storybook/main.js",
+        "kind": "unlisted",
+        "value": "@storybook/builder-webpack5"
+      },
+      {
+        "file": ".storybook/main.js",
+        "kind": "unlisted",
+        "value": "@storybook/manager-webpack5"
+      },
+      {
+        "file": ".storybook/main.js",
+        "kind": "unlisted",
+        "value": "@storybook/react-webpack5"
+      },
+      {
+        "file": ".storybook/preview.js",
+        "kind": "unlisted",
+        "value": "cypress-storybook"
+      },
+      {
+        "file": ".storybook/vitest.setup.ts",
+        "kind": "unlisted",
+        "value": "@storybook/your-framework"
+      },
+      {
+        "file": ".storybook/main.js",
+        "kind": "unresolved",
+        "value": "storybook-addon-export-to-codesandbox"
+      }
+    ],
+    "tests": [
+      "storybook.test.ts"
+    ]
+  },
+  "storybook2": {
+    "assertions": [],
+    "tests": [
+      "storybook2.test.ts"
+    ]
+  },
+  "storybook3": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "storybook3.test.ts"
+    ]
+  },
+  "storybook4": {
+    "assertions": [
+      {
+        "file": "src/api-link.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/api-link.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "storybook4.test.ts"
+    ]
+  },
+  "storybook5": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "storybook5.test.ts"
+    ]
+  },
+  "stryker": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "@stryker-mutator/core"
+      },
+      {
+        "file": ".stryker.conf.js",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/mocha-runner"
+      },
+      {
+        "file": ".stryker.conf.js",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/typescript-checker"
+      },
+      {
+        "file": ".stryker.conf.js",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/jasmine-framework"
+      },
+      {
+        "file": ".stryker.conf.js",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/karma-runner"
+      },
+      {
+        "file": "stryker.conf.cjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/mocha-runner"
+      },
+      {
+        "file": "stryker.conf.cjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/typescript-checker"
+      },
+      {
+        "file": "stryker.conf.cjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/jasmine-framework"
+      },
+      {
+        "file": "stryker.conf.cjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/karma-runner"
+      },
+      {
+        "file": "stryker.conf.json",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/karma-runner"
+      },
+      {
+        "file": "stryker.conf.json",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/typescript-checker"
+      },
+      {
+        "file": "stryker.conf.mjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/mocha-runner"
+      },
+      {
+        "file": "stryker.conf.mjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/typescript-checker"
+      },
+      {
+        "file": "stryker.conf.mjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/jasmine-framework"
+      },
+      {
+        "file": "stryker.conf.mjs",
+        "kind": "unlisted",
+        "value": "@stryker-mutator/karma-runner"
+      }
+    ],
+    "tests": [
+      "stryker.test.ts"
+    ]
+  },
+  "stylelint": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "stylelint"
+      },
+      {
+        "file": ".stylelintrc",
+        "kind": "unresolved",
+        "value": "postcss-less"
+      },
+      {
+        "file": ".stylelintrc",
+        "kind": "unresolved",
+        "value": "stylelint-config-standard"
+      },
+      {
+        "file": ".stylelintrc",
+        "kind": "unresolved",
+        "value": "stylelint-order"
+      },
+      {
+        "file": ".stylelintrc",
+        "kind": "unresolved",
+        "value": "stylelint-config-html/html"
+      },
+      {
+        "file": ".stylelintrc",
+        "kind": "unresolved",
+        "value": "./myExtendableConfig"
+      }
+    ],
+    "tests": [
+      "stylelint.test.ts"
+    ]
+  },
+  "stylelint2": {
+    "assertions": [],
+    "tests": [
+      "stylelint2.test.ts"
+    ]
+  },
+  "stylelint3": {
+    "assertions": [],
+    "tests": [
+      "stylelint3.test.ts"
+    ]
+  },
+  "svelte": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      }
+    ],
+    "tests": [
+      "svelte.test.ts"
+    ]
+  },
+  "svelte-styles": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      },
+      {
+        "file": "styles/_unused.scss",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "styles/unused.less",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "styles/unused.styl",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "svelte.test.ts"
+    ]
+  },
+  "svelte-template-import": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      },
+      {
+        "file": "Removed.svelte",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "svelte.test.ts"
+    ]
+  },
+  "sveltejs-package": {
+    "assertions": [
+      {
+        "file": "src/tools/dev-only.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/lib/auth.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/lib/session.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/lib/index.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/lib/ui/button/index.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/lib/ui/button/button.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "sveltejs-package.test.ts"
+    ]
+  },
+  "sveltejs-package2": {
+    "assertions": [
+      {
+        "file": "src/orphan.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/components/index.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "sveltejs-package.test.ts"
+    ]
+  },
+  "sveltekit": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      }
+    ],
+    "tests": [
+      "sveltekit.test.ts"
+    ]
+  },
+  "sveltekit-config-precedence": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      },
+      {
+        "file": "legacy/helper.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "sveltekit.test.ts"
+    ]
+  },
+  "sveltekit-monorepo": {
+    "assertions": [],
+    "tests": [
+      "sveltekit-monorepo.test.ts"
+    ]
+  },
+  "sveltekit-vite-config": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      }
+    ],
+    "tests": [
+      "sveltekit.test.ts"
+    ]
+  },
+  "sveltekit2": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "svelte"
+      }
+    ],
+    "tests": [
+      "sveltekit.test.ts"
+    ]
+  },
+  "svgo": {
+    "assertions": [],
+    "tests": [
+      "svgo.test.ts"
+    ]
+  },
+  "svgr": {
+    "assertions": [],
+    "tests": [
+      "svgr.test.ts"
+    ]
+  },
+  "swc": {
+    "assertions": [],
+    "tests": [
+      "swc.test.ts"
+    ]
+  },
+  "syncpack": {
+    "assertions": [],
+    "tests": [
+      "syncpack.test.ts"
+    ]
+  },
+  "tailwind": {
+    "assertions": [],
+    "tests": [
+      "tailwind.test.ts"
+    ]
+  },
+  "tailwind2": {
+    "assertions": [],
+    "tests": [
+      "tailwind2.test.ts"
+    ]
+  },
+  "tailwind3": {
+    "assertions": [],
+    "tests": [
+      "tailwind3.test.ts"
+    ]
+  },
+  "tailwind4": {
+    "assertions": [],
+    "tests": [
+      "tailwind4.test.ts"
+    ]
+  },
+  "tanstack-router": {
+    "assertions": [
+      {
+        "file": "src/routes/__root.tsx",
+        "kind": "unlisted",
+        "value": "@tanstack/router-devtools"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "react"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "react-dom"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@tanstack/router-cli"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "vite"
+      },
+      {
+        "file": "src/routes/__root.tsx",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/routes/index.tsx",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/routes/posts/$postId.tsx",
+        "kind": "exports",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "tanstack-router.test.ts"
+    ]
+  },
+  "tanstack-start": {
+    "assertions": [],
+    "tests": [
+      "tanstack-start.test.ts"
+    ]
+  },
+  "taskfile": {
+    "assertions": [
+      {
+        "file": "Taskfile.yml",
+        "kind": "unresolved",
+        "value": "esbuild-register"
+      }
+    ],
+    "tests": [
+      "taskfile.test.ts"
+    ]
+  },
+  "taskfile2": {
+    "assertions": [],
+    "tests": [
+      "taskfile2.test.ts"
+    ]
+  },
+  "tauri": {
+    "assertions": [],
+    "tests": [
+      "tauri.test.ts"
+    ]
+  },
+  "tauri2": {
+    "assertions": [],
+    "tests": [
+      "tauri.test.ts"
+    ]
+  },
+  "temporal": {
+    "assertions": [],
+    "tests": [
+      "temporal.test.ts"
+    ]
+  },
+  "travis": {
+    "assertions": [],
+    "tests": [
+      "travis.test.ts"
+    ]
+  },
+  "tsd": {
+    "assertions": [],
+    "tests": [
+      "tsd.test.ts"
+    ]
+  },
+  "tsdown": {
+    "assertions": [],
+    "tests": [
+      "tsdown.test.ts"
+    ]
+  },
+  "tsdown-cli": {
+    "assertions": [
+      {
+        "file": "src/library.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/modules/nested.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/orphan.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "tsdown-cli.test.ts"
+    ]
+  },
+  "tsdown2": {
+    "assertions": [],
+    "tests": [
+      "tsdown.test.ts"
+    ]
+  },
+  "tsgo": {
+    "assertions": [],
+    "tests": [
+      "tsgo.test.ts"
+    ]
+  },
+  "tsup": {
+    "assertions": [],
+    "tests": [
+      "tsup.test.ts"
+    ]
+  },
+  "tsx": {
+    "assertions": [],
+    "tests": [
+      "tsx.test.ts"
+    ]
+  },
+  "typedoc": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "typedoc"
+      },
+      {
+        "file": "typedoc.json",
+        "kind": "unlisted",
+        "value": "@appium/typedoc-plugin-appium"
+      },
+      {
+        "file": "typedoc.json",
+        "kind": "unresolved",
+        "value": "typedoc-plugin-expand-object-like-types"
+      },
+      {
+        "file": "package.json",
+        "kind": "unresolved",
+        "value": "typedoc-plugin-umami"
+      },
+      {
+        "file": "tsconfig.json",
+        "kind": "unresolved",
+        "value": "typedoc-plugin-zod"
+      },
+      {
+        "file": "typedoc.json",
+        "kind": "unresolved",
+        "value": "./dist/index.cjs"
+      },
+      {
+        "file": "custom.js",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "typedoc.test.ts"
+    ]
+  },
+  "typescript": {
+    "assertions": [
+      {
+        "file": "tsconfig.json",
+        "kind": "unresolved",
+        "value": "typescript-eslint-language-service"
+      },
+      {
+        "file": "tsconfig.json",
+        "kind": "unresolved",
+        "value": "ts-graphql-plugin"
+      },
+      {
+        "file": "tsconfig.content-mapper.json",
+        "kind": "unlisted",
+        "value": "@mdx-js/content-mapper"
+      },
+      {
+        "file": "tsconfig.jsx-import-source-preact.json",
+        "kind": "unlisted",
+        "value": "preact"
+      },
+      {
+        "file": "tsconfig.jsx-import-source-preact.json",
+        "kind": "unresolved",
+        "value": "preact"
+      },
+      {
+        "file": "tsconfig.jsx-import-source-react.json",
+        "kind": "unresolved",
+        "value": "vitest/globals"
+      },
+      {
+        "file": "tsconfig.jsx-import-source-react.json",
+        "kind": "unlisted",
+        "value": "hastscript"
+      }
+    ],
+    "tests": [
+      "typescript.test.ts"
+    ]
+  },
+  "typescript-content-mapper": {
+    "assertions": [
+      {
+        "file": "lib/unused-plugin.js",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "typescript-content-mapper.test.ts"
+    ]
+  },
+  "typescript-native": {
+    "assertions": [],
+    "tests": [
+      "tsgo.test.ts"
+    ]
+  },
+  "typescript2": {
+    "assertions": [],
+    "tests": [
+      "typescript2.test.ts"
+    ]
+  },
+  "unbuild": {
+    "assertions": [],
+    "tests": [
+      "unbuild.test.ts"
+    ]
+  },
+  "unocss": {
+    "assertions": [],
+    "tests": [
+      "unocss.test.ts"
+    ]
+  },
+  "unplugin-auto-import": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unplugin-auto-import"
+      },
+      {
+        "file": "composables/useCounter.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "composables/useTheme.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "composables/useUnused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "unplugin-auto-import.test.ts"
+    ]
+  },
+  "unplugin-icons": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "unplugin-icons.test.ts"
+    ]
+  },
+  "unplugin-vue-components": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unplugin-vue-components"
+      },
+      {
+        "file": "components/AppButton.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "components/AppCard.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "unplugin-vue-components.test.ts"
+    ]
+  },
+  "unplugin-vue-components-vue2": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unplugin-auto-import"
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unplugin-vue-components"
+      },
+      {
+        "file": "components/AppleCard.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "components/BananaCard.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "formatters/formatApple.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "formatters/formatBanana.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "formatters/setValue.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "unplugin-vue-components-vue2.test.ts"
+    ]
+  },
+  "unplugin-vue-i18n": {
+    "assertions": [],
+    "tests": [
+      "unplugin-vue-i18n.test.ts"
+    ]
+  },
+  "unplugin-vue-markdown": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unplugin-vue-markdown"
+      },
+      {
+        "file": "components/DocCard.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "components/DocFenced.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "components/DocUnused.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "unplugin-vue-markdown.test.ts"
+    ]
+  },
+  "unplugin-vue-router": {
+    "assertions": [
+      {
+        "file": "src/pages/index.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/about.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/orphan.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "unplugin-vue-router.test.ts"
+    ]
+  },
+  "vercel": {
+    "assertions": [],
+    "tests": [
+      "vercel.test.ts"
+    ]
+  },
+  "vercel-og": {
+    "assertions": [],
+    "tests": [
+      "vercel-og.test.ts"
+    ]
+  },
+  "vercel-workspaces": {
+    "assertions": [],
+    "tests": [
+      "vercel.test.ts"
+    ]
+  },
+  "vike": {
+    "assertions": [],
+    "tests": [
+      "vike.test.ts"
+    ]
+  },
+  "vite": {
+    "assertions": [],
+    "tests": [
+      "vite.test.ts"
+    ]
+  },
+  "vite-plugin-pages": {
+    "assertions": [
+      {
+        "file": "src/pages/index.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/pages/about.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/orphan.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plugin-pages.test.ts"
+    ]
+  },
+  "vite-plugin-pages-custom-dir": {
+    "assertions": [
+      {
+        "file": "src/views/home.tsx",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plugin-pages-custom-dir.test.ts"
+    ]
+  },
+  "vite-plugin-pwa": {
+    "assertions": [
+      {
+        "file": "src/sw.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/orphan.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plugin-pwa.test.ts"
+    ]
+  },
+  "vite-plugin-pwa-nuxt": {
+    "assertions": [
+      {
+        "file": "service-worker/sw.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plugin-pwa-nuxt.test.ts"
+    ]
+  },
+  "vite-plugin-vue-layouts-custom-dir": {
+    "assertions": [
+      {
+        "file": "src/theme/default.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plugin-vue-layouts-custom-dir.test.ts"
+    ]
+  },
+  "vite-plugin-vue-layouts-next": {
+    "assertions": [
+      {
+        "file": "src/layouts/default.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/layouts/admin.vue",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/orphan.vue",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plugin-vue-layouts-next.test.ts"
+    ]
+  },
+  "vite-plus": {
+    "assertions": [
+      {
+        "file": "scripts/build-sprite.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "scripts/check-format.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-plus.test.ts"
+    ]
+  },
+  "vite-pwa-assets-generator": {
+    "assertions": [
+      {
+        "file": "pwa-assets.config.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite-pwa-assets-generator.test.ts"
+    ]
+  },
+  "vite-rolldown-babel": {
+    "assertions": [
+      {
+        "file": "some-custom-babel-plugin.js",
+        "kind": "files",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "vite-rolldown-babel.test.ts"
+    ]
+  },
+  "vite2": {
+    "assertions": [],
+    "tests": [
+      "vite2.test.ts"
+    ]
+  },
+  "vite3": {
+    "assertions": [
+      {
+        "file": "src/App.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/unused.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite3.test.ts"
+    ]
+  },
+  "vite4": {
+    "assertions": [
+      {
+        "file": "app/main.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "app/component.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite4.test.ts"
+    ]
+  },
+  "vite5": {
+    "assertions": [
+      {
+        "file": "src/main.tsx",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/unused.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/commented-out.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/decoy.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vite5.test.ts"
+    ]
+  },
+  "vitepress": {
+    "assertions": [],
+    "tests": [
+      "vitepress.test.ts"
+    ]
+  },
+  "vitepress-config-dir": {
+    "assertions": [],
+    "tests": [
+      "vitepress-config-dir.test.ts"
+    ]
+  },
+  "vitest": {
+    "assertions": [
+      {
+        "file": "vitest-default-coverage.config.ts",
+        "kind": "unlisted",
+        "value": "jsdom"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unlisted",
+        "value": "happy-dom"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "@vitest/coverage-istanbul"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "vitest-sonar-reporter"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "jsdom"
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": "vue-tsc"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unresolved",
+        "value": "setup.js"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unresolved",
+        "value": "snapshot-serializer.js"
+      },
+      {
+        "file": "src/setupTests.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/htmlSnapshotSerializer.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vitest.test.ts"
+    ]
+  },
+  "vitest-coverage-flag": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@vitest/coverage-istanbul"
+      }
+    ],
+    "tests": [
+      "vitest-coverage-flag.test.ts"
+    ]
+  },
+  "vitest-coverage-flag-istanbul": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@vitest/coverage-istanbul"
+      }
+    ],
+    "tests": [
+      "vitest-coverage-flag.test.ts"
+    ]
+  },
+  "vitest-npm-script": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "vitest"
+      }
+    ],
+    "tests": [
+      "vitest-npm-script.test.ts"
+    ]
+  },
+  "vitest-regression": {
+    "assertions": [],
+    "tests": [
+      "vitest-regression.test.ts"
+    ]
+  },
+  "vitest10": {
+    "assertions": [
+      {
+        "file": "src/unused.test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vitest10.test.ts"
+    ]
+  },
+  "vitest11": {
+    "assertions": [
+      {
+        "file": "src/pool.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/auto-mocked.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/import-actual.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/import-original.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/shadowed.ts",
+        "kind": "exports",
+        "value": ""
+      },
+      {
+        "file": "src/unused.test.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "__mocks__/network-client.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vitest11.test.ts"
+    ]
+  },
+  "vitest2": {
+    "assertions": [
+      {
+        "file": "src/basic.spec.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vitest2.test.ts"
+    ]
+  },
+  "vitest3": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@swc/plugin-styled-components"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unlisted",
+        "value": "jsdom"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unresolved",
+        "value": "./src/setupTests.tsx"
+      }
+    ],
+    "tests": [
+      "vitest3.test.ts"
+    ]
+  },
+  "vitest4": {
+    "assertions": [
+      {
+        "file": "vitest.config.ts",
+        "kind": "unlisted",
+        "value": "custom-reporter-package"
+      },
+      {
+        "file": "src/unused.test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vitest4.test.ts"
+    ]
+  },
+  "vitest5": {
+    "assertions": [],
+    "tests": [
+      "vitest5.test.ts"
+    ]
+  },
+  "vitest6": {
+    "assertions": [
+      {
+        "file": "src/unused.test.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vitest6.test.ts"
+    ]
+  },
+  "vitest7": {
+    "assertions": [],
+    "tests": [
+      "vitest7.test.ts"
+    ]
+  },
+  "vitest8": {
+    "assertions": [
+      {
+        "file": "vitest.config.ts",
+        "kind": "unresolved",
+        "value": "./vitest.integration.setup.mjs"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unresolved",
+        "value": "./vitest.unit.setup.ts"
+      }
+    ],
+    "tests": [
+      "vitest8.test.ts"
+    ]
+  },
+  "vitest9": {
+    "assertions": [
+      {
+        "file": "vitest.config.ts",
+        "kind": "unlisted",
+        "value": "jsdom"
+      },
+      {
+        "file": "packages/client/vitest.config.e2e.ts",
+        "kind": "unlisted",
+        "value": "happy-dom"
+      },
+      {
+        "file": "vitest.config.ts",
+        "kind": "unlisted",
+        "value": ""
+      },
+      {
+        "file": "vitest.shared.config.ts",
+        "kind": "files",
+        "value": ""
+      },
+      {
+        "file": "src/shared.setup.ts",
+        "kind": "files",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "vitest9.test.ts"
+    ]
+  },
+  "vue": {
+    "assertions": [],
+    "tests": [
+      "vue.test.ts"
+    ]
+  },
+  "vue-styles": {
+    "assertions": [
+      {
+        "file": "styles/_unused.scss",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "styles/unused.less",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "styles/unused.styl",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "vue.test.ts"
+    ]
+  },
+  "vue-webpack": {
+    "assertions": [],
+    "tests": [
+      "vue-webpack.test.ts"
+    ]
+  },
+  "webdriver-io": {
+    "assertions": [],
+    "tests": [
+      "webdriver-io.test.ts"
+    ]
+  },
+  "webpack": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "@babel/plugin-proposal-object-rest-spread"
+      },
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "buffer"
+      },
+      {
+        "file": "webpack.dev.js",
+        "kind": "unlisted",
+        "value": "eslint-webpack-plugin"
+      },
+      {
+        "file": "webpack.prod.js",
+        "kind": "unlisted",
+        "value": "terser-webpack-plugin"
+      },
+      {
+        "file": "src/unused.ts",
+        "kind": "files",
+        "value": null
+      },
+      {
+        "file": "src/routes.ts",
+        "kind": "files",
+        "value": null
+      }
+    ],
+    "tests": [
+      "webpack.test.ts"
+    ]
+  },
+  "webpack-cli": {
+    "assertions": [],
+    "tests": [
+      "webpack-cli.test.ts"
+    ]
+  },
+  "webpack-entry-function": {
+    "assertions": [],
+    "tests": [
+      "webpack-entry-function.test.ts"
+    ]
+  },
+  "webpack-entry-import": {
+    "assertions": [],
+    "tests": [
+      "webpack-entry-import.test.ts"
+    ]
+  },
+  "webpack-reexport": {
+    "assertions": [],
+    "tests": [
+      "webpack-re-exports.test.ts"
+    ]
+  },
+  "webpack-ts-config": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": ""
+      }
+    ],
+    "tests": [
+      "webpack-ts-config.test.ts"
+    ]
+  },
+  "webpack2": {
+    "assertions": [],
+    "tests": [
+      "webpack2.test.ts"
+    ]
+  },
+  "wireit": {
+    "assertions": [],
+    "tests": [
+      "wireit.test.ts"
+    ]
+  },
+  "wrangler": {
+    "assertions": [],
+    "tests": [
+      "wrangler.test.ts"
+    ]
+  },
+  "wxt": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "dependencies",
+        "value": "unused-module"
+      }
+    ],
+    "tests": [
+      "wxt.test.ts"
+    ]
+  },
+  "xo": {
+    "assertions": [
+      {
+        "file": "xo.config.js",
+        "kind": "unlisted",
+        "value": "eslint-plugin-unused-imports"
+      },
+      {
+        "file": "xo.config.ts",
+        "kind": "unlisted",
+        "value": "my-shared-config"
+      }
+    ],
+    "tests": [
+      "xo.test.ts"
+    ]
+  },
+  "xo-0": {
+    "assertions": [
+      {
+        "file": "xo.config.cjs",
+        "kind": "unlisted",
+        "value": "my-shared-config"
+      }
+    ],
+    "tests": [
+      "xo-0.test.ts"
+    ]
+  },
+  "yarn": {
+    "assertions": [],
+    "tests": [
+      "yarn.test.ts"
+    ]
+  },
+  "yarn-berry": {
+    "assertions": [],
+    "tests": [
+      "yarn.test.ts"
+    ]
+  },
+  "yorkie": {
+    "assertions": [
+      {
+        "file": "package.json",
+        "kind": "devDependencies",
+        "value": "lint-staged"
+      }
+    ],
+    "tests": [
+      "yorkie.test.ts"
+    ]
+  }
+}

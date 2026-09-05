@@ -1,0 +1,11 @@
+{
+  "name": "@plugins/metro",
+  "dependencies": {
+    "@react-native/metro-config": "*",
+    "metro-minify-esbuild": "*",
+    "react-native-svg-transformer": "*"
+  },
+  "metro": {
+    "transformerPath": "./custom-metro-transformer.js"
+  }
+}

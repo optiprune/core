@@ -7,6 +7,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { compileGlobs, matchesAnyGlob } from "./fs-utils.js";
 import { resolveLocalSpecifier } from "./fs-utils.js";
 import { ObjectMemberPlugin } from "./plugins/object-member-plugin.js";
+import { ConfigContractPlugin } from "./plugins/config-contract-plugin.js";
+import { PostCSSPlugin } from "./plugins/postcss-plugin.js";
+import { SveltePlugin } from "./plugins/svelte-plugin.js";
 
 // ── Verbose debug helper ────────────────────────────────────────────────────
 // All engine-level debug messages go to stderr so they never pollute JSON /
@@ -35,6 +38,9 @@ export class PluginEngine {
     // explicitly so it cannot be disabled or lost when optional plugins are
     // discovered dynamically.
     this.register(ObjectMemberPlugin);
+    this.register(ConfigContractPlugin);
+    this.register(PostCSSPlugin);
+    this.register(SveltePlugin);
   }
 
   register(plugin: AnalyzerPlugin) {

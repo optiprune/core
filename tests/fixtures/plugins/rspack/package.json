@@ -1,0 +1,13 @@
+{
+  "name": "@plugins/rspack",
+  "scripts": {
+    "dev": "rspack serve",
+    "build": "rspack build"
+  },
+  "devDependencies": {
+    "@swc/plugin-emotion": "*",
+    "@rspack/core": "*",
+    "@rspack/cli": "*",
+    "swc-plugin-component-annotate": "*"
+  }
+}

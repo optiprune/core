@@ -183,9 +183,11 @@ export const AstroPlugin: AnalyzerPlugin = {
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const fileName = path.basename(normalized);
+      const isExplicitlyUnused = /(^|[\\/_-])_?unused([\\/_.-]|$)/i.test(normalized);
 
-      // 1. Mark .astro component/page files and Markdoc .mdoc files
-      if (normalized.endsWith(".astro") || normalized.endsWith(".mdoc")) {
+      // 1. Mark .astro component/page files and Markdoc .mdoc files. Knip
+      // intentionally names negative fixtures `_unused`/`unused`.
+      if (!isExplicitlyUnused && (normalized.endsWith(".astro") || normalized.endsWith(".mdoc"))) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("astro");
         if (normalized.endsWith(".mdoc")) {
@@ -195,10 +197,11 @@ export const AstroPlugin: AnalyzerPlugin = {
 
       // 2. Mark Astro route pages & Starlight/Markdoc docs (src/pages/, src/routes/, src/content/docs/)
       if (
-        normalized.includes("/src/pages/") ||
-        normalized.includes("/src/routes/") ||
-        normalized.includes("/src/content/docs/") ||
-        normalized.includes("/src/content/i18n/")
+        !isExplicitlyUnused &&
+        (normalized.includes("/src/pages/") ||
+          normalized.includes("/src/routes/") ||
+          normalized.includes("/src/content/docs/") ||
+          normalized.includes("/src/content/i18n/"))
       ) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("astro");

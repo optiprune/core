@@ -87,6 +87,10 @@ export const SveltePlugin: AnalyzerPlugin = {
       }
     }
 
+    const configuredFiles = adapter.getConfig().configFiles ?? [];
+    if (configuredFiles.some((file) => SVELTE_CONFIG_FILES.includes(path.basename(file))))
+      return true;
+    if ((await adapter.findFiles(SVELTE_CONFIG_FILES)).length > 0) return true;
     for (const configFile of SVELTE_CONFIG_FILES) {
       if (await adapter.folderExists(configFile)) return true;
     }
@@ -110,8 +114,45 @@ export const SveltePlugin: AnalyzerPlugin = {
       svelteKitByRoot.set(adapter.getConfig().rootDir, Boolean(allDeps["@sveltejs/kit"]));
 
       const hasSvelteDep = SVELTE_PACKAGES.some((p) => p in allDeps);
+      if (hasSvelteDep && "svelte" in allDeps) adapter.markPackageAsUsed("svelte");
+      if ("@sveltejs/kit" in allDeps) adapter.markPackageAsUsed("@sveltejs/kit");
 
       let hasConfigFile = false;
+      const viteConfigFiles = [
+        "vite.config.js",
+        "vite.config.ts",
+        "vite.config.mjs",
+        "vite.config.cjs",
+      ];
+      let activeLibrary: string | undefined;
+      for (const viteConfigFile of viteConfigFiles) {
+        const source = await adapter.readFile(viteConfigFile);
+        const libMatch = source?.match(/files\s*:\s*\{[\s\S]*?lib\s*:\s*["'`]([^"'`]+)["'`]/);
+        if (!libMatch?.[1]) continue;
+        activeLibrary = libMatch[1];
+        const libraryFiles = await adapter.findFilesByGlob([`${activeLibrary}/**/*`]);
+        for (const libraryFile of libraryFiles) adapter.markAsUsed(libraryFile);
+        break;
+      }
+      if (activeLibrary) {
+        for (const svelteConfigFile of SVELTE_CONFIG_FILES) {
+          const source = await adapter.readFile(svelteConfigFile);
+          const legacyMatch = source?.match(/files\s*:\s*\{[\s\S]*?lib\s*:\s*["'`]([^"'`]+)["'`]/);
+          if (!legacyMatch?.[1] || legacyMatch[1] === activeLibrary) continue;
+          const legacyFiles = await adapter.findFilesByGlob([`${legacyMatch[1]}/**/*`]);
+          for (const legacyFile of legacyFiles) {
+            adapter.emitFinding({
+              rule: "unreachable-file",
+              severity: "warning",
+              confidence: "high",
+              file: legacyFile,
+              message: `SvelteKit library path '${legacyMatch[1]}' is overridden by '${activeLibrary}'.`,
+              evidence: { entryPoints: [activeLibrary] },
+            });
+          }
+          break;
+        }
+      }
       for (const configFile of SVELTE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;

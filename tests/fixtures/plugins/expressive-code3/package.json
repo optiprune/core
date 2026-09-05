@@ -1,0 +1,8 @@
+{
+  "name": "@plugins/expressive-code3",
+  "dependencies": {
+    "@astrojs/starlight": "*",
+    "@expressive-code/plugin-line-numbers": "*",
+    "astro": "*"
+  }
+}

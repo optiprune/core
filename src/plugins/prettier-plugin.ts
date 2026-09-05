@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import type { PluginAdapter } from "../types.js";
 import path from "pathe";
 
 const PRETTIER_CONFIG_FILES = [
@@ -19,6 +20,22 @@ const PRETTIER_CONFIG_FILES = [
 ];
 
 const PRETTIER_FILE_REGEX = /^(\.)?prettier(rc|\.config)/;
+const prettierDependencies = new WeakMap<PluginAdapter, Set<string>>();
+
+function markPrettierPackage(name: string, file: string, adapter: PluginAdapter): void {
+  adapter.markPackageAsUsed(name);
+  if (!prettierDependencies.get(adapter)?.has(name)) {
+    adapter.emitFinding({
+      rule: "missing-dev-dependency",
+      severity: "error",
+      confidence: "high",
+      file,
+      message: `Package '${name}' is referenced by Prettier configuration.`,
+      evidence: { package: name, type: "devDependency" },
+    });
+    );
+  }
+}
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -87,6 +104,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies,
       };
 
+      prettierDependencies.set(adapter, new Set(Object.keys(allDeps)));
       const hasPrettier = Object.keys(allDeps).some(
         (p) => p === "prettier" || p.startsWith("prettier-plugin-") || p.startsWith("@prettier/"),
       );
@@ -116,9 +134,12 @@ export const PrettierPlugin: AnalyzerPlugin = {
 
       // 3. Process package.json "prettier" block if present
       let prettierConfig: any = null;
+      let prettierConfigFile = "package.json";
       if (pkg?.prettier) {
         hasConfigFile = true;
         adapter.markAsUsed("package.json", "prettier");
+        if (typeof pkg.prettier === "string")
+          markPrettierPackage(pkg.prettier, "package.json", adapter);
         prettierConfig = pkg.prettier;
       }
 
@@ -143,20 +164,47 @@ export const PrettierPlugin: AnalyzerPlugin = {
             const parsed = parseJsonc(content);
             if (parsed) {
               prettierConfig = parsed;
+              prettierConfigFile = jsonConfigName;
               break;
             }
           }
         }
       }
 
-      // 6. Protect local file plugins and mark external plugins as packages
+      // 6. Also inspect config files selected by a Prettier CLI script or the
+      // fixture's explicit configFiles list. Knip treats these as real plugin
+      // inputs even when they are not named prettier.config.*.
+      const explicitConfigs = new Set<string>(adapter.getConfig().configFiles ?? []);
+      for (const script of Object.values(pkg?.scripts ?? {})) {
+        if (typeof script !== "string") continue;
+        const match = script.match(/--config(?:=|\s+)([^\s]+)/);
+        if (match?.[1]) explicitConfigs.add(match[1]);
+      }
+      const rootDir = adapter.getConfig().rootDir;
+      for (const configName of explicitConfigs) {
+        const relativeConfigName = path.isAbsolute(configName)
+          ? path.relative(rootDir, configName)
+          : configName;
+        const content = await adapter.readFile(relativeConfigName);
+        if (!content) continue;
+        const pluginsMatch = content.match(/plugins\s*:\s*\[([\s\S]*?)\]/);
+        for (const pluginMatch of pluginsMatch?.[1]?.matchAll(/["'`]([^"'`]+)["'`]/g) ?? []) {
+          const pluginName = pluginMatch[1];
+          if (!pluginName) continue;
+          if (pluginName.startsWith(".") || pluginName.startsWith("/"))
+            adapter.markAsUsed(pluginName);
+          else markPrettierPackage(pluginName, relativeConfigName, adapter);
+        }
+      }
+
+      // 7. Protect local file plugins and mark external plugins as packages
       if (prettierConfig && Array.isArray(prettierConfig.plugins)) {
         for (const pluginName of prettierConfig.plugins) {
           if (typeof pluginName === "string") {
             if (pluginName.startsWith(".") || pluginName.startsWith("/")) {
               adapter.markAsUsed(pluginName);
             } else {
-              adapter.markPackageAsUsed(pluginName);
+              markPrettierPackage(pluginName, prettierConfigFile, adapter);
             }
           }
         }
@@ -235,7 +283,7 @@ export const PrettierPlugin: AnalyzerPlugin = {
                   if (pluginName.startsWith(".") || pluginName.startsWith("/")) {
                     adapter.markAsUsed(pluginName);
                   } else {
-                    adapter.markPackageAsUsed(pluginName);
+                    markPrettierPackage(pluginName, fileId, adapter);
                   }
                 }
               });

@@ -1,0 +1,11 @@
+{
+  "plugins": [
+    "autoprefixer",
+    [
+      "postcss-rtlcss",
+      {
+        "safeBothPrefix": true
+      }
+    ]
+  ]
+}

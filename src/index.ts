@@ -1254,6 +1254,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     rootDir,
     entryPoints: [...entryPoints].map((p) => relativeDisplayPath(rootDir, p)),
     summary,
+    usedPackages: [...context.usedPackages].sort(),
     findings: findings.sort((a, b) => {
       if (a.file !== b.file) return a.file.localeCompare(b.file);
       if (a.location && b.location) {

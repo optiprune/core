@@ -410,6 +410,8 @@ export interface AnalysisReport {
   entryPoints: string[];
   summary: AnalysisSummary;
   findings: Finding[];
+  /** Packages marked as used by imports, scripts, or plugin contracts. */
+  usedPackages?: string[];
   /** Present only when verbose JSON output is requested. */
   debug?: AnalysisDebugInfo;
   modules: Array<{

@@ -1,0 +1,16 @@
+{
+  "name": "@plugins/pnpm",
+  "packageManager": "pnpm@10.14.0",
+  "dependencies": {
+    "prop-types": "*"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "react-csv@*": {
+        "peerDependencies": {
+          "prop-types": "*"
+        }
+      }
+    }
+  }
+}

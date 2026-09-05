@@ -1,8 +1,12 @@
+import path from "node:path";
 import { describe, it } from "vitest";
-import { assertPackagePlugin } from "./helpers.js";
+import { assertKnipFixture, fixturesRoot } from "./fixture-helper.js";
+
+const fixtureNames = ["next-root-and-src"] as const;
 
 describe("next-root-and-src plugin", () => {
-  it("uses the package plugin rather than a numbered test-name plugin", () => {
-    assertPackagePlugin("next-root-and-src");
+  it.each(fixtureNames)("matches the Knip fixture %s", async (fixtureName) => {
+    const rootDir = path.join(fixturesRoot, fixtureName);
+    await assertKnipFixture(rootDir);
   });
 });

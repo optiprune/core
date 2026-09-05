@@ -1,0 +1,6 @@
+{
+  "name": "@plugins/lint-staged-comment",
+  "devDependencies": {
+    "lint-staged": "*"
+  }
+}

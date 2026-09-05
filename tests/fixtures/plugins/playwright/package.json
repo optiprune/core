@@ -1,0 +1,10 @@
+{
+  "name": "@plugins/playwright",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "*",
+    "table": "*"
+  }
+}

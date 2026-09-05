@@ -133,6 +133,33 @@ export const AngularPlugin: AnalyzerPlugin = {
         }
       }
 
+      // angular.json is the authoritative Angular CLI contract. Walk builder,
+      // test-runner and schematic strings so config-only packages are treated
+      // exactly like imports in the corresponding Knip fixtures.
+      const angularConfig = await adapter.readJson("angular.json");
+      const declared = new Set(Object.keys(allDeps));
+      const visitConfig = (value: unknown): void => {
+        if (Array.isArray(value)) {
+          for (const item of value) visitConfig(item);
+          return;
+        }
+        if (!value || typeof value !== "object") {
+          if (typeof value === "string" && value.startsWith("@angular-devkit/")) {
+            if (!declared.has(value)) {
+              adapter.markMissingDevDependency(
+                value,
+                "angular.json",
+                `Angular CLI configuration references '${value}'.`,
+              );
+            }
+            adapter.markPackageAsUsed(value);
+          }
+          return;
+        }
+        for (const child of Object.values(value)) visitConfig(child);
+      };
+      if (angularConfig) visitConfig(angularConfig);
+
       // Safeguard core framework package if present
       if (hasCoreDep) {
         adapter.markPackageAsUsed("@angular/core");
@@ -164,9 +191,28 @@ export const AngularPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const fileName = path.basename(normalized);
+
+      if (fileName === "angular.json") {
+        const config = await adapter.readJson("angular.json");
+        const visit = (value: unknown): void => {
+          if (Array.isArray(value)) {
+            for (const item of value) visit(item);
+          } else if (value && typeof value === "object") {
+            for (const child of Object.values(value)) visit(child);
+          } else if (typeof value === "string" && value.startsWith("@angular-devkit/")) {
+            adapter.markMissingDevDependency(
+              value,
+              "angular.json",
+              `Angular CLI configuration references '${value}'.`,
+            );
+            adapter.markPackageAsUsed(value);
+          }
+        };
+        visit(config);
+      }
 
       // 1. Mark main bootstrapping and configuration entry points
       if (
@@ -203,6 +249,33 @@ export const AngularPlugin: AnalyzerPlugin = {
       if (ANGULAR_CONFIG_FILES.includes(fileName)) {
         adapter.markConfigFileAsUsed(fileId);
       }
+    },
+
+    onAnalysisComplete: async (adapter) => {
+      const config = await adapter.readJson("angular.json");
+      const pkg = await adapter.readJson("package.json");
+      const declared = new Set([
+        ...Object.keys(pkg?.dependencies ?? {}),
+        ...Object.keys(pkg?.devDependencies ?? {}),
+        ...Object.keys(pkg?.peerDependencies ?? {}),
+      ]);
+      const visit = (value: unknown): void => {
+        if (Array.isArray(value)) {
+          for (const item of value) visit(item);
+        } else if (value && typeof value === "object") {
+          for (const child of Object.values(value)) visit(child);
+        } else if (typeof value === "string" && value.startsWith("@angular-devkit/")) {
+          if (!declared.has(value)) {
+            adapter.markMissingDevDependency(
+              value,
+              "angular.json",
+              `Angular CLI configuration references '${value}'.`,
+            );
+          }
+          adapter.markPackageAsUsed(value);
+        }
+      };
+      if (config) visit(config);
     },
 
     onASTNode: (node, fileId, adapter) => {
