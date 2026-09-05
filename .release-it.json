@@ -1,26 +1,20 @@
 {
   "git": {
-    "commitMessage": "chore: release v${version}",
-    "tagName": "v${version}",
-    "push": true,
-    "requireCleanWorkingDir": true
+    "commit": false,
+    "tag": false,
+    "push": false,
+    "requireCleanWorkingDir": false
   },
   "github": {
-    "release": true,
-    "releaseName": "v${version}"
-  },
-  "npm": {
-    "publish": false,
-    "publishPath": "."
-  },
-  "plugins": {
-    "@release-it/conventional-changelog": {
-      "preset": "conventionalcommits",
-      "infile": "CHANGELOG.md",
-      "header": "# Changelog\n\nAll notable changes to this project are documented here."
+    "release": false,
+    "update": true,
+    "comments": {
+      "submit": true,
+      "issue": "_This issue has been resolved in [${tagName}](${releaseUrl}), thank you for your report!_",
+      "pr": "_This pull request is included in [${tagName}](${releaseUrl}), thank you for your contribution!_"
     }
   },
-  "hooks": {
-    "after:release": "node scripts/comment-release-items.mjs ${version}"
+  "npm": {
+    "publish": false
   }
 }

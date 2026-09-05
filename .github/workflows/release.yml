@@ -1,31 +1,23 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      increment:
-        description: "Version increment"
-        required: true
-        default: patch
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+  release:
+    types: [published]
 
 permissions:
-  contents: write
+  contents: read
   issues: write
   pull-requests: write
 
 jobs:
-  release:
+  release-it-notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository at release tag
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,23 +28,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev
 
-      - name: Build
+      - name: Set Git Identity
         run: |
-          npm run build
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Check dirty Git files
-        run: |
-          echo "=== Git Status ==="
-          git status --porcelain
-          echo "=== Git Diff ==="
-          git diff
-
-      - name: Checkout
-        run: |
-          git checkout --
-
-      - name: Create GitHub release
+      - name: Run release-it comment notification
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx release-it ${{ inputs.increment }} --ci
+        run: npx release-it --no-increment --ci
