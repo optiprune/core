@@ -1,0 +1,12 @@
+{
+  "name": "fixture-vite-mpa",
+  "private": true,
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "vite": "7.0.0",
+    "@vitejs/plugin-vue": "6.0.0"
+  }
+}

@@ -1,0 +1,1 @@
+{"plugin":"pre-commit","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/pre-commit","cases":["positive","negative"]}

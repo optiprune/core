@@ -1,0 +1,6 @@
+{
+  "name": "fixture-docker",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "docker": "0.0.0-fixture" }
+}

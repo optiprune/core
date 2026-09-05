@@ -1,0 +1,1 @@
+{"plugin":"lockfile-lint","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/lockfile-lint","cases":["positive","negative"]}

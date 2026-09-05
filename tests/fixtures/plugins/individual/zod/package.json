@@ -1,0 +1,6 @@
+{
+  "name": "fixture-zod",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "zod": "0.0.0-fixture" }
+}

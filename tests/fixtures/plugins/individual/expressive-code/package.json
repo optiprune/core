@@ -1,0 +1,13 @@
+{
+  "name": "@plugins/expressive-code",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build"
+  },
+  "dependencies": {
+    "next": "*",
+    "@next/mdx": "*",
+    "rehype-expressive-code": "*",
+    "@expressive-code/plugin-collapsible-sections": "*"
+  }
+}

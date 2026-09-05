@@ -1,0 +1,1 @@
+{"plugin":"relay","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/relay","cases":["positive","negative"]}

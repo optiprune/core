@@ -1,0 +1,6 @@
+{
+  "name": "fixture-unplugin",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "unplugin": "0.0.0-fixture" }
+}

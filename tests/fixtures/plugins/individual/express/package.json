@@ -1,0 +1,6 @@
+{
+  "name": "fixture-express",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "express": "0.0.0-fixture" }
+}

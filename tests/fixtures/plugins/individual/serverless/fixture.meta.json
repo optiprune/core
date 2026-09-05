@@ -1,0 +1,1 @@
+{"plugin":"serverless","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/serverless","cases":["positive","negative"]}

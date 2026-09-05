@@ -1,0 +1,1 @@
+{"plugin":"ts-node","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/ts-node","cases":["positive","negative"]}

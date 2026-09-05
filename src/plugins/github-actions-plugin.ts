@@ -221,6 +221,17 @@ const KNOWN_CLI_TOOLS: Record<string, ToolSetupConfig> = {
     name: "poetry",
     actions: ["snok/install-poetry"],
   },
+  playwright: {
+    name: "playwright",
+    actions: ["microsoft/playwright-github-action", "browser-actions/setup-playwright"],
+    setupCommands: [
+      "npx playwright install",
+      "npm exec playwright install",
+      "pnpm exec playwright install",
+      "yarn playwright install",
+      "playwright install",
+    ],
+  },
 };
 
 export const GithubActionsPlugin: AnalyzerPlugin = {

@@ -1,0 +1,1 @@
+{"plugin":"vercel","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/vercel","cases":["positive","negative"]}

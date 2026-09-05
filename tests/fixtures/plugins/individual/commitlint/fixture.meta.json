@@ -1,0 +1,1 @@
+{"plugin":"commitlint","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/commitlint","cases":["positive","negative"]}

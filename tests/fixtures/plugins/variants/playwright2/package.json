@@ -1,0 +1,9 @@
+{
+  "name": "@plugins/playwright2",
+  "knip": {
+    "playwright": true
+  },
+  "devDependencies": {
+    "@playwright/test": "*"
+  }
+}

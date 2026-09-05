@@ -1,0 +1,6 @@
+{
+  "name": "fixture-typeorm",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "typeorm": "0.0.0-fixture" }
+}

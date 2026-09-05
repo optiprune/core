@@ -1,0 +1,6 @@
+{
+  "name": "fixture-workflow",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "workflow": "0.0.0-fixture" }
+}

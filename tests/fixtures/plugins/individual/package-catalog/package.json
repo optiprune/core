@@ -1,0 +1,6 @@
+{
+  "name": "fixture-package-catalog",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "package-catalog": "0.0.0-fixture" }
+}

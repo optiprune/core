@@ -1,0 +1,1 @@
+{"plugin":"cypress","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/cypress","cases":["positive","negative"]}

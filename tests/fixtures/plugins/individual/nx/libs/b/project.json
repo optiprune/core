@@ -1,0 +1,74 @@
+{
+  "sourceRoot": "libs/b",
+  "projectType": "application",
+  "targets": {
+    "ls-project-root": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["ls apps/frontend/src"]
+      }
+    },
+    "webpack": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "webpack"
+      }
+    },
+    "generate-docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx -- compodoc -p apps/frontend/tsconfig.app.json"
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "options": {
+        "jestConfig": "libs/b/jest.config.ts"
+      }
+    },
+    "tsc": {
+      "executor": "./tools/executors/tsc:tsc",
+      "options": {
+        "tsConfig": "libs/b/tsconfig.lib.json"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [{ "command": "biome lint ." }]
+      }
+    },
+    "eslint": {
+      "executor": "@nx/linter:eslint",
+      "options": {
+        "eslintConfig": "libs/b/.eslintrc.json"
+      }
+    },
+    "test-vitest": {
+      "executor": "@nx/vitest:test",
+      "options": {
+        "vitestConfig": "libs/b/vitest.config.ts"
+      }
+    },
+    "build-webpack": {
+      "executor": "@nx/webpack:webpack",
+      "options": {
+        "webpackConfig": "libs/b/webpack.config.js"
+      }
+    },
+    "build-from-subdir": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.build.json",
+        "cwd": "libs/b"
+      }
+    },
+    "build-with-template-vars": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx {projectRoot}/build.mts",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}

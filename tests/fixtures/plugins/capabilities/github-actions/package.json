@@ -1,0 +1,12 @@
+{
+  "name": "fixture-github-actions",
+  "private": true,
+  "scripts": {
+    "lint": "eslint .",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "eslint": "9.0.0",
+    "playwright": "1.50.0"
+  }
+}

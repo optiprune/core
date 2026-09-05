@@ -1,0 +1,1 @@
+{"plugin":"stryker","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/stryker","cases":["positive","negative"]}

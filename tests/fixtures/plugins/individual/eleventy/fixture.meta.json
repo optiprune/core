@@ -1,0 +1,1 @@
+{"plugin":"eleventy","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/eleventy","cases":["positive","negative"]}

@@ -1,0 +1,32 @@
+{
+  "name": "@plugins/nx",
+  "scripts": {
+    "nx": "nx"
+  },
+  "devDependencies": {
+    "@nx/next": "*",
+    "@nx/linter": "*",
+    "@nx/cypress": "*",
+    "@nrwl/cypress": "*",
+    "@nrwl/devkit": "*",
+    "@nrwl/jest": "*",
+    "@nrwl/linter": "*",
+    "@nrwl/next": "*",
+    "@nrwl/storybook": "*",
+    "@nrwl/web": "*",
+    "@nrwl/workspace": "*",
+    "@tsconfig/node20": "*",
+    "@tsconfig/strictest": "*",
+    "rimraf": "*"
+  },
+  "nx": {
+    "targets": {
+      "clean": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "rimraf dist"
+        }
+      }
+    }
+  }
+}

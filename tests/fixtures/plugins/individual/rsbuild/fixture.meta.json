@@ -1,0 +1,1 @@
+{"plugin":"rsbuild","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/rsbuild","cases":["positive","negative"]}

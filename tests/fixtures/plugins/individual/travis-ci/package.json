@@ -1,0 +1,6 @@
+{
+  "name": "fixture-travis-ci",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "travis-ci": "0.0.0-fixture" }
+}

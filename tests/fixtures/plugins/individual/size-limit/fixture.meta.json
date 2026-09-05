@@ -1,0 +1,1 @@
+{"plugin":"size-limit","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/size-limit","cases":["positive","negative"]}

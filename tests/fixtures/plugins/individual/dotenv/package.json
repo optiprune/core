@@ -1,0 +1,6 @@
+{
+  "name": "fixture-dotenv",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "dotenv": "0.0.0-fixture" }
+}

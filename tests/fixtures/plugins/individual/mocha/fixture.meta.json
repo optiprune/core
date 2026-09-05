@@ -1,0 +1,1 @@
+{"plugin":"mocha","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/mocha","cases":["positive","negative"]}

@@ -1,0 +1,1 @@
+{"plugin":"node-llama-cpp","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/node-llama-cpp","cases":["positive","negative"]}

@@ -1,0 +1,1 @@
+{"plugin":"trpc","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/trpc","cases":["positive","negative"]}

@@ -1,0 +1,6 @@
+{
+  "name": "fixture-jetbrains",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "jetbrains": "0.0.0-fixture" }
+}

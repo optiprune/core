@@ -1,0 +1,1 @@
+{"plugin":"hono","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/hono","cases":["positive","negative"]}

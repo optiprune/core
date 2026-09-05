@@ -1,0 +1,1 @@
+{"plugin":"rollup","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/rollup","cases":["positive","negative"]}

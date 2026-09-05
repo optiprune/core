@@ -1,0 +1,21 @@
+{
+  "name": "@plugins/vite",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "linked-package": "*",
+    "many-components": "*",
+    "shared-state": "*",
+    "upstream-esm": "*",
+    "native-renderer": "*"
+  },
+  "devDependencies": {
+    "@babel/preset-typescript": "*",
+    "@emotion/babel-plugin": "*",
+    "@vitejs/plugin-react": "*",
+    "vite": "*"
+  }
+}

@@ -1,0 +1,1 @@
+{"plugin":"nestjs","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/nestjs","cases":["positive","negative"]}

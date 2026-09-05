@@ -1,0 +1,11 @@
+{
+  "name": "@plugins/stryker",
+  "scripts": {
+    "stryker": "stryker",
+    "stryker:custom": "stryker run --incremental stryker.custom.conf.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "@stryker-mutator/core": "*"
+  }
+}

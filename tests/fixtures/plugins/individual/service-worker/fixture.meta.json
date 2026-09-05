@@ -1,0 +1,1 @@
+{"plugin":"service-worker","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/service-worker","cases":["positive","negative"]}

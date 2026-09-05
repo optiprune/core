@@ -1,0 +1,1 @@
+{"plugin":"changesets","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/changesets","cases":["positive","negative"]}

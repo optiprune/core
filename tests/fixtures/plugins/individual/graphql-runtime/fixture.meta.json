@@ -1,0 +1,1 @@
+{"plugin":"graphql-runtime","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/graphql-runtime","cases":["positive","negative"]}

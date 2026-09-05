@@ -52,6 +52,8 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
     const report = await analyze({
       rootDir,
       entry: [fixturePath],
+      ignore: ["tests/fixtures/plugins/**"],
+      projectPatterns: ["src/**/*.ts"],
       includeConventionalEntries: false,
     });
 
@@ -71,11 +73,21 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
 
   it("should use incremental caching on second run", async () => {
     const startTime1 = Date.now();
-    await analyze({ rootDir, entry: [fixturePath] });
+    await analyze({
+      rootDir,
+      entry: [fixturePath],
+      ignore: ["tests/fixtures/plugins/**"],
+      projectPatterns: ["src/**/*.ts"],
+    });
     const duration1 = Date.now() - startTime1;
 
     const startTime2 = Date.now();
-    await analyze({ rootDir, entry: [fixturePath] });
+    await analyze({
+      rootDir,
+      entry: [fixturePath],
+      ignore: ["tests/fixtures/plugins/**"],
+      projectPatterns: ["src/**/*.ts"],
+    });
     const duration2 = Date.now() - startTime2;
 
     // Second run should be faster due to cache

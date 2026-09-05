@@ -1,0 +1,6 @@
+{
+  "name": "fixture-yarn-pnp",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "yarn-pnp": "0.0.0-fixture" }
+}

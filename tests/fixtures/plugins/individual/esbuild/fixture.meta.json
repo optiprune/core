@@ -1,0 +1,1 @@
+{"plugin":"esbuild","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/esbuild","cases":["positive","negative"]}

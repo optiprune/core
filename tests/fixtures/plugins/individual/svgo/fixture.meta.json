@@ -1,0 +1,1 @@
+{"plugin":"svgo","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/svgo","cases":["positive","negative"]}

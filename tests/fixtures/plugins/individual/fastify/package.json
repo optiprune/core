@@ -1,0 +1,6 @@
+{
+  "name": "fixture-fastify",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "fastify": "0.0.0-fixture" }
+}

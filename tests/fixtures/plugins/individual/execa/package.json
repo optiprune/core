@@ -1,0 +1,6 @@
+{
+  "name": "fixture-execa",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "execa": "0.0.0-fixture" }
+}

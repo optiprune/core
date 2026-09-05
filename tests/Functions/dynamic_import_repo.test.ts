@@ -11,6 +11,8 @@ describe("Dynamic Import Analysis Reproduction", () => {
   it("should NOT flag AngularPlugin as unused when Layer 4 simulation is ENABLED", async () => {
     const results = await analyze({
       rootDir,
+      ignore: ["tests/fixtures/plugins/**"],
+      projectPatterns: ["src/**/*.ts"],
       entryPoints: [path.join(rootDir, "src/engine.ts")],
       reportUnusedExports: true,
       verbose: true,

@@ -1,0 +1,6 @@
+{
+  "name": "fixture-onnxruntime-node",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "onnxruntime-node": "0.0.0-fixture" }
+}

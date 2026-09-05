@@ -1,0 +1,1 @@
+{"plugin":"sentry","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/sentry","cases":["positive","negative"]}

@@ -1,0 +1,6 @@
+{
+  "name": "fixture-tsconfig-plus",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "tsconfig-plus": "0.0.0-fixture" }
+}

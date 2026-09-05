@@ -1,0 +1,10 @@
+{
+  "name": "@plugins/lefthook-ci",
+  "scripts": {},
+  "devDependencies": {
+    "@evilmartians/lefthook": "*",
+    "eslint": "*",
+    "prettier": "*",
+    "stylelint": "*"
+  }
+}

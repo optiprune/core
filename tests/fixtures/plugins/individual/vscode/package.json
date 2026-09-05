@@ -1,0 +1,6 @@
+{
+  "name": "fixture-vscode",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "vscode": "0.0.0-fixture" }
+}

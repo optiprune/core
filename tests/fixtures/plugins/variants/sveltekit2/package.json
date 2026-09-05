@@ -1,0 +1,10 @@
+{
+  "name": "@plugins/sveltekit2",
+  "type": "module",
+  "devDependencies": {
+    "@sveltejs/kit": "*",
+    "svelte": "*",
+    "typescript": "*",
+    "vite": "*"
+  }
+}

@@ -1,0 +1,1 @@
+{"plugin":"webpack","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/webpack","cases":["positive","negative"]}

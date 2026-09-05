@@ -1,0 +1,1 @@
+{"plugin":"yarn","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/yarn","cases":["positive","negative"]}

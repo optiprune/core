@@ -1,0 +1,1 @@
+{"plugin":"dependency-cruiser","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/dependency-cruiser","cases":["positive","negative"]}

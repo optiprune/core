@@ -1,0 +1,1 @@
+{"plugin":"onnxruntime-node","source":"generated","fixtureRoot":"tests/fixtures/plugins/individual/onnxruntime-node","cases":["positive","negative"]}

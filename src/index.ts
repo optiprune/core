@@ -357,7 +357,10 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     resolvedOptions.monorepo = await buildMonorepoTopology(
       resolvedOptions.rootDir,
       resolvedOptions.workspaceGlobs,
-      resolvedOptions.ignoreTests ? TEST_IGNORE_PATTERNS : [],
+      [
+        ...(resolvedOptions.ignore ?? []),
+        ...(resolvedOptions.ignoreTests ? TEST_IGNORE_PATTERNS : []),
+      ],
     );
     hasMonorepo = resolvedOptions.monorepo.packageMap.size > 0;
   } catch (e) {

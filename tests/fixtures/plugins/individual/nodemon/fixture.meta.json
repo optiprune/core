@@ -1,0 +1,1 @@
+{"plugin":"nodemon","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/nodemon","cases":["positive","negative"]}

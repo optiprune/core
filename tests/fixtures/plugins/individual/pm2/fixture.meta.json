@@ -1,0 +1,1 @@
+{"plugin":"pm2","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/pm2","cases":["positive","negative"]}

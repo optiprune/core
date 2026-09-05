@@ -1,0 +1,1 @@
+{"name":"fixture-trpc","private":true,"dependencies":{"@trpc/server":"0.0.0-fixture"}}

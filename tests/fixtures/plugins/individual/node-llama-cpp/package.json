@@ -1,0 +1,6 @@
+{
+  "name": "fixture-node-llama-cpp",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "node-llama-cpp": "0.0.0-fixture" }
+}

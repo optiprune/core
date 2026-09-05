@@ -1,0 +1,1 @@
+{"plugin":"semantic-release","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/semantic-release","cases":["positive","negative"]}

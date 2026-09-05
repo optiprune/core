@@ -1,0 +1,1 @@
+{"name":"fixture-temporal-io","private":true,"dependencies":{"@temporalio/workflow":"0.0.0-fixture"}}

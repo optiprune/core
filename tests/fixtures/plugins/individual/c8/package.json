@@ -1,0 +1,6 @@
+{
+  "name": "fixture-c8",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "c8": "0.0.0-fixture" }
+}

@@ -1,0 +1,1 @@
+{"plugin":"karma","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/karma","cases":["positive","negative"]}

@@ -1,0 +1,12 @@
+{
+  "name": "@plugins/xo",
+  "scripts": {
+    "test": "xo"
+  },
+  "devDependencies": {
+    "xo": "^3.0.2"
+  },
+  "xo": {
+    "space": true
+  }
+}

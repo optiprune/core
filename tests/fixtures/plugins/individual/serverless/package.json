@@ -1,0 +1,6 @@
+{
+  "name": "fixture-serverless",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "serverless": "0.0.0-fixture" }
+}

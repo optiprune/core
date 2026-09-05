@@ -1,0 +1,6 @@
+{
+  "name": "fixture-husky",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "husky": "0.0.0-fixture" }
+}

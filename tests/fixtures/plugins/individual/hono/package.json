@@ -1,0 +1,6 @@
+{
+  "name": "fixture-hono",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "hono": "0.0.0-fixture" }
+}

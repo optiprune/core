@@ -1,0 +1,1 @@
+{"plugin":"linthtml","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/linthtml","cases":["positive","negative"]}

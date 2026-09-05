@@ -1,0 +1,21 @@
+{
+  "name": "@plugins/ava",
+  "devDependencies": {
+    "ava": "*"
+  },
+  "scripts": {
+    "test": "ava"
+  },
+  "ava": {
+    "files": [
+      "**/*.test.*"
+    ],
+    "extensions": {
+      "ts": "module"
+    },
+    "nodeArguments": [
+      "--loader=ts-node/esm/transpile-only",
+      "--experimental-specifier-resolution=node"
+    ]
+  }
+}

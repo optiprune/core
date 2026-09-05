@@ -1,0 +1,1 @@
+{"plugin":"rstest","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/rstest","cases":["positive","negative"]}

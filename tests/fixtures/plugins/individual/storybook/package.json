@@ -1,0 +1,14 @@
+{
+  "name": "@plugins/storybook",
+  "scripts": {
+    "storybook": "storybook"
+  },
+  "devDependencies": {
+    "tsconfig-paths-webpack-plugin": "*",
+    "@storybook/addon-essentials": "*",
+    "@storybook/addon-a11y": "*",
+    "@storybook/addon-vitest": "*",
+    "storybook-addon-performance": "*",
+    "vitest": "*"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "fixture-cross-env",
+  "private": true,
+  "scripts": { "analyze": "node src/index.js" },
+  "devDependencies": { "cross-env": "0.0.0-fixture" }
+}

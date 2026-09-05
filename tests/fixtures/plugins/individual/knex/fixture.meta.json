@@ -1,0 +1,1 @@
+{"plugin":"knex","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/knex","cases":["positive","negative"]}

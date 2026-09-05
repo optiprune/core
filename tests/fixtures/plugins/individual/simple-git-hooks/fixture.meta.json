@@ -1,0 +1,1 @@
+{"plugin":"simple-git-hooks","source":"webpro-nl/knip","fixtureRoot":"tests/fixtures/plugins/individual/simple-git-hooks","cases":["positive","negative"]}
