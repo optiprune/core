@@ -239,7 +239,9 @@ export const GithubActionsPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const workflowFiles = new Set<string>([
-        ...(await adapter.findFilesByGlob([".github/workflows/*.yml", ".github/workflows/*.yaml"])),
+        ...(await adapter.findFilesByGlob([".github/workflows/**"])).filter((file) =>
+          /\.(?:yml|yaml)$/i.test(file),
+        ),
         ...(await adapter.findFiles(["action.yml", "action.yaml"])),
       ]);
 

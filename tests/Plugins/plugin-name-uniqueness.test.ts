@@ -5,6 +5,16 @@ import { PluginEngine } from "../../src/engine.js";
 import type { AnalyzerPlugin } from "../../src/types.js";
 
 describe("dynamic plugin registry", () => {
+  it("keeps one canonical source file for GitHub Actions and NestJS", async () => {
+    const pluginsDir = path.resolve(process.cwd(), "src/plugins");
+    const files = await fs.readdir(pluginsDir);
+
+    expect(files.filter((file) => /^github-actions?-plugin\.ts$/.test(file))).toEqual([
+      "github-actions-plugin.ts",
+    ]);
+    expect(files.filter((file) => /^nestjs?-plugin\.ts$/.test(file))).toEqual(["nestjs-plugin.ts"]);
+  });
+
   it("contains only one Nodemon plugin source file", async () => {
     const pluginsDir = path.resolve(process.cwd(), "src/plugins");
     const nodemonFiles = (await fs.readdir(pluginsDir)).filter((file) =>

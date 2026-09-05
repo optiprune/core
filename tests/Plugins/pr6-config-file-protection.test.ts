@@ -10,13 +10,12 @@ import { CommitizenPlugin } from "../../src/plugins/commitizen-plugin.js";
 import { CreateTypescriptAppPlugin } from "../../src/plugins/create-typescript-app-plugin.js";
 import { DangerPlugin } from "../../src/plugins/danger-plugin.js";
 import { EvePlugin } from "../../src/plugins/eve-plugin.js";
-import { GithubActionPlugin } from "../../src/plugins/github-action-plugin.js";
 import { LinthtmlPlugin } from "../../src/plugins/linthtml-plugin.js";
 import { LunariaPlugin } from "../../src/plugins/lunaria-plugin.js";
 import { MarkdownlintPlugin } from "../../src/plugins/markdownlint-plugin.js";
 import { NanoSpawnPlugin } from "../../src/plugins/nano-spawn-plugin.js";
 import { NanoStagedPlugin } from "../../src/plugins/nano-staged-plugin.js";
-import { NestPlugin } from "../../src/plugins/nest-plugin.js";
+import { NestJsPlugin } from "../../src/plugins/nestjs-plugin.js";
 import { NodeTestRunnerNubPlugin } from "../../src/plugins/node-test-runner-nub-plugin.js";
 import { NodemonPlugin } from "../../src/plugins/nodemon-plugin.js";
 import { PinoPlugin } from "../../src/plugins/pino-plugin.js";
@@ -70,13 +69,6 @@ const cases: Array<{
     packageName: "eve",
   },
   {
-    name: "github-action",
-    plugin: GithubActionPlugin,
-    fixture: "github-action",
-    configFile: ".github/workflows/ci.yml",
-    packageName: "github-action",
-  },
-  {
     name: "linthtml",
     plugin: LinthtmlPlugin,
     fixture: "linthtml",
@@ -113,10 +105,9 @@ const cases: Array<{
   },
   {
     name: "nest",
-    plugin: NestPlugin,
+    plugin: NestJsPlugin,
     fixture: "nest",
     configFile: "nest-cli.json",
-    packageName: "nest",
   },
   {
     name: "node-test-runner-nub",
@@ -187,6 +178,7 @@ describe("PR #6 package-plugin config file protection", () => {
         ...DEFAULT_CONFIG,
         rootDir,
         configFiles: [],
+        ignoreTests: false,
       });
       const engine = new PluginEngine();
       const adapter = engine.createAdapter(context);

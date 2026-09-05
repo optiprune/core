@@ -5,6 +5,7 @@ import { expect } from "vitest";
 const aliases: Record<string, string> = {
   next: "nextjs",
   nuxt: "nuxtjs",
+  nest: "nestjs",
   node: "node-types",
   "node-test-runner": "node-types",
   "node-test-reporter": "node-types",
