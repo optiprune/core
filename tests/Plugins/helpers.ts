@@ -6,6 +6,7 @@ const aliases: Record<string, string> = {
   next: "nextjs",
   nuxt: "nuxtjs",
   nest: "nestjs",
+  "github-action": "github-actions",
   node: "node-types",
   "node-test-runner": "node-types",
   "node-test-reporter": "node-types",
