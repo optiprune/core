@@ -93,6 +93,21 @@ export const TailwindPlugin: AnalyzerPlugin = {
           evidence: { hasConfigFile },
         });
       }
+
+      // Tailwind CSS v3 directives and v4 URL imports are compiler evidence.
+      // Keep this ownership in the Tailwind plugin rather than a generic
+      // compiler registry so CSS processing follows Tailwind's package rules.
+      const styleFiles = await adapter.findFilesByGlob(["**/*.css", "**/*.scss"]);
+      for (const file of styleFiles) {
+        const source = (await adapter.readFile(file)) ?? "";
+        if (
+          /^\s*@tailwind\s+(?:base|components|utilities)\b/m.test(source) ||
+          /@import\s+(?:url\(\s*)?["']tailwindcss["']/i.test(source)
+        ) {
+          adapter.markAsUsed(file);
+          adapter.markPackageAsUsed("tailwindcss");
+        }
+      }
     },
 
     onFileStart: (fileId, adapter) => {
@@ -101,11 +116,6 @@ export const TailwindPlugin: AnalyzerPlugin = {
       if (TAILWIND_CONFIG_FILES.some((pattern) => normalized.endsWith(pattern))) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("tailwindcss");
-      }
-
-      // Mark CSS files containing Tailwind v3 directives or Tailwind v4 @import "tailwindcss"
-      if (normalized.endsWith(".css") || normalized.endsWith(".scss")) {
-        adapter.markAsUsed(fileId);
       }
     },
 

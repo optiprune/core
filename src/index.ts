@@ -68,7 +68,6 @@ const VERSION = pkg.version;
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 import { applyFixes as runFixes } from "./fixer.js";
-import { CompilerPlugin } from "./compiler-plugin.js";
 
 function isPureStaticExpression(node: any): boolean {
   if (!node) return true;
@@ -339,9 +338,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
-  if (CompilerPlugin.lifecycle.onProjectInit) {
-    await CompilerPlugin.lifecycle.onProjectInit(pluginEngine.createAdapter(earlyContext));
-  }
 
   // Package-manager and framework plugins can contribute workspace patterns
   // during their early configuration pass. Build topology only after those
