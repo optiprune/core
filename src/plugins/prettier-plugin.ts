@@ -33,7 +33,7 @@ function markPrettierPackage(name: string, file: string, adapter: PluginAdapter)
       message: `Package '${name}' is referenced by Prettier configuration.`,
       evidence: { package: name, type: "devDependency" },
     });
-    );
+    prettierDependencies.get(adapter)?.add(name);
   }
 }
 
@@ -175,6 +175,9 @@ export const PrettierPlugin: AnalyzerPlugin = {
       // fixture's explicit configFiles list. Knip treats these as real plugin
       // inputs even when they are not named prettier.config.*.
       const explicitConfigs = new Set<string>(adapter.getConfig().configFiles ?? []);
+      for (const configFile of await adapter.findFiles(PRETTIER_CONFIG_FILES)) {
+        explicitConfigs.add(configFile);
+      }
       for (const script of Object.values(pkg?.scripts ?? {})) {
         if (typeof script !== "string") continue;
         const match = script.match(/--config(?:=|\s+)([^\s]+)/);

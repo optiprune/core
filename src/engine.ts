@@ -18,6 +18,21 @@ import { SveltePlugin } from "./plugins/svelte-plugin.js";
 function dbg(verbose: boolean | undefined, msg: string): void {
   if (verbose) console.error(msg);
 }
+
+function formatPluginLoadError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.length > 0) return message;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return Object.prototype.toString.call(error);
+    }
+  }
+  return String(error);
+}
+
 function safeResolve(rootDir: string, targetPath: string): string | null {
   // Always resolve relative to rootDir
   const resolved = path.resolve(rootDir, targetPath);
@@ -114,7 +129,7 @@ export class PluginEngine {
               rule: "plugin-error",
               severity: "warning",
               confidence: "medium",
-              message: `Failed to load plugin '${file}': ${String(err)}`,
+              message: `Failed to load plugin '${file}': ${formatPluginLoadError(err)}`,
               file: context.options.rootDir,
               evidence: { pluginFile: file, phase: "load" },
             });

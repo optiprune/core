@@ -820,41 +820,15 @@ function collectPackageExportStrings(value: unknown, collected: Set<string>): vo
 }
 
 export function conventionalEntryPatterns(): string[] {
-  return [
-    "src/main.*",
-    "src/index.*",
-    "src/app.*",
-    "src/App.*",
-    "src/server.*",
-    "src/cli.*",
-    "app/**/*.ts",
-    "app/**/*.tsx",
-    "app/**/*.js",
-    "app/**/*.jsx",
-    "pages/**/*.ts",
-    "pages/**/*.tsx",
-    "pages/**/*.js",
-    "pages/**/*.jsx",
-  ];
+  // Restrict generic entry discovery to unambiguously executable module names.
+  // Component files and framework route trees require their framework-specific
+  // conventions; treating every App, app, or pages file as a root hides unused
+  // code in projects that only happen to use those directory names.
+  return ["src/main.*", "src/index.*", "src/app.*", "src/server.*", "src/cli.*"];
 }
 
 export function normalizedConventionalEntryPatterns(): string[] {
-  return [
-    "src/main.*",
-    "src/index.*",
-    "src/app.*",
-    "src/App.*",
-    "src/server.*",
-    "src/cli.*",
-    "app/**/*.ts",
-    "app/**/*.tsx",
-    "app/**/*.js",
-    "app/**/*.jsx",
-    "pages/**/*.ts",
-    "pages/**/*.tsx",
-    "pages/**/*.js",
-    "pages/**/*.jsx",
-  ];
+  return ["src/main.*", "src/index.*", "src/app.*", "src/server.*", "src/cli.*"];
 }
 
 /**

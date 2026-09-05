@@ -195,7 +195,10 @@ export const ConfigContractPlugin: AnalyzerPlugin = {
         if (!value) return;
         const key = propertyName(parent);
         if (value.startsWith(".") || value.startsWith("/")) {
-          adapter.markRelativeFileAsUsed(fileId, value);
+          // Relative strings may be names, plugin options, or unresolved tool
+          // references. Only established entry-like fields constitute a sound
+          // reachability edge.
+          if (ENTRY_KEYS.has(key ?? "")) adapter.markRelativeFileAsUsed(fileId, value);
           return;
         }
         if (

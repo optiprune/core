@@ -1,6 +1,11 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
-import { loadStaticPluginConfig, stringRecord, type StaticConfigValue } from "../plugin-config.js";
+import {
+  loadStaticPluginConfig,
+  stringArray,
+  stringRecord,
+  type StaticConfigValue,
+} from "../plugin-config.js";
 import path from "pathe";
 
 const VITEST_CONFIG_BASENAMES = [
@@ -69,16 +74,47 @@ function isSharedViteConfig(fileId: string): boolean {
   return /^vite\.config\./.test(path.basename(normalize(fileId)));
 }
 
-function isVitestTestFile(fileId: string): boolean {
-  const normalized = normalize(fileId);
-  return (
-    normalized.includes(".test.") ||
-    normalized.includes(".spec.") ||
-    normalized.includes(".bench.") ||
-    normalized.includes("/__tests__/") ||
-    normalized.startsWith("tests/") ||
-    normalized.startsWith("test/")
-  );
+const DEFAULT_TEST_PATTERNS = [
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "**/*.test.js",
+  "**/*.test.jsx",
+  "**/*.test.mjs",
+  "**/*.test.cjs",
+  "**/*.spec.ts",
+  "**/*.spec.tsx",
+  "**/*.spec.js",
+  "**/*.spec.jsx",
+  "**/*.spec.mjs",
+  "**/*.spec.cjs",
+];
+
+function fixturePattern(root: string, pattern: string): string {
+  const normalizedRoot = normalize(root).replace(/^\.\//, "").replace(/\/$/, "");
+  return normalizedRoot.length > 0 && normalizedRoot !== "."
+    ? `${normalizedRoot}/${pattern.replace(/^\.\//, "")}`
+    : pattern;
+}
+
+function configuredTestPatterns(config: Record<string, StaticConfigValue>): {
+  includes: string[];
+  excludes: string[];
+} {
+  const test = stringRecord(config.test);
+  const root = typeof test.root === "string" ? test.root : ".";
+  const includes = stringArray(test.include);
+  const excludes = stringArray(test.exclude);
+  return {
+    includes: (includes.length > 0 ? includes : DEFAULT_TEST_PATTERNS).map((pattern) =>
+      fixturePattern(root, pattern),
+    ),
+    excludes: excludes.map((pattern) => fixturePattern(root, pattern)),
+  };
+}
+
+function scriptConfigFile(script: string): string | undefined {
+  const match = script.match(/(?:^|\s)(?:--config|-c)(?:=|\s+)([^\s]+)/);
+  return match?.[1]?.replace(/^["']|["']$/g, "");
 }
 
 function configuredEnvironment(config: Record<string, StaticConfigValue>): string | undefined {
@@ -152,23 +188,27 @@ export const VitestPlugin: AnalyzerPlugin = {
     onProjectInit: async (adapter) => {
       const packageJson = await adapter.readJson("package.json");
       const dependencies = dependencyNames(packageJson);
-      const configFiles = await adapter.findFiles(VITEST_CONFIG_BASENAMES);
+      const scriptConfigFiles = new Set<string>();
       const hasTestsDirectory = await adapter.folderExists("__tests__");
       let hasScriptInvocation = false;
 
+      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
+        if (typeof script !== "string" || !isVitestScript(script)) continue;
+        hasScriptInvocation = true;
+        const configFile = scriptConfigFile(script);
+        if (configFile) scriptConfigFiles.add(configFile);
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+      }
+
+      const configFiles = Array.from(
+        new Set([...(await adapter.findFiles(VITEST_CONFIG_BASENAMES)), ...scriptConfigFiles]),
+      );
       for (const configFile of configFiles) {
         adapter.markConfigFileAsUsed(configFile);
       }
 
       if (hasTestsDirectory) {
         adapter.markAsUsed("__tests__");
-      }
-
-      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
-        if (typeof script !== "string" || !isVitestScript(script)) continue;
-
-        hasScriptInvocation = true;
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
       const parsedConfigs: Array<{
@@ -187,6 +227,19 @@ export const VitestPlugin: AnalyzerPlugin = {
           config: loaded.config,
           source: loaded.source,
         });
+      }
+
+      const configuredTests = new Set<string>();
+      for (const loaded of parsedConfigs) {
+        const { includes, excludes } = configuredTestPatterns(loaded.config);
+        const excluded = new Set(
+          excludes.length > 0 ? await adapter.findFilesByGlob(excludes) : [],
+        );
+        for (const file of await adapter.findFilesByGlob(includes)) {
+          if (excluded.has(file)) continue;
+          configuredTests.add(file);
+          adapter.markAsUsed(file);
+        }
       }
 
       const hasVitestConfig = parsedConfigs.length > 0;
@@ -257,7 +310,6 @@ export const VitestPlugin: AnalyzerPlugin = {
 
     onFileStart: (fileId, adapter) => {
       if (isVitestConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
-      else if (isVitestTestFile(fileId)) adapter.markAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

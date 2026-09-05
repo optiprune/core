@@ -315,7 +315,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     cache = loadCache(resolvedOptions.rootDir);
   }
 
-  const newCache: AnalysisCache = { version: "2.1", entries: {} };
+  const newCache: AnalysisCache = { version: "2.7", entries: {} };
 
   // Phase 1: Core Graph & AST (Instant)
   const { rootDir } = resolvedOptions;
@@ -469,7 +469,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     });
   if (
     !resolvedOptions.fix &&
-    cache.version === "2.1" &&
+    cache.version === "2.7" &&
     cache.report &&
     cache.analysisKey === analysisKey &&
     sameStats &&
@@ -1170,11 +1170,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
 
-  // A protected configuration file is still parsed, represented in the graph,
-  // and available to plugins, but it must not produce any file-local finding.
-  // Keep this universal final gate after every layer and plugin has emitted so
-  // new file-local finding types inherit the same protection automatically.
+  // A protected configuration file is still parsed and represented in the
+  // graph. Suppress only reachability-related diagnostics for such files:
+  // configuration is loaded by a tool rather than imported by application
+  // code. Plugin findings about missing, unlisted, or unresolved dependencies
+  // remain actionable and must be retained with their configuration location.
   const isProtectedConfigFinding = (finding: Finding): boolean => {
+    if (
+      !["unreachable-file", "unused-export", "unused-member", "unreachable-statement"].includes(
+        finding.rule,
+      )
+    ) {
+      return false;
+    }
     const file = finding.file;
     if (!file || typeof file !== "string") return false;
     const absoluteFile = normalizeAbsolute(
@@ -1332,7 +1340,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   // Persist the compact report only after all analysis layers have completed.
-  newCache.version = "2.1";
+  newCache.version = "2.7";
   newCache.analysisKey = analysisKey;
   newCache.fileHashes = currentFileHashes;
   newCache.fileStats = currentFileStats;
