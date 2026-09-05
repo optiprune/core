@@ -99,7 +99,7 @@ export const JestPlugin: AnalyzerPlugin = {
       const isNxProject = await adapter.folderExists("nx.json");
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
       if (hasInlineConfig) adapter.markAsUsed("package.json", "jest");
       if (hasTestsDirectory) adapter.markAsUsed("__tests__");
 
@@ -135,7 +135,8 @@ export const JestPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isJestConfig(fileId) || isJestTestFile(fileId)) adapter.markAsUsed(fileId);
+      if (isJestConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
+      else if (isJestTestFile(fileId)) adapter.markAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

@@ -109,7 +109,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       for (const configFile of SEMANTIC_RELEASE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -170,7 +170,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (SEMANTIC_RELEASE_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("semantic-release");
       }
     },

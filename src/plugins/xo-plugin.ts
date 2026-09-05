@@ -127,7 +127,7 @@ export const XoPlugin: AnalyzerPlugin = {
       // 1. Mark dedicated configuration files as used
       for (const configFile of XO_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -182,7 +182,7 @@ export const XoPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (XO_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

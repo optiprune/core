@@ -74,7 +74,7 @@ export const LintHtmlPlugin: AnalyzerPlugin = {
       const hasInlineConfig = !!packageJson?.linthtml;
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
       if (hasInlineConfig) adapter.markAsUsed("package.json", "linthtml");
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
@@ -107,7 +107,7 @@ export const LintHtmlPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isLintHtmlConfig(fileId)) adapter.markAsUsed(fileId);
+      if (isLintHtmlConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

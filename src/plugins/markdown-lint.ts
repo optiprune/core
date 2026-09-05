@@ -82,7 +82,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
       for (const configFile of MARKDOWNLINT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -165,7 +165,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
 
       // Protect markdownlint configuration files
       if (MARKDOWNLINT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("markdownlint");
       }
     },

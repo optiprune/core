@@ -57,7 +57,7 @@ export const YarnPlugin: AnalyzerPlugin = {
       // 1. Protect standalone configuration files & lockfiles
       for (const configFile of YARN_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -119,7 +119,7 @@ export const YarnPlugin: AnalyzerPlugin = {
 
       // Protect Yarn configuration files and lockfiles
       if (YARN_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // Protect Yarn Berry internal files (.yarn/plugins/**, .yarn/sdks/**)

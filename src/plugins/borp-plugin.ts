@@ -64,11 +64,18 @@ function isBorpConfigFile(fileId: string): boolean {
 }
 
 function isBorpPackage(specifier: unknown): boolean {
-  return typeof specifier === "string" && (specifier === PACKAGE || specifier.startsWith(`${PACKAGE}/`));
+  return (
+    typeof specifier === "string" && (specifier === PACKAGE || specifier.startsWith(`${PACKAGE}/`))
+  );
 }
 
 function packageNameFromSpecifier(specifier: string): string | undefined {
-  if (!specifier || specifier.startsWith(".") || specifier.startsWith("/") || specifier.startsWith("node:")) {
+  if (
+    !specifier ||
+    specifier.startsWith(".") ||
+    specifier.startsWith("/") ||
+    specifier.startsWith("node:")
+  ) {
     return undefined;
   }
   if (specifier.startsWith("@")) {
@@ -214,18 +221,18 @@ function invocationFromTokens(tokens: string[]): BorpInvocation | undefined {
     }
   }
 
-  const configPaths = tokens
-    .slice(0, executableIndex)
-    .flatMap((token) => {
-      const match = token.match(/^BORP_CONF_FILE=(.+)$/);
-      const configPath = match?.[1] && /\.ya?ml$/i.test(match[1]) ? staticPath(match[1]) : undefined;
-      return configPath ? [configPath] : [];
-    });
+  const configPaths = tokens.slice(0, executableIndex).flatMap((token) => {
+    const match = token.match(/^BORP_CONF_FILE=(.+)$/);
+    const configPath = match?.[1] && /\.ya?ml$/i.test(match[1]) ? staticPath(match[1]) : undefined;
+    return configPath ? [configPath] : [];
+  });
 
   return { files, ...(pattern && { pattern }), configPaths };
 }
 
-function findBorpInvocations(packageJson: any): Array<{ scriptName: string; invocation: BorpInvocation }> {
+function findBorpInvocations(
+  packageJson: any,
+): Array<{ scriptName: string; invocation: BorpInvocation }> {
   const result: Array<{ scriptName: string; invocation: BorpInvocation }> = [];
   for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
     if (typeof script !== "string") continue;
@@ -261,7 +268,8 @@ async function findConfigFiles(
 function parseConfig(source: string): BorpConfig {
   try {
     const value = yaml.load(source);
-    if (!value || typeof value !== "object" || Array.isArray(value)) return { files: [], reporters: [] };
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return { files: [], reporters: [] };
     const config = value as Record<string, unknown>;
     return {
       files: Array.isArray(config.files)
@@ -278,7 +286,9 @@ function parseConfig(source: string): BorpConfig {
 
 async function addBorpEntryPatterns(adapter: PluginAdapter, patterns: string[]): Promise<void> {
   const positive = patterns.filter((pattern) => !pattern.startsWith("!"));
-  const ignored = patterns.filter((pattern) => pattern.startsWith("!")).map((pattern) => pattern.slice(1));
+  const ignored = patterns
+    .filter((pattern) => pattern.startsWith("!"))
+    .map((pattern) => pattern.slice(1));
   if (positive.length === 0) return;
   if (ignored.length === 0) {
     adapter.addEntryPatterns(positive);
@@ -296,7 +306,8 @@ function resolveConfigWorkingDirectoryPath(
   configFile: BorpConfigFile,
   configuredPath: string,
 ): string {
-  if (!configFile.resolvesFromConfigDirectory || path.isAbsolute(configuredPath)) return configuredPath;
+  if (!configFile.resolvesFromConfigDirectory || path.isAbsolute(configuredPath))
+    return configuredPath;
   const bang = configuredPath.startsWith("!") ? "!" : "";
   const value = bang ? configuredPath.slice(1) : configuredPath;
   const directory = path.dirname(normalize(configFile.file));
@@ -340,8 +351,8 @@ export const BorpPlugin: AnalyzerPlugin = {
       const configuredTestPatterns: string[] = [];
 
       for (const configFile of configFiles) {
-        // A config is protected from every file-local finding, but it is not an
-        // application entry point and must therefore not be marked with markAsUsed.
+        // Borp consumes its configuration at runtime. Mark it as used without
+        // adding it as an application entry point.
         adapter.markConfigFileAsUsed(configFile.file);
         const source = await adapter.readFile(configFile.file);
         if (!source) continue;
@@ -351,7 +362,8 @@ export const BorpPlugin: AnalyzerPlugin = {
             .map((file) => resolveConfigWorkingDirectoryPath(configFile, file.trim()))
             .filter(Boolean),
         );
-        for (const reporter of config.reporters) markConfiguredReporter(adapter, configFile, reporter);
+        for (const reporter of config.reporters)
+          markConfiguredReporter(adapter, configFile, reporter);
       }
 
       const positionalTestPatterns = [
@@ -367,7 +379,9 @@ export const BorpPlugin: AnalyzerPlugin = {
       // `files` are appended as positional arguments, so they take precedence.
       const patternTestPatterns =
         positionalTestPatterns.length === 0
-          ? invocations.flatMap((entry) => (entry.invocation.pattern ? [entry.invocation.pattern] : []))
+          ? invocations.flatMap((entry) =>
+              entry.invocation.pattern ? [entry.invocation.pattern] : [],
+            )
           : [];
       await addBorpEntryPatterns(adapter, patternTestPatterns);
       if (
@@ -390,7 +404,10 @@ export const BorpPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message: "Borp configuration or command found, but 'borp' is not listed in package.json.",
-          evidence: { configFiles: configFiles.map((configFile) => configFile.file), scripts: invocations.map((entry) => entry.scriptName) },
+          evidence: {
+            configFiles: configFiles.map((configFile) => configFile.file),
+            scripts: invocations.map((entry) => entry.scriptName),
+          },
         });
       }
     },

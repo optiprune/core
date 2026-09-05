@@ -92,7 +92,7 @@ export const ReactNativePlugin: AnalyzerPlugin = {
       // 1. Protect React Native configuration files
       for (const configFile of REACT_NATIVE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 

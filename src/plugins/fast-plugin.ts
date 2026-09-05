@@ -55,7 +55,7 @@ export const FastPlugin: AnalyzerPlugin = {
       // 1. Protect configuration files
       for (const configFile of FAST_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -82,7 +82,7 @@ export const FastPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (FAST_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

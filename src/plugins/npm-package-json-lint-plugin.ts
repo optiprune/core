@@ -83,7 +83,7 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration & ignore files
       for (const configFile of NPM_PACKAGE_JSON_LINT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -142,7 +142,7 @@ export const NpmPackageJsonLintPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (NPM_PACKAGE_JSON_LINT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

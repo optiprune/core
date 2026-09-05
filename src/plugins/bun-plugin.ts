@@ -194,7 +194,7 @@ export const BunPlugin: AnalyzerPlugin = {
 
       // Mark Bun config files and lockfiles
       if (BUN_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // Bun default entrypoints

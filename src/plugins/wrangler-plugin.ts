@@ -309,7 +309,7 @@ export const WranglerPlugin: AnalyzerPlugin = {
       }
       for (const configFile of configFiles) {
         hasConfigFile = true;
-        adapter.markAsUsed(configFile);
+        adapter.markConfigFileAsUsed(configFile);
         adapter.markPackageAsUsed("wrangler");
         await readWranglerConfig(adapter, configFile);
       }
@@ -383,7 +383,7 @@ export const WranglerPlugin: AnalyzerPlugin = {
 
       // Protect and parse Wrangler configuration files in every lifecycle run.
       if (WRANGLER_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("wrangler");
         await readWranglerConfig(adapter, normalized);
         if (configState.entryPoints.length > 0) {

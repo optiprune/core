@@ -70,7 +70,7 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
       const dependencyDeclared = hasChangelogithubDependency(packageJson);
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
       if (hasInlineConfig) adapter.markAsUsed("package.json", "changelogithub");
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
@@ -103,7 +103,7 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isChangelogithubConfig(fileId)) adapter.markAsUsed(fileId);
+      if (isChangelogithubConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

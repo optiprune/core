@@ -53,7 +53,7 @@ export const MetroPlugin: AnalyzerPlugin = {
       for (const configFile of METRO_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           break;
         }
       }
@@ -95,7 +95,7 @@ export const MetroPlugin: AnalyzerPlugin = {
 
       // 1. Mark Metro configuration files
       if (METRO_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("metro");
       }
 

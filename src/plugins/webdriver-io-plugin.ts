@@ -41,7 +41,7 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
 
       for (const configFile of WDIO_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -71,7 +71,7 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (WDIO_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       if (

@@ -99,7 +99,7 @@ export const TanStackRouterPlugin: AnalyzerPlugin = {
       // 1. Protect generated routeTree manifest & tsr.config.json
       for (const configFile of TANSTACK_ROUTER_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 

@@ -109,7 +109,7 @@ export const RemarkPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Remark configuration files
       for (const configFile of REMARK_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -169,7 +169,7 @@ export const RemarkPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (REMARK_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

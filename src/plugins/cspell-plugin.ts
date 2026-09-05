@@ -105,7 +105,7 @@ export const CspellPlugin: AnalyzerPlugin = {
       for (const configFile of CSPELL_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -173,7 +173,7 @@ export const CspellPlugin: AnalyzerPlugin = {
 
       // Protect CSpell configuration files
       if (CSPELL_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("cspell");
       }
     },

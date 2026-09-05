@@ -157,7 +157,7 @@ export const NuxtPlugin: AnalyzerPlugin = {
 
       for (const configFile of NUXT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 

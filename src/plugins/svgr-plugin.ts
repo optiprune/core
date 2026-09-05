@@ -94,7 +94,7 @@ export const SvgrPlugin: AnalyzerPlugin = {
       for (const configFile of SVGR_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -131,7 +131,7 @@ export const SvgrPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (SVGR_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("@svgr/core");
       }
     },

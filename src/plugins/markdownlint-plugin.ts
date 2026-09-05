@@ -23,7 +23,7 @@ async function findConfigFiles(adapter: PluginAdapter): Promise<string[]> {
 
 export const MarkdownlintPlugin: AnalyzerPlugin = {
   name: `${PACKAGE}-plugin`,
-  version: "1.1.0",
+  version: "1.2.0",
   async detect(adapter) {
     const pkg = await adapter.readJson("package.json");
     return packageIsDeclared(pkg, PACKAGE) || (await findConfigFiles(adapter)).length > 0;
@@ -33,7 +33,8 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
       const pkg = await adapter.readJson("package.json");
       const configFiles = await findConfigFiles(adapter);
       for (const file of configFiles) {
-        adapter.markAsUsed(file);
+        // Tool configuration is consumed externally; retain it without treating it as an executable entry point.
+        adapter.markConfigFileAsUsed(file);
         adapter.markPackageAsUsed(PACKAGE);
       }
       if (pkg?.scripts && typeof pkg.scripts === "object") {

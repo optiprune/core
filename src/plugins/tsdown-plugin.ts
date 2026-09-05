@@ -79,7 +79,7 @@ export const TsdownPlugin: AnalyzerPlugin = {
       for (const configFile of TSDOWN_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -137,7 +137,7 @@ export const TsdownPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (TSDOWN_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("tsdown");
       }
     },

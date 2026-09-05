@@ -114,7 +114,7 @@ export const TailwindPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
 
       if (TAILWIND_CONFIG_FILES.some((pattern) => normalized.endsWith(pattern))) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("tailwindcss");
       }
     },

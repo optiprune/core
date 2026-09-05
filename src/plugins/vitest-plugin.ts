@@ -157,7 +157,7 @@ export const VitestPlugin: AnalyzerPlugin = {
       let hasScriptInvocation = false;
 
       for (const configFile of configFiles) {
-        adapter.markAsUsed(configFile);
+        adapter.markConfigFileAsUsed(configFile);
       }
 
       if (hasTestsDirectory) {
@@ -256,9 +256,8 @@ export const VitestPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isVitestConfig(fileId) || isVitestTestFile(fileId)) {
-        adapter.markAsUsed(fileId);
-      }
+      if (isVitestConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
+      else if (isVitestTestFile(fileId)) adapter.markAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

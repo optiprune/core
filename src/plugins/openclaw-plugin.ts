@@ -108,7 +108,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated OpenClaw configuration files
       for (const configFile of OPENCLAW_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -164,7 +164,7 @@ export const OpenClawPlugin: AnalyzerPlugin = {
 
       // Protect config files
       if (OPENCLAW_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("openclaw");
       }
 

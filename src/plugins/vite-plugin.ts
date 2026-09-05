@@ -172,7 +172,7 @@ export const VitePlugin: AnalyzerPlugin = {
         if (await adapter.folderExists(configFile)) {
           configPath = configFile;
           adapter.addEntryPatterns([configFile]);
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           adapter.markPackageAsUsed("vite");
           break;
         }
@@ -230,7 +230,7 @@ export const VitePlugin: AnalyzerPlugin = {
 
       // 1. Mark Vite config files
       if (VITE_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("vite");
       }
 

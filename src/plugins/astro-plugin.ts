@@ -238,7 +238,7 @@ export const AstroPlugin: AnalyzerPlugin = {
 
       // 7. Mark config files
       if (ASTRO_CONFIG_FILES.includes(fileName) || MARKDOC_CONFIG_FILES.includes(fileName)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

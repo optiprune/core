@@ -49,7 +49,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
       // 1. Protect standalone configuration files & lockfiles
       for (const configFile of PNPM_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -105,7 +105,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (PNPM_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

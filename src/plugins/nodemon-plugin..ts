@@ -75,7 +75,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
       for (const configFile of NODEMON_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -148,7 +148,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
 
       // Protect Nodemon configuration files
       if (NODEMON_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("nodemon");
       }
     },

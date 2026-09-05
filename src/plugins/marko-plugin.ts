@@ -110,7 +110,7 @@ export const MarkoPlugin: AnalyzerPlugin = {
 
       // 2. Mark Marko config files
       if (MARKO_CONFIG_FILES.includes(fileName)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // 3. Mark Marko component directories & tags directory

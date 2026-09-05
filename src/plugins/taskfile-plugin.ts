@@ -42,7 +42,7 @@ export const TaskfilePlugin: AnalyzerPlugin = {
       // 1. Mark existing Taskfile configuration files as active entry points
       for (const configFile of TASKFILE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -68,7 +68,7 @@ export const TaskfilePlugin: AnalyzerPlugin = {
 
       // Protect main Taskfile configs and sub-taskfiles (e.g. Taskfile_build.yml, Taskfile.dist.yaml)
       if (TASKFILE_CONFIG_FILES.includes(basename) || basename.startsWith("Taskfile")) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
   },

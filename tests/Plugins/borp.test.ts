@@ -27,12 +27,14 @@ function createAdapter(
   const files = { ...options.files };
   const configFiles = new Set(options.configFiles ?? []);
   const adapter = {
-    readJson: async (file: string) => (file === "package.json" ? (options.packageJson ?? {}) : null),
+    readJson: async (file: string) =>
+      file === "package.json" ? (options.packageJson ?? {}) : null,
     readFile: async (file: string) => files[file] ?? null,
     folderExists: async (file: string) => configFiles.has(file) || file in files,
-    findFiles: async (basenames: string[]) => [
-      ...new Set([...configFiles, ...Object.keys(files)]),
-    ].filter((file) => basenames.some((basename) => file.endsWith(`/${basename}`) || file === basename)),
+    findFiles: async (basenames: string[]) =>
+      [...new Set([...configFiles, ...Object.keys(files)])].filter((file) =>
+        basenames.some((basename) => file.endsWith(`/${basename}`) || file === basename),
+      ),
     findFilesByGlob: async (patterns: string[]) =>
       patterns.flatMap((pattern) => options.globFiles?.[pattern] ?? []),
     markConfigFileAsUsed: (file: string) => captured.configFiles.push(file),
@@ -99,7 +101,10 @@ describe("BorpPlugin", () => {
 
   it("uses the exact default Borp test-file family as entries when its command has no file selection", async () => {
     const { adapter, captured } = createAdapter({
-      packageJson: { devDependencies: { borp: "1.0.0" }, scripts: { test: "pnpm exec borp --coverage" } },
+      packageJson: {
+        devDependencies: { borp: "1.0.0" },
+        scripts: { test: "pnpm exec borp --coverage" },
+      },
     });
 
     await BorpPlugin.lifecycle.onProjectInit!(adapter);
@@ -132,10 +137,13 @@ describe("BorpPlugin", () => {
     await BorpPlugin.lifecycle.onProjectInit!(adapter);
 
     expect(captured.configFiles).toEqual([configFile]);
+    expect(captured.usedFiles).not.toContainEqual([configFile, undefined]);
     expect(captured.entryPatterns).toContain("integration/**/*.test.mts");
     expect(captured.entryPatterns).not.toContain("tools/integration/**/*.test.mts");
     expect(captured.usedFiles).toContainEqual(["package.json", "scripts:test"]);
-    expect(captured.usedPackages).toEqual(expect.arrayContaining(["borp", "@company/borp-reporter"]));
+    expect(captured.usedPackages).toEqual(
+      expect.arrayContaining(["borp", "@company/borp-reporter"]),
+    );
     expect(captured.findings).toEqual([]);
   });
 

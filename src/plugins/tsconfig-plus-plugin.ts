@@ -86,7 +86,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
       for (const configFile of DEFAULT_TSCONFIG_VARIANTS) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
 
           const content = await adapter.readFile(configFile);
           if (content) {

@@ -121,7 +121,7 @@ export const CucumberPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration files and features folder
       for (const configFile of CUCUMBER_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -190,7 +190,7 @@ export const CucumberPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (CUCUMBER_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // Mark Gherkin feature files, step definitions, and support files

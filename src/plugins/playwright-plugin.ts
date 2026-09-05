@@ -39,7 +39,7 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
       // 1. Mark config files & packages as used
       for (const configFile of PLAYWRIGHT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -70,7 +70,7 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
 
       // Protect Playwright config file
       if (PLAYWRIGHT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // Mark Playwright specs, page objects, fixtures, and helpers as used

@@ -55,7 +55,7 @@ export const NycPlugin: AnalyzerPlugin = {
       // 1. Protect nyc configuration files
       for (const configFile of NYC_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -91,7 +91,7 @@ export const NycPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (NYC_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
     },
 

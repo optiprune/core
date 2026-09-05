@@ -90,7 +90,7 @@ export const LitPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration files
       for (const configFile of LIT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -131,7 +131,7 @@ export const LitPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (LIT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
       }
 
       // Automatically mark component files (.js, .ts, .jsx, .tsx) for Lit scanning

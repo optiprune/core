@@ -93,14 +93,14 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       // 2. Protect Electron Vite & WXT configuration files
       for (const configFile of ELECTRON_VITE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           adapter.markPackageAsUsed("electron-vite");
         }
       }
 
       for (const configFile of WXT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
           adapter.markPackageAsUsed("wxt");
         }
       }
@@ -134,17 +134,17 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
 
       // 1. Configuration files
       if (ELECTRON_VITE_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("electron-vite");
       }
 
       if (WXT_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("wxt");
       }
 
       if (basename.startsWith("pwa-assets.config.")) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("@vite-pwa/assets-generator");
       }
 

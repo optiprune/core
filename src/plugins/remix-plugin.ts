@@ -119,7 +119,7 @@ export const RemixPlugin: AnalyzerPlugin = {
       for (const configFile of REMIX_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markAsUsed(configFile);
+          adapter.markConfigFileAsUsed(configFile);
         }
       }
 
@@ -156,7 +156,7 @@ export const RemixPlugin: AnalyzerPlugin = {
 
       // 1. Configuration files
       if (REMIX_CONFIG_FILES.includes(basename)) {
-        adapter.markAsUsed(fileId);
+        adapter.markConfigFileAsUsed(fileId);
         adapter.markPackageAsUsed("@remix-run/dev");
       }
 

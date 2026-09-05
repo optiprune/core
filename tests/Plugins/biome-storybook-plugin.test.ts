@@ -31,6 +31,7 @@ function createAdapter(
       file === ".storybook" ? !!options.rootStorybookDirectory : !!options.files?.[file],
     findFiles: async (_basenames: string[]) => options.configFiles ?? [],
     markAsUsed: (file: string, symbol?: string) => captured.usedFiles.push([file, symbol]),
+    markConfigFileAsUsed: (file: string) => captured.usedFiles.push([file, undefined]),
     markPackageAsUsed: (packageName: string) => captured.usedPackages.push(packageName),
     emitFinding: (finding: any) => captured.findings.push(finding),
     addProjectPatterns: (patterns: string[]) => captured.projectPatterns.push(...patterns),
