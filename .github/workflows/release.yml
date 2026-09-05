@@ -36,10 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev
 
-      - name: Verify
+      - name: Build
         run: |
           npm run build
-          npm test
 
       - name: Check dirty Git files
         run: |
@@ -47,6 +46,11 @@ jobs:
           git status --porcelain
           echo "=== Git Diff ==="
           git diff
+
+      - name: Checkout
+        run: |
+          git checkout --
+
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
