@@ -82,6 +82,7 @@ describe("Jiti configuration loading", () => {
         "export default {",
         "  rootDir: '.',",
         "  entry: ['src/entry.ts'],",
+        "  configFiles: ['tooling/**/*.ts'],",
         "  extensions: ['.ts', '.custom'],",
         "  ignore: ['generated/**'],",
         "  ignoreDependencies: ['manual-runtime-dependency'],",
@@ -123,6 +124,7 @@ describe("Jiti configuration loading", () => {
     expect(loaded).toMatchObject({
       rootDir: ".",
       entry: ["src/entry.ts"],
+      configFiles: ["tooling/**/*.ts"],
       extensions: [".ts", ".custom"],
       ignore: ["generated/**"],
       ignoreDependencies: ["manual-runtime-dependency"],
@@ -152,6 +154,7 @@ describe("Jiti configuration loading", () => {
     expect(resolved).toMatchObject({
       rootDir,
       entry: [path.join(rootDir, "src/entry.ts")],
+      configFiles: [path.join(rootDir, "tooling/**/*.ts")],
       extensions: [".ts", ".custom"],
       ignoreDependencies: ["manual-runtime-dependency"],
       externalContracts: ["PublicContract"],

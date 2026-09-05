@@ -1267,6 +1267,7 @@ export function contextWithGraph(
     reachable: graph.reachable,
     maybeReachable: graph.maybeReachable,
     runtimeUsedFiles: new Set<string>(),
+    protectedConfigFiles: new Set<string>(),
     semanticConfigMembers: new Set<string>(),
     runtimeUsedMembers: new Set<string>(),
     hasReachableUnknownDynamicBoundary: graph.hasReachableUnknownDynamicBoundary,

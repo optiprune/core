@@ -65,6 +65,7 @@ The main `AnalyzerOptions` surface includes:
 | ---------------------------- | ------------------------------------------------------------------------------------------ |
 | `rootDir`                    | Project directory used as the analysis root.                                               |
 | `entry`                      | Explicit entry files or glob patterns.                                                     |
+| `configFiles`                | Relative file paths or glob patterns to analyze but exclude from all file-local findings.  |
 | `extensions`                 | Source extensions to include.                                                              |
 | `ignore`                     | Additional ignore patterns.                                                                |
 | `ignoreDependencies`         | Dependency names to exclude from dependency findings.                                      |
@@ -104,6 +105,7 @@ import { defineConfig } from "@optiprune/core";
 export default defineConfig({
   rootDir: ".",
   entry: ["src/index.ts"],
+  configFiles: ["tooling/**/*.ts"],
   ignore: ["**/fixtures/**"],
   reportUnusedExports: true,
   failOn: "high",
@@ -118,6 +120,8 @@ export default defineConfig({
 ```
 
 CLI-provided values are applied as explicit overrides. The loader merges project configuration with resolved Core defaults and preserves nested layer, rule, and plugin settings.
+
+Use `configFiles` for tool configuration modules that are consumed outside the static import graph. Paths and glob patterns are relative to `rootDir`. Matching source files are still parsed and participate in graph analysis, but Core suppresses every finding attached to those files; they are **not** added to `entryPoints` or treated as synthetic roots.
 
 ## Findings and confidence
 
