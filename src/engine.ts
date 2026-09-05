@@ -38,6 +38,7 @@ export class PluginEngine {
   }
 
   register(plugin: AnalyzerPlugin) {
+    if (this.plugins.some((registered) => registered.name === plugin.name)) return;
     this.plugins.push(plugin);
   }
 
