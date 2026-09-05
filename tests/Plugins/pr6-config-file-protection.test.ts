@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../../src/config-loader.js";
 import { PluginEngine } from "../../src/engine.js";
 import { contextWithGraph } from "../../src/graph.js";
+import { normalizeCanonicalPath } from "../../src/fs-utils.js";
 import { BorpPlugin } from "../../src/plugins/borp-plugin.js";
 import { CommitizenPlugin } from "../../src/plugins/commitizen-plugin.js";
 import { CreateTypescriptAppPlugin } from "../../src/plugins/create-typescript-app-plugin.js";
@@ -181,7 +182,7 @@ describe("PR #6 package-plugin config file protection", () => {
     "recognizes and protects the $name configuration fixture",
     async ({ plugin, fixture, configFile, packageName }) => {
       const rootDir = path.join(fixtureRoot, fixture);
-      const configPath = path.join(rootDir, configFile);
+      const configPath = normalizeCanonicalPath(path.join(rootDir, configFile));
       const context = contextWithGraph(new Map(), new Set(), {
         ...DEFAULT_CONFIG,
         rootDir,
