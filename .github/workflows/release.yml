@@ -33,6 +33,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Attach release commit to a local branch
+        run: git switch --create release-notify
+
       - name: Run release-it comment notification
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
