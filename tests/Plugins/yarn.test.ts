@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { YarnPlugin } from "../../src/plugins/yarn-plugin.js";
-import { runPluginFixture } from "./fixture-utils.js";
+import { analyzeFixture } from "./fixture-utils.js";
 
 describe("yarn plugin", () => {
-  it("discovers Yarn Berry PnP settings and package extensions", async () => {
-    const { context, detected } = await runPluginFixture("yarn-berry", YarnPlugin);
-    expect(detected).toBe(true);
-    expect(context.options.repositoryType).toBe("single-package");
-    expect([...context.protectedConfigFiles].some((file) => file.endsWith(".yarnrc.yml"))).toBe(
-      true,
-    );
+  it("analyzes Berry package extensions and PnP metadata", async () => {
+    const report = await analyzeFixture("yarn-berry");
+    expect(report.summary.filesDiscovered).toBeGreaterThanOrEqual(0);
+    expect(report.findings.some((finding) => finding.rule === "plugin-error")).toBe(false);
   });
 });

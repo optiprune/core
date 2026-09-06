@@ -1,0 +1,1 @@
+{"name":"fixture-webpack-cli","private":true,"scripts":{"build":"webpack --config config/webpack.cli.js --mode production --entry ./src/main.js"},"devDependencies":{"webpack":"^5.0.0","webpack-cli":"^5.0.0","ts-loader":"^9.0.0","typescript":"^5.0.0"}}

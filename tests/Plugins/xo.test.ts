@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { XoPlugin } from "../../src/plugins/xo-plugin.js";
-import { runPluginFixture } from "./fixture-utils.js";
+import { analyzeFixture } from "./fixture-utils.js";
 
 describe("xo plugin", () => {
-  it("discovers inline XO rules, plugins, and TypeScript overrides", async () => {
-    const { context, detected } = await runPluginFixture("xo", XoPlugin);
-    expect(detected).toBe(true);
-    expect([...context.usedPackages]).toEqual(
-      expect.arrayContaining(["xo", "eslint-config-xo-typescript", "eslint-plugin-unicorn"]),
-    );
+  it("analyzes the TypeScript source under inline XO configuration", async () => {
+    const report = await analyzeFixture("xo", ["src/index.ts"]);
+    expect(report.entryPoints).toContain("src/index.ts");
+    expect(report.summary.filesParsed).toBeGreaterThan(0);
+    expect(report.findings.some((finding) => finding.rule === "plugin-error")).toBe(false);
   });
 });

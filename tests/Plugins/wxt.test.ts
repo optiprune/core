@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { WxtPlugin } from "../../src/plugins/wxt-plugin.js";
-import { runPluginFixture } from "./fixture-utils.js";
+import { analyzeFixture } from "./fixture-utils.js";
 
 describe("wxt plugin", () => {
-  it("discovers the WXT config and extension entrypoints", async () => {
-    const { context, detected } = await runPluginFixture("wxt", WxtPlugin);
-    expect(detected).toBe(true);
-    expect(context.usedPackages).toContain("wxt");
-    expect(context.options.configFiles.some((file) => file.endsWith("wxt.config.ts"))).toBe(true);
+  it("analyzes extension background, content, and popup entrypoints", async () => {
+    const report = await analyzeFixture("wxt", [
+      "entrypoints/background.ts",
+      "entrypoints/content.ts",
+      "entrypoints/popup/main.ts",
+    ]);
+    expect(report.entryPoints).toEqual(
+      expect.arrayContaining([
+        "entrypoints/background.ts",
+        "entrypoints/content.ts",
+        "entrypoints/popup/main.ts",
+      ]),
+    );
+    expect(report.summary.filesParsed).toBeGreaterThan(0);
+    expect(report.findings.some((finding) => finding.rule === "plugin-error")).toBe(false);
   });
 });

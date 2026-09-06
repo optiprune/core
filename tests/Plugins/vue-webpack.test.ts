@@ -1,8 +1,11 @@
-import { describe, it } from "vitest";
-import { assertPackagePlugin } from "./helpers.js";
+import { describe, expect, it } from "vitest";
+import { analyzeFixture } from "./fixture-utils.js";
 
 describe("vue-webpack plugin", () => {
-  it("uses the package plugin rather than a numbered test-name plugin", () => {
-    assertPackagePlugin("vue-webpack");
+  it("analyzes a legacy Vue app with webpack and vue-loader", async () => {
+    const report = await analyzeFixture("vue-webpack", ["src/main.js"]);
+    expect(report.entryPoints).toContain("src/main.js");
+    expect(report.summary.filesParsed).toBeGreaterThan(0);
+    expect(report.findings.some((finding) => finding.rule === "plugin-error")).toBe(false);
   });
 });

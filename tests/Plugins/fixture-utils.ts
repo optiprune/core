@@ -1,11 +1,12 @@
 import path from "pathe";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_CONFIG } from "../../src/config-loader.js";
+import { analyze } from "../../src/index.js";
 import { PluginEngine } from "../../src/engine.js";
 import { contextWithGraph } from "../../src/graph.js";
 import type { AnalyzerPlugin } from "../../src/types.js";
 
-const fixtureRoot = path.resolve(
+export const fixtureRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../fixtures/plugins",
 );
@@ -22,4 +23,14 @@ export async function runPluginFixture(name: string, plugin: AnalyzerPlugin) {
   const detected = await plugin.detect?.(adapter);
   await plugin.lifecycle.onProjectInit?.(adapter);
   return { context, detected };
+}
+
+export async function analyzeFixture(name: string, entry: string[] = []) {
+  return analyze({
+    rootDir: path.join(fixtureRoot, name),
+    entry,
+    includeConventionalEntries: false,
+    reportUnusedExports: true,
+    failOn: "none",
+  });
 }
