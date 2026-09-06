@@ -1,0 +1,11 @@
+{
+  "name": "fixture-wxt",
+  "private": true,
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build"
+  },
+  "devDependencies": {
+    "wxt": "^0.19.0"
+  }
+}

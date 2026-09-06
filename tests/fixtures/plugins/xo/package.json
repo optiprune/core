@@ -1,0 +1,36 @@
+{
+  "name": "fixture-xo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "xo"
+  },
+  "xo": {
+    "space": 2,
+    "prettier": true,
+    "extends": ["xo-typescript"],
+    "plugins": ["unicorn"],
+    "rules": {
+      "unicorn/prefer-node-protocol": "error"
+    },
+    "overrides": [
+      {
+        "files": ["src/**/*.ts"],
+        "parserOptions": {
+          "project": "./tsconfig.json"
+        }
+      },
+      {
+        "files": ["scripts/**/*.js"],
+        "rules": {
+          "@typescript-eslint/no-var-requires": "off"
+        }
+      }
+    ]
+  },
+  "devDependencies": {
+    "xo": "^0.58.0",
+    "xo-typescript": "^1.0.0",
+    "eslint-plugin-unicorn": "^56.0.0"
+  }
+}

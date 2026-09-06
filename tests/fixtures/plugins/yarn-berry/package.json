@@ -1,0 +1,25 @@
+{
+  "name": "fixture-yarn-berry",
+  "packageManager": "yarn@4.0.2",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "legacy-widget": "1.2.3",
+    "storybook-addon": "2.0.0"
+  },
+  "dependenciesMeta": {
+    "legacy-widget": {
+      "built": false
+    }
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "fixture-yorkie",
+  "private": true,
+  "scripts": {
+    "lint": "eslint .",
+    "test:unit": "node --test"
+  },
+  "gitHooks": {
+    "pre-commit": "yarn lint",
+    "commit-msg": "node scripts/validate-commit-message.js",
+    "pre-push": "yarn test:unit"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "yorkie": "^2.0.0"
+  }
+}

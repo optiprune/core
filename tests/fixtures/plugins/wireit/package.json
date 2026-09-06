@@ -1,0 +1,31 @@
+{
+  "name": "fixture-wireit",
+  "private": true,
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build": "wireit",
+    "test": "wireit"
+  },
+  "wireit": {
+    "build:types": {
+      "command": "tsc --emitDeclarationOnly",
+      "files": ["src/**/*.ts"],
+      "output": ["dist/**/*.d.ts"]
+    },
+    "build": {
+      "command": "node scripts/build.mjs",
+      "dependencies": ["build:types"],
+      "files": ["src/**/*.ts", "package.json"],
+      "output": ["dist/**/*.js", "dist/**/*.d.ts"]
+    },
+    "test": {
+      "command": "node --test dist/**/*.test.js",
+      "dependencies": ["build"]
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "wireit": "^0.14.0"
+  }
+}

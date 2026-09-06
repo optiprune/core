@@ -16,6 +16,7 @@ const SIMPLE_GIT_HOOKS_CONFIG_FILES = [
   "simple-git-hooks.yaml",
   "simple-git-hooks.yml",
 ];
+const YORKIE_PACKAGE = "yorkie";
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -34,7 +35,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
   version: "1.2.0",
 
   detect: async (adapter) => {
-    // 1. Check package.json dependencies, simple-git-hooks field, or scripts
+    // 1. Check package.json dependencies, Yorkie/gitHooks, simple-git-hooks field, or scripts
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
       const allDeps = {
@@ -43,7 +44,12 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
         ...pkg.peerDependencies,
       };
 
-      if ("simple-git-hooks" in allDeps || pkg["simple-git-hooks"]) {
+      if (
+        YORKIE_PACKAGE in allDeps ||
+        "gitHooks" in pkg ||
+        "simple-git-hooks" in allDeps ||
+        pkg["simple-git-hooks"]
+      ) {
         return true;
       }
 
@@ -79,6 +85,13 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
       };
 
       const hasHookDep = "simple-git-hooks" in allDeps;
+      const hasYorkieDep = YORKIE_PACKAGE in allDeps;
+
+      if (hasYorkieDep) adapter.markPackageAsUsed(YORKIE_PACKAGE);
+      if (pkg?.gitHooks && typeof pkg.gitHooks === "object") {
+        adapter.markAsUsed("package.json", "gitHooks");
+        processHookCommands(pkg.gitHooks, adapter);
+      }
 
       // 1. Safeguard simple-git-hooks in package.json
       if (hasHookDep) {

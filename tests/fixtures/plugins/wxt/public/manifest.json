@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Fixture Extension",
+  "version": "0.1.0",
+  "action": { "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [{ "matches": ["https://example.com/*"], "js": ["content-scripts/example.js"] }]
+}
