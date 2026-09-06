@@ -1,4 +1,4 @@
-import path from "node:path";
+import path from "pathe";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_CONFIG } from "../../src/config-loader.js";
 import { PluginEngine } from "../../src/engine.js";
