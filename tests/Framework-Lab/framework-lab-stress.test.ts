@@ -73,7 +73,7 @@ describe("framework-lab strict benchmark", () => {
       filesParsed: 29,
       filesRecovered: 0,
       filesFallback: 0,
-      entryPoints: 6,
+      entryPoints: 7,
       cycles: 2,
       findings: expectedFindings.size,
       errors: 0,
@@ -86,6 +86,7 @@ describe("framework-lab strict benchmark", () => {
       "packages/core/src/index.ts",
       "packages/ui/src/main.tsx",
       "scripts/validate-openapi.mjs",
+      "packages/webpack-fixture/src/alpha.js",
     ]);
 
     const actualCycles = report.components
