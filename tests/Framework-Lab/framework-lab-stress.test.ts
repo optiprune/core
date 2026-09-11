@@ -86,7 +86,7 @@ describe("framework-lab strict benchmark", () => {
       "packages/core/src/index.ts",
       "packages/ui/src/main.tsx",
       "scripts/validate-openapi.mjs",
-      "packages/webpack-fixture/src/alpha.js",
+      "src/alpha.js",
     ]);
 
     const actualCycles = report.components
