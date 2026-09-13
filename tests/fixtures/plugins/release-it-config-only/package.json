@@ -1,0 +1,4 @@
+{
+  "name": "release-it-config-only",
+  "devDependencies": { "release-it": "^17.0.0" }
+}

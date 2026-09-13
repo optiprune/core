@@ -51,7 +51,6 @@ function isJestTestFile(fileId: string): boolean {
   return (
     normalized.includes(".test.") ||
     normalized.includes(".spec.") ||
-    normalized.includes("/__tests__/") ||
     normalized.includes("/__mocks__/")
   );
 }
@@ -82,8 +81,6 @@ export const JestPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
     if ((await adapter.findFiles(JEST_CONFIG_BASENAMES)).length > 0) return true;
-    if (await adapter.folderExists("__tests__")) return true;
-
     return Object.values(packageJson?.scripts ?? {}).some(
       (script) => typeof script === "string" && isJestScript(script),
     );
@@ -95,22 +92,18 @@ export const JestPlugin: AnalyzerPlugin = {
       const dependencies = dependencyNames(packageJson);
       const configFiles = await adapter.findFiles(JEST_CONFIG_BASENAMES);
       const hasInlineConfig = !!packageJson?.jest;
-      const hasTestsDirectory = await adapter.folderExists("__tests__");
       const isNxProject = await adapter.folderExists("nx.json");
       let hasScriptInvocation = false;
 
       for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
       if (hasInlineConfig) adapter.markAsUsed("package.json", "jest");
-      if (hasTestsDirectory) adapter.markAsUsed("__tests__");
-
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
         if (typeof script !== "string" || !isJestScript(script)) continue;
         hasScriptInvocation = true;
         adapter.markAsUsed("package.json", `scripts:${scriptName}`);
       }
 
-      const hasEvidence =
-        configFiles.length > 0 || hasInlineConfig || hasTestsDirectory || hasScriptInvocation;
+      const hasEvidence = configFiles.length > 0 || hasInlineConfig || hasScriptInvocation;
       if (hasEvidence && dependencies.has("jest")) adapter.markPackageAsUsed("jest");
       if (hasEvidence && isNxProject && dependencies.has("@nx/jest"))
         adapter.markPackageAsUsed("@nx/jest");
@@ -126,7 +119,6 @@ export const JestPlugin: AnalyzerPlugin = {
           evidence: {
             configFiles,
             hasInlineConfig,
-            hasTestsDirectory,
             hasScriptInvocation,
             isNxProject,
           },

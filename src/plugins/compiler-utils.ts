@@ -10,9 +10,11 @@ export async function markCompilerFiles(
   patterns: string[],
   packageNames: string[],
 ): Promise<void> {
-  const files = await adapter.findFilesByGlob(patterns);
-  for (const file of files) {
-    adapter.markAsUsed(file);
-    for (const packageName of packageNames) adapter.markPackageAsUsed(packageName);
-  }
+  // A stylesheet extension alone is not evidence that every stylesheet is a
+  // runtime entry, nor that the compiler package is actually used. Imports,
+  // explicit build configuration, and CLI scripts are handled by the normal
+  // graph/dependency analysis. Deliberately avoid blanket reachability here.
+  void adapter;
+  void patterns;
+  void packageNames;
 }

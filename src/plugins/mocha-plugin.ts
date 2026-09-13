@@ -65,7 +65,7 @@ export const MochaPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return await adapter.folderExists("test");
+    return false;
   },
 
   lifecycle: {
@@ -79,12 +79,7 @@ export const MochaPlugin: AnalyzerPlugin = {
 
       const hasMochaDep = "mocha" in allDeps;
 
-      // 1. Protect core Mocha package if present
-      if (hasMochaDep) {
-        adapter.markPackageAsUsed("mocha");
-      }
-
-      // 2. Protect standalone config files and package.json mocha config block
+      // 1. Protect standalone config files and package.json mocha config block
       let hasConfigFile = false;
       for (const configFile of MOCHA_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
@@ -160,17 +155,6 @@ export const MochaPlugin: AnalyzerPlugin = {
       // Protect configuration files
       if (MOCHA_CONFIG_FILES.includes(basename)) {
         adapter.markConfigFileAsUsed(fileId);
-        adapter.markPackageAsUsed("mocha");
-      }
-
-      // Protect test files in test/ or matching *.test.* / *.spec.*
-      if (
-        normalized.includes(".test.") ||
-        normalized.includes(".spec.") ||
-        normalized.includes("/test/") ||
-        normalized.includes("/tests/")
-      ) {
-        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("mocha");
       }
     },

@@ -28,13 +28,6 @@ export const OxfmtPlugin: AnalyzerPlugin = {
     if (pkg) {
       if (pkg.oxfmt) return true;
 
-      const hasDep =
-        (pkg.dependencies && pkg.dependencies[OXFMT_PACKAGE_NAME]) ||
-        (pkg.devDependencies && pkg.devDependencies[OXFMT_PACKAGE_NAME]) ||
-        (pkg.peerDependencies && pkg.peerDependencies[OXFMT_PACKAGE_NAME]);
-
-      if (hasDep) return true;
-
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
@@ -66,9 +59,8 @@ export const OxfmtPlugin: AnalyzerPlugin = {
       // 2. Protect oxfmt package dependency if present
       if (pkg) {
         if (
-          (pkg.dependencies && pkg.dependencies[OXFMT_PACKAGE_NAME]) ||
-          (pkg.devDependencies && pkg.devDependencies[OXFMT_PACKAGE_NAME]) ||
-          (pkg.peerDependencies && pkg.peerDependencies[OXFMT_PACKAGE_NAME])
+          pkg.oxfmt ||
+          Object.values(pkg.scripts ?? {}).some((s) => typeof s === "string" && s.includes("oxfmt"))
         ) {
           adapter.markPackageAsUsed(OXFMT_PACKAGE_NAME);
         }

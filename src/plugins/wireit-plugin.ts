@@ -31,7 +31,7 @@ export const WireitPlugin: AnalyzerPlugin = {
         ...pkg.peerDependencies,
       };
 
-      if ("wireit" in allDeps || pkg.wireit) {
+      if (pkg.wireit) {
         return true;
       }
 

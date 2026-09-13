@@ -94,6 +94,11 @@ export const PrismaPlugin: AnalyzerPlugin = {
         adapter.markAsUsed("prisma/schema");
       }
 
+      if (hasSchemaFile) {
+        if (allDeps.prisma) adapter.markPackageAsUsed("prisma");
+        if (allDeps["@prisma/client"]) adapter.markPackageAsUsed("@prisma/client");
+      }
+
       // 3. Track npm scripts invoking Prisma CLI (e.g. "db:generate": "prisma generate")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
@@ -127,7 +132,6 @@ export const PrismaPlugin: AnalyzerPlugin = {
       // Protect all .prisma files (including multi-schema directories in prisma/schema/*.prisma)
       if (normalized.endsWith(".prisma") || normalized.includes("/prisma/")) {
         adapter.markAsUsed(fileId);
-        adapter.markPackageAsUsed("@prisma/client");
       }
     },
 

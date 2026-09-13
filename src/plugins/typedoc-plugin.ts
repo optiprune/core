@@ -102,10 +102,17 @@ export const TypeDocPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
+      const hasTypeDocPackage = Boolean(
+        pkg?.dependencies?.[TYPEDOC_PACKAGE_NAME] ||
+        pkg?.devDependencies?.[TYPEDOC_PACKAGE_NAME] ||
+        pkg?.peerDependencies?.[TYPEDOC_PACKAGE_NAME],
+      );
 
       // 1. Mark dedicated configuration files as used
+      let hasConfigFile = false;
       for (const configFile of TYPEDOC_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
+          hasConfigFile = true;
           adapter.markConfigFileAsUsed(configFile);
         }
       }
@@ -131,6 +138,7 @@ export const TypeDocPlugin: AnalyzerPlugin = {
 
         // 3. Process inline package.json#typedoc field
         if (pkg.typedoc) {
+          hasConfigFile = true;
           adapter.markAsUsed("package.json", "typedoc");
           processTypeDocConfig(pkg.typedoc, adapter);
         }
@@ -139,6 +147,7 @@ export const TypeDocPlugin: AnalyzerPlugin = {
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
             if (typeof scriptContent === "string" && /\btypedoc\b/.test(scriptContent)) {
+              hasConfigFile = true;
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -157,10 +166,14 @@ export const TypeDocPlugin: AnalyzerPlugin = {
               : null;
 
       if (jsonConfigFile) {
+        hasConfigFile = true;
         const configData = await adapter.readJson(jsonConfigFile);
         if (configData) {
           processTypeDocConfig(configData, adapter);
         }
+      }
+      if (hasConfigFile && hasTypeDocPackage) {
+        adapter.markPackageAsUsed(TYPEDOC_PACKAGE_NAME);
       }
     },
 

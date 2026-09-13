@@ -74,7 +74,13 @@ export const LintStagedPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasLintStagedDep) {
+      if (
+        hasLintStagedDep &&
+        (hasConfigFile ||
+          Object.values(pkg?.scripts ?? {}).some(
+            (s) => typeof s === "string" && s.includes("lint-staged"),
+          ))
+      ) {
         adapter.markPackageAsUsed("lint-staged");
       }
 
@@ -97,7 +103,6 @@ export const LintStagedPlugin: AnalyzerPlugin = {
 
       if (LINT_STAGED_CONFIG_FILES.includes(basename)) {
         adapter.markConfigFileAsUsed(fileId);
-        adapter.markPackageAsUsed("lint-staged");
       }
     },
 

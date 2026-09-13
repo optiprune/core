@@ -150,6 +150,10 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
         processReleaseConfigObj(releaseConfig, adapter);
       }
 
+      if (hasConfigFile && allDeps["semantic-release"]) {
+        adapter.markPackageAsUsed("semantic-release");
+      }
+
       // 7. Report missing dependency if configuration exists without semantic-release package
       if (hasConfigFile && !hasSemanticRelease) {
         adapter.emitFinding({

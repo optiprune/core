@@ -46,16 +46,6 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
       }
 
       if (pkg) {
-        for (const pkgName of WDIO_PACKAGES) {
-          if (
-            pkg.dependencies?.[pkgName] ||
-            pkg.devDependencies?.[pkgName] ||
-            pkg.peerDependencies?.[pkgName]
-          ) {
-            adapter.markPackageAsUsed(pkgName);
-          }
-        }
-
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
             if (typeof scriptContent === "string" && /\bwdio\b/.test(scriptContent)) {
@@ -72,15 +62,6 @@ export const WebdriverIOPlugin: AnalyzerPlugin = {
 
       if (WDIO_CONFIG_FILES.includes(basename)) {
         adapter.markConfigFileAsUsed(fileId);
-      }
-
-      if (
-        normalized.includes("/e2e/") ||
-        normalized.includes("/test/specs/") ||
-        /\.e2e\.[jt]sx?$/.test(normalized) ||
-        /\.page\.[jt]sx?$/.test(normalized)
-      ) {
-        adapter.markAsUsed(fileId);
       }
     },
 

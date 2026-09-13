@@ -4,48 +4,6 @@ import path from "pathe";
 
 const BUN_CONFIG_FILES = ["bunfig.toml", "bun.lockb", "bun.lock"];
 
-const NODE_BUILTINS = new Set([
-  "assert",
-  "buffer",
-  "child_process",
-  "cluster",
-  "console",
-  "constants",
-  "crypto",
-  "dgram",
-  "dns",
-  "domain",
-  "events",
-  "fs",
-  "http",
-  "http2",
-  "https",
-  "inspector",
-  "module",
-  "net",
-  "os",
-  "path",
-  "perf_hooks",
-  "process",
-  "punycode",
-  "querystring",
-  "readline",
-  "repl",
-  "stream",
-  "string_decoder",
-  "sys",
-  "timers",
-  "tls",
-  "trace_events",
-  "tty",
-  "url",
-  "util",
-  "v8",
-  "vm",
-  "worker_threads",
-  "zlib",
-]);
-
 const BUN_BUILTINS = new Set([
   "bun",
   "bun:sqlite",
@@ -197,18 +155,11 @@ export const BunPlugin: AnalyzerPlugin = {
         adapter.markConfigFileAsUsed(fileId);
       }
 
-      // Bun default entrypoints
-      if (["index.ts", "main.ts", "server.ts", "index.js", "index.html"].includes(basename)) {
-        adapter.markAsUsed(fileId);
-      }
-
-      // Bun native test runner file patterns
+      // Bun's test runner is only reliable evidence when the file uses Bun's
+      // explicit test suffix. Generic test directories and .test/.spec files
+      // are shared by Node, Jest, Vitest, and other runners.
       const normalized = fileId.replace(/\\/g, "/");
-      if (
-        normalized.includes("/__tests__/") ||
-        /\.(test|spec)\.[jt]sx?$/.test(normalized) ||
-        /_test\.[jt]sx?$/.test(normalized)
-      ) {
+      if (/_test\.[jt]sx?$/.test(normalized)) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -224,7 +175,9 @@ export const BunPlugin: AnalyzerPlugin = {
         adapter.markAsUsed(fileId);
       }
 
-      // 3. Detect imports/exports from "bun", "bun:*", "node:*", or Node built-ins
+      // 3. Detect imports/exports from Bun's explicit builtin modules.
+      // Node builtins are not Bun-specific evidence and must not make an
+      // otherwise unreachable file appear reachable.
       if (
         t.isImportDeclaration(node) ||
         t.isExportNamedDeclaration(node) ||
@@ -232,17 +185,8 @@ export const BunPlugin: AnalyzerPlugin = {
       ) {
         const specifier = (node as any).source?.value;
         if (specifier) {
-          if (
-            BUN_BUILTINS.has(specifier) ||
-            specifier.startsWith("bun:") ||
-            specifier.startsWith("node:")
-          ) {
+          if (BUN_BUILTINS.has(specifier) || specifier.startsWith("bun:")) {
             adapter.markAsUsed(fileId, specifier);
-          } else {
-            const bare = specifier.replace(/^node:/, "");
-            if (NODE_BUILTINS.has(bare)) {
-              adapter.markAsUsed(fileId, specifier);
-            }
           }
         }
       }

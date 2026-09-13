@@ -30,13 +30,6 @@ export const NycPlugin: AnalyzerPlugin = {
     if (pkg) {
       if (pkg.nyc) return true;
 
-      const hasDep =
-        (pkg.dependencies && pkg.dependencies[NYC_PACKAGE_NAME]) ||
-        (pkg.devDependencies && pkg.devDependencies[NYC_PACKAGE_NAME]) ||
-        (pkg.peerDependencies && pkg.peerDependencies[NYC_PACKAGE_NAME]);
-
-      if (hasDep) return true;
-
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (scriptValues.some((s) => typeof s === "string" && /\bnyc\b/.test(s))) {

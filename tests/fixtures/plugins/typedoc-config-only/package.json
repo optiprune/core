@@ -1,0 +1,4 @@
+{
+  "name": "typedoc-config-only",
+  "devDependencies": { "typedoc": "^0.26.0" }
+}

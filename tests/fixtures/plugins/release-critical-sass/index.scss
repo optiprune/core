@@ -1,0 +1,2 @@
+@use './partial';
+body { color: partial.$color; }

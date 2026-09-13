@@ -67,7 +67,8 @@ export const OpenAPIPlugin: AnalyzerPlugin = {
       );
 
       for (const file of files) {
-        if (!scriptUsesOpenAPI && !file.includes("openapi/")) continue;
+        if (!scriptUsesOpenAPI && !file.includes("openapi/") && !OPENAPI_FILES.includes(file))
+          continue;
         adapter.markAsUsed(file);
         const source = await adapter.readFile(file);
         if (!source) continue;
@@ -90,7 +91,9 @@ export const OpenAPIPlugin: AnalyzerPlugin = {
 
     onFileStart: (fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
-      if (OPENAPI_FILES.some((name) => normalized.endsWith(`/openapi/${name}`))) {
+      if (
+        OPENAPI_FILES.some((name) => normalized === name || normalized.endsWith(`/openapi/${name}`))
+      ) {
         adapter.markAsUsed(fileId);
       }
     },

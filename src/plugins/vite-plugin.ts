@@ -153,7 +153,7 @@ export const VitePlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return await adapter.folderExists("index.html");
+    return false;
   },
 
   lifecycle: {
@@ -238,7 +238,6 @@ export const VitePlugin: AnalyzerPlugin = {
       // discovered during onProjectInit, where the configured root is known.
       // Do not mark conventional src/main.* or src/App.* files here: they are
       // reachable only when referenced by index.html (or an explicit entry).
-      if (basename === "index.html") adapter.markPackageAsUsed("vite");
     },
 
     onASTNode: (node, fileId, adapter) => {

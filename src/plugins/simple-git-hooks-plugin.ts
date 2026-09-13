@@ -85,19 +85,13 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
       };
 
       const hasHookDep = "simple-git-hooks" in allDeps;
-      const hasYorkieDep = YORKIE_PACKAGE in allDeps;
 
-      if (hasYorkieDep) adapter.markPackageAsUsed(YORKIE_PACKAGE);
       if (pkg?.gitHooks && typeof pkg.gitHooks === "object") {
         adapter.markAsUsed("package.json", "gitHooks");
         processHookCommands(pkg.gitHooks, adapter);
       }
 
       // 1. Safeguard simple-git-hooks in package.json
-      if (hasHookDep) {
-        adapter.markPackageAsUsed("simple-git-hooks");
-      }
-
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of SIMPLE_GIT_HOOKS_CONFIG_FILES) {
