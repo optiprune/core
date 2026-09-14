@@ -95,7 +95,7 @@ export const GatsbyPlugin: AnalyzerPlugin = {
       for (const configFile of GATSBY_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -139,7 +139,7 @@ export const GatsbyPlugin: AnalyzerPlugin = {
 
       // Protect Gatsby configuration and lifecycle files
       if (GATSBY_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("gatsby");
       }
 

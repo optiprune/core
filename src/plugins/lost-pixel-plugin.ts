@@ -59,7 +59,7 @@ export const LostPixelPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration files
       for (const configFile of LOST_PIXEL_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -94,7 +94,7 @@ export const LostPixelPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (LOST_PIXEL_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

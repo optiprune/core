@@ -134,7 +134,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
       // 1. Mark dedicated configuration files as used
       for (const configFile of STRYKER_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -200,7 +200,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (STRYKER_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

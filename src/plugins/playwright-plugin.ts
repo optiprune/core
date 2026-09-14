@@ -23,9 +23,13 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
     const pkg = await adapter.readJson("package.json");
     if (!pkg) return false;
 
-    return Object.values(pkg.scripts ?? {}).some(
-      (script) => typeof script === "string" && /\bplaywright\b/.test(script),
-    );
+    const allDeps = {
+      ...pkg.dependencies,
+      ...pkg.devDependencies,
+      ...pkg.peerDependencies,
+    };
+
+    return PLAYWRIGHT_PACKAGES.some((p) => p in allDeps);
   },
 
   lifecycle: {
@@ -35,11 +39,21 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
       // 1. Mark config files & packages as used
       for (const configFile of PLAYWRIGHT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
       if (pkg) {
+        for (const pkgName of PLAYWRIGHT_PACKAGES) {
+          if (
+            pkg.dependencies?.[pkgName] ||
+            pkg.devDependencies?.[pkgName] ||
+            pkg.peerDependencies?.[pkgName]
+          ) {
+            adapter.markPackageAsUsed(pkgName);
+          }
+        }
+
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
             if (typeof scriptContent === "string" && /\bplaywright\b/.test(scriptContent)) {
@@ -56,7 +70,18 @@ export const PlaywrightPlugin: AnalyzerPlugin = {
 
       // Protect Playwright config file
       if (PLAYWRIGHT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
+      }
+
+      // Mark Playwright specs, page objects, fixtures, and helpers as used
+      if (
+        /\.(spec|test)\.[jt]sx?$/.test(normalized) ||
+        normalized.includes("/e2e/") ||
+        normalized.includes("/tests/") ||
+        normalized.includes("/page-objects/") ||
+        normalized.includes("/fixtures/")
+      ) {
+        adapter.markAsUsed(fileId);
       }
     },
 

@@ -116,7 +116,7 @@ export const C8Plugin: AnalyzerPlugin = {
       for (const configFile of C8_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -180,7 +180,7 @@ export const C8Plugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (C8_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed(C8_PACKAGE_NAME);
       }
     },

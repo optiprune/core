@@ -47,7 +47,7 @@ export const NitroPlugin: AnalyzerPlugin = {
       for (const configFile of NITRO_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           break;
         }
       }
@@ -86,7 +86,7 @@ export const NitroPlugin: AnalyzerPlugin = {
 
       // 1. Mark configuration files
       if (NITRO_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("nitropack");
       }
 

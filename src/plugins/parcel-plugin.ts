@@ -98,7 +98,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
       for (const configFile of PARCEL_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -212,7 +212,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
 
       // Protect Parcel configuration files
       if (PARCEL_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("parcel");
       }
     },

@@ -6,7 +6,6 @@ const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml
 
 type WranglerConfigInfo = {
   entryPoints: string[];
-  assetDirectories: string[];
   bindings: Set<string>;
 };
 
@@ -15,7 +14,6 @@ const configState: WranglerConfigInfo & {
   usedBindings: Map<string, Set<string>>;
 } = {
   entryPoints: [],
-  assetDirectories: [],
   bindings: new Set(),
   configFiles: new Set(),
   usedBindings: new Map(),
@@ -23,7 +21,6 @@ const configState: WranglerConfigInfo & {
 
 function resetConfigState(): void {
   configState.entryPoints = [];
-  configState.assetDirectories = [];
   configState.bindings.clear();
   configState.configFiles.clear();
   configState.usedBindings.clear();
@@ -109,9 +106,6 @@ function collectJsonConfig(
     if (childKey === "main" || childKey === "entry-point") {
       if (typeof childValue === "string") info.entryPoints.push(childValue);
     }
-    if (key === "assets" && childKey === "directory" && typeof childValue === "string") {
-      info.assetDirectories.push(childValue);
-    }
     if (childKey === "binding") addBinding(childValue, info.bindings);
     if (key === "vars" && /^[A-Za-z_$][\w$]*$/.test(childKey)) info.bindings.add(childKey);
     collectJsonConfig(childValue, childKey, info);
@@ -135,7 +129,6 @@ function collectTomlConfig(content: string, info: WranglerConfigInfo): void {
     const rawValue = assignment[2]?.trim() ?? "";
     const quoted = rawValue.match(/^['\"]([^'\"]*)['\"](?:\s|$)/)?.[1];
     if ((key === "main" || key === "entry-point") && quoted) info.entryPoints.push(quoted);
-    if (section === "assets" && key === "directory" && quoted) info.assetDirectories.push(quoted);
     if (key === "binding") addBinding(quoted, info.bindings);
     if ((section === "vars" || section.endsWith(".vars")) && /^[A-Za-z_$][\w$]*$/.test(key)) {
       info.bindings.add(key);
@@ -158,11 +151,7 @@ async function readWranglerConfig(adapter: PluginAdapter, configFile: string): P
   if (!content) return;
   configState.configFiles.add(configFile);
 
-  const parsedConfig: WranglerConfigInfo = {
-    entryPoints: [],
-    assetDirectories: [],
-    bindings: new Set(),
-  };
+  const parsedConfig: WranglerConfigInfo = { entryPoints: [], bindings: new Set() };
   let isPagesConfig = false;
   if (configFile.endsWith(".toml")) {
     collectTomlConfig(content, parsedConfig);
@@ -187,12 +176,6 @@ async function readWranglerConfig(adapter: PluginAdapter, configFile: string): P
       configState.entryPoints.push(resolvedEntry);
   }
   for (const binding of parsedConfig.bindings) configState.bindings.add(binding);
-  for (const directory of parsedConfig.assetDirectories) {
-    const resolvedDirectory = resolveConfigEntry(configFile, directory);
-    if (!configState.assetDirectories.includes(resolvedDirectory)) {
-      configState.assetDirectories.push(resolvedDirectory);
-    }
-  }
 }
 
 function bindingNameFromMemberExpression(node: any): string | undefined {
@@ -326,7 +309,7 @@ export const WranglerPlugin: AnalyzerPlugin = {
       }
       for (const configFile of configFiles) {
         hasConfigFile = true;
-        adapter.markConfigFileAsUsed(configFile);
+        adapter.markAsUsed(configFile);
         adapter.markPackageAsUsed("wrangler");
         await readWranglerConfig(adapter, configFile);
       }
@@ -334,10 +317,6 @@ export const WranglerPlugin: AnalyzerPlugin = {
       if (configState.entryPoints.length > 0) {
         adapter.addEntryPatterns(configState.entryPoints);
         for (const entryPoint of configState.entryPoints) adapter.markAsUsed(entryPoint);
-      }
-
-      for (const assetDirectory of configState.assetDirectories) {
-        adapter.markAsUsed(assetDirectory);
       }
 
       for (const specialFile of WRANGLER_SPECIAL_FILES) {
@@ -404,7 +383,7 @@ export const WranglerPlugin: AnalyzerPlugin = {
 
       // Protect and parse Wrangler configuration files in every lifecycle run.
       if (WRANGLER_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("wrangler");
         await readWranglerConfig(adapter, normalized);
         if (configState.entryPoints.length > 0) {

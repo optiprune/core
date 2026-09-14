@@ -128,7 +128,7 @@ export const AngularPlugin: AnalyzerPlugin = {
       for (const configFile of ANGULAR_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           break;
         }
       }
@@ -201,7 +201,7 @@ export const AngularPlugin: AnalyzerPlugin = {
 
       // 3. Mark Angular config files
       if (ANGULAR_CONFIG_FILES.includes(fileName)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

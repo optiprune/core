@@ -97,7 +97,7 @@ export const BumppPlugin: AnalyzerPlugin = {
       for (const configFile of BUMPP_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -157,7 +157,7 @@ export const BumppPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (BUMPP_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed(BUMPP_PACKAGE_NAME);
       }
     },

@@ -93,7 +93,7 @@ export const VercelPlugin: AnalyzerPlugin = {
       for (const configFile of VERCEL_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -156,7 +156,7 @@ export const VercelPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (VERCEL_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vercel");
       }
 

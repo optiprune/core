@@ -104,7 +104,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration & decorator files
       for (const configFile of COSMOS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -158,7 +158,7 @@ export const ReactCosmosPlugin: AnalyzerPlugin = {
 
       // Protect configuration & decorator files
       if (COSMOS_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
 
       // Protect React Cosmos fixture files and __fixtures__ folders

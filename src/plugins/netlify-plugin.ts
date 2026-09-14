@@ -111,7 +111,7 @@ export const NetlifyPlugin: AnalyzerPlugin = {
 
       // 1. Config and redirection files
       if (NETLIFY_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
 
       // 2. Netlify Functions v1 & v2 (netlify/functions/* or .netlify/functions-internal/*)

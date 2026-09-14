@@ -83,11 +83,20 @@ export const EslintPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
+      const hasEslintDep = pkg
+        ? !!(
+            pkg.dependencies?.["eslint"] ||
+            pkg.devDependencies?.["eslint"] ||
+            pkg.dependencies?.["@nx/eslint"] ||
+            pkg.devDependencies?.["@nx/eslint"]
+          )
+        : false;
+
       let hasConfigFile = false;
       for (const file of ESLINT_CONFIG_FILES) {
         if (await adapter.folderExists(file)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(file);
+          adapter.markAsUsed(file);
           break;
         }
       }
@@ -105,14 +114,11 @@ export const EslintPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (hasConfigFile) {
-        if (pkg?.dependencies?.eslint || pkg?.devDependencies?.eslint) {
-          adapter.markPackageAsUsed("eslint");
-        } else if (
-          (await adapter.folderExists("nx.json")) &&
-          (pkg?.dependencies?.["@nx/eslint"] || pkg?.devDependencies?.["@nx/eslint"])
-        ) {
+      if (hasConfigFile && !hasEslintDep) {
+        if (await adapter.folderExists("nx.json")) {
           adapter.markPackageAsUsed("@nx/eslint");
+        } else {
+          adapter.markPackageAsUsed("eslint");
         }
       }
     },
@@ -121,7 +127,8 @@ export const EslintPlugin: AnalyzerPlugin = {
       const normalized = fileId.replace(/\\/g, "/");
 
       if (ESLINT_CONFIG_FILES.some((f) => normalized.endsWith(f))) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("eslint");
       }
 
       // Mark custom rules directory as used
@@ -211,9 +218,6 @@ export const EslintPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed(val);
           adapter.markPackageAsUsed("eslint");
         } else if (val.includes("eslint-plugin-")) {
-          adapter.markPackageAsUsed(val);
-          adapter.markPackageAsUsed("eslint");
-        } else if (val.endsWith("/parser") || val === "@typescript-eslint/parser") {
           adapter.markPackageAsUsed(val);
           adapter.markPackageAsUsed("eslint");
         } else {

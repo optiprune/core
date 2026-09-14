@@ -104,7 +104,7 @@ export const SwcPlugin: AnalyzerPlugin = {
       for (const configFile of SWC_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -162,7 +162,7 @@ export const SwcPlugin: AnalyzerPlugin = {
 
       // Protect SWC configuration files
       if (SWC_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@swc/core");
       }
     },

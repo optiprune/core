@@ -64,6 +64,8 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(file)) return true;
     }
 
+    if (await adapter.folderExists("entrypoints")) return true;
+
     return false;
   },
 
@@ -91,16 +93,21 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       // 2. Protect Electron Vite & WXT configuration files
       for (const configFile of ELECTRON_VITE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("electron-vite");
         }
       }
 
       for (const configFile of WXT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("wxt");
         }
+      }
+
+      // 3. Protect WXT entrypoints directory
+      if (await adapter.folderExists("entrypoints")) {
+        adapter.markAsUsed("entrypoints");
       }
 
       // 4. Track npm scripts invoking electron-vite, wxt, or pwa-assets-generator
@@ -127,23 +134,38 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
 
       // 1. Configuration files
       if (ELECTRON_VITE_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("electron-vite");
       }
 
       if (WXT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("wxt");
       }
 
       if (basename.startsWith("pwa-assets.config.")) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@vite-pwa/assets-generator");
+      }
+
+      // 2. WXT WebExtension Entrypoints (entrypoints/popup.html, entrypoints/background.ts, etc.)
+      if (normalized.includes("/entrypoints/") || normalized.startsWith("entrypoints/")) {
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("wxt");
       }
 
       // Electron-Vite entry files are configuration-defined. Do not promote
       // conventional src/main, src/preload, or src/renderer files without a
       // corresponding config reference.
+
+      // 4. File-Based Pages & Layouts Routing (vite-plugin-pages, vite-plugin-vue-layouts-next)
+      if (
+        normalized.includes("/src/pages/") ||
+        normalized.includes("/src/layouts/") ||
+        normalized.includes("/src/routes/")
+      ) {
+        adapter.markAsUsed(fileId);
+      }
 
       // 5. Laravel Vite assets entry directory
       if (normalized.includes("resources/css/") || normalized.includes("resources/js/")) {

@@ -153,7 +153,7 @@ export const VitePlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return false;
+    return await adapter.folderExists("index.html");
   },
 
   lifecycle: {
@@ -172,7 +172,7 @@ export const VitePlugin: AnalyzerPlugin = {
         if (await adapter.folderExists(configFile)) {
           configPath = configFile;
           adapter.addEntryPatterns([configFile]);
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("vite");
           break;
         }
@@ -230,7 +230,7 @@ export const VitePlugin: AnalyzerPlugin = {
 
       // 1. Mark Vite config files
       if (VITE_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vite");
       }
 
@@ -238,6 +238,7 @@ export const VitePlugin: AnalyzerPlugin = {
       // discovered during onProjectInit, where the configured root is known.
       // Do not mark conventional src/main.* or src/App.* files here: they are
       // reachable only when referenced by index.html (or an explicit entry).
+      if (basename === "index.html") adapter.markPackageAsUsed("vite");
     },
 
     onASTNode: (node, fileId, adapter) => {

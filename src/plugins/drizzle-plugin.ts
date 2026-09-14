@@ -93,7 +93,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
       for (const configFile of DRIZZLE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -131,7 +131,7 @@ export const DrizzlePlugin: AnalyzerPlugin = {
 
       // 1. Configuration files
       if (DRIZZLE_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("drizzle-kit");
       }
 

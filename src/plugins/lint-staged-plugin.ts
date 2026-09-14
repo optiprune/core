@@ -55,7 +55,7 @@ export const LintStagedPlugin: AnalyzerPlugin = {
       for (const configFile of LINT_STAGED_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           break;
         }
       }
@@ -74,13 +74,7 @@ export const LintStagedPlugin: AnalyzerPlugin = {
         }
       }
 
-      if (
-        hasLintStagedDep &&
-        (hasConfigFile ||
-          Object.values(pkg?.scripts ?? {}).some(
-            (s) => typeof s === "string" && s.includes("lint-staged"),
-          ))
-      ) {
+      if (hasLintStagedDep) {
         adapter.markPackageAsUsed("lint-staged");
       }
 
@@ -102,7 +96,8 @@ export const LintStagedPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (LINT_STAGED_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("lint-staged");
       }
     },
 

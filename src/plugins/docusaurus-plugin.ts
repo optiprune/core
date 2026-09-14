@@ -95,7 +95,7 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
       for (const configFile of DOCUSAURUS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -129,7 +129,7 @@ export const DocusaurusPlugin: AnalyzerPlugin = {
 
       // 1. Configuration & sidebars files
       if (DOCUSAURUS_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@docusaurus/core");
       }
 

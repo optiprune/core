@@ -97,7 +97,7 @@ export const RollupPlugin: AnalyzerPlugin = {
       for (const configFile of ROLLUP_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -133,7 +133,7 @@ export const RollupPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (ROLLUP_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("rollup");
       }
     },

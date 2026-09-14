@@ -85,7 +85,7 @@ export const SstPlugin: AnalyzerPlugin = {
       for (const configFile of SST_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -129,7 +129,7 @@ export const SstPlugin: AnalyzerPlugin = {
 
       // Protect SST configuration and auto-generated env declaration files
       if (SST_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("sst");
       }
 

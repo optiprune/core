@@ -64,7 +64,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
       for (const configFile of VITEPRESS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -102,7 +102,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
 
       // 1. Mark VitePress configuration and theme files under .vitepress/
       if (normalized.includes(".vitepress/") || VITEPRESS_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vitepress");
       }
 

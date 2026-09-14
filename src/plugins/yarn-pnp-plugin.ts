@@ -13,23 +13,22 @@ export const YarnPnpPlugin: AnalyzerPlugin = {
   version: "1.0.0",
   detect: async (adapter) => {
     if (await adapter.folderExists(".pnp.cjs")) return true;
-    if (await adapter.folderExists(".pnp.loader.mjs")) return true;
-    for (const config of [".yarnrc.yml", ".yarnrc"]) {
-      const content = await adapter.readFile(config);
-      if (typeof content === "string" && /nodeLinker\s*:\s*pnp\b/.test(content)) return true;
-    }
-    return false;
+    const packageJson = await adapter.readJson("package.json");
+    return (
+      typeof packageJson?.packageManager === "string" &&
+      packageJson.packageManager.startsWith("yarn@")
+    );
   },
   lifecycle: {
     onProjectInit: async (adapter) => {
       for (const metadataPath of PNP_METADATA) {
-        if (await adapter.folderExists(metadataPath)) adapter.markConfigFileAsUsed(metadataPath);
+        if (await adapter.folderExists(metadataPath)) adapter.markAsUsed(metadataPath);
       }
       adapter.setRepoType("workspace");
     },
     onFileStart: (fileId, adapter) => {
       if (PNP_METADATA.some((metadataPath) => fileId.endsWith(metadataPath))) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
   },

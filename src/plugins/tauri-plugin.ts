@@ -93,7 +93,7 @@ export const TauriPlugin: AnalyzerPlugin = {
 
       for (const configFile of TAURI_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -151,7 +151,7 @@ export const TauriPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (TAURI_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

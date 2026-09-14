@@ -29,7 +29,6 @@ import { formatJsonDiagnostic, parseJsonDocument } from "./json-utils.js";
 export const DEFAULT_CONFIG: ResolvedOptions = {
   rootDir: normalizeAbsolute(process.cwd()),
   entry: [],
-  configFiles: [],
   extensions: DEFAULT_EXTENSIONS,
   ignore: DEFAULT_IGNORE,
   ignoreDependencies: [],
@@ -54,7 +53,6 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   unreachableFileIgnorePatterns: [],
   protectedExportPatterns: [],
   frameworks: [],
-  compilers: {},
   pathAliases: new Map<string, string[]>(),
   packageImports: new Map<string, string[]>(),
   layers: {
@@ -227,19 +225,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
   const rawEntries = hasUserEntries ? userConfig.entry! : (userConfig.entry ?? base.entry);
   const entry = rawEntries.map((e) => normalizeAbsolute(path.resolve(rootDir, e)));
 
-  // ── configFiles ──────────────────────────────────────────────────────────
-  // Like entry paths, config-file paths are rooted at the analyzed project.
-  // Unlike entries, they are only a reporting-protection declaration.
-  const configFiles = Array.isArray(userConfig.configFiles)
-    ? Array.from(
-        new Set(
-          userConfig.configFiles
-            .filter((file): file is string => typeof file === "string" && file.trim().length > 0)
-            .map((file) => normalizeAbsolute(path.resolve(rootDir, file))),
-        ),
-      )
-    : base.configFiles;
-
   // ── includeConventionalEntries ───────────────────────────────────────────
   const includeConventionalEntries = hasUserEntries
     ? (userConfig.includeConventionalEntries ?? false)
@@ -307,7 +292,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     ...base,
     rootDir,
     entry,
-    configFiles,
     includeConventionalEntries,
     includeEntryExports: userConfig.includeEntryExports ?? base.includeEntryExports,
     includeEntryMembers: userConfig.includeEntryMembers ?? base.includeEntryMembers,
@@ -323,7 +307,6 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     layers,
     rules,
     plugins,
-    compilers: { ...base.compilers, ...(userConfig.compilers ?? {}) },
     ...(userConfig.failOn !== undefined && { failOn: userConfig.failOn }),
     ...(userConfig.reportUnusedExports !== undefined && {
       reportUnusedExports: userConfig.reportUnusedExports,

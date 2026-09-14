@@ -151,7 +151,7 @@ export const ExpoPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Expo configuration files
       for (const configFile of EXPO_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -205,7 +205,7 @@ export const ExpoPlugin: AnalyzerPlugin = {
 
       // Protect Expo configuration and environment files
       if (EXPO_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
 
       // Protect local Expo Config Plugins folder

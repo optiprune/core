@@ -83,7 +83,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
       for (const configFile of DEPENDENCY_CRUISER_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -140,7 +140,7 @@ export const DependencyCruiserPlugin: AnalyzerPlugin = {
 
       // Protect dependency-cruiser configuration files
       if (DEPENDENCY_CRUISER_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("dependency-cruiser");
       }
     },

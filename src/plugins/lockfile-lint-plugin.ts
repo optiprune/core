@@ -61,7 +61,7 @@ export const LockfileLintPlugin: AnalyzerPlugin = {
       // 1. Mark dedicated configuration files as used
       for (const configFile of LOCKFILE_LINT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -101,7 +101,7 @@ export const LockfileLintPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (LOCKFILE_LINT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

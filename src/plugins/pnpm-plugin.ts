@@ -2,7 +2,13 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const PNPM_CONFIG_FILES = ["pnpm-workspace.yaml", "pnpm-lock.yaml", "pnpmfile.js", ".pnpmfile.cjs"];
+const PNPM_CONFIG_FILES = [
+  "pnpm-workspace.yaml",
+  "pnpm-lock.yaml",
+  ".npmrc",
+  "pnpmfile.js",
+  ".pnpmfile.cjs",
+];
 
 export const PnpmPlugin: AnalyzerPlugin = {
   name: "pnpm-plugin",
@@ -43,7 +49,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
       // 1. Protect standalone configuration files & lockfiles
       for (const configFile of PNPM_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -62,17 +68,6 @@ export const PnpmPlugin: AnalyzerPlugin = {
       // 3. Parse pnpm-workspace.yaml to extract package glob patterns
       const workspaceContent = await adapter.readFile("pnpm-workspace.yaml");
       if (workspaceContent) {
-        const inline = workspaceContent.match(/(?:^|\n)\s*packages\s*:\s*\[([^\]]*)\]/m);
-        if (inline?.[1]) {
-          for (const value of inline[1].split(",")) {
-            const globPath = value.trim().replace(/^['"]|['"]$/g, "");
-            if (globPath) {
-              hasDeclaredWorkspaces = true;
-              adapter.setWorkspaceGlobs([globPath]);
-              adapter.markAsUsed(globPath);
-            }
-          }
-        }
         const lines = workspaceContent.split("\n");
         let capturingPackages = false;
 
@@ -110,7 +105,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (PNPM_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

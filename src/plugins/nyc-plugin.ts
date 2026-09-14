@@ -30,6 +30,13 @@ export const NycPlugin: AnalyzerPlugin = {
     if (pkg) {
       if (pkg.nyc) return true;
 
+      const hasDep =
+        (pkg.dependencies && pkg.dependencies[NYC_PACKAGE_NAME]) ||
+        (pkg.devDependencies && pkg.devDependencies[NYC_PACKAGE_NAME]) ||
+        (pkg.peerDependencies && pkg.peerDependencies[NYC_PACKAGE_NAME]);
+
+      if (hasDep) return true;
+
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (scriptValues.some((s) => typeof s === "string" && /\bnyc\b/.test(s))) {
@@ -48,7 +55,7 @@ export const NycPlugin: AnalyzerPlugin = {
       // 1. Protect nyc configuration files
       for (const configFile of NYC_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -84,7 +91,7 @@ export const NycPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (NYC_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

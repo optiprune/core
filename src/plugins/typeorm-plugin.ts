@@ -112,7 +112,7 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
       for (const configFile of TYPEORM_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -161,7 +161,7 @@ export const TypeOrmPlugin: AnalyzerPlugin = {
 
       // Protect TypeORM configuration files
       if (TYPEORM_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("typeorm");
       }
 

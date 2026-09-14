@@ -46,7 +46,7 @@ export const AvaPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    return false;
+    return await adapter.folderExists("test");
   },
 
   lifecycle: {
@@ -60,12 +60,17 @@ export const AvaPlugin: AnalyzerPlugin = {
 
       const hasAvaDep = "ava" in allDeps;
 
-      // 1. Protect standalone config files or package.json ava block
+      // 1. Protect core ava package if installed
+      if (hasAvaDep) {
+        adapter.markPackageAsUsed("ava");
+      }
+
+      // 2. Protect standalone config files or package.json ava block
       let hasConfigFile = false;
       for (const configFile of AVA_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -127,7 +132,18 @@ export const AvaPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (AVA_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
+        adapter.markPackageAsUsed("ava");
+      }
+
+      // Protect test files in test/ or matching *.test.* / *.spec.*
+      if (
+        normalized.includes(".test.") ||
+        normalized.includes(".spec.") ||
+        normalized.includes("/test/") ||
+        normalized.includes("/tests/")
+      ) {
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("ava");
       }
     },

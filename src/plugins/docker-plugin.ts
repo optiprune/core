@@ -74,7 +74,7 @@ export const DockerPlugin: AnalyzerPlugin = {
       // 2. Protect standalone Docker build and Compose files
       for (const configFile of DOCKER_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -124,7 +124,7 @@ export const DockerPlugin: AnalyzerPlugin = {
 
       // Protect Docker configuration files and Dockerfile variants
       if (DOCKER_CONFIG_FILES.includes(basename) || basename.startsWith("Dockerfile.")) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

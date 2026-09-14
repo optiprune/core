@@ -12,7 +12,6 @@
 
 ### Test Suites Impacted / Created:
 
-- [ ] `Compilers/`
 - [ ] `Dependencies/`
 - [ ] `E2E/`
 - [ ] `Framework-Lab/`

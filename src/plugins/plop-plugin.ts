@@ -59,7 +59,7 @@ export const PlopPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Plop configuration files
       for (const configFile of PLOP_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -106,7 +106,7 @@ export const PlopPlugin: AnalyzerPlugin = {
 
       // Protect plopfile configurations
       if (PLOP_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("plop");
       }
 

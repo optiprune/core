@@ -108,7 +108,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       for (const configFile of COMMITLINT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -142,7 +142,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
 
       // Protect commitlint configuration files
       if (COMMITLINT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@commitlint/cli");
       }
     },

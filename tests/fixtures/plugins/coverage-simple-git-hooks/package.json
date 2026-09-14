@@ -1,1 +1,0 @@
-{"devDependencies":{"simple-git-hooks":"^2.11.0"},"simple-git-hooks":{"pre-commit":"npm run lint"}}

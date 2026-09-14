@@ -109,7 +109,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       for (const configFile of SEMANTIC_RELEASE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -150,10 +150,6 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
         processReleaseConfigObj(releaseConfig, adapter);
       }
 
-      if (hasConfigFile && allDeps["semantic-release"]) {
-        adapter.markPackageAsUsed("semantic-release");
-      }
-
       // 7. Report missing dependency if configuration exists without semantic-release package
       if (hasConfigFile && !hasSemanticRelease) {
         adapter.emitFinding({
@@ -174,7 +170,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (SEMANTIC_RELEASE_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("semantic-release");
       }
     },

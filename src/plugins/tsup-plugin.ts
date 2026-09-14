@@ -79,7 +79,7 @@ export const TsupPlugin: AnalyzerPlugin = {
       for (const configFile of TSUP_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -137,7 +137,7 @@ export const TsupPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (TSUP_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("tsup");
       }
     },

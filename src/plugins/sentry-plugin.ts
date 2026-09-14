@@ -77,7 +77,7 @@ export const SentryPlugin: AnalyzerPlugin = {
       for (const configFile of SENTRY_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -123,7 +123,7 @@ export const SentryPlugin: AnalyzerPlugin = {
 
       // Protect Sentry configuration files (Next.js, Edge, Server, Client configs)
       if (SENTRY_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@sentry/nextjs");
       }
     },

@@ -85,7 +85,7 @@ export const KarmaPlugin: AnalyzerPlugin = {
       // 1. Protect Karma config files
       for (const configFile of KARMA_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -124,7 +124,7 @@ export const KarmaPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (KARMA_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
 
       // Mark test files matching standard Karma patterns (*.spec.js, *.test.js, etc.)

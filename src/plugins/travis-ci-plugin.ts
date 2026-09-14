@@ -45,7 +45,7 @@ export const TravisCiPlugin: AnalyzerPlugin = {
       // 1. Protect standalone configuration files
       for (const configFile of TRAVIS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -78,7 +78,7 @@ export const TravisCiPlugin: AnalyzerPlugin = {
 
       // Protect Travis CI configuration files
       if (TRAVIS_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
   },

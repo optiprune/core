@@ -51,7 +51,7 @@ export const LefthookPlugin: AnalyzerPlugin = {
       for (const configFile of LEFTHOOK_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -129,7 +129,7 @@ export const LefthookPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (LEFTHOOK_CONFIG_FILES.includes(basename) || normalized.includes(".lefthook/")) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("lefthook");
       }
     },

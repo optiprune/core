@@ -68,7 +68,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
       for (const configFile of RAYCAST_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -148,7 +148,7 @@ export const RaycastPlugin: AnalyzerPlugin = {
 
       // Protect Raycast configuration files
       if (RAYCAST_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@raycast/api");
       }
 

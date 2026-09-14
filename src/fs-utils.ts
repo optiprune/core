@@ -24,10 +24,7 @@ const SOURCE_EXTENSION_ALIASES = new Map<string, string[]>([
   [".scss", [".scss", ".sass"]],
   [".sass", [".sass", ".scss"]],
   [".less", [".less"]],
-  [".stylus", [".styl", ".stylus"]],
-  [".marko", [".marko"]],
-  [".prisma", [".prisma"]],
-  [".tsrx", [".tsrx"]],
+  [".styl", [".styl", ".stylus"]],
   [".stylus", [".stylus", ".styl"]],
 ]);
 
@@ -308,9 +305,6 @@ export function resolveLocalSpecifier(
     ".less",
     ".styl",
     ".stylus",
-    ".marko",
-    ".prisma",
-    ".tsrx",
     ".json",
   ],
 ): string | undefined {

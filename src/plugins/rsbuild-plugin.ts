@@ -89,7 +89,7 @@ export const RsbuildPlugin: AnalyzerPlugin = {
       for (const configFile of RSBUILD_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -126,7 +126,7 @@ export const RsbuildPlugin: AnalyzerPlugin = {
 
       // 1. Protect config files
       if (RSBUILD_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@rsbuild/core");
       }
 

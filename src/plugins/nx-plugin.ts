@@ -68,7 +68,7 @@ export const NxPlugin: AnalyzerPlugin = {
       for (const configFile of NX_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasNxConfig = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -128,7 +128,7 @@ export const NxPlugin: AnalyzerPlugin = {
 
       // Protect project.json and Nx generator/plugin code
       if (basename === "project.json" || NX_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("nx");
       }
 

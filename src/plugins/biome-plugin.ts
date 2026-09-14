@@ -78,7 +78,7 @@ export const BiomePlugin: AnalyzerPlugin = {
       // Every discovered config is an executable tool input, including nested
       // monorepo configs that ordinary source scanning would leave unreachable.
       for (const configFile of configFiles) {
-        adapter.markConfigFileAsUsed(configFile);
+        adapter.markAsUsed(configFile);
       }
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
@@ -141,7 +141,7 @@ export const BiomePlugin: AnalyzerPlugin = {
 
     onFileStart: (fileId, adapter) => {
       if (BIOME_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)))) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
   },

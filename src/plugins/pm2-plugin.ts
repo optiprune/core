@@ -81,7 +81,7 @@ export const Pm2Plugin: AnalyzerPlugin = {
       // 1. Protect dedicated PM2 ecosystem files
       for (const configFile of PM2_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -134,7 +134,7 @@ export const Pm2Plugin: AnalyzerPlugin = {
 
       // Protect PM2 configuration files
       if (PM2_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("pm2");
       }
     },

@@ -117,7 +117,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
       for (const configFile of POSTCSS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -180,7 +180,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
 
       // Protect PostCSS configuration files
       if (POSTCSS_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("postcss");
       }
     },

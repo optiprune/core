@@ -92,18 +92,11 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
   lifecycle: {
     onProjectInit: async (adapter) => {
       const pkg = await adapter.readJson("package.json");
-      const hasReleaseItPackage = Boolean(
-        pkg?.dependencies?.[RELEASE_IT_PACKAGE_NAME] ||
-        pkg?.devDependencies?.[RELEASE_IT_PACKAGE_NAME] ||
-        pkg?.peerDependencies?.[RELEASE_IT_PACKAGE_NAME],
-      );
 
       // 1. Protect dedicated configuration files
-      let hasConfigFile = false;
       for (const configFile of RELEASE_IT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -140,19 +133,9 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
               (/\brelease-it\b/.test(scriptContent) || scriptContent.includes("release-it "))
             ) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-              if (hasReleaseItPackage) {
-                adapter.markPackageAsUsed(RELEASE_IT_PACKAGE_NAME);
-              }
             }
           }
         }
-      }
-
-      if (hasConfigFile && hasReleaseItPackage) {
-        adapter.markPackageAsUsed(RELEASE_IT_PACKAGE_NAME);
-      }
-      if (pkg?.["release-it"] && hasReleaseItPackage) {
-        adapter.markPackageAsUsed(RELEASE_IT_PACKAGE_NAME);
       }
 
       // 5. Parse standalone .release-it.json if present
@@ -170,7 +153,7 @@ export const ReleaseItPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (RELEASE_IT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

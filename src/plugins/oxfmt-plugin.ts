@@ -28,6 +28,13 @@ export const OxfmtPlugin: AnalyzerPlugin = {
     if (pkg) {
       if (pkg.oxfmt) return true;
 
+      const hasDep =
+        (pkg.dependencies && pkg.dependencies[OXFMT_PACKAGE_NAME]) ||
+        (pkg.devDependencies && pkg.devDependencies[OXFMT_PACKAGE_NAME]) ||
+        (pkg.peerDependencies && pkg.peerDependencies[OXFMT_PACKAGE_NAME]);
+
+      if (hasDep) return true;
+
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
@@ -52,15 +59,16 @@ export const OxfmtPlugin: AnalyzerPlugin = {
       // 1. Protect all dedicated oxfmt configuration & ignore files
       for (const configFile of OXFMT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
       // 2. Protect oxfmt package dependency if present
       if (pkg) {
         if (
-          pkg.oxfmt ||
-          Object.values(pkg.scripts ?? {}).some((s) => typeof s === "string" && s.includes("oxfmt"))
+          (pkg.dependencies && pkg.dependencies[OXFMT_PACKAGE_NAME]) ||
+          (pkg.devDependencies && pkg.devDependencies[OXFMT_PACKAGE_NAME]) ||
+          (pkg.peerDependencies && pkg.peerDependencies[OXFMT_PACKAGE_NAME])
         ) {
           adapter.markPackageAsUsed(OXFMT_PACKAGE_NAME);
         }
@@ -92,7 +100,7 @@ export const OxfmtPlugin: AnalyzerPlugin = {
 
       // Keep configuration files active
       if (OXFMT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

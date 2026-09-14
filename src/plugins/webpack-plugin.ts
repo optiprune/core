@@ -101,18 +101,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
       for (const configFile of WEBPACK_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
-          const configText = await adapter.readFile(configFile);
-          if (configText) {
-            const entryMatches = configText.matchAll(/\bentry\s*:\s*['"]([^'"]+)['"]/g);
-            for (const match of entryMatches) {
-              const entry = match[1];
-              if (entry) {
-                adapter.markAsUsed(entry);
-                adapter.addEntryPatterns([entry]);
-              }
-            }
-          }
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -153,7 +142,7 @@ export const WebpackPlugin: AnalyzerPlugin = {
 
       // Webpack Config itself is an entry point
       if (WEBPACK_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("webpack");
       }
     },
@@ -207,19 +196,16 @@ export const WebpackPlugin: AnalyzerPlugin = {
                   const value = prop.value;
                   if (t.isStringLiteral(value)) {
                     adapter.markAsUsed(value.value);
-                    adapter.addEntryPatterns([value.value]);
                   } else if (t.isArrayExpression(value)) {
                     value.elements.forEach((element: any) => {
                       if (t.isStringLiteral(element)) {
                         adapter.markAsUsed(element.value);
-                        adapter.addEntryPatterns([element.value]);
                       }
                     });
                   } else if (t.isObjectExpression(value)) {
                     value.properties.forEach((entryProp: any) => {
                       if (t.isObjectProperty(entryProp) && t.isStringLiteral(entryProp.value)) {
                         adapter.markAsUsed(entryProp.value.value);
-                        adapter.addEntryPatterns([entryProp.value.value]);
                       } else if (
                         t.isObjectProperty(entryProp) &&
                         t.isArrayExpression(entryProp.value)
@@ -227,7 +213,6 @@ export const WebpackPlugin: AnalyzerPlugin = {
                         entryProp.value.elements.forEach((element: any) => {
                           if (t.isStringLiteral(element)) {
                             adapter.markAsUsed(element.value);
-                            adapter.addEntryPatterns([element.value]);
                           }
                         });
                       }

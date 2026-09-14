@@ -99,7 +99,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Commitizen configuration files
       for (const configFile of COMMITIZEN_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -164,7 +164,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (COMMITIZEN_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

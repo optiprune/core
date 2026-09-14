@@ -87,7 +87,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
       for (const configFile of QUASAR_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -130,7 +130,7 @@ export const QuasarPlugin: AnalyzerPlugin = {
 
       // Protect Quasar configuration files
       if (QUASAR_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("quasar");
       }
 

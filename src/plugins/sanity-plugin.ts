@@ -103,7 +103,7 @@ export const SanityPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated Sanity configuration files
       for (const configFile of SANITY_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -163,7 +163,7 @@ export const SanityPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (SANITY_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
 
       // Protect schema definition files

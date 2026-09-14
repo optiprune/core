@@ -38,7 +38,6 @@ export class PluginEngine {
   }
 
   register(plugin: AnalyzerPlugin) {
-    if (this.plugins.some((registered) => registered.name === plugin.name)) return;
     this.plugins.push(plugin);
   }
 
@@ -55,12 +54,7 @@ export class PluginEngine {
       }
 
       for (const file of files) {
-        if (
-          file === "object-member-plugin.ts" ||
-          file === "object-member-plugin.js" ||
-          file.startsWith("compiler-plugin.")
-        )
-          continue;
+        if (file === "object-member-plugin.ts" || file === "object-member-plugin.js") continue;
         if ((file.endsWith(".ts") || file.endsWith(".js")) && !file.endsWith(".d.ts")) {
           try {
             const pluginPath = pathToFileURL(path.join(pluginsDir, file)).href;
@@ -103,7 +97,6 @@ export class PluginEngine {
           } catch (err) {
             // A broken optional plugin must not disappear silently. Keep the
             // analysis running, but expose the failure to callers.
-            if (file.startsWith("compiler-plugin")) continue;
             this.findings.push({
               rule: "plugin-error",
               severity: "warning",
@@ -244,6 +237,8 @@ export class PluginEngine {
         continue;
       }
 
+      if (!module.ast) continue;
+
       for (const plugin of this.plugins) {
         if (plugin.enabled && plugin.lifecycle.onFileStart) {
           try {
@@ -256,8 +251,6 @@ export class PluginEngine {
           }
         }
       }
-
-      if (!module.ast) continue;
 
       try {
         yukuWalk(module.ast as any, (node: any, ancestors: any[]) => {
@@ -503,23 +496,6 @@ export class PluginEngine {
         if (symbol) {
           context.usedExports?.add(`${absolutePath}:${symbol}`);
         }
-      },
-      markConfigFileAsUsed: (fileId) => {
-        const requestedPath = path.isAbsolute(fileId)
-          ? fileId
-          : path.resolve(context.options.rootDir, fileId);
-        // This is intentionally distinct from markAsUsed: a configuration file
-        // remains non-reachable and never becomes an analysis entry point.
-        const absolutePath = resolvePluginPath(requestedPath);
-        context.protectedConfigFiles ??= new Set<string>();
-        context.options.configFiles ??= [];
-        context.protectedConfigFiles.add(absolutePath);
-        // Project-initialization hooks run before source discovery. Preserve the
-        // registration in resolved options so the file remains in scope even
-        // when project-pattern filtering would otherwise exclude it.
-        context.options.configFiles = Array.from(
-          new Set([...context.options.configFiles, absolutePath]),
-        );
       },
       markRelativeFileAsUsed: (sourceFileId, referencedPath) => {
         if (

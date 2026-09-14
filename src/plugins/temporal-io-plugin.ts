@@ -106,7 +106,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
       for (const configFile of TEMPORAL_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -153,7 +153,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
 
       // Protect Temporal config files
       if (TEMPORAL_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@temporalio/client");
       }
 

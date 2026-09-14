@@ -70,7 +70,7 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
       const dependencyDeclared = hasChangelogenDependency(packageJson);
       let hasScriptInvocation = false;
 
-      for (const configFile of configFiles) adapter.markConfigFileAsUsed(configFile);
+      for (const configFile of configFiles) adapter.markAsUsed(configFile);
       if (hasInlineConfig) adapter.markAsUsed("package.json", "changelog");
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
@@ -103,7 +103,7 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isChangelogenConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
+      if (isChangelogenConfig(fileId)) adapter.markAsUsed(fileId);
     },
 
     onASTNode: (node, fileId, adapter) => {

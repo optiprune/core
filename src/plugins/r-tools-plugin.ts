@@ -109,7 +109,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
       for (const configFile of R_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -152,7 +152,7 @@ export const RToolsPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       if (R_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         if (basename.startsWith("rsbuild")) {
           adapter.markPackageAsUsed("@rsbuild/core");
         } else if (basename.startsWith("rslib")) {

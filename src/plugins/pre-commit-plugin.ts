@@ -65,7 +65,7 @@ export const PreCommitPlugin: AnalyzerPlugin = {
       for (const configFile of PRE_COMMIT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -114,7 +114,7 @@ export const PreCommitPlugin: AnalyzerPlugin = {
 
       // Protect pre-commit configuration and hook files
       if (PRE_COMMIT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
   },

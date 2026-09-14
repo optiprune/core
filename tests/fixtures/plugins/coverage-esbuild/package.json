@@ -1,1 +1,0 @@
-{"devDependencies":{"esbuild":"^0.24.0"},"scripts":{"build":"esbuild src/index.ts --bundle --outfile=dist/index.js"}}

@@ -83,7 +83,7 @@ export const RspackPlugin: AnalyzerPlugin = {
       for (const configFile of RSPACK_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -120,7 +120,7 @@ export const RspackPlugin: AnalyzerPlugin = {
 
       // Protect Rspack configuration files
       if (RSPACK_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@rspack/core");
       }
     },

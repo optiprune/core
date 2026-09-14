@@ -16,7 +16,6 @@ const SIMPLE_GIT_HOOKS_CONFIG_FILES = [
   "simple-git-hooks.yaml",
   "simple-git-hooks.yml",
 ];
-const YORKIE_PACKAGE = "yorkie";
 
 function parseJsonc<T = any>(content: string): T | null {
   try {
@@ -35,7 +34,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
   version: "1.2.0",
 
   detect: async (adapter) => {
-    // 1. Check package.json dependencies, Yorkie/gitHooks, simple-git-hooks field, or scripts
+    // 1. Check package.json dependencies, simple-git-hooks field, or scripts
     const pkg = await adapter.readJson("package.json");
     if (pkg) {
       const allDeps = {
@@ -44,12 +43,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
         ...pkg.peerDependencies,
       };
 
-      if (
-        YORKIE_PACKAGE in allDeps ||
-        "gitHooks" in pkg ||
-        "simple-git-hooks" in allDeps ||
-        pkg["simple-git-hooks"]
-      ) {
+      if ("simple-git-hooks" in allDeps || pkg["simple-git-hooks"]) {
         return true;
       }
 
@@ -86,18 +80,17 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
 
       const hasHookDep = "simple-git-hooks" in allDeps;
 
-      if (pkg?.gitHooks && typeof pkg.gitHooks === "object") {
-        adapter.markAsUsed("package.json", "gitHooks");
-        processHookCommands(pkg.gitHooks, adapter);
+      // 1. Safeguard simple-git-hooks in package.json
+      if (hasHookDep) {
+        adapter.markPackageAsUsed("simple-git-hooks");
       }
 
-      // 1. Safeguard simple-git-hooks in package.json
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of SIMPLE_GIT_HOOKS_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -161,7 +154,7 @@ export const SimpleGitHooksPlugin: AnalyzerPlugin = {
 
       // Protect simple-git-hooks configuration files
       if (SIMPLE_GIT_HOOKS_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("simple-git-hooks");
       }
     },

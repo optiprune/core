@@ -75,6 +75,7 @@ function isVitestTestFile(fileId: string): boolean {
     normalized.includes(".test.") ||
     normalized.includes(".spec.") ||
     normalized.includes(".bench.") ||
+    normalized.includes("/__tests__/") ||
     normalized.startsWith("tests/") ||
     normalized.startsWith("test/")
   );
@@ -140,6 +141,8 @@ export const VitestPlugin: AnalyzerPlugin = {
       return true;
     }
 
+    if (await adapter.folderExists("__tests__")) return true;
+
     return Object.values(packageJson?.scripts ?? {}).some(
       (script) => typeof script === "string" && isVitestScript(script),
     );
@@ -150,10 +153,15 @@ export const VitestPlugin: AnalyzerPlugin = {
       const packageJson = await adapter.readJson("package.json");
       const dependencies = dependencyNames(packageJson);
       const configFiles = await adapter.findFiles(VITEST_CONFIG_BASENAMES);
+      const hasTestsDirectory = await adapter.folderExists("__tests__");
       let hasScriptInvocation = false;
 
       for (const configFile of configFiles) {
-        adapter.markConfigFileAsUsed(configFile);
+        adapter.markAsUsed(configFile);
+      }
+
+      if (hasTestsDirectory) {
+        adapter.markAsUsed("__tests__");
       }
 
       for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
@@ -182,7 +190,7 @@ export const VitestPlugin: AnalyzerPlugin = {
       }
 
       const hasVitestConfig = parsedConfigs.length > 0;
-      const hasVitestEvidence = hasVitestConfig || hasScriptInvocation;
+      const hasVitestEvidence = hasVitestConfig || hasTestsDirectory || hasScriptInvocation;
 
       if (hasVitestEvidence && dependencies.has(VITEST_PACKAGE)) {
         adapter.markPackageAsUsed(VITEST_PACKAGE);
@@ -198,6 +206,7 @@ export const VitestPlugin: AnalyzerPlugin = {
             "Vitest configuration, tests, or command found, but 'vitest' is not listed in package.json.",
           evidence: {
             configFiles,
+            hasTestsDirectory,
             hasScriptInvocation,
           },
         });
@@ -247,8 +256,9 @@ export const VitestPlugin: AnalyzerPlugin = {
     },
 
     onFileStart: (fileId, adapter) => {
-      if (isVitestConfig(fileId)) adapter.markConfigFileAsUsed(fileId);
-      else if (isVitestTestFile(fileId)) adapter.markAsUsed(fileId);
+      if (isVitestConfig(fileId) || isVitestTestFile(fileId)) {
+        adapter.markAsUsed(fileId);
+      }
     },
 
     onASTNode: (node, fileId, adapter) => {

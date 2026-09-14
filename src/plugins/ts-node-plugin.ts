@@ -131,7 +131,7 @@ export const TsNodePlugin: AnalyzerPlugin = {
 
         const tsconfig = parseJsonc(content);
         if (tsconfig?.["ts-node"]) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("ts-node");
 
           // Protect custom require plugins inside tsconfig.json "ts-node" block

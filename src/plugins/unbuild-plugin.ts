@@ -93,7 +93,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       for (const configFile of UNBUILD_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -153,7 +153,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
 
       // Protect unbuild configuration files
       if (UNBUILD_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("unbuild");
       }
     },

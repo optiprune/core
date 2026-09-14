@@ -100,7 +100,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
       for (const configFile of VUE_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
           hasConfigFile = true;
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
           break;
         }
       }
@@ -145,7 +145,7 @@ export const VueJsPlugin: AnalyzerPlugin = {
 
       // 2. Vue / Nuxt config files
       if (VUE_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("vue");
       }
     },

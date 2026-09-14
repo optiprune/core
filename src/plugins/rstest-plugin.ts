@@ -74,7 +74,7 @@ export const RstestPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated configuration files
       for (const configFile of RSTEST_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 

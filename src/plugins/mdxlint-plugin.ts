@@ -99,7 +99,7 @@ export const MdxlintPlugin: AnalyzerPlugin = {
       // 1. Protect dedicated mdxlint configuration files
       for (const configFile of MDXLINT_CONFIG_FILES) {
         if (await adapter.folderExists(configFile)) {
-          adapter.markConfigFileAsUsed(configFile);
+          adapter.markAsUsed(configFile);
         }
       }
 
@@ -162,7 +162,7 @@ export const MdxlintPlugin: AnalyzerPlugin = {
 
       // Protect configuration files
       if (MDXLINT_CONFIG_FILES.includes(basename)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
       }
     },
 

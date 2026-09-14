@@ -143,7 +143,7 @@ export const BabelPlugin: AnalyzerPlugin = {
       const fileName = path.basename(normalized);
 
       if (BABEL_CONFIG_FILES.includes(fileName)) {
-        adapter.markConfigFileAsUsed(fileId);
+        adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@babel/core");
       }
     },
