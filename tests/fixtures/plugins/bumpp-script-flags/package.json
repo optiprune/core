@@ -1,0 +1,6 @@
+{
+  "name": "bumpp-script-flags",
+  "private": true,
+  "scripts": { "release": "bumpp --commit --tag --push --yes" },
+  "devDependencies": { "bumpp": "^10.0.0" }
+}

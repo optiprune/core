@@ -1,0 +1,6 @@
+{
+  "name": "bumpp-custom-files",
+  "private": true,
+  "scripts": { "release": "bumpp package.json packages/*/package.json" },
+  "devDependencies": { "bumpp": "^10.0.0" }
+}

@@ -112,19 +112,14 @@ export const BumppPlugin: AnalyzerPlugin = {
       const isDep = BUMPP_PACKAGE_NAME in allDeps;
 
       if (pkg) {
-        // 2. Protect bumpp package in package.json
-        if (isDep) {
-          adapter.markPackageAsUsed(BUMPP_PACKAGE_NAME);
-        }
-
-        // 3. Process inline package.json#bumpp block
+        // 2. Process inline package.json#bumpp block
         if (pkg.bumpp) {
           hasConfigFile = true;
           adapter.markAsUsed("package.json", "bumpp");
           processBumppConfigObject(pkg.bumpp, adapter);
         }
 
-        // 4. Mark scripts executing bumpp CLI as used
+        // 3. Mark scripts executing bumpp CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
             if (
@@ -138,7 +133,7 @@ export const BumppPlugin: AnalyzerPlugin = {
         }
       }
 
-      // 5. Emit missing dependency finding if config exists without bumpp package
+      // 4. Emit missing dependency finding if config exists without bumpp package
       if (hasConfigFile && !isDep) {
         adapter.emitFinding({
           rule: "missing-dependency",

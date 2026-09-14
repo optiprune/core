@@ -1,0 +1,6 @@
+{
+  "name": "bumpp-chained-script",
+  "private": true,
+  "scripts": { "release": "pnpm run test && bumpp && git push --tags" },
+  "devDependencies": { "bumpp": "^10.0.0" }
+}

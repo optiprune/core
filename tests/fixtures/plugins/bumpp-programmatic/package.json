@@ -1,0 +1,6 @@
+{
+  "name": "bumpp-programmatic",
+  "private": true,
+  "type": "module",
+  "devDependencies": { "bumpp": "^10.0.0" }
+}
