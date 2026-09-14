@@ -1,0 +1,10 @@
+{
+  "name": "babel-runtime-injection-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-transform-runtime": "^7.0.0",
+    "@babel/runtime": "^7.0.0"
+  }
+}

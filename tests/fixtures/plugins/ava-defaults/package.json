@@ -1,0 +1,6 @@
+{
+  "name": "ava-defaults-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": { "ava": "^6.0.0" }
+}

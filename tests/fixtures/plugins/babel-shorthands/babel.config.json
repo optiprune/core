@@ -1,0 +1,1 @@
+{"presets": ["@babel/env", "react"], "plugins": ["transform-runtime", "@scope/custom"]}

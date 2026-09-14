@@ -1,0 +1,12 @@
+{
+  "name": "babel-shorthands-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "babel-preset-react": "^7.0.0",
+    "@babel/plugin-transform-runtime": "^7.0.0",
+    "@scope/babel-plugin-custom": "^1.0.0"
+  }
+}

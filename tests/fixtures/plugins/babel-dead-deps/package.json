@@ -1,0 +1,9 @@
+{
+  "name": "babel-dead-deps-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-syntax-jsx": "^7.0.0"
+  }
+}

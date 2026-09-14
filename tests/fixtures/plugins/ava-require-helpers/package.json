@@ -1,0 +1,7 @@
+{
+  "name": "ava-require-helpers-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": { "ava": "^6.0.0" },
+  "ava": { "require": ["./test/_setup.js"] }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "babel-configs/cjs",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@babel/core": "^7.0.0"
+  }
+}

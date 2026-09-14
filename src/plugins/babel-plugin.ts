@@ -50,6 +50,7 @@ function resolveBabelPreset(raw: string): string {
  * e.g., "@babel/transform-runtime" -> "@babel/plugin-transform-runtime", "styled-components" -> "babel-plugin-styled-components"
  */
 function resolveBabelPlugin(raw: string): string {
+  if (raw === "transform-runtime") return "@babel/plugin-transform-runtime";
   if (raw.startsWith("@babel/plugin-") || raw.startsWith("babel-plugin-")) return raw;
   if (raw.startsWith("@babel/")) {
     return `@babel/plugin-${raw.slice(7)}`;
@@ -64,6 +65,50 @@ function resolveBabelPlugin(raw: string): string {
     return `${scope}/babel-plugin-${name}`;
   }
   return `babel-plugin-${raw}`;
+}
+
+function markBabelReference(
+  raw: string,
+  kind: "preset" | "plugin",
+  fileId: string,
+  adapter: any,
+): void {
+  if (raw.startsWith(".")) {
+    adapter.markRelativeFileAsUsed(fileId, raw);
+    return;
+  }
+
+  const resolved = kind === "preset" ? resolveBabelPreset(raw) : resolveBabelPlugin(raw);
+  adapter.markPackageAsUsed(resolved);
+  if (resolved === "@babel/plugin-transform-runtime") {
+    adapter.markPackageAsUsed("@babel/runtime");
+  }
+  adapter.markPackageAsUsed("@babel/core");
+}
+
+function markBabelConfigReferences(value: unknown, fileId: string, adapter: any): void {
+  if (Array.isArray(value)) {
+    const first = value[0];
+    if (typeof first === "string") {
+      markBabelReference(first, "plugin", fileId, adapter);
+      return;
+    }
+    for (const item of value) markBabelConfigReferences(item, fileId, adapter);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "presets" || key === "plugins") {
+      for (const item of Array.isArray(child) ? child : [child]) {
+        const raw = Array.isArray(item) ? item[0] : item;
+        if (typeof raw === "string") {
+          markBabelReference(raw, key === "presets" ? "preset" : "plugin", fileId, adapter);
+        }
+      }
+    } else {
+      markBabelConfigReferences(child, fileId, adapter);
+    }
+  }
 }
 
 export const BabelPlugin: AnalyzerPlugin = {
@@ -102,12 +147,20 @@ export const BabelPlugin: AnalyzerPlugin = {
         if (await adapter.folderExists(file)) {
           hasConfigFile = true;
           adapter.markAsUsed(file);
-          break;
+          adapter.addEntryPatterns([file]);
+          adapter.markPackageAsUsed("@babel/core");
+          if (file.endsWith(".json")) {
+            const config = await adapter.readJson(file);
+            if (config) markBabelConfigReferences(config, file, adapter);
+          }
         }
       }
 
       if (pkg?.babel) {
         hasConfigFile = true;
+        adapter.markAsUsed("package.json", "babel");
+        adapter.addEntryPatterns(["package.json"]);
+        adapter.markPackageAsUsed("@babel/core");
       }
 
       // Mark core installed Babel packages
@@ -181,10 +234,7 @@ export const BabelPlugin: AnalyzerPlugin = {
                 }
               }
 
-              if (presetName && !presetName.startsWith(".")) {
-                adapter.markPackageAsUsed(resolveBabelPreset(presetName));
-                adapter.markPackageAsUsed("@babel/core");
-              }
+              if (presetName) markBabelReference(presetName, "preset", fileId, adapter);
             });
           }
 
@@ -207,10 +257,7 @@ export const BabelPlugin: AnalyzerPlugin = {
                 }
               }
 
-              if (pluginName && !pluginName.startsWith(".")) {
-                adapter.markPackageAsUsed(resolveBabelPlugin(pluginName));
-                adapter.markPackageAsUsed("@babel/core");
-              }
+              if (pluginName) markBabelReference(pluginName, "plugin", fileId, adapter);
             });
           }
         }
