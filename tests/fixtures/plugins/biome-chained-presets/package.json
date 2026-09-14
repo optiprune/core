@@ -1,0 +1,8 @@
+{
+  "name": "biome-chained-presets",
+  "private": true,
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@scope/shared-rules": "^1.0.0"
+  }
+}

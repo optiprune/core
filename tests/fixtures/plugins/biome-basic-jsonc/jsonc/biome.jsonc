@@ -1,0 +1,4 @@
+{
+  // JSONC comments and trailing comma are valid Biome config syntax.
+  "formatter": { "enabled": true, },
+}

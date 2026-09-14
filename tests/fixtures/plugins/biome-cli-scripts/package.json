@@ -1,0 +1,6 @@
+{
+  "name": "biome-cli-scripts",
+  "private": true,
+  "scripts": { "check": "biome check --write src" },
+  "devDependencies": { "@biomejs/biome": "^2.0.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "biome-subpath-extends",
+  "private": true,
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@scoped/configs": "^1.0.0"
+  }
+}

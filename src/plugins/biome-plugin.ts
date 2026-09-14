@@ -41,6 +41,15 @@ function resolveRelativeConfigPath(configFile: string, referencedPath: string): 
   return undefined;
 }
 
+function packageNameFromConfigReference(reference: string): string | undefined {
+  if (!reference || reference.startsWith(".") || reference === "//") return undefined;
+  if (reference.startsWith("@")) {
+    const parts = reference.split("/");
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : undefined;
+  }
+  return reference.split("/")[0];
+}
+
 /**
  * Biome resolves a configuration from the current directory upward and supports
  * nested config files. Configuration is therefore legitimate evidence that the
@@ -103,15 +112,27 @@ export const BiomePlugin: AnalyzerPlugin = {
         });
       }
 
-      // Static JSON configs let us preserve the referenced local config and Grit
-      // plugin files. Dynamic execution is deliberately avoided by the loader.
-      for (const configFile of configFiles) {
+      // Static JSON configs let us preserve referenced local configs and Grit
+      // plugin files. Follow local extends recursively; dynamic execution is
+      // deliberately avoided by the loader.
+      const configsToVisit = [...configFiles];
+      const visitedConfigs = new Set<string>();
+      for (let index = 0; index < configsToVisit.length; index += 1) {
+        const configFile = configsToVisit[index];
+        if (!configFile) continue;
+        if (visitedConfigs.has(configFile)) continue;
+        visitedConfigs.add(configFile);
         const loaded = await loadStaticPluginConfig(adapter, [configFile]);
         if (!loaded) continue;
 
         for (const extension of stringArray(loaded.config.extends)) {
           const resolved = resolveRelativeConfigPath(configFile, extension);
-          if (resolved) adapter.markAsUsed(resolved);
+          if (resolved) {
+            adapter.markAsUsed(resolved);
+            configsToVisit.push(resolved);
+          }
+          const packageName = packageNameFromConfigReference(extension);
+          if (packageName) adapter.markPackageAsUsed(packageName);
         }
 
         for (const plugin of stringArray(loaded.config.plugins)) {

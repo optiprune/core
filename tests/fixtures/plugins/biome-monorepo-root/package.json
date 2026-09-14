@@ -1,0 +1,5 @@
+{
+  "name": "biome-monorepo-root",
+  "private": true,
+  "devDependencies": { "@biomejs/biome": "^2.0.0" }
+}

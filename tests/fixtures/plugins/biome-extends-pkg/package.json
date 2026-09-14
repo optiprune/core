@@ -1,0 +1,8 @@
+{
+  "name": "biome-extends-pkg",
+  "private": true,
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@shared/biome-config": "^1.0.0"
+  }
+}

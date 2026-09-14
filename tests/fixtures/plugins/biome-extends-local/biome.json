@@ -1,0 +1,3 @@
+{
+  "extends": ["./configs/biome.strict.json"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "biome-nested-dead-deps",
+  "private": true,
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@unused/biome-preset": "^1.0.0"
+  }
+}

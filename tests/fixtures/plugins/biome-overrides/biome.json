@@ -1,0 +1,8 @@
+{
+  "overrides": [
+    {
+      "includes": ["tools/**/*.ts"],
+      "javascript": { "formatter": { "quoteStyle": "single" } }
+    }
+  ]
+}
