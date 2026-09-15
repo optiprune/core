@@ -1,0 +1,9 @@
+preload = [
+  "./src/one.ts",
+  "./src/two.ts"
+]
+
+[test]
+preload = [
+  "./src/test-setup.ts"
+]

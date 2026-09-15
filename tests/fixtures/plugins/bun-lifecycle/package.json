@@ -1,0 +1,1 @@
+{"name":"bun-lifecycle","private":true,"scripts":{"prepare":"bun install","build":"bun run src/build.ts"},"catalog":{"typescript":"^5.0.0"},"devDependencies":{"bun-types":"^1.2.0","typescript":"catalog:"}}

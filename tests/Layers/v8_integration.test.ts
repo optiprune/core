@@ -5,13 +5,17 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
+const rootDir = path.resolve(__dirname, "../fixtures/layers/v8");
 
 describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
-  const fixturePath = path.join(rootDir, "tests/fixtures/puzzle-test.ts");
+  const fixturePath = path.join(rootDir, "puzzle-test.ts");
   const configPath = path.join(rootDir, "optiprune.config.ts");
 
   beforeEach(() => {
+    if (!fs.existsSync(rootDir)) {
+      fs.mkdirSync(rootDir, { recursive: true });
+    }
+
     fs.writeFileSync(
       fixturePath,
       `
@@ -55,7 +59,7 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
       includeConventionalEntries: false,
     });
 
-    const module = report.modules.find((m) => m.path.includes("puzzle-test.ts"));
+    const module = report.modules.find((m) => m.path.endsWith("puzzle-test.ts"));
     expect(module).toBeDefined();
 
     const protectedExports = module?.exports
@@ -78,8 +82,6 @@ describe("Optiprune v1.0 Integration (Puzzle Pieces 1-4)", () => {
     await analyze({ rootDir, entry: [fixturePath] });
     const duration2 = Date.now() - startTime2;
 
-    // Second run should be faster due to cache
-    // Note: In a small sandbox, the difference might be tiny, but the cache file should exist
     expect(fs.existsSync(path.join(rootDir, ".optiprune/cache.json"))).toBe(true);
   });
 });

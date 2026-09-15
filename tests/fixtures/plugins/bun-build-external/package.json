@@ -1,0 +1,1 @@
+{"name":"bun-build-external","private":true,"scripts":{"build":"bun run build.ts"},"dependencies":{"external-lib":"^1.0.0"},"devDependencies":{"bun-types":"^1.2.0"}}

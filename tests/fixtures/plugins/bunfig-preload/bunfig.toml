@@ -1,0 +1,4 @@
+preload = ["./setup.ts"]
+
+[telemetry]
+enabled = false

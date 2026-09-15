@@ -1,0 +1,5 @@
+[install.scopes]
+"@internal" = "https://registry.example.test/"
+
+[install]
+registry = "https://registry.example.test/"

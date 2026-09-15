@@ -1,0 +1,5 @@
+[loader]
+".txt" = "text"
+
+[test]
+preload = ["./loader-setup.ts"]

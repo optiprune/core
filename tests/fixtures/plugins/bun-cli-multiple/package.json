@@ -1,0 +1,1 @@
+{"name":"bun-cli-multiple","private":true,"scripts":{"test":"bun test --preload ./one.ts -r ./two.ts --require ./three.ts"},"devDependencies":{"bun-types":"^1.2.0"}}

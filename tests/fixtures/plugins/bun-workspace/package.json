@@ -1,0 +1,1 @@
+{"name":"bun-workspace","private":true,"workspaces":["packages/*"],"scripts":{"create":"bun create vite packages/app"},"devDependencies":{"bun-types":"^1.2.0"}}

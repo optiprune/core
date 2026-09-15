@@ -1,0 +1,1 @@
+{"name":"bun-cli-require","private":true,"scripts":{"test":"bun test --require ./setup.ts"},"devDependencies":{"bun-types":"^1.2.0"}}

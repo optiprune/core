@@ -56,6 +56,101 @@ const BUN_BUILTINS = new Set([
   "bun:main",
 ]);
 
+async function markRelative(adapter: any, sourceFile: string, value: string): Promise<void> {
+  if (value.startsWith(".") || value.startsWith("/")) {
+    adapter.markRelativeFileAsUsed(sourceFile, value);
+    const normalized = value.replace(/^\.\//, "");
+    const target = path.isAbsolute(sourceFile)
+      ? path.join(path.dirname(sourceFile), normalized)
+      : normalized;
+    const relativeTarget = path.isAbsolute(target)
+      ? path.relative(adapter.getConfig().rootDir, target).replace(/\\/g, "/")
+      : target;
+    adapter.markAsUsed(relativeTarget);
+    adapter.addEntryPatterns([relativeTarget]);
+  }
+}
+
+function packageNameFromPreload(value: string): string {
+  if (value.startsWith("@")) {
+    const parts = value.split("/");
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : value;
+  }
+  return value.split("/")[0] ?? value;
+}
+
+async function markBunCliPreloads(adapter: any, script: string): Promise<void> {
+  for (const match of script.matchAll(/(?:^|\s)(?:-r|--preload|--require)\s+([^\s]+)/g)) {
+    const value = match[1];
+    if (!value) continue;
+    const preload = value.replace(/^['"]|['"]$/g, "");
+    if (preload.startsWith(".") || preload.startsWith("/")) {
+      await markRelative(adapter, "package.json", preload);
+    } else {
+      adapter.markPackageAsUsed(packageNameFromPreload(preload));
+    }
+  }
+}
+
+async function markBunfigPreloads(adapter: any, source: string, configFile: string): Promise<void> {
+  let section = "";
+  let collecting = false;
+  let values = "";
+  for (const line of source.split(/\r?\n/)) {
+    const sectionMatch = /^\s*\[([^\]]+)\]\s*$/.exec(line);
+    if (sectionMatch) {
+      section = sectionMatch[1]?.trim() ?? "";
+      collecting = false;
+      values = "";
+      continue;
+    }
+    if (
+      !collecting &&
+      /^\s*preload\s*=\s*\[/.test(line) &&
+      (section === "" || section === "test")
+    ) {
+      collecting = true;
+      values = line.slice(line.indexOf("[") + 1);
+    } else if (collecting) {
+      values += `\n${line}`;
+    }
+    if (!collecting || !values.includes("]")) continue;
+    for (const value of values.matchAll(/["']([^"']+)["']/g)) {
+      if (value[1]) await markRelative(adapter, configFile, value[1]);
+    }
+    collecting = false;
+    values = "";
+  }
+}
+
+function isBunBuildCall(node: any): boolean {
+  return (
+    t.isCallExpression(node) &&
+    t.isMemberExpression(node.callee) &&
+    t.isIdentifier(node.callee.object) &&
+    node.callee.object.name === "Bun" &&
+    t.isIdentifier(node.callee.property) &&
+    node.callee.property.name === "build"
+  );
+}
+
+function markBunBuildOptions(node: any, fileId: string, adapter: any): void {
+  const options = node.arguments?.[0];
+  if (!t.isObjectExpression(options)) return;
+  for (const property of options.properties ?? []) {
+    if (!t.isObjectProperty(property) || !t.isIdentifier(property.key)) continue;
+    const key = property.key.name;
+    if (!t.isArrayExpression(property.value)) continue;
+    for (const element of property.value.elements ?? []) {
+      if (!t.isStringLiteral(element)) continue;
+      if (key === "entrypoints") markRelative(adapter, fileId, element.value);
+      if (key === "external" && !element.value.startsWith(".")) {
+        adapter.markPackageAsUsed(element.value);
+      }
+    }
+  }
+}
+
 export const BunPlugin: AnalyzerPlugin = {
   name: "bun-plugin",
   version: "1.2.0",
@@ -92,6 +187,8 @@ export const BunPlugin: AnalyzerPlugin = {
     onProjectInit: async (adapter) => {
       const config = adapter.getConfig();
       const rootDir = config.rootDir;
+      const bunfigSource = await adapter.readFile("bunfig.toml");
+      if (bunfigSource) await markBunfigPreloads(adapter, bunfigSource, "bunfig.toml");
 
       // 1. Detect Bun Workspaces from bun.lock
       const lockContent = await adapter.readFile("bun.lock");
@@ -164,6 +261,7 @@ export const BunPlugin: AnalyzerPlugin = {
 
           if (script.includes("bun") || script.includes("bunx")) {
             adapter.markAsUsed("package.json", `scripts:${name}`);
+            await markBunCliPreloads(adapter, script);
           }
 
           const tokens = script.split(/\s+/);
@@ -189,12 +287,16 @@ export const BunPlugin: AnalyzerPlugin = {
       }
     },
 
-    onFileStart: (fileId, adapter) => {
+    onFileStart: async (fileId, adapter) => {
       const basename = path.basename(fileId);
 
       // Mark Bun config files and lockfiles
       if (BUN_CONFIG_FILES.includes(basename)) {
         adapter.markAsUsed(fileId);
+        if (basename === "bunfig.toml") {
+          const source = await adapter.readFile("bunfig.toml");
+          if (source) await markBunfigPreloads(adapter, source, fileId);
+        }
       }
 
       // Bun default entrypoints
@@ -214,6 +316,7 @@ export const BunPlugin: AnalyzerPlugin = {
     },
 
     onASTNode: (node, fileId, adapter) => {
+      if (isBunBuildCall(node)) markBunBuildOptions(node, fileId, adapter);
       // 1. Detect Global `Bun` identifier usage (Bun.serve, Bun.env, Bun.file, Bun.password, etc.)
       if (t.isIdentifier(node) && node.name === "Bun") {
         adapter.markAsUsed(fileId);

@@ -1,0 +1,1 @@
+{"name":"bun-build-api","private":true,"scripts":{"build":"bun run build.ts"},"devDependencies":{"bun-types":"^1.2.0"}}

@@ -1,0 +1,1 @@
+{"name":"bun-test-helper","private":true,"scripts":{"test":"bun test ./tests"},"devDependencies":{"bun-types":"^1.2.0"}}
