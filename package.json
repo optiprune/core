@@ -1,5 +1,6 @@
 {
   "name": "@optiprune/main",
+  "private": true,
   "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
   "keywords": [
     "analysis",
@@ -9,7 +10,6 @@
     "dead",
     "dead code",
     "dependencies",
-    "detect",
     "devDependencies",
     "duplicate",
     "entropy",
@@ -37,10 +37,6 @@
     "unused",
     "workspace"
   ],
-  "workspaces": [
-    "core/*",
-    "docs/*"
-  ],
   "homepage": "https://opti.drml.int.yt/",
   "bugs": {
     "url": "https://github.com/optiprune/core/issues"
@@ -51,20 +47,20 @@
     "type": "git",
     "url": "git+https://github.com/optiprune/core.git"
   },
+  "workspaces": [
+    "core",
+    "docs"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "language-server": "node ./dist/language-server.js",
+    "build": "npm run build --workspace @optiprune/core",
+    "language-server": "npm run language-server --workspace @optiprune/core",
     "test": "vitest run --no-file-parallelism",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
-    "format": "oxfmt --ignore-path .oxfmtignore ",
-    "release": "release-it"
-  },
-  "dependencies": {
-    "esbuild": "^0.28.2",
-    "oxfmt": "^0.65.0"
+    "format": "oxfmt --ignore-path .oxfmtignore"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "oxfmt": "^0.65.0",
     "typescript": "^5.8.3",
     "vitest": "3.2.4"
   },

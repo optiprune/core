@@ -82,10 +82,11 @@
     "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
-    "format": "oxfmt --ignore-path .oxfmtignore ",
+    "format": "oxfmt --ignore-path .oxfmtignore",
     "release": "release-it"
   },
   "dependencies": {
+    "esbuild": "^0.28.2",
     "fast-glob": "^3.3.3",
     "jiti": "^2.7.0",
     "js-yaml": "^5.2.2",
@@ -103,7 +104,7 @@
   "devDependencies": {
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3",
-    "vitest": "3.2.4"
+    "oxfmt": "^0.65.0"
   },
   "peerDependencies": {
     "@yuku-codegen/wasm": "^0.8.7",
