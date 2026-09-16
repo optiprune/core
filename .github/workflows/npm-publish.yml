@@ -17,8 +17,9 @@ jobs:
         with:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
+      - run: cd core
 
-      - run: npm ci
+      - run: npm install
 
       - run: tsc -p tsconfig.json
 

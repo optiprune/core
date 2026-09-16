@@ -1,4 +1,4 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "include": ["!tests/fixtures/**", "!**/tests-repo/**"]
+  "include": ["!core/tests/fixtures/**", "!**/tests-repo/**"]
 }

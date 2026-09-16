@@ -8,8 +8,6 @@ on:
     types: [opened, reopened, synchronize]
     branches:
       - main
-      - testing
-      - testing-adding-tests-from-knip
 
 jobs:
   find-matrix:
@@ -27,7 +25,7 @@ jobs:
           const fs = require("fs");
           const path = require("path");
 
-          const testsDir = path.join(process.cwd(), "tests");
+          const testsDir = path.join(process.cwd(),"core", "tests");
           const IGNORED_NAMES = new Set([
             "fixtures",
             "fixture",

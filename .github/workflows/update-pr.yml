@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "tests/**"
+      - "**/tests/**"
 
 jobs:
   update-template:
@@ -25,7 +25,7 @@ jobs:
           const fs = require("fs");
           const path = require("path");
 
-          const testsDir = path.join(process.cwd(), "tests");
+          const testsDir = path.join(process.cwd(), "core", "tests");
           let checklist = "- [ ] No test suites found";
 
           if (fs.existsSync(testsDir)) {

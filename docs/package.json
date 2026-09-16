@@ -1,5 +1,5 @@
 {
-  "name": "optiprune-docs",
+  "name": "@optiprune/docs",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,7 @@
     "dev": "astro dev",
     "build": "node scripts/build-site.mjs && astro build",
     "preview": "astro preview",
-    "check": "astro check",
-    "format": "prettier --write ."
+    "check": "astro check"
   },
   "dependencies": {
     "@astrojs/starlight": "0.42.0",
