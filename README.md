@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/%40optiprune%2Fcore?label=%40optiprune%2Fcore)](https://www.npmjs.com/package/@optiprune/core)[![npm version](https://img.shields.io/npm/v/%40optiprune%2Fcli?label=%40optiprune%2Fcli)](https://www.npmjs.com/package/@optiprune/cli)[![Tests](https://img.shields.io/github/actions/workflow/status/optiprune/core/tests-push.yml?branch=main&label=tests)](https://github.com/optiprune/core/actions/workflows/tests-push.yml)[![License](https://img.shields.io/github/license/optiprune/core)](./LICENSE)[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D21-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-[Preview](.\core.gif)
+[Preview](.\demo.gif)
 
 # @optiprune/core
 
