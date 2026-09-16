@@ -37,6 +37,10 @@
     "unused",
     "workspace"
   ],
+  "workspaces": [
+    "core/*",
+    "docs/*"
+  ],
   "homepage": "https://opti.drml.int.yt/",
   "bugs": {
     "url": "https://github.com/optiprune/core/issues"
