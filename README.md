@@ -2,6 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/%40optiprune%2Fcore?label=%40optiprune%2Fcore)](https://www.npmjs.com/package/@optiprune/core)[![npm version](https://img.shields.io/npm/v/%40optiprune%2Fcli?label=%40optiprune%2Fcli)](https://www.npmjs.com/package/@optiprune/cli)[![Tests](https://img.shields.io/github/actions/workflow/status/optiprune/core/tests-push.yml?branch=main&label=tests)](https://github.com/optiprune/core/actions/workflows/tests-push.yml)[![License](https://img.shields.io/github/license/optiprune/core)](./LICENSE)[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D21-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
+[Preview](.\core.gif)
+
 # @optiprune/core
 
 `@optiprune/core` is the headless analysis engine behind OptiPrune. It analyzes TypeScript and JavaScript workspaces and returns structured reports that can be used from CI jobs, editor integrations, dashboards, custom developer tools, and the OptiPrune CLI.
@@ -33,7 +35,7 @@ pnpm add @optiprune/core
 yarn add @optiprune/core
 ```
 
-Core currently requires Node.js 21 or newer.
+Core currently requires Node.js 20 or newer.
 
 ## Basic usage
 
