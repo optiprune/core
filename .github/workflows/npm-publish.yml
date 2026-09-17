@@ -26,41 +26,8 @@ jobs:
       - name: Build packages
         run: npm run build
 
-      - name: Determine package versions changed since the previous tag
-        id: versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          current_tag="${GITHUB_REF_NAME}"
-          previous_tag="$(git describe --tags --abbrev=0 "${current_tag}^" 2>/dev/null || true)"
-          version_from_ref() {
-            local ref="$1"
-            local file="$2"
-            git show "${ref}:${file}" | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => process.stdout.write(JSON.parse(input).version));'
-          }
-          current_core="$(node -p 'require("./core/package.json").version')"
-          current_language_server="$(node -p 'require("./language-server/package.json").version')"
-          previous_core=""
-          previous_language_server=""
-          if [ -n "$previous_tag" ]; then
-            previous_core="$(version_from_ref "$previous_tag" core/package.json)"
-            previous_language_server="$(version_from_ref "$previous_tag" language-server/package.json)"
-          fi
-          core_changed=false
-          language_server_changed=false
-          [ "$current_core" != "$previous_core" ] && core_changed=true
-          [ "$current_language_server" != "$previous_language_server" ] && language_server_changed=true
-          {
-            echo "core_changed=$core_changed"
-            echo "language_server_changed=$language_server_changed"
-            echo "core_version=$current_core"
-            echo "language_server_version=$current_language_server"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Publish @optiprune/core when its version changed
-        if: steps.versions.outputs.core_changed == 'true'
+      - name: Publish @optiprune/core
         run: npm publish --workspace @optiprune/core --access public --provenance
 
-      - name: Publish @optiprune/language-server when its version changed
-        if: steps.versions.outputs.language_server_changed == 'true'
+      - name: Publish @optiprune/language-server
         run: npm publish --workspace @optiprune/language-server --access public --provenance
