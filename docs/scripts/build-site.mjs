@@ -35,5 +35,5 @@ const plugins = files.map((file) => {
   };
 });
 
-await writeFile(resolve(publicDir, "plugins.json"), JSON.stringify(plugins, null, 2));
+await writeFile(resolve(publicDir, "plugins.json"), `${JSON.stringify(plugins, null, 2)}\n`);
 console.log(`Generated ${plugins.length} plugins in docs/public/plugins.json`);
