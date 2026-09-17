@@ -4,3 +4,5 @@
 *.yaml text eol=lf
 # Keep the root README symlink target bytes unchanged on Windows.
 /README.md -text
+
+/README.md -text
