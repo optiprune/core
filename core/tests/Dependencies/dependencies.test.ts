@@ -164,6 +164,14 @@ describe("dependency attribution with isolated fixture roots", () => {
     const report = await analyzeFixture("production-type-only-import");
     expect(hasFinding(report, "unused-dependency", "production-type-runtime")).toBe(false);
   });
+
+  it("accounts for JSDoc import types and triple-slash type references", async () => {
+    const report = await analyzeFixture("comment-type-references");
+    expect(hasFinding(report, "unused-dev-dependency", "comment-runtime")).toBe(false);
+    expect(hasFinding(report, "unused-dev-dependency", "@types/comment-runtime")).toBe(false);
+    expect(hasFinding(report, "unused-dev-dependency", "vite")).toBe(false);
+    expect(hasFinding(report, "unused-dev-dependency", "unused-comment-runtime")).toBe(true);
+  });
 });
 
 void fixturesRoot;

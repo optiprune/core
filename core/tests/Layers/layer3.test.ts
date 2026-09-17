@@ -30,4 +30,19 @@ describe("Layer 3: SMT Constraint Solver", () => {
     // is also proven.
     expect(smtFindings.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("does not prove mutated or shadowed identifiers unreachable", async () => {
+    const report = await analyze({
+      rootDir,
+      entry: ["layer-3-test.ts"],
+      includeConventionalEntries: false,
+    });
+    const unsoundFindings = report.findings.filter(
+      (finding) =>
+        finding.rule === "constant-condition" &&
+        finding.file.includes("layer-3-test.ts") &&
+        (finding.location?.start.line ?? 0) >= 30,
+    );
+    expect(unsoundFindings).toHaveLength(0);
+  });
 });

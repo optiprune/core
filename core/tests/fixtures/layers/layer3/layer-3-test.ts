@@ -26,3 +26,39 @@ export function functionComparison() {
         console.log("Impossible: 1 is not -1");
     }
 }
+
+export function reassignedValue() {
+    let value = 10;
+    value = 20;
+    if (value === 10) {
+        console.log("Reachable after reassignment; SMT must not prove this dead");
+    }
+}
+
+export function shadowedValue() {
+    const value = 10;
+    if (true) {
+        const value = 20;
+        if (value === 10) {
+            console.log("Reachable under the inner binding; SMT must not conflate scopes");
+        }
+    }
+}
+
+declare function getUnknownValue(): number;
+
+export function unknownBranchAssignment(flag: boolean) {
+    let value = 10;
+    if (flag) {
+        value = getUnknownValue();
+    }
+    if (value === 10) {
+        console.log("Reachable when the unknown assignment is not selected");
+    }
+}
+
+export function terminalStatementState() {
+    let value = 10;
+    return value;
+    value = 20;
+}

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "pathe";
-import { parseWithYukuBackend } from "./parser.js";
+import { parseWithYukuBackend, walkAst } from "./parser.js";
 import * as yaml from "js-yaml";
 import { readJsonFile } from "./fs-utils.js";
 import type { AnalysisContext, Finding, ModuleRecord } from "./types.js";
@@ -160,6 +160,25 @@ function checkPkgBin(pkgJsonPath: string, pkgName: string, token: string): strin
     // Ignore invalid JSON
   }
   return null;
+}
+
+function packageNameFromSpecifier(specifier: string): string | null {
+  if (specifier.startsWith(".") || specifier.startsWith("/")) return null;
+  return specifier.startsWith("@")
+    ? specifier.split("/").slice(0, 2).join("/")
+    : (specifier.split("/")[0] ?? null);
+}
+
+function referencedPackagesFromSource(source: string): string[] {
+  const packages = new Set<string>();
+  for (const match of source.matchAll(/^\s*\/\/\/\s*<reference\s+types=["']([^"']+)["']/gm)) {
+    const reference = match[1];
+    if (typeof reference === "string") {
+      const packageName = packageNameFromSpecifier(reference);
+      if (packageName) packages.add(packageName);
+    }
+  }
+  return [...packages];
 }
 
 /**
@@ -420,6 +439,34 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     if (!packageImportFiles.has(ownerPackage)) packageImportFiles.set(ownerPackage, packageFiles);
     const moduleIsReachable =
       context.reachable.has(module.id) || context.maybeReachable.has(module.id);
+
+    // TypeScript's JSDoc import() and triple-slash references are semantic
+    // dependency edges even though they do not produce ordinary import AST
+    // nodes. Keep them in the dependency evidence map so @types/* and ambient
+    // packages are not reported as unused.
+    for (const pkgName of referencedPackagesFromSource(module.sourceText ?? "")) {
+      pkgImports.add(pkgName);
+      globalImports.add(pkgName);
+      const importingFiles = packageFiles.get(pkgName) || new Set<string>();
+      importingFiles.add(module.id);
+      packageFiles.set(pkgName, importingFiles);
+      if (moduleIsReachable) reachableGlobalImports.add(pkgName);
+    }
+    if (module.ast) {
+      walkAst(module.ast, (node: any) => {
+        if (node.type !== "TSImportType") return;
+        const specifier = node.argument?.value;
+        if (typeof specifier !== "string") return;
+        const pkgName = packageNameFromSpecifier(specifier);
+        if (!pkgName) return;
+        pkgImports.add(pkgName);
+        globalImports.add(pkgName);
+        const importingFiles = packageFiles.get(pkgName) || new Set<string>();
+        importingFiles.add(module.id);
+        packageFiles.set(pkgName, importingFiles);
+        if (moduleIsReachable) reachableGlobalImports.add(pkgName);
+      });
+    }
 
     for (const edge of module.edges) {
       if (edge.resolution === "external") {

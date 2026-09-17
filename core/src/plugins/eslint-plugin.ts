@@ -178,6 +178,25 @@ export const EslintPlugin: AnalyzerPlugin = {
           adapter.markPackageAsUsed("eslint-import-resolver-typescript");
         if (keyName === "node") adapter.markPackageAsUsed("eslint-import-resolver-node");
         if (keyName === "webpack") adapter.markPackageAsUsed("eslint-import-resolver-webpack");
+
+        // Flat config commonly registers plugins under their shorthand key:
+        // plugins: { "react-hooks": reactHooks }. The key is the only package
+        // evidence available when the config is generated or the import is
+        // hidden behind a loader, so resolve it like legacy `plugins: []`.
+        if (
+          typeof keyName === "string" &&
+          keyName !== "typescript" &&
+          keyName !== "node" &&
+          keyName !== "webpack" &&
+          keyName !== "rules" &&
+          keyName !== "settings" &&
+          keyName !== "languageOptions" &&
+          keyName !== "linterOptions" &&
+          keyName !== "plugins"
+        ) {
+          const pluginPackage = resolvePluginPackage(keyName);
+          if (pluginPackage) adapter.markPackageAsUsed(pluginPackage);
+        }
       }
 
       // Flat-config resolver shorthands are strings nested in settings, not

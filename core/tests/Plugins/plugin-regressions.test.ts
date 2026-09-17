@@ -93,6 +93,39 @@ describe("OptiPrune regressions", () => {
     );
   });
 
+  it("resolves ESLint flat-config plugin shorthand keys", async () => {
+    await writePackage({
+      name: "eslint-flat-shorthand",
+      private: true,
+      devDependencies: {
+        eslint: "9.0.0",
+        "eslint-plugin-import": "2.0.0",
+        "eslint-plugin-react-hooks": "5.0.0",
+        "unused-eslint-plugin": "1.0.0",
+      },
+    });
+    await writeFixture(
+      "eslint.config.mjs",
+      'export default [{ plugins: { import: {}, "react-hooks": {} }, rules: { "import/no-unresolved": "error", "react-hooks/rules-of-hooks": "error" } }];\n',
+    );
+
+    const report = await analyzeFixture({ entry: ["eslint.config.mjs"], extensions: [".mjs"] });
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" &&
+          finding.evidence.package === "eslint-plugin-react-hooks",
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          finding.rule === "unused-dev-dependency" &&
+          finding.evidence.package === "eslint-plugin-import",
+      ),
+    ).toBe(false);
+  });
+
   it("resolves a binary from a same-named npm script through a dependency bin field", async () => {
     await writePackage({
       name: "bin-script-resolution",

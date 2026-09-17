@@ -81,7 +81,17 @@ async function analyzeModuleLogic(
         solver.set("timeout", timeout);
       }
 
-      const pathFindings = await analyzeFunctionPaths(body, z3, solver, module, context);
+      const pathFindings: Finding[] = [];
+      await analyzeSsaStatements(
+        body.body ?? [],
+        z3,
+        solver,
+        module,
+        pathFindings,
+        [],
+        context,
+        seedSsaState(node, z3),
+      );
       findings.push(...pathFindings);
     }
   }
@@ -106,6 +116,215 @@ async function analyzeFunctionPaths(
   }
 
   return findings;
+}
+
+type SsaState = {
+  bindings: Map<string, any>;
+  versions: Map<string, number>;
+};
+
+function cloneSsaState(state: SsaState): SsaState {
+  return { bindings: new Map(state.bindings), versions: new Map(state.versions) };
+}
+
+function nextSsaValue(name: string, value: any, z3: any, state: SsaState): any {
+  const version = (state.versions.get(name) ?? -1) + 1;
+  state.versions.set(name, version);
+  const symbol = value ?? z3.Real.const(`${name}_${version}`);
+  state.bindings.set(name, symbol);
+  return symbol;
+}
+
+function seedSsaState(node: any, z3: any): SsaState {
+  const state: SsaState = { bindings: new Map(), versions: new Map() };
+  for (const param of node.params ?? []) {
+    if (param.type === "Identifier") nextSsaValue(param.name, null, z3, state);
+  }
+  return state;
+}
+
+function isTerminalStatement(stmt: any): boolean {
+  if (
+    stmt?.type === "ReturnStatement" ||
+    stmt?.type === "ThrowStatement" ||
+    stmt?.type === "BreakStatement" ||
+    stmt?.type === "ContinueStatement"
+  ) {
+    return true;
+  }
+  if (stmt?.type === "BlockStatement") {
+    const last = stmt.body?.[stmt.body.length - 1];
+    return Boolean(last && isTerminalStatement(last));
+  }
+  return false;
+}
+
+async function analyzeSsaStatements(
+  statements: any[],
+  z3: any,
+  solver: any,
+  module: ModuleRecord,
+  findings: Finding[],
+  pathConditions: any[],
+  context: AnalysisContext,
+  state: SsaState,
+): Promise<SsaState> {
+  for (const stmt of statements) {
+    if (stmt.type === "VariableDeclaration") {
+      for (const declaration of stmt.declarations ?? []) {
+        if (declaration.id?.type === "Identifier") {
+          const value = declaration.init
+            ? encodePredicate(declaration.init, z3, solver, module, state.bindings)
+            : null;
+          nextSsaValue(declaration.id.name, value, z3, state);
+        }
+      }
+      continue;
+    }
+    if (stmt.type === "ExpressionStatement" && stmt.expression?.type === "AssignmentExpression") {
+      const assignment = stmt.expression;
+      if (assignment.left?.type === "Identifier") {
+        const value = encodePredicate(assignment.right, z3, solver, module, state.bindings);
+        nextSsaValue(assignment.left.name, value, z3, state);
+      }
+      continue;
+    }
+    if (stmt.type === "ExpressionStatement" && stmt.expression?.type === "UpdateExpression") {
+      const target = stmt.expression.argument;
+      if (target?.type === "Identifier") {
+        const previous = state.bindings.get(target.name) ?? z3.Real.const(`${target.name}_unknown`);
+        const delta = z3.Real.val(1);
+        nextSsaValue(
+          target.name,
+          stmt.expression.operator === "--" ? previous.sub(delta) : previous.add(delta),
+          z3,
+          state,
+        );
+      }
+      continue;
+    }
+    if (stmt.type === "IfStatement") {
+      const predicate = encodePredicate(stmt.test, z3, solver, module, state.bindings);
+      if (!predicate || typeof predicate === "string" || !z3.isBool(predicate)) continue;
+      const thenState = cloneSsaState(state);
+      const elseState = cloneSsaState(state);
+      await analyzeSsaBranch(
+        stmt.consequent,
+        predicate,
+        pathConditions,
+        true,
+        z3,
+        solver,
+        module,
+        findings,
+        context,
+        thenState,
+      );
+      if (stmt.alternate) {
+        await analyzeSsaBranch(
+          stmt.alternate,
+          z3.Not(predicate),
+          pathConditions,
+          false,
+          z3,
+          solver,
+          module,
+          findings,
+          context,
+          elseState,
+        );
+      }
+      const mergedNames = new Set([...thenState.bindings.keys(), ...elseState.bindings.keys()]);
+      for (const name of mergedNames) {
+        const thenValue = thenState.bindings.get(name) ?? state.bindings.get(name);
+        const elseValue = elseState.bindings.get(name) ?? state.bindings.get(name);
+        if (thenValue === undefined && elseValue === undefined) continue;
+        if (thenValue === undefined || elseValue === undefined) {
+          nextSsaValue(name, null, z3, state);
+        } else if (thenValue !== elseValue) {
+          nextSsaValue(name, z3.If(predicate, thenValue, elseValue), z3, state);
+        } else {
+          state.bindings.set(name, thenValue);
+        }
+      }
+      continue;
+    }
+    if (stmt.type === "BlockStatement") {
+      await analyzeSsaStatements(
+        stmt.body ?? [],
+        z3,
+        solver,
+        module,
+        findings,
+        pathConditions,
+        context,
+        state,
+      );
+    }
+    if (isTerminalStatement(stmt)) break;
+  }
+  return state;
+}
+
+async function analyzeSsaBranch(
+  branch: any,
+  condition: any,
+  pathConditions: any[],
+  isThen: boolean,
+  z3: any,
+  solver: any,
+  module: ModuleRecord,
+  findings: Finding[],
+  context: AnalysisContext,
+  state: SsaState,
+) {
+  solver.push();
+  try {
+    for (const path of pathConditions) solver.add(path);
+    solver.add(condition);
+    const result = await solver.check();
+    if (result === "unsat") {
+      findings.push({
+        rule: "constant-condition",
+        severity: "warning",
+        confidence: "high",
+        message: isThen
+          ? "Logical path is mathematically unreachable (Always False)."
+          : "Logical path is mathematically unreachable (Always True).",
+        file: module.id,
+        location: branch.loc,
+        evidence: { reason: isThen ? "unsat-path-then" : "unsat-path-else" },
+      });
+      return;
+    }
+    if (branch.type === "BlockStatement") {
+      await analyzeSsaStatements(
+        branch.body ?? [],
+        z3,
+        solver,
+        module,
+        findings,
+        [...pathConditions, condition],
+        context,
+        state,
+      );
+    } else if (branch.type === "IfStatement") {
+      await analyzeSsaStatements(
+        [branch],
+        z3,
+        solver,
+        module,
+        findings,
+        [...pathConditions, condition],
+        context,
+        state,
+      );
+    }
+  } catch {
+    // A solver/backend failure must not invalidate the rest of the analysis.
+  } finally {
+    solver.pop();
+  }
 }
 
 async function extractModel(solver: any): Promise<Record<string, any>> {
@@ -190,8 +409,9 @@ async function analyzeIfStatement(
       }
     } catch (e) {
       // Ignore
+    } finally {
+      solver.pop();
     }
-    solver.pop();
 
     // 2. Check if the 'else' branch is reachable
     if (node.alternate) {
@@ -255,8 +475,9 @@ async function analyzeIfStatement(
         }
       } catch (e) {
         // Ignore
+      } finally {
+        solver.pop();
       }
-      solver.pop();
     }
   }
 }
@@ -354,12 +575,56 @@ function flattenMemberExpression(node: any): string | null {
   return null;
 }
 
-export function encodePredicate(node: any, z3: any, solver?: any, module?: ModuleRecord): any {
+/**
+ * Raw identifier names are not sound SMT variables when their lexical
+ * binding can be reassigned or shadowed.
+ * The SSA traversal supplies safe bindings for analyzed function bodies; this
+ * fallback remains conservative for expressions outside that traversal.
+ */
+function hasUnsafeIdentifierBinding(name: string, module?: ModuleRecord): boolean {
+  if (!module?.ast) return true;
+  let declarations = 0;
+  let unsafe = false;
+  walkAst(module.ast, (node: any) => {
+    if (
+      node.type === "VariableDeclarator" &&
+      node.id?.type === "Identifier" &&
+      node.id.name === name
+    ) {
+      declarations += 1;
+    }
+    if (
+      node.type === "AssignmentExpression" &&
+      node.left?.type === "Identifier" &&
+      node.left.name === name
+    ) {
+      unsafe = true;
+    }
+    if (
+      node.type === "UpdateExpression" &&
+      node.argument?.type === "Identifier" &&
+      node.argument.name === name
+    ) {
+      unsafe = true;
+    }
+  });
+  // Parameters and globals remain usable symbolic inputs. A binding becomes
+  // unsafe once it is written or the same name is declared more than once.
+  return unsafe || declarations > 1;
+}
+
+export function encodePredicate(
+  node: any,
+  z3: any,
+  solver?: any,
+  module?: ModuleRecord,
+  bindings?: Map<string, any>,
+): any {
   if (!node) return null;
 
   if (node.type === "BinaryExpression") {
-    const left = encodePredicate(node.left, z3, solver, module);
-    const right = encodePredicate(node.right, z3, solver, module);
+    const left = encodePredicate(node.left, z3, solver, module, bindings);
+    const right = encodePredicate(node.right, z3, solver, module, bindings);
 
     if (left && right && typeof left !== "string" && typeof right !== "string") {
       try {
@@ -389,6 +654,8 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
     // Identifier binding is scope-sensitive. Without a lexical resolver, treating
     // a same-named function declaration as a constant is unsound under shadowing,
     // parameters, reassignment, and block scope. Keep the value symbolic instead.
+    if (bindings?.has(node.name)) return bindings.get(node.name);
+    if (hasUnsafeIdentifierBinding(node.name, module)) return null;
     try {
       // Use Real for identifiers to handle both integers and floats in JS
       return z3.Real.const(node.name);
@@ -419,7 +686,7 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   }
 
   if (node.type === "UnaryExpression") {
-    const arg = encodePredicate(node.argument, z3, solver, module);
+    const arg = encodePredicate(node.argument, z3, solver, module, bindings);
     if (arg) {
       if (node.operator === "!") {
         if (z3.isBool(arg)) return z3.Not(arg);
@@ -464,8 +731,8 @@ export function encodePredicate(node: any, z3: any, solver?: any, module?: Modul
   }
 
   if (node.type === "LogicalExpression") {
-    const left = encodePredicate(node.left, z3, solver, module);
-    const right = encodePredicate(node.right, z3, solver, module);
+    const left = encodePredicate(node.left, z3, solver, module, bindings);
+    const right = encodePredicate(node.right, z3, solver, module, bindings);
     if (left && right && typeof left !== "string" && typeof right !== "string") {
       try {
         if (node.operator === "&&") return z3.And(left, right);
