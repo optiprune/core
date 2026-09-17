@@ -1,1 +1,0 @@
-E:/optiprune/core/core/README.md
