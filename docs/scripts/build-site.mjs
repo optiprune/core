@@ -2,7 +2,7 @@ import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const docsRoot = resolve(new URL("..", import.meta.url).pathname);
-const pluginsDir = resolve(docsRoot, "../src/plugins");
+const pluginsDir = resolve(docsRoot, "../core/src/plugins");
 const publicDir = resolve(docsRoot, "public");
 await mkdir(publicDir, { recursive: true });
 
@@ -31,7 +31,7 @@ const plugins = files.map((file) => {
     version: "current",
     category,
     summary: `Project-aware analysis for ${label} conventions, configuration, package usage, and reachable source files.`,
-    source: `https://github.com/optiprune/core/blob/main/src/plugins/${file}`,
+    source: `https://github.com/optiprune/core/blob/main/core/src/plugins/${file}`,
   };
 });
 

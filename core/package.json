@@ -48,9 +48,6 @@
     "type": "git",
     "url": "git+https://github.com/optiprune/core.git"
   },
-  "bin": {
-    "optiprune-language-server": "./dist/language-server.js"
-  },
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -79,7 +76,6 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "language-server": "node ./dist/language-server.js",
     "test": "vitest run --no-file-parallelism",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
     "format": "oxfmt --ignore-path .oxfmtignore",
@@ -93,9 +89,6 @@
     "jsonc-parser": "^3.3.1",
     "pathe": "2.0.3",
     "quickjs-emscripten": "^0.32.0",
-    "vscode-languageserver": "^10.1.0",
-    "vscode-languageserver-textdocument": "^1.0.14",
-    "vscode-uri": "^3.2.0",
     "yuku-ast": "^0.8.3",
     "yuku-codegen": "^0.8.3",
     "yuku-parser": "^0.8.3",

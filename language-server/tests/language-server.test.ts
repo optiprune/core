@@ -2,14 +2,10 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "pathe";
-import { analyze } from "../../src/index.js";
-import { loadCache } from "../../src/cache.js";
-import {
-  findingDiagnostic,
-  findingRange,
-  findingSeverity,
-} from "../../src/language-server-utils.js";
-import type { Finding } from "../../src/types.js";
+import { analyze } from "@optiprune/core";
+import { loadCache } from "../../core/src/cache.js";
+import { findingDiagnostic, findingRange, findingSeverity } from "../src/language-server-utils.js";
+import type { Finding } from "@optiprune/core/types";
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {

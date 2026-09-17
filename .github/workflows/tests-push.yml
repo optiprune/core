@@ -1,123 +1,29 @@
-name: Testing-Push
-
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+name: Test on push
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  find-matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      folders: ${{ steps.set-matrix.outputs.folders }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Scan test directories
-        id: set-matrix
-        run: |
-          node -e '
-          const fs = require("fs");
-          const path = require("path");
-
-          const testsDir = path.join(process.cwd(),"core", "tests");
-          const IGNORED_NAMES = new Set([
-            "fixtures",
-            "fixture",
-            "__fixtures__",
-            "mocks",
-            "__mocks__",
-            "snapshots",
-            "__snapshots__",
-            "node_modules",
-            "utils",
-            "helpers"
-          ]);
-
-          function findTestFiles(dir) {
-            let matches = [];
-            try {
-              const entries = fs.readdirSync(dir, { withFileTypes: true });
-              for (const entry of entries) {
-                if (entry.name.startsWith(".") || IGNORED_NAMES.has(entry.name.toLowerCase())) {
-                  continue;
-                }
-
-                const fullPath = path.join(dir, entry.name);
-                if (entry.isDirectory()) {
-                  matches = matches.concat(findTestFiles(fullPath));
-                } else if (entry.isFile() && entry.name.endsWith(".test.ts")) {
-                  matches.push(fullPath);
-                }
-              }
-            } catch (err) {}
-            return matches;
-          }
-
-          let folders = [];
-          if (fs.existsSync(testsDir)) {
-            const rootEntries = fs.readdirSync(testsDir, { withFileTypes: true });
-
-            for (const entry of rootEntries) {
-              if (
-                entry.isDirectory() &&
-                !entry.name.startsWith(".") &&
-                !IGNORED_NAMES.has(entry.name.toLowerCase())
-              ) {
-                const fullFolderPath = path.join(testsDir, entry.name);
-                const matchedFiles = findTestFiles(fullFolderPath);
-
-                if (matchedFiles.length > 0) {
-                  folders.push(entry.name);
-                }
-              }
-            }
-          }
-
-          console.log("Final matrix folders:", folders);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `folders=${JSON.stringify(folders)}\n`);
-          '
-
   test:
-    needs: find-matrix
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-        node-version:
-          - 20
-          - 22
-          - 24
-        folder: ${{ fromJSON(needs.find-matrix.outputs.folders) }}
-
-    name: Test ${{ matrix.folder }} (${{ matrix.os }}, Node ${{ matrix.node-version }})
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [20, 22]
+    name: Validate (${{ matrix.os }}, Node ${{ matrix.node-version }})
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          registry-url: "https://registry.npmjs.org"
+          cache: npm
 
-      - run: npm install
-
-      - name: Build Language Server (if required)
-        if: matrix.folder == 'Language-Server' || matrix.folder == 'language-server'
-        run: npm run build
-
-      - name: Run Tests with Retry
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 15
-          max_attempts: 2
-          command: npm run test ${{ matrix.folder }}/
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run format:check
+      - run: npm run build --workspace @optiprune/docs
+      - run: npm run check --workspace @optiprune/docs

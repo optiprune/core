@@ -46,6 +46,10 @@ jobs:
             "<!-- Describe the changes made to resolve the issue -->\n",
             "### Related Issues:",
             "- Fixes #\n",
+            "### Package Impacted:",
+            "- [ ] core/",
+            "- [ ] docs/",
+            "- [ ] language-server/\n",
             "### Test Suites Impacted / Created:",
             checklist,
             "- [ ] Other / New tests:"

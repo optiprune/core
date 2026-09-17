@@ -9,7 +9,7 @@ A generic import graph cannot know that a framework discovers routes, a test run
 
 A plugin can recognize project markers, add carefully scoped entry patterns, interpret package metadata, mark files or packages as used, inspect AST and dependency information, and contribute findings during the analysis-complete phase. Plugins should not mutate source files or silently convert uncertainty into reachability.
 
-The repository currently ships 163 source plugins across frameworks, build tools, testing, package management, runtime conventions, documentation tools, and workspace orchestration. The [Plugin Explorer](/plugins) is generated from the current `src/plugins` directory and links each card to its source file.
+The repository currently ships 163 source plugins across frameworks, build tools, testing, package management, runtime conventions, documentation tools, and workspace orchestration. The [Plugin Explorer](/plugins) is generated from the current `core/src/plugins` directory and links each card to its source file.
 
 ## Enablement and overrides
 

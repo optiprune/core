@@ -76,7 +76,7 @@ When a plugin needs project configuration, prefer the static helpers in `plugin-
 
 ## Registration and distribution
 
-Built-in plugins live under [`src/plugins`](https://github.com/optiprune/core/tree/main/src/plugins). Core discovers plugin modules from the project’s configured plugin registry during analysis. A plugin should therefore be exported through the registry mechanism used by the repository and included in the published build; merely creating an unreferenced TypeScript file does not make it available to users.
+Built-in plugins live under [`core/src/plugins`](https://github.com/optiprune/core/tree/main/core/src/plugins). Core discovers plugin modules from the project’s configured plugin registry during analysis. A plugin should therefore be exported through the registry mechanism used by the repository and included in the published build; merely creating an unreferenced TypeScript file does not make it available to users.
 
 Before publishing a plugin, confirm how the target version loads dynamic plugins and test it through the same configuration path used by the CLI. Keep the plugin package and its compatibility assumptions documented.
 

@@ -212,20 +212,19 @@ On an unchanged workspace, `analyze()` first compares the cached analysis key an
 
 ## Language Server
 
-`@optiprune/core` includes a lightweight Language Server Protocol implementation for editor integrations. It communicates over standard input and output, detects the workspace from the LSP `rootUri` or workspace folders, runs the Core analyzer, and publishes findings as diagnostics. Diagnostics include the OptiPrune rule code, severity, confidence, source location, and message.
+`@optiprune/language-server` provides a lightweight Language Server Protocol integration for editor integrations. It communicates over standard input and output, detects the workspace from the LSP `rootUri` or workspace folders, runs the Core analyzer, and publishes findings as diagnostics. Diagnostics include the OptiPrune rule code, severity, confidence, source location, and message.
 
 Install the package and build it before starting the server:
 
 ```bash
-npm install @optiprune/core
-npm run build
+npm install @optiprune/language-server
 npx optiprune-language-server
 ```
 
 The equivalent repository development command is:
 
 ```bash
-npm run language-server
+npm run build --workspace @optiprune/language-server
 ```
 
 The server reacts to document open, change, and save events. It uses the normal Core cache at `<workspace>/.optiprune/cache.json`, so repeated editor events on an unchanged workspace return the saved report immediately. When a source file changes, Core invalidates the affected cache state, reparses changed files, reuses unchanged module records, and writes the updated report back to the cache.
@@ -235,7 +234,7 @@ A minimal VS Code client configuration can start the stdio server through an ext
 ```json
 {
   "command": "npx",
-  "args": ["optiprune-language-server"]
+  "args": ["optiprune-language-server", "--stdio"]
 }
 ```
 
@@ -263,17 +262,17 @@ export const ExamplePlugin: AnalyzerPlugin = {
 };
 ```
 
-The current built-in implementations live in [`src/plugins`](./src/plugins). The plugin registry covers framework, build-tool, test, runtime, package-manager, and workspace conventions.
+The current built-in implementations live in [`core/src/plugins`](./core/src/plugins). The plugin registry covers framework, build-tool, test, runtime, package-manager, and workspace conventions.
 
 ## Public exports
 
-| Export path                 | Public surface                                                                                                                                   |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@optiprune/core`           | `analyze`, `shouldFail`, `applyFixes`, `exportCache`, `importCache`, and the main runtime API.                                                   |
-| `@optiprune/core/reporters` | `formatTerminal`, `formatSarif`.                                                                                                                 |
-| `@optiprune/core/types`     | `AnalysisReport`, `AnalyzerOptions`, `Finding`, `FixConfig`, plugin contracts, configuration types, graph types, parser types, and result types. |
-| `@optiprune/core/fs-utils`  | Filesystem helpers used by integrations that need Core path and file utilities.                                                                  |
-| `optiprune-language-server` | Stdio Language Server Protocol process for editor diagnostics.                                                                                   |
+| Export path                  | Public surface                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@optiprune/core`            | `analyze`, `shouldFail`, `applyFixes`, `exportCache`, `importCache`, and the main runtime API.                                                   |
+| `@optiprune/core/reporters`  | `formatTerminal`, `formatSarif`.                                                                                                                 |
+| `@optiprune/core/types`      | `AnalysisReport`, `AnalyzerOptions`, `Finding`, `FixConfig`, plugin contracts, configuration types, graph types, parser types, and result types. |
+| `@optiprune/core/fs-utils`   | Filesystem helpers used by integrations that need Core path and file utilities.                                                                  |
+| `@optiprune/language-server` | Stdio Language Server Protocol process for editor diagnostics.                                                                                   |
 
 The package also exports `defineConfig`, `CONFIDENCE_RANK`, cache types, report types, module/edge types, monorepo types, and plugin lifecycle types.
 
@@ -286,7 +285,7 @@ npm install
 npm run build
 npm test
 # Run the Language Server regression tests only
-npm run test language-server
+npm run test --workspace @optiprune/language-server
 ```
 
 The build uses TypeScript. The test suite uses Vitest without file-level parallelism.

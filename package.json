@@ -49,12 +49,12 @@
   },
   "workspaces": [
     "core",
-    "docs"
+    "docs",
+    "language-server"
   ],
   "scripts": {
-    "build": "npm run build --workspace @optiprune/core",
-    "language-server": "npm run language-server --workspace @optiprune/core",
-    "test": "vitest run --no-file-parallelism",
+    "build": "npm run build --workspace @optiprune/core && npm run build --workspace @optiprune/language-server",
+    "test": "vitest run --no-file-parallelism && npm run test --workspace @optiprune/language-server",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
     "format": "oxfmt --ignore-path .oxfmtignore"
   },
@@ -62,9 +62,23 @@
     "@types/node": "^22.15.3",
     "oxfmt": "^0.65.0",
     "typescript": "^5.8.3",
-    "vitest": "3.2.4"
+    "vitest": "^3.2.7"
   },
   "optionalDependencies": {
+    "@esbuild/darwin-arm64": "0.28.2",
+    "@esbuild/darwin-x64": "0.28.2",
+    "@esbuild/linux-arm64": "0.28.2",
+    "@esbuild/linux-x64": "0.28.2",
+    "@esbuild/win32-arm64": "0.28.2",
+    "@esbuild/win32-ia32": "0.28.2",
+    "@esbuild/win32-x64": "0.28.2",
+    "@oxfmt/binding-darwin-arm64": "0.65.0",
+    "@oxfmt/binding-darwin-x64": "0.65.0",
+    "@oxfmt/binding-linux-x64-gnu": "0.65.0",
+    "@oxfmt/binding-linux-x64-musl": "0.65.0",
+    "@oxfmt/binding-win32-arm64-msvc": "0.65.0",
+    "@oxfmt/binding-win32-ia32-msvc": "0.65.0",
+    "@oxfmt/binding-win32-x64-msvc": "0.65.0",
     "@rollup/rollup-darwin-arm64": "^4.34.0",
     "@rollup/rollup-darwin-x64": "^4.34.0",
     "@rollup/rollup-linux-arm64-gnu": "^4.34.0",

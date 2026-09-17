@@ -11,7 +11,12 @@
   },
   "dependencies": {
     "@astrojs/starlight": "0.42.0",
-    "astro": "7.3.1"
+    "astro": "7.3.1",
+    "js-yaml": "4.3.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": ">=20.0.0"

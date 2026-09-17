@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import {
   createConnection,
   Diagnostic,
@@ -9,11 +10,10 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
-import { analyze } from "./index.js";
-import type { Finding } from "./types.js";
+import { analyze } from "@optiprune/core";
 import { findingDiagnostic } from "./language-server-utils.js";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);

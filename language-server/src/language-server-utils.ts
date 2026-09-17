@@ -1,6 +1,6 @@
 import { DiagnosticSeverity } from "vscode-languageserver/node";
 import type { Diagnostic } from "vscode-languageserver/node";
-import type { Finding, Range as OptiRange } from "./types.js";
+import type { Finding, Range as OptiRange } from "@optiprune/core/types";
 
 export function findingRange(finding: Finding): Diagnostic["range"] {
   const location: OptiRange | undefined = finding.location;

@@ -1,0 +1,56 @@
+{
+  "name": "@optiprune/language-server",
+  "version": "0.0.1",
+  "description": "Language Server Protocol integration for OptiPrune.",
+  "keywords": [
+    "language-server",
+    "lsp",
+    "optiprune",
+    "typescript"
+  ],
+  "homepage": "https://opti.drml.int.yt/",
+  "bugs": {
+    "url": "https://github.com/optiprune/core/issues"
+  },
+  "license": "MIT",
+  "author": "DreamLongYT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/optiprune/core.git"
+  },
+  "bin": {
+    "optiprune-language-server": "./dist/language-server.js"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/language-server.js",
+  "types": "./dist/language-server.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --no-file-parallelism",
+    "format:check": "oxfmt --ignore-path ../.oxfmtignore --check",
+    "format": "oxfmt --ignore-path ../.oxfmtignore"
+  },
+  "dependencies": {
+    "@optiprune/core": "1.16.1",
+    "vscode-languageserver": "^10.1.0",
+    "vscode-languageserver-textdocument": "^1.0.14",
+    "vscode-uri": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "oxfmt": "^0.65.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
