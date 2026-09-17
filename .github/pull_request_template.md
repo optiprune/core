@@ -22,7 +22,6 @@
 - [ ] `E2E/`
 - [ ] `Framework-Lab/`
 - [ ] `Functions/`
-- [ ] `Language-Server/`
 - [ ] `Layers/`
 - [ ] `Plugins/`
 - [ ] `Recovery/`
