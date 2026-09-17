@@ -1,5 +1,5 @@
-import type { AnalyzerPlugin, Finding, PluginAdapter } from "../types.js";
-import { t } from "../ast-utils.js";
+import type { AnalyzerPlugin, Finding, PluginAdapter } from "./types.js";
+import { t } from "./ast-utils.js";
 
 export function nodeName(node: any): string | undefined {
   if (t.isIdentifier(node)) return node.name;

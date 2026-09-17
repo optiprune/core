@@ -273,6 +273,13 @@
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/hardhat-plugin.ts"
   },
   {
+    "name": "heroku-plugin",
+    "version": "current",
+    "category": "Project conventions",
+    "summary": "Project-aware analysis for Heroku conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/heroku-plugin.ts"
+  },
+  {
     "name": "hono-plugin",
     "version": "current",
     "category": "Frameworks",
@@ -385,6 +392,13 @@
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/lost-pixel-plugin.ts"
   },
   {
+    "name": "markdown-lint-plugin",
+    "version": "current",
+    "category": "Project conventions",
+    "summary": "Project-aware analysis for Markdown Lint conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/markdown-lint-plugin.ts"
+  },
+  {
     "name": "marko-plugin",
     "version": "current",
     "category": "Project conventions",
@@ -474,6 +488,13 @@
     "category": "Project conventions",
     "summary": "Project-aware analysis for Node Types conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/node-types-plugin.ts"
+  },
+  {
+    "name": "nodemon-plugin-plugin",
+    "version": "current",
+    "category": "Project conventions",
+    "summary": "Project-aware analysis for Nodemon Plugin conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/nodemon-plugin-plugin.ts"
   },
   {
     "name": "npm-package-json-lint-plugin",
@@ -894,6 +915,13 @@
     "category": "Tooling & ecosystem",
     "summary": "Project-aware analysis for Tailwind conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/tailwind-plugin.ts"
+  },
+  {
+    "name": "tanstack-router-plugin",
+    "version": "current",
+    "category": "Project conventions",
+    "summary": "Project-aware analysis for Tanstack Router conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/tanstack-router-plugin.ts"
   },
   {
     "name": "taskfile-plugin",

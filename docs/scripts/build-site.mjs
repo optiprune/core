@@ -1,7 +1,8 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const docsRoot = resolve(new URL("..", import.meta.url).pathname);
+const docsRoot = fileURLToPath(new URL("..", import.meta.url));
 const pluginsDir = resolve(docsRoot, "../core/src/plugins");
 const publicDir = resolve(docsRoot, "public");
 await mkdir(publicDir, { recursive: true });

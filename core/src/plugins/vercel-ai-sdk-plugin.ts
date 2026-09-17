@@ -12,7 +12,7 @@ import {
   nodeName,
   objectProperty,
   unwrapExpression,
-} from "./ai-plugin-utils.js";
+} from "../ai-plugin-utils.js";
 
 const PACKAGES = ["ai", "@ai-sdk/ai"] as const;
 const PACKAGE_SET = new Set<string>(PACKAGES);

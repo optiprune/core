@@ -11,7 +11,7 @@ import {
   nodeName,
   rangeContains,
   unwrapExpression,
-} from "./ai-plugin-utils.js";
+} from "../ai-plugin-utils.js";
 
 const PACKAGE = "onnxruntime-node";
 const PACKAGES = [PACKAGE] as const;

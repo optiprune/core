@@ -11,7 +11,7 @@ import {
   markPackageImport,
   nodeName,
   unwrapExpression,
-} from "./ai-plugin-utils.js";
+} from "../ai-plugin-utils.js";
 
 const PACKAGE = "@huggingface/transformers";
 const PACKAGES = [PACKAGE] as const;
