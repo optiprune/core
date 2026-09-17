@@ -1,1 +1,1 @@
-./core/README.md
+core/README.md
