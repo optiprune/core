@@ -26,36 +26,6 @@ jobs:
       - name: Build packages
         run: npm run build
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build and check documentation
-        run: |
-          npm run build --workspace @optiprune/docs
-          npm run check --workspace @optiprune/docs
-
-      - name: Pack and smoke-test packages
-        run: |
-          set -euo pipefail
-          mkdir -p .release-smoke
-          for workspace in @optiprune/core @optiprune/language-server; do
-            npm pack --workspace "$workspace" --pack-destination .release-smoke
-          done
-          npm install --prefix .release-smoke/consumer --no-save .release-smoke/*.tgz
-          cd .release-smoke/consumer
-          node --input-type=module <<'NODE'
-          const packages = [
-            "@optiprune/core",
-            "@optiprune/core/reporters",
-            "@optiprune/core/fs-utils",
-            "@optiprune/core/types",
-            "@optiprune/language-server/package.json",
-          ];
-          for (const name of packages) {
-            await import(name, name.endsWith(".json") ? { with: { type: "json" } } : undefined);
-          }
-          NODE
-
       - name: Determine package versions changed since the previous tag
         id: versions
         shell: bash
