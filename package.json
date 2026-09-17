@@ -55,6 +55,7 @@
   "scripts": {
     "build": "npm run build --workspace @optiprune/core && npm run build --workspace @optiprune/language-server",
     "test": "vitest run --no-file-parallelism && npm run test --workspace @optiprune/language-server",
+    "test:local": "vitest run --no-file-parallelism",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
     "format": "oxfmt --ignore-path .oxfmtignore"
   },

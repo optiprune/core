@@ -178,6 +178,13 @@ function referencedPackagesFromSource(source: string): string[] {
       if (packageName) packages.add(packageName);
     }
   }
+  for (const match of source.matchAll(/import\s*\(\s*["']([^"']+)["']\s*\)/g)) {
+    const specifier = match[1];
+    if (typeof specifier === "string") {
+      const packageName = packageNameFromSpecifier(specifier);
+      if (packageName) packages.add(packageName);
+    }
+  }
   return [...packages];
 }
 
@@ -455,7 +462,12 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     if (module.ast) {
       walkAst(module.ast, (node: any) => {
         if (node.type !== "TSImportType") return;
-        const specifier = node.argument?.value;
+        const specifier =
+          typeof node.argument?.value === "string"
+            ? node.argument.value
+            : typeof node.argument?.literal?.value === "string"
+              ? node.argument.literal.value
+              : null;
         if (typeof specifier !== "string") return;
         const pkgName = packageNameFromSpecifier(specifier);
         if (!pkgName) return;

@@ -85,14 +85,14 @@
     "esbuild": "^0.28.2",
     "fast-glob": "^3.3.3",
     "jiti": "^2.7.0",
-    "js-yaml": "^5.2.2",
+    "js-yaml": "^5.4.2",
     "jsonc-parser": "^3.3.1",
     "pathe": "2.0.3",
     "quickjs-emscripten": "^0.32.0",
-    "yuku-ast": "^0.8.3",
-    "yuku-codegen": "^0.8.3",
-    "yuku-parser": "^0.8.3",
-    "z3-solver": "^5.0.0"
+    "yuku-ast": "^0.10.2",
+    "yuku-codegen": "^0.10.2",
+    "yuku-parser": "^0.10.2",
+    "z3-solver": "^5.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
