@@ -334,7 +334,15 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
-
+  const pluginVersions = pluginEngine.getEnabledPluginVersions();
+  const cacheVersionsMatch =
+    cache.coreVersion === VERSION &&
+    JSON.stringify(cache.pluginVersions ?? {}) === JSON.stringify(pluginVersions);
+  // A version change can alter parsing, graph construction, or plugin findings.
+  // Unless explicitly overridden, discard all old entries before incremental work.
+  if (!resolvedOptions.stopNewCacheOnUpdate && !cacheVersionsMatch) {
+    cache = { version: "2.1", entries: {} };
+  }
   // Package-manager and framework plugins can contribute workspace patterns
   // during their early configuration pass. Build topology only after those
   // declarations have been applied so no workspace metadata is discarded.
@@ -388,7 +396,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
         });
 
   const analysisKey = JSON.stringify({
-    version: VERSION,
+    version: VERSION, //ex 388
     entry: resolvedOptions.entry,
     extensions: resolvedOptions.extensions,
     ignore: resolvedOptions.ignore,
@@ -440,6 +448,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   if (
     !resolvedOptions.fix &&
     cache.version === "2.1" &&
+    (resolvedOptions.stopNewCacheOnUpdate || cacheVersionsMatch) &&
     cache.report &&
     cache.analysisKey === analysisKey &&
     sameStats &&
@@ -1267,6 +1276,8 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Persist the compact report only after all analysis layers have completed.
   newCache.version = "2.1";
+  newCache.coreVersion = VERSION;
+  newCache.pluginVersions = pluginVersions;
   newCache.analysisKey = analysisKey;
   newCache.fileHashes = currentFileHashes;
   newCache.fileStats = currentFileStats;

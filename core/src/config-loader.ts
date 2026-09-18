@@ -48,6 +48,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   externalContracts: [],
   verbose: false,
   fix: false,
+  stopNewCacheOnUpdate: false,
   workspaceGlobs: [],
   projectPatterns: [],
   unreachableFileIgnorePatterns: [],
@@ -307,6 +308,7 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     layers,
     rules,
     plugins,
+    stopNewCacheOnUpdate: userConfig.stopNewCacheOnUpdate ?? base.stopNewCacheOnUpdate,
     ...(userConfig.failOn !== undefined && { failOn: userConfig.failOn }),
     ...(userConfig.reportUnusedExports !== undefined && {
       reportUnusedExports: userConfig.reportUnusedExports,

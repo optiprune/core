@@ -202,6 +202,8 @@ export interface AnalyzerOptions {
   skipSmt?: boolean;
   verbose?: boolean;
   fix?: boolean | FixConfig;
+  /** Reuse cache entries across Core or plugin version updates. */
+  stopNewCacheOnUpdate?: boolean;
   cacheFrom?: string;
   cacheTo?: string;
 }
@@ -279,6 +281,8 @@ export interface Config {
   output?: OutputFormat;
   verbose?: boolean;
   fix?: boolean | FixConfig;
+  /** Reuse cache entries across Core or plugin version updates. */
+  stopNewCacheOnUpdate?: boolean;
   layers?: {
     smtTimeoutMs?: number;
     isolateMemoryLimitMb?: number;
@@ -330,6 +334,8 @@ export interface ResolvedOptions {
   fix: boolean | FixConfig;
   cacheFrom?: string;
   cacheTo?: string;
+  /** Reuse cache entries across Core or plugin version updates. */
+  stopNewCacheOnUpdate: boolean;
   layers: {
     smtTimeoutMs: number;
     isolateMemoryLimitMb: number;

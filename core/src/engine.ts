@@ -40,6 +40,15 @@ export class PluginEngine {
   register(plugin: AnalyzerPlugin) {
     this.plugins.push(plugin);
   }
+  /** Stable version fingerprint for plugins enabled for this project. */
+  getEnabledPluginVersions(): Record<string, string> {
+    return Object.fromEntries(
+      [...this.plugins]
+        .filter((plugin) => plugin.enabled)
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((plugin) => [plugin.name, plugin.version]),
+    );
+  }
 
   async loadDynamicPlugins(context: AnalysisContext, registerPlugins = true) {
     try {

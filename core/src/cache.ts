@@ -15,6 +15,10 @@ export interface CacheEntry {
 
 export interface AnalysisCache {
   version: string;
+  /** Core package version that produced this cache. */
+  coreVersion?: string;
+  /** Versions of the enabled plugins that produced this cache. */
+  pluginVersions?: Record<string, string>;
   entries: Record<string, CacheEntry>;
   /** Fingerprint of options that affect analysis output. */
   analysisKey?: string;
