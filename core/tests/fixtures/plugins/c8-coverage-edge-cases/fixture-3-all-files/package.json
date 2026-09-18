@@ -1,0 +1,1 @@
+{"name":"c8-all-files-fixture","private":true,"devDependencies":{"c8":"^10.1.3"},"scripts":{"coverage":"c8 --all node run.mjs"},"c8":{"all":true,"include":["src/**/*.js"]}}

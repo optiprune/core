@@ -1,0 +1,1 @@
+{"name":"c8-workers-fixture","private":true,"devDependencies":{"c8":"^10.1.3"},"scripts":{"coverage":"c8 node run.mjs"}}

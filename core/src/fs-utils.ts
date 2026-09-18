@@ -265,7 +265,11 @@ export async function discoverSourceFiles(
       }
       if (entry.isDirectory()) {
         await walk(absolute);
-      } else if (entry.isFile() && extensions.includes(extname(entry.name.toString()))) {
+      } else if (
+        entry.isFile() &&
+        !entry.name.toString().endsWith(".d.ts") &&
+        extensions.includes(extname(entry.name.toString()))
+      ) {
         discovered.push(normalizeAbsolute(absolute));
       }
     }

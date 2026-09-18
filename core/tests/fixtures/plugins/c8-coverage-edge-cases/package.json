@@ -1,0 +1,7 @@
+{
+  "name": "c8-coverage-fixtures",
+  "private": true,
+  "devDependencies": {
+    "c8": "^10.1.2"
+  }
+}
