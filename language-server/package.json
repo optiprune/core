@@ -1,6 +1,6 @@
 {
   "name": "@optiprune/language-server",
-  "version": "1.17.1",
+  "version": "1.17.2",
   "description": "Language Server Protocol integration for OptiPrune.",
   "keywords": [
     "language-server",

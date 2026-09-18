@@ -1,6 +1,6 @@
 {
   "name": "@optiprune/core",
-  "version": "1.17.1",
+  "version": "1.17.2",
   "description": "Headless API for resilient static dead-code analyzer for TypeScript and JavaScript workspaces.",
   "keywords": [
     "analysis",
@@ -48,6 +48,12 @@
     "type": "git",
     "url": "git+https://github.com/optiprune/core.git"
   },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -75,7 +81,8 @@
     "test": "vitest run --no-file-parallelism",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
     "format": "oxfmt --ignore-path .oxfmtignore",
-    "release": "release-it"
+    "release": "release-it",
+    "prepublish": "npm run build"
   },
   "dependencies": {
     "esbuild": "^0.28.2",
