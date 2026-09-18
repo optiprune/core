@@ -48,10 +48,6 @@
     "type": "git",
     "url": "git+https://github.com/optiprune/core.git"
   },
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
