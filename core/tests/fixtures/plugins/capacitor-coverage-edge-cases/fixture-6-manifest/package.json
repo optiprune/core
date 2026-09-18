@@ -1,0 +1,1 @@
+{"name":"capacitor-manifest-fixture","private":true,"scripts":{"build":"cap sync"},"capacitor":{"android":{"src":"android"},"ios":{"src":"ios"}},"dependencies":{"@capacitor/core":"^7.0.0"}}
