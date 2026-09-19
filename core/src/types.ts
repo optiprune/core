@@ -121,6 +121,7 @@ export interface StronglyConnectedComponent {
 
 export interface ConcolicVerificationResult {
   pathReached: boolean;
+  status?: "reached" | "not-reached" | "inconclusive";
   executionTimeMs: number;
   logs: string[];
 }

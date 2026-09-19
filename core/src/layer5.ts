@@ -154,8 +154,11 @@ export async function analyzeLayer5(context: AnalysisContext): Promise<Finding[]
               (init.callee.object?.name === "z" || init.callee.object?.name === "zod")) ||
               (init.callee?.type === "Identifier" &&
                 (init.callee.name === "z" || init.callee.name.startsWith("zod"))));
-
-          if (isZodCall || varName.endsWith("Schema")) {
+          // A suffix alone is not enough evidence that a value is an external
+          // schema. `export const NotActuallyASchema = 42` is still an ordinary
+          // dead export. Keep the naming heuristic for schema-constructor calls,
+          // but do not protect arbitrary values solely because of their name.
+          if (isZodCall) {
             externallyDefinedContracts.add(varName);
           }
         }

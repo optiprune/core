@@ -1,6 +1,7 @@
 export class UserSchema { /* ... */ }
 export const ProductType = { /* ... */ };
 export function Query() { /* ... */ }
+export const NotActuallyASchema = 42;
 
 // This export should be marked as unused by default, but protected by Layer 5
 export const UnusedButExternal = 123;

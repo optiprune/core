@@ -56,3 +56,6 @@ all.txt
 # Astro generated files
 docs/.astro/
 docs/dist/
+
+# Gradle generated files
+.gradle/

@@ -40,6 +40,12 @@ export async function analyzeLayer4(context: AnalysisContext): Promise<Finding[]
         // If reached, it's PROVEN alive.
         continue;
       }
+      // Transform/runtime/timeout/memory failures are not evidence that the
+      // branch is unreachable. Keep them inconclusive instead of emitting a
+      // deletion-oriented finding.
+      if (result.status === "inconclusive") {
+        continue;
+      }
 
       findings.push({
         rule: "unreachable-dynamic-path",
@@ -1110,6 +1116,7 @@ async function verifyPathInWasmSandbox(
 
     const setupScript = `
       globalThis.__PROVE_REACHED__ = false;
+      globalThis.__PROVE_ERROR__ = null;
       globalThis.__coverage__ = {
         traceBranch: (f, l, hit) => { if (hit) globalThis.__PROVE_REACHED__ = true; },
         traceFunction: () => {},
@@ -1118,29 +1125,64 @@ async function verifyPathInWasmSandbox(
       };
       const seeds = ${JSON.stringify(seedInput)};
       Object.assign(globalThis, seeds);
-    `;
+     `;
 
     const setupResult = context.evalCode(setupScript);
-    setupResult.dispose();
-
-    const wrappedCode = `try { ${instrumentedCode} } catch (e) {}`;
+    if (setupResult.error) {
+      const error = context.dump(setupResult.error);
+      setupResult.error.dispose();
+      return {
+        pathReached: false,
+        status: "inconclusive",
+        executionTimeMs: performance.now() - startTime,
+        logs: [String(error)],
+      };
+    }
+    setupResult.value.dispose();
+    const wrappedCode = `try { ${instrumentedCode} } catch (e) {
+      globalThis.__PROVE_ERROR__ = e instanceof Error ? e.message : String(e);
+    }`;
     const evalResult = context.evalCode(wrappedCode);
+    if (evalResult.error) {
+      const error = context.dump(evalResult.error);
+      evalResult.error.dispose();
+      return {
+        pathReached: false,
+        status: "inconclusive",
+        executionTimeMs: performance.now() - startTime,
+        logs: [String(error)],
+      };
+    }
     evalResult.dispose();
 
     const globalHandle = context.global;
     const reachedHandle = context.getProp(globalHandle, "__PROVE_REACHED__");
     const pathReached = context.dump(reachedHandle);
     reachedHandle.dispose();
+    const errorHandle = context.getProp(globalHandle, "__PROVE_ERROR__");
+    const runtimeError = context.dump(errorHandle);
+    errorHandle.dispose();
     globalHandle.dispose();
+
+    if (runtimeError) {
+      return {
+        pathReached: false,
+        status: "inconclusive",
+        executionTimeMs: performance.now() - startTime,
+        logs: [String(runtimeError)],
+      };
+    }
 
     return {
       pathReached: Boolean(pathReached),
+      status: pathReached ? "reached" : "not-reached",
       executionTimeMs: performance.now() - startTime,
       logs: [],
     };
   } catch (err) {
     return {
       pathReached: false,
+      status: "inconclusive",
       executionTimeMs: performance.now() - startTime,
       logs: [(err as Error).message],
     };

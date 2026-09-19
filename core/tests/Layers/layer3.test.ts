@@ -5,6 +5,7 @@ import { analyze } from "../../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../fixtures/layers/layer3");
+const shadowedCallRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-shadowed-call");
 
 describe("Layer 3: SMT Constraint Solver", () => {
   it("should detect mathematically impossible paths using Z3", async () => {
@@ -25,9 +26,8 @@ describe("Layer 3: SMT Constraint Solver", () => {
     expect(impossibleX).toBeDefined();
     expect(impossibleX?.rule).toBe("constant-condition");
 
-    // The isolated fixture deterministically contains two contradictory paths;
-    // parser/SMT backends may differ on whether the nested function comparison
-    // is also proven.
+    // The isolated fixture contains at least two contradictory paths; parser
+    // backends may report additional nested contradictions.
     expect(smtFindings.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -44,5 +44,14 @@ describe("Layer 3: SMT Constraint Solver", () => {
         (finding.location?.start.line ?? 0) >= 30,
     );
     expect(unsoundFindings).toHaveLength(0);
+  });
+
+  it("does not fold a shadowed call using a same-named module function", async () => {
+    const report = await analyze({
+      rootDir: shadowedCallRootDir,
+      entry: ["shadowed-call.ts"],
+      includeConventionalEntries: false,
+    });
+    expect(report.findings.filter((finding) => finding.rule === "constant-condition")).toEqual([]);
   });
 });

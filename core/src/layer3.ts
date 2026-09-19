@@ -722,12 +722,12 @@ export function encodePredicate(
       return randVar;
     }
     // Handle simple pure functions in the same module
-    if (callee.type === "Identifier" && module) {
-      const val = resolveFunctionLiteral(callee.name, module);
-      if (val !== null) {
-        return encodeLiteral(val, z3);
-      }
-    }
+    // Do not fold ordinary identifier calls here. A module-wide AST walk cannot
+    // prove which lexical binding the callee resolves to: a parameter, local
+    // declaration, or block binding may shadow a same-named function. Treating
+    // `value()` as a module-level pure function in that situation creates a
+    // high-confidence false `constant-condition` finding. Pure-call folding
+    // must happen only in a scope-aware pass with declaration identity.
   }
 
   if (node.type === "LogicalExpression") {

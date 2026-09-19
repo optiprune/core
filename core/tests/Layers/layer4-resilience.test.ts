@@ -52,6 +52,36 @@ function makeOptions(rootDir: string): ResolvedOptions {
 }
 
 describe("Layer 4: resilient TypeScript dynamic-import simulation", () => {
+  it("does not report sandbox runtime errors as unreachable paths", async () => {
+    const sourceFile = "/virtual/project/throws.ts";
+    const context: AnalysisContext = {
+      options: makeOptions("/virtual/project"),
+      modules: new Map([[sourceFile, makeModule(sourceFile)]]),
+      entryPoints: new Set([sourceFile]),
+      reachable: new Set([sourceFile]),
+      maybeReachable: new Set(),
+      hasReachableUnknownDynamicBoundary: false,
+      components: [],
+      usedExports: new Set(),
+      usedExportConfidence: new Map(),
+      usedMembers: new Set(),
+      candidateBranches: [
+        {
+          file: sourceFile,
+          line: 2,
+          instrumentedCode: "(() => { throw new Error('runtime-only failure'); })();",
+          seedInput: {},
+        },
+      ],
+      dynamicImportCandidates: [],
+      usedPackages: new Set(),
+      enabledPlugins: new Set(),
+    };
+
+    const findings = await analyzeLayer4(context);
+    expect(findings.filter((finding) => finding.rule === "unreachable-dynamic-path")).toEqual([]);
+  });
+
   it("compiles TypeScript, ignores an unknown global, and resolves a dynamic-pattern edge", async () => {
     // Use a virtual root. pathe ensures this works consistently across OSs.
     const rootDir = "/virtual/project";

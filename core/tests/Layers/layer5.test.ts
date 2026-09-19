@@ -63,5 +63,9 @@ describe("Layer 5: Schema Alignment", () => {
       (f) => f.file.includes("layer-5-test.ts") && f.evidence.exportName === "Query",
     );
     expect(queryReported).toBe(true); // Should be reported as unused (not protected by default)
+    const notActuallySchemaReported = unusedExportFindings.some(
+      (f) => f.file.includes("layer-5-test.ts") && f.evidence.exportName === "NotActuallyASchema",
+    );
+    expect(notActuallySchemaReported).toBe(true);
   }, 30000); // Increase timeout to 30 seconds
 });
