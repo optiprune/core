@@ -92,6 +92,15 @@ export class PluginEngine {
                   );
                 });
                 if (sourceModule && firstKey) {
+                  // A computed import from the plugin registry is a concrete
+                  // runtime edge even though the static graph cannot connect
+                  // `readdir()` to each individual plugin file. Preserve that
+                  // fact directly so the sandbox's first discovered target
+                  // cannot hide the remaining dynamically loaded plugins.
+                  context.reachable?.add(sourceModule.id);
+                  context.runtimeUsedFiles?.add(sourceModule.id);
+                  context.usedExports?.add(`${sourceModule.id}:${firstKey}`);
+                  context.usedExports?.add(`${sourceModule.id}:default`);
                   for (const memberName of ["name", "version", "detect", "lifecycle"]) {
                     if (memberName === "version" && pluginVersion === undefined) continue;
                     if (memberName === "detect" && pluginDetect === undefined) continue;
