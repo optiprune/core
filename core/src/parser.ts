@@ -467,6 +467,98 @@ function isRequireResolveCall(node: AstNode): boolean {
   );
 }
 
+function isCreateRequireCall(node: unknown): boolean {
+  if (!isNode(node) || node.type !== "CallExpression" || !isNode(node.callee)) return false;
+  if (nodeIdentifierName(node.callee) === "createRequire") return true;
+  return (
+    node.callee.type === "MemberExpression" &&
+    nodeIdentifierName(node.callee.object) === "module" &&
+    nodeIdentifierName(node.callee.property) === "createRequire"
+  );
+}
+
+function isFunctionScope(node: AstNode): boolean {
+  return [
+    "FunctionDeclaration",
+    "FunctionExpression",
+    "ArrowFunctionExpression",
+    "ClassMethod",
+    "ObjectMethod",
+  ].includes(node.type ?? "");
+}
+
+function isTopLevelModuleScope(stack: AstNode[]): boolean {
+  const strictProgramFileScope = stack.every(
+    (ancestor) => ancestor.type === "Program" || ancestor.type === "File",
+  );
+  if (strictProgramFileScope) return true;
+  // The native parser inserts declaration/export wrapper nodes between the
+  // module root and a top-level declarator; permit only those known wrappers.
+  return stack.every((ancestor) =>
+    [
+      "Program",
+      "File",
+      "VariableDeclaration",
+      "ExportNamedDeclaration",
+      "ExportDefaultDeclaration",
+    ].includes(ancestor.type ?? ""),
+  );
+}
+
+function isImportMetaResolveCall(node: AstNode): boolean {
+  if (
+    node.type !== "CallExpression" ||
+    !isNode(node.callee) ||
+    node.callee.type !== "MemberExpression"
+  ) {
+    return false;
+  }
+  if (nodeIdentifierName(node.callee.property) !== "resolve") return false;
+  const object = node.callee.object;
+  return (
+    isNode(object) &&
+    object.type === "MetaProperty" &&
+    nodeIdentifierName(object.meta) === "import" &&
+    nodeIdentifierName(object.property) === "meta"
+  );
+}
+
+function isQualifiedUrlConstructor(node: AstNode): boolean {
+  if (node.type !== "NewExpression" || !isNode(node.callee)) return false;
+  if (nodeIdentifierName(node.callee) === "URL") return true;
+  return (
+    node.callee.type === "MemberExpression" &&
+    ["globalThis", "window", "self"].includes(nodeIdentifierName(node.callee.object) ?? "") &&
+    nodeIdentifierName(node.callee.property) === "URL"
+  );
+}
+
+function isShadowedRequire(stack: AstNode[], topLevelShadowed: boolean): boolean {
+  if (topLevelShadowed) return true;
+  return stack.some(
+    (scope) =>
+      [
+        "FunctionDeclaration",
+        "FunctionExpression",
+        "ArrowFunctionExpression",
+        "ClassMethod",
+        "ObjectMethod",
+      ].includes(scope.type ?? "") &&
+      asArray(scope.params).some((param) => bindingNames(param).includes("require")),
+  );
+}
+
+function staticLoaderSpecifier(node: unknown): string | undefined {
+  if (!isNode(node)) return undefined;
+  const direct = nodeStringValue(node);
+  if (direct !== undefined) return direct;
+  if (node.type !== "NewExpression" && node.type !== "CallExpression") return undefined;
+  if (isQualifiedUrlConstructor(node) || isImportMetaResolveCall(node)) {
+    return nodeStringValue(asArray(node.arguments)[0]);
+  }
+  return undefined;
+}
+
 function isDynamicImportCall(node: AstNode): boolean {
   return (
     node.type === "ImportExpression" ||
@@ -629,6 +721,21 @@ function extractAstModule(
   const localSymbolDeps = new Map<string, Set<string>>();
   const localTypeMap: Record<string, string> = {};
   const localReferences = new Set<string>();
+  const createRequireAliases = new Set<string>();
+  const createRequireAliasShadows = new Map<AstNode, Set<string>>();
+  let topLevelRequireShadowed = false;
+
+  walk(ast, (node, stack) => {
+    const scannedNode = node as any;
+    if (
+      node.type === "VariableDeclarator" &&
+      scannedNode.id?.type === "Identifier" &&
+      isCreateRequireCall(scannedNode.init) &&
+      isTopLevelModuleScope(stack)
+    ) {
+      createRequireAliases.add(scannedNode.id.name);
+    }
+  });
 
   const getActiveDeclaration = (s: AstNode[]) => {
     for (let i = s.length - 1; i >= 0; i--) {
@@ -672,6 +779,25 @@ function extractAstModule(
 
     if (node.type === "VariableDeclarator") {
       recordTypeAnnotation(yukuNode.id);
+      if (yukuNode.id?.type === "Identifier" && yukuNode.id.name === "require") {
+        topLevelRequireShadowed = stack.every(
+          (ancestor) => ancestor.type === "Program" || ancestor.type === "File",
+        );
+      }
+      if (
+        yukuNode.id?.type === "Identifier" &&
+        createRequireAliases.has(yukuNode.id.name) &&
+        !isCreateRequireCall(yukuNode.init)
+      ) {
+        const scope = [...stack]
+          .reverse()
+          .find((ancestor) => isFunctionScope(ancestor) || ancestor.type === "BlockStatement");
+        if (scope) {
+          if (!createRequireAliasShadows.has(scope))
+            createRequireAliasShadows.set(scope, new Set());
+          createRequireAliasShadows.get(scope)!.add(yukuNode.id.name);
+        }
+      }
     }
 
     if (
@@ -681,6 +807,10 @@ function extractAstModule(
     ) {
       for (const parameter of yukuNode.params ?? []) {
         recordTypeAnnotation(parameter);
+        if (parameter?.type === "Identifier" && createRequireAliases.has(parameter.name)) {
+          if (!createRequireAliasShadows.has(node)) createRequireAliasShadows.set(node, new Set());
+          createRequireAliasShadows.get(node)!.add(parameter.name);
+        }
       }
     }
 
@@ -794,6 +924,15 @@ function extractAstModule(
               isReExport: true,
               isTypeOnly: isTypeOnly,
             });
+          } else if (isNode(spec) && spec.type === "ExportNamespaceSpecifier") {
+            const exportedName = propertyKeyName(spec.exported) ?? "*";
+            localNames.push("*");
+            addExport(exportsList, exportedName, node, spec.exported as AstNode, {
+              name: "*",
+              isReExport: true,
+              isWildcard: true,
+              isTypeOnly: isTypeOnly,
+            });
           }
         }
         addEdge(edges, file, specifier, "export-from", node, localNames, isTypeOnly);
@@ -895,7 +1034,8 @@ function extractAstModule(
       const specifier = nodeStringValue(node.source);
       if (specifier) {
         addEdge(edges, file, specifier, "export-all", node, ["*"], node.exportKind === "type");
-        addExport(exportsList, "*", node, undefined, {
+        const namespaceName = propertyKeyName(node.exported);
+        addExport(exportsList, namespaceName ?? "*", node, node.exported as AstNode, {
           name: "*",
           isReExport: true,
           isWildcard: true,
@@ -905,19 +1045,76 @@ function extractAstModule(
       return;
     }
 
-    if (isRequireCall(node) || isRequireResolveCall(node)) {
+    const isAliasedCreateRequire =
+      node.type === "CallExpression" &&
+      isNode(node.callee) &&
+      node.callee.type === "Identifier" &&
+      createRequireAliases.has(String((node.callee as any).name ?? "")) &&
+      !stack.some((scope) =>
+        createRequireAliasShadows.get(scope)?.has(String((node.callee as any).name ?? "")),
+      );
+    if (
+      ((isRequireCall(node) || isRequireResolveCall(node)) &&
+        !isShadowedRequire(stack, topLevelRequireShadowed)) ||
+      isAliasedCreateRequire
+    ) {
       const specifier = nodeStringValue(asArray(node.arguments)[0]);
       if (specifier) {
-        addEdge(edges, file, specifier, "require", node, ["*"]);
+        let importedNames = ["*"];
+        let importedLocals: string[] = [];
+        const declaration = [...stack]
+          .reverse()
+          .find((ancestor) => ancestor.type === "VariableDeclarator") as any;
+        if (declaration?.id?.type === "ObjectPattern") {
+          importedNames = [];
+          for (const property of asArray(declaration.id.properties)) {
+            if (!isNode(property) || property.type === "RestElement") continue;
+            const name = propertyKeyName(property.key);
+            const local = nodeIdentifierName(property.value) ?? name;
+            if (name) {
+              importedNames.push(name);
+              if (local) importedLocals.push(local);
+            }
+          }
+          if (importedNames.length === 0) importedNames = ["*"];
+        }
+        addEdge(
+          edges,
+          file,
+          specifier,
+          "require",
+          node,
+          importedNames,
+          false,
+          undefined,
+          importedLocals,
+        );
       } else {
-        hasUnknownDynamicBoundary = true;
+        const parts = dynamicPatternParts(asArray(node.arguments)[0]);
+        if (parts) {
+          edges.push({
+            source: file,
+            rawSpecifier: `${parts.prefix}${"${…}"}${parts.suffix}`,
+            kind: "dynamic-pattern",
+            importedNames: ["*"],
+            resolution: "unknown",
+            dynamicPattern: {
+              prefix: parts.prefix,
+              suffix: parts.suffix,
+              baseDirectory: "",
+              candidates: [],
+            },
+          });
+        } else {
+          hasUnknownDynamicBoundary = true;
+        }
       }
       return;
     }
 
     if (isDynamicImportCall(node)) {
       const argument = dynamicArgument(node);
-      let literal = nodeStringValue(argument);
+      let literal = nodeStringValue(argument) ?? staticLoaderSpecifier(argument);
 
       // Handle pathToFileURL(path.join(...)).href
       if (
@@ -1130,6 +1327,12 @@ function extractAstModule(
           }
         }
       }
+      return;
+    }
+
+    if (node.type === "NewExpression" && nodeIdentifierName(node.callee) === "Worker") {
+      const specifier = staticLoaderSpecifier(asArray(node.arguments)[0]);
+      if (specifier) addEdge(edges, file, specifier, "dynamic-literal", node, ["*"]);
       return;
     }
 

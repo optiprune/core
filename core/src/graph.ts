@@ -660,6 +660,16 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
       }
     };
     const recordWildcardAccess = (objectName: string): void => recordMemberAccess(objectName, "*");
+    // Resolve the base binding through chained calls/member calls, e.g.
+    // `make().builder().live` and `service.make().live`. Return-type precision
+    // remains dependent on the known local/imported instance type maps.
+    const memberObjectRoot = (object: any): string | undefined => {
+      if (!object) return undefined;
+      if (object.type === "Identifier") return object.name;
+      if (object.type === "CallExpression") return memberObjectRoot(object.callee);
+      if (object.type === "MemberExpression") return memberObjectRoot(object.object);
+      return undefined;
+    };
 
     if (module.ast) {
       walkAst(module.ast, (node: any, stack: any[]) => {
@@ -777,10 +787,8 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
               ? node.property.value
               : undefined
             : node.property?.name || node.property?.value;
-          let objectName: string | undefined;
-          if (node.object?.type === "Identifier") {
-            objectName = node.object.name;
-          } else if (node.object?.type === "ThisExpression") {
+          let objectName = memberObjectRoot(node.object);
+          if (node.object?.type === "ThisExpression") {
             // `this.items` has no identifier object. Resolve it against the
             // nearest enclosing class so internal class-member usage reaches
             // the same `usedMembers` key as external `registry.items` access.
@@ -793,7 +801,8 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             objectName = enclosingClass?.id?.name;
           }
           if (objectName) {
-            const typeName = resolveScopedTypeName(objectName, stack);
+            const typeName =
+              localInstanceTypes.get(objectName) ?? resolveScopedTypeName(objectName, stack);
             if (propertyName !== undefined && propertyName !== null) {
               // Track direct access (Status.Active, Registry.items, this.items).
               recordMemberAccess(objectName, String(propertyName));
@@ -871,9 +880,6 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
         }
         for (const [index, name] of edge.importedNames.entries()) {
           current.names.add(name);
-          if (name === "*") {
-            current.wildcard = true;
-          }
 
           // Member expressions use the local binding (`Alias.member`), while
           // importedNames stores the exported binding (`Original`). Preserve
@@ -894,6 +900,9 @@ export function buildImportUsage(modules: Map<string, ModuleRecord>): Map<string
             const usageKey = returnedType ?? name;
             if (!current.memberAccess.has(usageKey)) current.memberAccess.set(usageKey, new Set());
             for (const m of accessed) current.memberAccess.get(usageKey)!.add(m);
+            if (name === "*" && accessed.has("*")) current.wildcard = true;
+          } else if (name === "*") {
+            current.wildcard = true;
           }
         }
         if (edge.kind === "dynamic-pattern") {
@@ -977,7 +986,13 @@ export function buildUsedExports(
         const isRequested =
           usage.wildcard ||
           usage.names.has(exp.exportedAs) ||
-          (exp.isDefault && usage.names.has("default"));
+          (exp.isDefault && usage.names.has("default")) ||
+          (usage.names.has("*") &&
+            [...(usage.memberAccess.get("*") ?? [])].some(
+              (member) =>
+                member === exp.exportedAs ||
+                (exp.members ?? []).some((candidate: any) => candidate.name === member),
+            ));
         if (isRequested) {
           if (!usedExports.has(`${targetId}:${exp.exportedAs}`)) {
             usedExports.add(`${targetId}:${exp.exportedAs}`);
@@ -985,7 +1000,9 @@ export function buildUsedExports(
           }
 
           // Track member access
-          const accessed = usage.memberAccess.get(exp.exportedAs);
+          const accessed =
+            usage.memberAccess.get(exp.exportedAs) ??
+            (usage.names.has("*") ? usage.memberAccess.get("*") : undefined);
 
           if (accessed) {
             const membersToMark = accessed.has("*")
@@ -1028,14 +1045,47 @@ export function buildUsedExports(
               let isUsedViaReExport = false;
 
               if (edge.kind === "export-all") {
+                const locallyShadows = module.exports.some(
+                  (candidate) => !candidate.isWildcard && candidate.exportedAs === exp.exportedAs,
+                );
+                const wildcardProviders = module.edges
+                  .filter((candidate) => candidate.kind === "export-all")
+                  .flatMap((candidate) => edgeTargets(candidate))
+                  .map((candidate) => modules.get(candidate))
+                  .filter((candidate): candidate is ModuleRecord => Boolean(candidate))
+                  .filter((candidate) =>
+                    candidate.exports.some(
+                      (candidateExport) => candidateExport.exportedAs === exp.exportedAs,
+                    ),
+                  ).length;
+                // ECMAScript excludes names provided by more than one export *;
+                // a local declaration also shadows the star-propagated binding.
+                if (locallyShadows || wildcardProviders > 1) continue;
                 const isPublicApiReExport = isPublicApiModule;
+                const namespaceReExport = module.exports.find(
+                  (candidate) => candidate.isWildcard && candidate.name === "*",
+                );
+                const namespaceMembers = namespaceReExport
+                  ? effectiveUsage.memberAccess.get(namespaceReExport.exportedAs)
+                  : undefined;
                 const isRequested =
                   effectiveUsage.wildcard || effectiveUsage.names.has(exp.exportedAs);
+                const isRequestedThroughNamespace =
+                  namespaceReExport !== undefined &&
+                  effectiveUsage.names.has(namespaceReExport.exportedAs) &&
+                  (!namespaceMembers ||
+                    namespaceMembers.has("*") ||
+                    namespaceMembers.has(exp.exportedAs));
 
                 // Also check if it's a default export being requested via a name (not common for export *)
                 const isDefaultRequested = exp.isDefault && effectiveUsage.names.has("default");
 
-                if (isPublicApiReExport || isRequested || isDefaultRequested) {
+                if (
+                  isPublicApiReExport ||
+                  isRequested ||
+                  isRequestedThroughNamespace ||
+                  isDefaultRequested
+                ) {
                   isUsedViaReExport = true;
                 } else {
                   // DEEP ALIAS FIX for export *
@@ -1066,7 +1116,14 @@ export function buildUsedExports(
                         (moduleUsage.wildcard ||
                           moduleUsage.names.has(correspondingExport.exportedAs))
                       ) {
-                        isUsedViaReExport = true;
+                        const namespaceMembers =
+                          correspondingExport.name === "*"
+                            ? moduleUsage.memberAccess.get(correspondingExport.exportedAs)
+                            : undefined;
+                        isUsedViaReExport =
+                          !namespaceMembers ||
+                          namespaceMembers.has("*") ||
+                          namespaceMembers.has(exp.exportedAs);
                         break;
                       }
                     }

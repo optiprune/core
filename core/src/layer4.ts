@@ -1075,6 +1075,12 @@ function resolveAndMarkTarget(
     );
     if (dynamicEdge) {
       dynamicEdge.resolution = "resolved";
+      // A runtime observation is stronger than the pre-Layer-4 glob estimate.
+      // Do not leave sibling candidates maybe-reachable after resolving one
+      // concrete import; that suppresses genuine unreachable-file findings.
+      for (const candidateId of dynamicEdge.dynamicPattern?.candidates ?? []) {
+        if (candidateId !== targetModule.id) context.maybeReachable.delete(candidateId);
+      }
       if (
         dynamicEdge.dynamicPattern &&
         !dynamicEdge.dynamicPattern.candidates.includes(targetModule.id)
