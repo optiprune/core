@@ -27,5 +27,6 @@
 - [ ] `Recovery/`
 - [ ] `Security/`
 - [ ] `fixtures/`
+- [ ] `helpers/`
 - [ ] `test-repos/`
 - [ ] Other / New tests:
