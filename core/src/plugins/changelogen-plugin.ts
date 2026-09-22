@@ -1,8 +1,18 @@
-import { AnalyzerPlugin } from "../types.js";
+import { AnalyzerPlugin, PluginAdapter } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const CHANGELOGEN_CONFIG_BASENAMES = [
+const CHANGELOGEN_PACKAGE = "changelogen";
+
+// changelogen uses c12 under the hood with "changelog" as name
+const CHANGELOGEN_CONFIG_PATTERNS = [
+  "changelog.config.{js,mjs,cjs,ts,mts,cts,json}",
+  ".changelogrc.{js,mjs,cjs,ts,mts,cts,json}",
+  ".changelogrc",
+  ".config/changelog.{js,mjs,cjs,ts,mts,cts,json}",
+];
+
+const CHANGELOGEN_CONFIG_BASENAMES = new Set([
   "changelog.config.json",
   "changelog.config.ts",
   "changelog.config.js",
@@ -11,8 +21,15 @@ const CHANGELOGEN_CONFIG_BASENAMES = [
   "changelog.config.mts",
   "changelog.config.cts",
   ".changelogrc",
-];
-const CHANGELOGEN_PACKAGE = "changelogen";
+  ".changelogrc.json",
+  ".changelogrc.ts",
+  ".changelogrc.js",
+  ".changelogrc.mjs",
+  ".changelogrc.cjs",
+]);
+
+// Companion files and conventional outputs generated or managed by changelogen
+const CHANGELOGEN_ASSETS = ["CHANGELOG.md"];
 
 function normalize(fileId: string): string {
   return fileId.replace(/\\/g, "/");
@@ -23,39 +40,44 @@ function hasChangelogenDependency(packageJson: any): boolean {
     packageJson?.dependencies,
     packageJson?.devDependencies,
     packageJson?.peerDependencies,
+    packageJson?.optionalDependencies,
   ].some((section) => !!section?.[CHANGELOGEN_PACKAGE]);
 }
 
 function isChangelogenScript(script: string): boolean {
   return (
     /(?:^|[\s&|;])changelogen(?:\s|$)/.test(script) ||
-    /\bnpx\s+(?:--yes\s+)?changelogen\b/.test(script) ||
-    /\bpnpm\s+(?:exec\s+)?changelogen\b/.test(script) ||
-    /\byarn\s+(?:dlx\s+)?changelogen\b/.test(script)
+    /\b(?:npx|pnpm|yarn|bunx)\s+(?:--yes\s+)?changelogen\b/.test(script) ||
+    /\b(?:pnpm|yarn)\s+(?:exec|dlx)\s+changelogen\b/.test(script)
   );
 }
 
-function isChangelogenConfig(fileId: string): boolean {
-  return CHANGELOGEN_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)));
+function isGlobalOrTransientExecution(script: string): boolean {
+  return (
+    /\bnpx\s+(?:--yes\s+)?changelogen\b/.test(script) ||
+    /\bpnpm\s+dlx\s+changelogen\b/.test(script) ||
+    /\byarn\s+dlx\s+changelogen\b/.test(script) ||
+    /\bbunx\s+changelogen\b/.test(script)
+  );
 }
 
-/**
- * Changelogen is configured through c12 from the current directory. Its official
- * `changelog.config.*`, `.changelogrc`, and package.json#changelog inputs are
- * tool entry points and must be recognized independently of source imports.
- */
+function isChangelogenConfigFile(fileId: string): boolean {
+  const base = path.basename(normalize(fileId));
+  return CHANGELOGEN_CONFIG_BASENAMES.has(base);
+}
+
 export const ChangelogenPlugin: AnalyzerPlugin = {
   name: "changelogen-plugin",
-  version: "1.1.0",
+  version: "1.2.0",
 
-  detect: async (adapter) => {
+  detect: async (adapter: PluginAdapter) => {
     const packageJson = await adapter.readJson("package.json");
-    if (hasChangelogenDependency(packageJson) || !!packageJson?.changelog) return true;
-
-    for (const configFile of CHANGELOGEN_CONFIG_BASENAMES) {
-      if (await adapter.folderExists(configFile)) return true;
+    if (hasChangelogenDependency(packageJson) || !!packageJson?.changelog) {
+      return true;
     }
-    if ((await adapter.findFiles(CHANGELOGEN_CONFIG_BASENAMES)).length > 0) return true;
+
+    const configs = await adapter.findFiles(CHANGELOGEN_CONFIG_PATTERNS);
+    if (configs.length > 0) return true;
 
     return Object.values(packageJson?.scripts ?? {}).some(
       (script) => typeof script === "string" && isChangelogenScript(script),
@@ -63,32 +85,57 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
   },
 
   lifecycle: {
-    onProjectInit: async (adapter) => {
+    onProjectInit: async (adapter: PluginAdapter) => {
       const packageJson = await adapter.readJson("package.json");
-      const configFiles = await adapter.findFiles(CHANGELOGEN_CONFIG_BASENAMES);
+      const configFiles = await adapter.findFiles(CHANGELOGEN_CONFIG_PATTERNS);
       const hasInlineConfig = !!packageJson?.changelog;
       const dependencyDeclared = hasChangelogenDependency(packageJson);
+
       let hasScriptInvocation = false;
+      let onlyTransientInvocation = true;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
-      if (hasInlineConfig) adapter.markAsUsed("package.json", "changelog");
-
-      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
-        if (typeof script !== "string" || !isChangelogenScript(script)) continue;
-        hasScriptInvocation = true;
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+      // 1. Mark discovered config files as project entry points
+      for (const configFile of configFiles) {
+        adapter.markAsUsed(configFile);
       }
 
-      if (
-        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
-        dependencyDeclared
-      ) {
+      // 2. Mark companion files like CHANGELOG.md as intentional outputs
+      for (const asset of CHANGELOGEN_ASSETS) {
+        if (await adapter.folderExists(asset)) {
+          adapter.markAsUsed(asset);
+        }
+      }
+
+      // 3. Mark inline package.json configuration
+      if (hasInlineConfig) {
+        adapter.markAsUsed("package.json", "changelog");
+      }
+
+      // 4. Analyze package.json scripts
+      const scripts = packageJson?.scripts ?? {};
+      for (const [scriptName, script] of Object.entries(scripts)) {
+        if (typeof script !== "string" || !isChangelogenScript(script)) continue;
+
+        hasScriptInvocation = true;
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+
+        if (!isGlobalOrTransientExecution(script)) {
+          onlyTransientInvocation = false;
+        }
+      }
+
+      const isUsedInProject = configFiles.length > 0 || hasInlineConfig || hasScriptInvocation;
+
+      // 5. Mark the dependency if declared
+      if (isUsedInProject && dependencyDeclared) {
         adapter.markPackageAsUsed(CHANGELOGEN_PACKAGE);
       }
 
+      // 6. Report missing dependency ONLY if it's not run transiently
       if (
-        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
-        !dependencyDeclared
+        isUsedInProject &&
+        !dependencyDeclared &&
+        (!hasScriptInvocation || !onlyTransientInvocation)
       ) {
         adapter.emitFinding({
           rule: "missing-dependency",
@@ -96,29 +143,48 @@ export const ChangelogenPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message:
-            "Changelogen configuration or command found, but 'changelogen' is not listed in package.json.",
-          evidence: { configFiles, hasInlineConfig, hasScriptInvocation },
+            "Changelogen configuration or local script found, but 'changelogen' is not listed in package.json.",
+          evidence: {
+            configFiles,
+            hasInlineConfig,
+            hasScriptInvocation,
+          },
         });
       }
     },
 
-    onFileStart: (fileId, adapter) => {
-      if (isChangelogenConfig(fileId)) adapter.markAsUsed(fileId);
+    onFileStart: (fileId: string, adapter: PluginAdapter) => {
+      if (isChangelogenConfigFile(fileId)) {
+        adapter.markAsUsed(fileId);
+      }
     },
 
-    onASTNode: (node, fileId, adapter) => {
+    onASTNode: (node: unknown, fileId: string, adapter: PluginAdapter) => {
       if (
         t.isImportDeclaration(node) &&
-        (node.source.value === CHANGELOGEN_PACKAGE || node.source.value.startsWith("changelogen/"))
+        (node.source.value === CHANGELOGEN_PACKAGE ||
+          node.source.value.startsWith(`${CHANGELOGEN_PACKAGE}/`))
       ) {
         adapter.markPackageAsUsed(CHANGELOGEN_PACKAGE);
         adapter.markAsUsed(fileId);
       }
+
       if (
-        isChangelogenConfig(fileId) &&
+        isChangelogenConfigFile(fileId) &&
         (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node))
       ) {
         adapter.markAsUsed(fileId);
+      }
+
+      if (isChangelogenConfigFile(fileId) && t.isObjectProperty(node)) {
+        const isTemplateKey =
+          (t.isIdentifier(node.key) && node.key.name === "template") ||
+          (t.isStringLiteral(node.key) && node.key.value === "template");
+
+        if (isTemplateKey && t.isStringLiteral(node.value)) {
+          const templatePath = path.resolve(path.dirname(fileId), node.value.value);
+          adapter.markAsUsed(templatePath);
+        }
       }
     },
   },

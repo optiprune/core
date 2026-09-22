@@ -1,8 +1,17 @@
-import { AnalyzerPlugin } from "../types.js";
+import { AnalyzerPlugin, PluginAdapter } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
 
-const CHANGELOGITHUB_CONFIG_BASENAMES = [
+const CHANGELOGITHUB_PACKAGE = "changelogithub";
+
+const CHANGELOGITHUB_CONFIG_PATTERNS = [
+  "changelogithub.config.{js,mjs,cjs,ts,mts,cts,json}",
+  ".changelogithubrc.{js,mjs,cjs,ts,mts,cts,json}",
+  ".changelogithubrc",
+  ".config/changelogithub.{js,mjs,cjs,ts,mts,cts,json}",
+];
+
+const CHANGELOGITHUB_CONFIG_BASENAMES = new Set([
   "changelogithub.config.json",
   "changelogithub.config.ts",
   "changelogithub.config.js",
@@ -11,11 +20,34 @@ const CHANGELOGITHUB_CONFIG_BASENAMES = [
   "changelogithub.config.mts",
   "changelogithub.config.cts",
   ".changelogithubrc",
-];
-const CHANGELOGITHUB_PACKAGE = "changelogithub";
+  ".changelogithubrc.json",
+  ".changelogithubrc.ts",
+  ".changelogithubrc.js",
+  ".changelogithubrc.mjs",
+  ".changelogithubrc.cjs",
+]);
+
+const WORKFLOW_PATTERNS = [".github/workflows/*.{yml,yaml}", ".github/workflows/**/*.{yml,yaml}"];
 
 function normalize(fileId: string): string {
   return fileId.replace(/\\/g, "/");
+}
+
+async function readRawFile(adapter: PluginAdapter, fileId: string): Promise<string> {
+  try {
+    if (typeof (adapter as any).readFile === "function") {
+      const res = await (adapter as any).readFile(fileId);
+      return typeof res === "string" ? res : "";
+    }
+    if (typeof (adapter as any).readText === "function") {
+      const res = await (adapter as any).readText(fileId);
+      return typeof res === "string" ? res : "";
+    }
+    const content = await adapter.readJson(fileId);
+    return typeof content === "string" ? content : JSON.stringify(content);
+  } catch {
+    return "";
+  }
 }
 
 function hasChangelogithubDependency(packageJson: any): boolean {
@@ -23,103 +55,166 @@ function hasChangelogithubDependency(packageJson: any): boolean {
     packageJson?.dependencies,
     packageJson?.devDependencies,
     packageJson?.peerDependencies,
+    packageJson?.optionalDependencies,
   ].some((section) => !!section?.[CHANGELOGITHUB_PACKAGE]);
 }
 
 function isChangelogithubScript(script: string): boolean {
   return (
     /(?:^|[\s&|;])changelogithub(?:\s|$)/.test(script) ||
-    /\bnpx\s+(?:--yes\s+)?changelogithub\b/.test(script) ||
-    /\bpnpm\s+(?:exec\s+)?changelogithub\b/.test(script) ||
-    /\byarn\s+(?:dlx\s+)?changelogithub\b/.test(script)
+    /\b(?:npx|pnpm|yarn|bunx)\s+(?:--yes\s+)?changelogithub\b/.test(script) ||
+    /\b(?:pnpm|yarn)\s+(?:exec|dlx)\s+changelogithub\b/.test(script)
   );
 }
 
-function isChangelogithubConfig(fileId: string): boolean {
-  return CHANGELOGITHUB_CONFIG_BASENAMES.includes(path.basename(normalize(fileId)));
+function isGlobalOrTransientExecution(script: string): boolean {
+  return (
+    /\bnpx\s+(?:--yes\s+)?changelogithub\b/.test(script) ||
+    /\bpnpm\s+dlx\s+changelogithub\b/.test(script) ||
+    /\byarn\s+dlx\s+changelogithub\b/.test(script) ||
+    /\bbunx\s+changelogithub\b/.test(script)
+  );
 }
 
-/**
- * Changelogithub uses the project-root configuration and package.json field
- * documented by the upstream project. These are release-tool entry points, so a
- * declared package is retained only when config, command, or import evidence exists.
- */
+function isChangelogithubConfigFile(fileId: string): boolean {
+  const base = path.basename(normalize(fileId));
+  return CHANGELOGITHUB_CONFIG_BASENAMES.has(base);
+}
+
 export const ChangelogithubPlugin: AnalyzerPlugin = {
   name: "changelogithub-plugin",
-  version: "1.1.0",
+  version: "1.2.1",
 
-  detect: async (adapter) => {
+  detect: async (adapter: PluginAdapter) => {
     const packageJson = await adapter.readJson("package.json");
-    if (hasChangelogithubDependency(packageJson) || !!packageJson?.changelogithub) return true;
-
-    for (const configFile of CHANGELOGITHUB_CONFIG_BASENAMES) {
-      if (await adapter.folderExists(configFile)) return true;
+    if (hasChangelogithubDependency(packageJson) || !!packageJson?.changelogithub) {
+      return true;
     }
-    if ((await adapter.findFiles(CHANGELOGITHUB_CONFIG_BASENAMES)).length > 0) return true;
 
-    return Object.values(packageJson?.scripts ?? {}).some(
+    const configs = await adapter.findFiles(CHANGELOGITHUB_CONFIG_PATTERNS);
+    if (configs.length > 0) return true;
+
+    const hasScript = Object.values(packageJson?.scripts ?? {}).some(
       (script) => typeof script === "string" && isChangelogithubScript(script),
     );
+    if (hasScript) return true;
+
+    const workflows = await adapter.findFiles(WORKFLOW_PATTERNS);
+    for (const workflow of workflows) {
+      const raw = await readRawFile(adapter, workflow);
+      if (raw.includes("changelogithub") || raw.includes("antfu/changelogithub")) {
+        return true;
+      }
+    }
+
+    return false;
   },
 
   lifecycle: {
-    onProjectInit: async (adapter) => {
+    onProjectInit: async (adapter: PluginAdapter) => {
       const packageJson = await adapter.readJson("package.json");
-      const configFiles = await adapter.findFiles(CHANGELOGITHUB_CONFIG_BASENAMES);
+      const configFiles = await adapter.findFiles(CHANGELOGITHUB_CONFIG_PATTERNS);
       const hasInlineConfig = !!packageJson?.changelogithub;
       const dependencyDeclared = hasChangelogithubDependency(packageJson);
+
       let hasScriptInvocation = false;
+      let onlyTransientInvocation = true;
 
-      for (const configFile of configFiles) adapter.markAsUsed(configFile);
-      if (hasInlineConfig) adapter.markAsUsed("package.json", "changelogithub");
-
-      for (const [scriptName, script] of Object.entries(packageJson?.scripts ?? {})) {
-        if (typeof script !== "string" || !isChangelogithubScript(script)) continue;
-        hasScriptInvocation = true;
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+      // 1. Mark config files
+      for (const configFile of configFiles) {
+        adapter.markAsUsed(configFile);
       }
 
-      if (
-        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
-        dependencyDeclared
-      ) {
+      // 2. Mark package.json inline config
+      if (hasInlineConfig) {
+        adapter.markAsUsed("package.json", "changelogithub");
+      }
+
+      // 3. Inspect package.json scripts
+      const scripts = packageJson?.scripts ?? {};
+      for (const [scriptName, script] of Object.entries(scripts)) {
+        if (typeof script !== "string" || !isChangelogithubScript(script)) continue;
+
+        hasScriptInvocation = true;
+        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+
+        if (!isGlobalOrTransientExecution(script)) {
+          onlyTransientInvocation = false;
+        }
+      }
+
+      // 4. Inspect GitHub workflows
+      let hasWorkflowInvocation = false;
+      const workflows = await adapter.findFiles(WORKFLOW_PATTERNS);
+      for (const workflow of workflows) {
+        const raw = await readRawFile(adapter, workflow);
+        if (raw.includes("changelogithub") || raw.includes("antfu/changelogithub")) {
+          hasWorkflowInvocation = true;
+          adapter.markAsUsed(workflow);
+        }
+      }
+
+      const isUsedInProject =
+        configFiles.length > 0 || hasInlineConfig || hasScriptInvocation || hasWorkflowInvocation;
+
+      // 5. Mark dependency if declared
+      if (isUsedInProject && dependencyDeclared) {
         adapter.markPackageAsUsed(CHANGELOGITHUB_PACKAGE);
       }
 
-      if (
-        (configFiles.length > 0 || hasInlineConfig || hasScriptInvocation) &&
-        !dependencyDeclared
-      ) {
+      // 6. Report missing dependency if local script relies on it without transient runner
+      const requiresLocalDep = hasScriptInvocation && !onlyTransientInvocation;
+      if (isUsedInProject && !dependencyDeclared && requiresLocalDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
           confidence: "high",
           file: "package.json",
           message:
-            "Changelogithub configuration or command found, but 'changelogithub' is not listed in package.json.",
-          evidence: { configFiles, hasInlineConfig, hasScriptInvocation },
+            "Changelogithub script found, but 'changelogithub' is not listed in package.json.",
+          evidence: {
+            configFiles,
+            hasInlineConfig,
+            hasScriptInvocation,
+          },
         });
       }
     },
 
-    onFileStart: (fileId, adapter) => {
-      if (isChangelogithubConfig(fileId)) adapter.markAsUsed(fileId);
+    onFileStart: (fileId: string, adapter: PluginAdapter) => {
+      if (isChangelogithubConfigFile(fileId)) {
+        adapter.markAsUsed(fileId);
+      }
     },
 
-    onASTNode: (node, fileId, adapter) => {
+    onASTNode: (node: unknown, fileId: string, adapter: PluginAdapter) => {
       if (
         t.isImportDeclaration(node) &&
         (node.source.value === CHANGELOGITHUB_PACKAGE ||
-          node.source.value.startsWith("changelogithub/"))
+          node.source.value.startsWith(`${CHANGELOGITHUB_PACKAGE}/`))
       ) {
         adapter.markPackageAsUsed(CHANGELOGITHUB_PACKAGE);
         adapter.markAsUsed(fileId);
       }
+
       if (
-        isChangelogithubConfig(fileId) &&
+        isChangelogithubConfigFile(fileId) &&
         (t.isExportDefaultDeclaration(node) || t.isExportNamedDeclaration(node))
       ) {
         adapter.markAsUsed(fileId);
+      }
+
+      if (isChangelogithubConfigFile(fileId) && t.isObjectProperty(node)) {
+        const isTargetProp =
+          (t.isIdentifier(node.key) &&
+            (node.key.name === "template" || node.key.name === "output")) ||
+          (t.isStringLiteral(node.key) &&
+            (node.key.value === "template" || node.key.value === "output"));
+
+        if (isTargetProp && t.isStringLiteral(node.value)) {
+          const targetPath = path.resolve(path.dirname(fileId), node.value.value);
+          adapter.markAsUsed(targetPath);
+        }
       }
     },
   },
