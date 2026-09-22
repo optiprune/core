@@ -163,7 +163,11 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
       }
 
       // 6. Report missing dependency if local script relies on it without transient runner
-      const requiresLocalDep = hasScriptInvocation && !onlyTransientInvocation;
+      const requiresLocalDep =
+        configFiles.length > 0 ||
+        hasInlineConfig ||
+        (hasScriptInvocation && !onlyTransientInvocation);
+
       if (isUsedInProject && !dependencyDeclared && requiresLocalDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
@@ -171,7 +175,7 @@ export const ChangelogithubPlugin: AnalyzerPlugin = {
           confidence: "high",
           file: "package.json",
           message:
-            "Changelogithub script found, but 'changelogithub' is not listed in package.json.",
+            "Changelogithub configuration or script found, but 'changelogithub' is not listed in package.json.",
           evidence: {
             configFiles,
             hasInlineConfig,
