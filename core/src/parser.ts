@@ -750,7 +750,8 @@ function extractAstModule(
       return staticPathAliases.get(nodeIdentifierName(candidate) ?? "");
     }
     if (candidate.type === "MemberExpression") {
-      const object = candidate.object as any;      const property = candidate.computed
+      const object = candidate.object as any;
+      const property = candidate.computed
         ? nodeStringValue(candidate.property)
         : nodeIdentifierName(candidate.property);
       if (
@@ -760,7 +761,7 @@ function extractAstModule(
         nodeIdentifierName(object.property) === "meta"
       ) {
         return path.dirname(file);
-     }
+      }
       return undefined;
     }
     if (candidate.type === "CallExpression") {
@@ -875,7 +876,6 @@ function extractAstModule(
     }
     return false;
   };
-
 
   const getActiveDeclaration = (s: AstNode[]) => {
     for (let i = s.length - 1; i >= 0; i--) {
@@ -1024,7 +1024,7 @@ function extractAstModule(
           } else {
             // Top-level usage (code not inside a function/class)
             // Use empty string as the key for top-level references
-          if (!localSymbolDeps.has("")) localSymbolDeps.set("", new Set());
+            if (!localSymbolDeps.has("")) localSymbolDeps.set("", new Set());
             localSymbolDeps.get("")!.add(node.name as string);
           }
           const name = node.name as string;
