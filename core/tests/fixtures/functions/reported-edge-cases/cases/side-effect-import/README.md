@@ -1,0 +1,1 @@
+The named `version` import is unread, so `version` should be reported as an unused export. The imported module also performs a top-level side effect; its dependency edge must still make `polyfills.ts` reachable.

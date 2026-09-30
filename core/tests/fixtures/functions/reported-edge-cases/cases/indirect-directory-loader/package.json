@@ -1,0 +1,5 @@
+{
+  "name": "fixture-indirect-directory-loader",
+  "private": true,
+  "type": "module"
+}

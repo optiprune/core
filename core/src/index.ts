@@ -65,6 +65,8 @@ if (!pkg?.version) {
   throw new Error("Unable to determine @optiprune/core version from package.json");
 }
 const VERSION = pkg.version;
+const CACHE_SEMANTICS_REVISION = "3";
+const CACHE_CORE_VERSION = `${VERSION}+semantics-${CACHE_SEMANTICS_REVISION}`;
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 import { applyFixes as runFixes } from "./fixer.js";
@@ -336,7 +338,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   const pluginFindings = await pluginEngine.run(earlyContext);
   const pluginVersions = pluginEngine.getEnabledPluginVersions();
   const cacheVersionsMatch =
-    cache.coreVersion === VERSION &&
+    cache.coreVersion === CACHE_CORE_VERSION &&
     JSON.stringify(cache.pluginVersions ?? {}) === JSON.stringify(pluginVersions);
   // A version change can alter parsing, graph construction, or plugin findings.
   // Unless explicitly overridden, discard all old entries before incremental work.
@@ -397,6 +399,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const analysisKey = JSON.stringify({
     version: VERSION, //ex 388
+    cacheSemanticsRevision: CACHE_SEMANTICS_REVISION,
     entry: resolvedOptions.entry,
     extensions: resolvedOptions.extensions,
     ignore: resolvedOptions.ignore,
@@ -1098,7 +1101,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       findings.push({
         rule: "unreachable-file",
         severity: "warning",
-        confidence: module.hasUnknownDynamicBoundary ? "medium" : "high",
+        confidence: context.hasReachableUnknownDynamicBoundary
+          ? "low"
+          : module.hasUnknownDynamicBoundary
+            ? "medium"
+            : "high",
         message: fullyUnusedPureExportModules.has(module.id)
           ? "File contains only exports that are unused and has no top-level runtime logic."
           : isIsolatedComponent
@@ -1276,7 +1283,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // Persist the compact report only after all analysis layers have completed.
   newCache.version = "2.1";
-  newCache.coreVersion = VERSION;
+  newCache.coreVersion = CACHE_CORE_VERSION;
   newCache.pluginVersions = pluginVersions;
   newCache.analysisKey = analysisKey;
   newCache.fileHashes = currentFileHashes;

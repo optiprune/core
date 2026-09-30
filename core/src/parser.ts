@@ -1,4 +1,5 @@
 import { isIgnored } from "./fs-utils.js";
+import path from "pathe";
 
 type ParserOptions = {
   lang: "ts" | "tsx" | "jsx" | "js" | "dts";
@@ -737,6 +738,145 @@ function extractAstModule(
     }
   });
 
+  // Resolve simple top-level path aliases used by directory-scanning loaders.
+  // Unknown runtime values remain conservative; this handles literal path
+  // segments, import.meta.dirname, and path.join/resolve calls.
+  const staticPathAliases = new Map<string, string>();
+  const staticPathValue = (candidate: unknown): string | undefined => {
+    if (!isNode(candidate)) return undefined;
+    const literal = nodeStringValue(candidate);
+    if (literal !== undefined) return literal;
+    if (candidate.type === "Identifier") {
+      return staticPathAliases.get(nodeIdentifierName(candidate) ?? "");
+    }
+    if (candidate.type === "MemberExpression") {
+      const object = candidate.object as any;      const property = candidate.computed
+        ? nodeStringValue(candidate.property)
+        : nodeIdentifierName(candidate.property);
+      if (
+        property === "dirname" &&
+        object?.type === "MetaProperty" &&
+        nodeIdentifierName(object.meta) === "import" &&
+        nodeIdentifierName(object.property) === "meta"
+      ) {
+        return path.dirname(file);
+     }
+      return undefined;
+    }
+    if (candidate.type === "CallExpression") {
+      const callee = candidate.callee as any;
+      const method =
+        callee?.type === "MemberExpression"
+          ? nodeIdentifierName(callee.property)
+          : nodeIdentifierName(callee);
+      if (method !== "resolve" && method !== "join") return undefined;
+      const args = asArray(candidate.arguments).map((argument) => staticPathValue(argument));
+      if (args.length === 0 || args.some((argument) => argument === undefined)) return undefined;
+      return method === "resolve"
+        ? path.resolve(...(args as string[]))
+        : path.join(...(args as string[]));
+    }
+    return undefined;
+  };
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false;
+    walk(ast, (node, stack) => {
+      const declarator = node as any;
+      if (
+        node.type !== "VariableDeclarator" ||
+        !isTopLevelModuleScope(stack) ||
+        !isNode(declarator.id) ||
+        declarator.id.type !== "Identifier"
+      )
+        return;
+      const name = nodeIdentifierName(declarator.id);
+      const value = staticPathValue(declarator.init);
+      if (name && value !== undefined && staticPathAliases.get(name) !== value) {
+        staticPathAliases.set(name, value);
+        changed = true;
+      }
+    });
+    if (!changed) break;
+  }
+  // Pre-index lexical declarations so same-named locals do not count as reads
+  // of module-level exports or imported bindings.
+  const scopeBindings = new Map<AstNode, Set<string>>();
+  const addScopeBindings = (scope: AstNode | undefined, names: string[]) => {
+    if (!scope || names.length === 0) return;
+    if (!scopeBindings.has(scope)) scopeBindings.set(scope, new Set());
+    for (const name of names) scopeBindings.get(scope)!.add(name);
+  };
+  const functionScopeTypes = new Set([
+    "FunctionDeclaration",
+    "FunctionExpression",
+    "ArrowFunctionExpression",
+    "ClassMethod",
+    "ObjectMethod",
+  ]);
+  const blockScopeTypes = new Set([
+    "BlockStatement",
+    "ForStatement",
+    "ForInStatement",
+    "ForOfStatement",
+    "CatchClause",
+  ]);
+  const nearestScope = (stack: AstNode[], includeBlocks: boolean): AstNode | undefined =>
+    [...stack]
+      .reverse()
+      .find(
+        (ancestor) =>
+          ancestor.type === "Program" ||
+          functionScopeTypes.has(ancestor.type ?? "") ||
+          (includeBlocks && blockScopeTypes.has(ancestor.type ?? "")),
+      );
+  walk(ast, (node, stack) => {
+    const current = node as any;
+    if (node.type === "VariableDeclarator") {
+      const declaration = [...stack]
+        .reverse()
+        .find((ancestor) => ancestor.type === "VariableDeclaration") as any;
+      addScopeBindings(nearestScope(stack, declaration?.kind !== "var"), bindingNames(current.id));
+    } else if (node.type === "ImportDeclaration") {
+      addScopeBindings(
+        nearestScope(stack, false),
+        asArray(current.specifiers).flatMap((specifier: any) => bindingNames(specifier.local)),
+      );
+    } else if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration") {
+      addScopeBindings(nearestScope(stack, true), bindingNames(current.id));
+      if (node.type === "FunctionDeclaration") {
+        addScopeBindings(node, bindingNames(current.id));
+        addScopeBindings(
+          node,
+          asArray(current.params).flatMap((parameter: any) => bindingNames(parameter)),
+        );
+      }
+    } else if (functionScopeTypes.has(node.type ?? "")) {
+      addScopeBindings(
+        node,
+        asArray(current.params).flatMap((parameter: any) => bindingNames(parameter)),
+      );
+      if (node.type === "FunctionExpression") addScopeBindings(node, bindingNames(current.id));
+    } else if (node.type === "CatchClause") {
+      addScopeBindings(node, bindingNames(current.param));
+    }
+  });
+  const referencedModuleBindings = new Set<string>();
+  const exportedLocals = new Set<string>();
+  const hasLexicalShadow = (stack: AstNode[], name: string): boolean => {
+    // Resolve the nearest binding along the active lexical path rather than
+    // asking whether any pre-indexed ancestor happens to contain this name.
+    // let/const bindings shadow their entire block (including their TDZ and
+    // initializer); parameter defaults do not include the function body scope.
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const scope = stack[index];
+      if (!scope) continue;
+      if (scope.type === "Program" || scope.type === "File") return false;
+      if (scopeBindings.get(scope)?.has(name)) return true;
+    }
+    return false;
+  };
+
+
   const getActiveDeclaration = (s: AstNode[]) => {
     for (let i = s.length - 1; i >= 0; i--) {
       const n = s[i];
@@ -830,10 +970,14 @@ function extractAstModule(
     }
 
     // Fix 3: Track local references
-    if (node.type === "Identifier") {
+    if (node.type === "Identifier" || node.type === "JSXIdentifier") {
       const parent = stack[stack.length - 1];
       if (parent) {
-        let isRef = true;
+        let isRef =
+          node.type === "Identifier" ||
+          ((parent.type === "JSXOpeningElement" || parent.type === "JSXClosingElement") &&
+            (parent as any).name === node) ||
+          (parent.type === "JSXMemberExpression" && (parent as any).object === node);
         // Definitions/Names of exports are NOT references to other symbols
 
         if (
@@ -880,10 +1024,18 @@ function extractAstModule(
           } else {
             // Top-level usage (code not inside a function/class)
             // Use empty string as the key for top-level references
-            if (!localSymbolDeps.has("")) localSymbolDeps.set("", new Set());
+          if (!localSymbolDeps.has("")) localSymbolDeps.set("", new Set());
             localSymbolDeps.get("")!.add(node.name as string);
           }
-          localReferences.add(node.name as string);
+          const name = node.name as string;
+          const isShadowed = hasLexicalShadow(stack, name);
+          if (!isShadowed) {
+            localReferences.add(name);
+            referencedModuleBindings.add(name);
+          }
+          if (parent.type === "ExportSpecifier" && parent.local === node) {
+            exportedLocals.add(name);
+          }
         }
       }
     }
@@ -1354,7 +1506,7 @@ function extractAstModule(
 
       if (isReaddir) {
         const arg = asArray(node.arguments)[0] as any;
-        let dir = nodeStringValue(arg);
+        let dir = nodeStringValue(arg) ?? staticPathValue(arg);
 
         // Handle path.join(__dirname, 'plugins') or path.resolve(..., 'dir') or similar
         if (!dir && arg?.type === "CallExpression") {
@@ -1373,7 +1525,9 @@ function extractAstModule(
         }
 
         if (dir) {
-          scannedDirectories.push(dir);
+          scannedDirectories.push(
+            path.isAbsolute(dir) ? path.relative(path.dirname(file), dir) : dir,
+          );
         } else {
           // If we can't resolve the directory but it's a variable,
           // we mark it as a potential dynamic scan boundary.
@@ -1408,6 +1562,19 @@ function extractAstModule(
       }
     }
   });
+
+  // An import only proves a named export is used when its local binding is
+  // actually read (or re-exported). Keep module dependency edges intact.
+  for (const edge of edges) {
+    if ((edge.kind !== "import" && edge.kind !== "require") || !edge.importedLocals?.length) {
+      continue;
+    }
+    const keepIndexes = edge.importedLocals
+      .map((local, index) => ({ local, index }))
+      .filter(({ local }) => referencedModuleBindings.has(local) || exportedLocals.has(local));
+    edge.importedNames = keepIndexes.map(({ index }) => edge.importedNames[index] ?? "*");
+    edge.importedLocals = keepIndexes.map(({ local }) => local);
+  }
 
   // Attach local references to exports
   for (const exp of exportsList) {
