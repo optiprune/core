@@ -22,4 +22,34 @@ describe("Parser Unit Tests", () => {
     expect(module.edges[0].kind).toBe("import");
     expect(module.edges[1].kind).toBe("dynamic-literal");
   });
+
+  it("keeps triple-slash path references in the dependency graph", () => {
+    const module = parseModule(
+      `/// <reference path="./ambient.d.ts" />\nexport const value = 1;`,
+      "src/index.ts",
+    );
+    expect(module.edges).toContainEqual(
+      expect.objectContaining({
+        rawSpecifier: "./ambient.d.ts",
+        kind: "import",
+        importedNames: ["*"],
+        isTypeOnly: true,
+      }),
+    );
+  });
+
+  it("recognizes inline type-only import and export specifiers", () => {
+    const imported = parseModule(`import { type Config } from "./config";`, "src/index.ts");
+    expect(imported.edges).toContainEqual(
+      expect.objectContaining({ rawSpecifier: "./config", isTypeOnly: true }),
+    );
+
+    const exported = parseModule(`export { type Config } from "./config";`, "src/index.ts");
+    expect(exported.edges).toContainEqual(
+      expect.objectContaining({ rawSpecifier: "./config", isTypeOnly: true }),
+    );
+    expect(exported.exports).toContainEqual(
+      expect.objectContaining({ exportedAs: "Config", isTypeOnly: true }),
+    );
+  });
 });

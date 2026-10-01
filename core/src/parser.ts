@@ -696,6 +696,25 @@ function extractAstModule(
 ): ModuleRecord {
   const exportsList: ExportRecord[] = [];
   const edges: DependencyEdge[] = [];
+  // Triple-slash directives are semantic imports even though the parser
+  // exposes them only as comments. Path references must keep declaration files
+  // reachable; types references must count as dependency evidence.
+  for (const match of sourceText.matchAll(
+    /^\s*\/\/\/\s*<reference\s+(path|types)=["']([^"']+)["']\s*\/?>\s*$/gm,
+  )) {
+    const specifier = match[2];
+    const offset = match.index ?? 0;
+    if (!specifier || edges.some((edge) => edge.rawSpecifier === specifier)) continue;
+    addEdge(
+      edges,
+      file,
+      specifier,
+      "import",
+      { type: "TSReferenceDirective", start: offset, end: offset + match[0].length },
+      ["*"],
+      true,
+    );
+  }
   const parseDiagnostics: ParseDiagnostic[] = parserErrors.map((error) => {
     const candidate = error as { message?: unknown; loc?: { line?: unknown; column?: unknown } };
     const diagnostic: ParseDiagnostic = {
@@ -1043,8 +1062,12 @@ function extractAstModule(
     if (node.type === "ImportDeclaration") {
       const specifier = nodeStringValue(node.source);
       if (specifier) {
-        const isTypeOnly = node.importKind === "type";
-        const bindings = importSpecifierBindings(asArray(node.specifiers));
+        const specifiers = asArray(node.specifiers);
+        const isTypeOnly =
+          node.importKind === "type" ||
+          (specifiers.length > 0 &&
+            specifiers.every((item) => (item as any)?.importKind === "type"));
+        const bindings = importSpecifierBindings(specifiers);
         addEdge(
           edges,
           file,
@@ -1063,18 +1086,23 @@ function extractAstModule(
     if (node.type === "ExportNamedDeclaration") {
       const specifier = nodeStringValue(node.source);
       if (specifier) {
-        const isTypeOnly = node.exportKind === "type";
         const specifiers = asArray(node.specifiers);
+        const isTypeOnly =
+          node.exportKind === "type" ||
+          (specifiers.length > 0 &&
+            specifiers.every((item) => (item as any)?.exportKind === "type"));
         const localNames: string[] = [];
         for (const spec of specifiers) {
           if (isNode(spec) && spec.type === "ExportSpecifier") {
             const localName = propertyKeyName(spec.local || spec.exported) ?? "*";
             const exportedName = propertyKeyName(spec.exported) ?? "*";
+            const specifierIsTypeOnly =
+              node.exportKind === "type" || (spec as any).exportKind === "type";
             localNames.push(localName);
             addExport(exportsList, exportedName, node, spec.exported as AstNode, {
               name: localName,
               isReExport: true,
-              isTypeOnly: isTypeOnly,
+              isTypeOnly: specifierIsTypeOnly,
             });
           } else if (isNode(spec) && spec.type === "ExportNamespaceSpecifier") {
             const exportedName = propertyKeyName(spec.exported) ?? "*";
