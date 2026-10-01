@@ -1012,10 +1012,16 @@ export async function ingestTsConfigPaths(
 
     for (const [alias, targets] of Object.entries(tsconfig.compilerOptions?.paths ?? {})) {
       if (Array.isArray(targets)) {
-        pathAliases.set(
-          alias,
-          targets.map((target) => normalizeAbsolute(resolve(aliasBaseDirectory, target))),
+        const normalizedTargets = targets.map((target) =>
+          normalizeAbsolute(resolve(aliasBaseDirectory, target)),
         );
+        // Multiple workspace projects commonly reuse aliases such as `@/*`.
+        // Keep every project-local target; graph resolution will choose the
+        // candidate nearest to the importing file instead of losing all but
+        // the last config visited.
+        pathAliases.set(alias, [
+          ...new Set([...(pathAliases.get(alias) ?? []), ...normalizedTargets]),
+        ]);
       }
     }
 

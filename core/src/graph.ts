@@ -94,8 +94,17 @@ function resolveEdge(
         .join("(.*)");
       const match = edge.rawSpecifier.match(new RegExp(`^${aliasPattern}$`));
       if (!match) continue;
+      const sourceDirectory = path.dirname(source.id);
+      const orderedTargets = [...targets].sort((left, right) => {
+        const parentSegments = (candidate: string) =>
+          path
+            .relative(sourceDirectory, path.dirname(candidate))
+            .split(/[\\/]+/)
+            .filter((segment) => segment === "..").length;
+        return parentSegments(left) - parentSegments(right);
+      });
 
-      for (const targetPattern of targets) {
+      for (const targetPattern of orderedTargets) {
         let captureIndex = 1;
         const resolvedSpecifier = targetPattern.replace(/\*/g, () => match[captureIndex++] ?? "");
         const absoluteTarget = path.isAbsolute(resolvedSpecifier)

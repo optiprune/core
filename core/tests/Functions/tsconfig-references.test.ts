@@ -84,4 +84,56 @@ describe("tsconfig references and wildcard aliases", () => {
       }),
     );
   });
+
+  it("keeps identical aliases scoped to the nearest referenced project", async () => {
+    const appOne = path.join(fixtureRoot, "apps", "one");
+    const appTwo = path.join(fixtureRoot, "apps", "two");
+    await fs.mkdir(path.join(appOne, "src"), { recursive: true });
+    await fs.mkdir(path.join(appTwo, "lib"), { recursive: true });
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify({ name: "duplicate-tsconfig-aliases", private: true }, null, 2),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "tsconfig.json"),
+      JSON.stringify({ files: [], references: [{ path: "./apps/one" }, { path: "./apps/two" }] }),
+    );
+    for (const [app, target] of [
+      [appOne, "src/*"],
+      [appTwo, "lib/*"],
+    ] as const) {
+      await fs.writeFile(
+        path.join(app, "tsconfig.json"),
+        JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": [target] } } }),
+      );
+    }
+    await fs.writeFile(
+      path.join(appOne, "main.ts"),
+      "import { value } from '@/value'; console.log(value);\n",
+    );
+    await fs.writeFile(path.join(appOne, "src", "value.ts"), "export const value = 'one';\n");
+    await fs.writeFile(
+      path.join(appTwo, "main.ts"),
+      "import { value } from '@/value'; console.log(value);\n",
+    );
+    await fs.writeFile(path.join(appTwo, "lib", "value.ts"), "export const value = 'two';\n");
+
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: ["apps/one/main.ts", "apps/two/main.ts"],
+      extensions: [".ts"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+    });
+
+    for (const [main, target] of [
+      ["apps/one/main.ts", "apps/one/src/value.ts"],
+      ["apps/two/main.ts", "apps/two/lib/value.ts"],
+    ] as const) {
+      const module = report.modules.find((candidate) => candidate.path === main);
+      expect(module?.edges).toContainEqual(
+        expect.objectContaining({ specifier: "@/value", target, resolution: "resolved" }),
+      );
+    }
+  });
 });
