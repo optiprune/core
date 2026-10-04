@@ -10,6 +10,7 @@ import {
   calculateReachability,
   calculateComponentReachability,
   edgeTargets,
+  hasTagSemantic,
 } from "./graph.js";
 import { analyzeLayer2 } from "./layer2.js";
 import { analyzeLayer3 } from "./layer3.js";
@@ -590,7 +591,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       await discoverPackageBinEntryPatterns(baseDir),
     );
     const publicExportEntries = expandBuildEntryToSourceCandidates(
-      await discoverPackageExportEntryPatterns(baseDir),
+      await discoverPackageExportEntryPatterns(baseDir, resolvedOptions.production),
     );
     const scriptTargets = await discoverPackageScriptTargets(baseDir);
 
@@ -902,7 +903,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       ) {
         let allExportsUnused = module.exports.length > 0;
         for (const exp of module.exports) {
-          if (exp.isExternalContract) {
+          if (
+            exp.isExternalContract ||
+            hasTagSemantic(exp, resolvedOptions, "ignore") ||
+            hasTagSemantic(exp, resolvedOptions, "public")
+          ) {
             allExportsUnused = false;
             continue;
           }
@@ -1057,6 +1062,11 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             exp.members.length > 0
           ) {
             for (const member of exp.members) {
+              if (
+                hasTagSemantic(member, resolvedOptions, "ignore") ||
+                hasTagSemantic(member, resolvedOptions, "public")
+              )
+                continue;
               const memberKey = `${module.id}:${exp.exportedAs}:${member.name}`;
               const internalKey = `${module.id}:${exp.name}:${member.name}`;
               if (!context.usedMembers.has(memberKey) && !context.usedMembers.has(internalKey)) {

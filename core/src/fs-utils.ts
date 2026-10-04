@@ -776,7 +776,10 @@ export async function discoverPackageEntryPatterns(rootDir: string): Promise<str
  * An exports map represents a package's public import surface, unlike legacy
  * metadata such as main or types which can describe implementation details.
  */
-export async function discoverPackageExportEntryPatterns(rootDir: string): Promise<string[]> {
+export async function discoverPackageExportEntryPatterns(
+  rootDir: string,
+  production = false,
+): Promise<string[]> {
   const packageFile = join(rootDir, "package.json");
   try {
     const packageJson = await readJsonFile<Record<string, unknown>>(packageFile);
@@ -784,7 +787,7 @@ export async function discoverPackageExportEntryPatterns(rootDir: string): Promi
       return [];
     }
     const entries = new Set<string>();
-    collectPackageExportStrings(packageJson.exports, entries);
+    collectPackageExportStrings(packageJson.exports, entries, production);
     return normalizePackageEntryPatterns(entries);
   } catch {
     return [];
@@ -803,16 +806,36 @@ function normalizePackageEntryPatterns(entries: Set<string>): string[] {
     .map((entry) => entry.replace(/^\.\//, ""));
 }
 
-function collectPackageExportStrings(value: unknown, collected: Set<string>): void {
+function collectPackageExportStrings(
+  value: unknown,
+  collected: Set<string>,
+  production = false,
+): void {
   if (typeof value === "string") {
     collected.add(value);
   } else if (Array.isArray(value)) {
     for (const item of value) {
-      collectPackageExportStrings(item, collected);
+      collectPackageExportStrings(item, collected, production);
     }
   } else if (value !== null && typeof value === "object") {
-    for (const nested of Object.values(value)) {
-      collectPackageExportStrings(nested, collected);
+    const entries = Object.entries(value as Record<string, unknown>);
+    const conditions = new Set([
+      "production",
+      "node",
+      "import",
+      "default",
+      "require",
+      "browser",
+      "development",
+      "types",
+    ]);
+    const isConditionMap = entries.some(([key]) => conditions.has(key));
+    const selected =
+      production && isConditionMap
+        ? entries.filter(([key]) => ["production", "node", "import", "default"].includes(key))
+        : entries;
+    for (const [, nested] of selected) {
+      collectPackageExportStrings(nested, collected, production);
     }
   }
 }

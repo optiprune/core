@@ -38,6 +38,10 @@ export interface ParseDiagnostic {
 export interface ExportMember {
   name: string;
   location?: Range;
+  /** Normalized JSDoc tags attached to this member. */
+  tags?: string[];
+  isIgnored?: boolean;
+  isPublic?: boolean;
 }
 
 export interface ExportRecord {
@@ -51,6 +55,10 @@ export interface ExportRecord {
   isExternalContract?: boolean; // Added for Layer 5: Schema Alignment
   localReferences?: string[]; // Added for Fix 3: Symbol Propagation
   members?: ExportMember[]; // Added for Member-Level Analysis
+  /** Normalized JSDoc tags attached to this export or re-export. */
+  tags?: string[];
+  isIgnored?: boolean;
+  isPublic?: boolean;
 }
 
 export interface DependencyEdge {
@@ -191,6 +199,12 @@ export interface AnalyzerOptions {
   includeEntryExports?: boolean;
   /** Report unused members declared in objects exported directly from entry files. */
   includeEntryMembers?: boolean;
+  /** Resolve package export-map wildcards using production conditions. */
+  production?: boolean;
+  /** Map JSDoc tag names to `ignore` or `public` semantics. */
+  tagHints?: Record<string, "ignore" | "public">;
+  ignoreTags?: string[];
+  publicTags?: string[];
   /** Include dependency-cycle information in human-readable output. */
   cycles?: boolean;
   /** Ignore test files such as test.js, foo.test.ts, and __tests__ files. */
@@ -266,6 +280,10 @@ export interface Config {
   includeEntryExports?: boolean;
   /** Report unused members declared in objects exported directly from entry files. */
   includeEntryMembers?: boolean;
+  production?: boolean;
+  tagHints?: Record<string, "ignore" | "public">;
+  ignoreTags?: string[];
+  publicTags?: string[];
   cycles?: boolean;
   ignoreTests?: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */
@@ -321,6 +339,10 @@ export interface ResolvedOptions {
   includeConventionalEntries: boolean;
   includeEntryExports: boolean;
   includeEntryMembers: boolean;
+  production: boolean;
+  tagHints: Record<string, "ignore" | "public">;
+  ignoreTags: string[];
+  publicTags: string[];
   cycles: boolean;
   ignoreTests: boolean;
   /** Ignore dynamic import patterns and unknown dynamic imports for reachability. */

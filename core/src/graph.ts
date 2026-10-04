@@ -28,6 +28,25 @@ export interface ImportUsage {
   reExportOnly: boolean;
 }
 
+/** Return whether a JSDoc tag gives an export/member a configured semantic. */
+export function hasTagSemantic(
+  value: { tags?: string[]; isIgnored?: boolean; isPublic?: boolean },
+  options: ResolvedOptions,
+  semantic: "ignore" | "public",
+): boolean {
+  if (semantic === "ignore" && value.isIgnored) return true;
+  if (semantic === "public" && value.isPublic) return true;
+  const configured = new Set(
+    [
+      ...(semantic === "ignore" ? options.ignoreTags : options.publicTags),
+      ...Object.entries(options.tagHints ?? {})
+        .filter(([, mapped]) => mapped === semantic)
+        .map(([tag]) => tag),
+    ].map((tag) => tag.toLowerCase().replace(/^@/, "")),
+  );
+  return (value.tags ?? []).some((tag) => configured.has(tag.toLowerCase().replace(/^@/, "")));
+}
+
 function dynamicParts(rawSpecifier: string): { prefix: string; suffix: string } | undefined {
   const marker = "${…}";
   const index = rawSpecifier.indexOf(marker);
@@ -962,6 +981,11 @@ export function buildUsedExports(
     const module = modules.get(moduleId);
     if (!module) continue;
     for (const exp of module.exports) {
+      if (hasTagSemantic(exp, options, "ignore") || hasTagSemantic(exp, options, "public")) {
+        usedExports.add(`${moduleId}:${exp.exportedAs}`);
+        usedExportConfidence.set(`${moduleId}:${exp.exportedAs}`, "low");
+        continue;
+      }
       const exportKey = `${moduleId}:${exp.exportedAs}`;
       usedExports.add(exportKey);
       usedExportConfidence.set(exportKey, "low");
@@ -981,7 +1005,11 @@ export function buildUsedExports(
     }
 
     for (const exp of targetModule.exports) {
-      if (exp.isExternalContract) {
+      if (
+        exp.isExternalContract ||
+        hasTagSemantic(exp, options, "ignore") ||
+        hasTagSemantic(exp, options, "public")
+      ) {
         usedExports.add(`${targetId}:${exp.exportedAs}`);
         continue;
       }

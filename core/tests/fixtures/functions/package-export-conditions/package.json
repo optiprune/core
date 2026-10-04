@@ -1,0 +1,16 @@
+{
+  "name": "new-core-features-fixture",
+  "private": true,
+  "exports": {
+    ".": {
+      "development": "./src/development.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./features/*": {
+      "development": "./src/development/*.ts",
+      "import": "./src/features/*.ts",
+      "default": "./src/features/*.ts"
+    }
+  }
+}

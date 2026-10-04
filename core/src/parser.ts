@@ -247,8 +247,21 @@ let _yukuSource = "";
 function setYukuSource(src: string): void {
   _yukuSource = src;
 }
+/** Convert parser byte offsets to JavaScript UTF-16 offsets. ASCII is O(1). */
+function sourceOffsetToIndex(offset: number): number {
+  if (offset <= 0 || !_yukuSource || /^[\x00-\x7f]*$/.test(_yukuSource)) return Math.max(0, offset);
+  const target = Math.max(0, offset);
+  let low = 0;
+  let high = _yukuSource.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (Buffer.byteLength(_yukuSource.slice(0, mid), "utf8") <= target) low = mid;
+    else high = mid - 1;
+  }
+  return low;
+}
 function offsetToPosition(offset: number): Position {
-  const before = _yukuSource.slice(0, Math.max(0, offset));
+  const before = _yukuSource.slice(0, sourceOffsetToIndex(offset));
   const line = before.split("\n").length;
   const lastNewline = before.lastIndexOf("\n");
   const column = lastNewline === -1 ? before.length : before.length - lastNewline - 1;
@@ -365,7 +378,7 @@ function addExport(
   options: Partial<
     Pick<
       ExportRecord,
-      "name" | "isDefault" | "isReExport" | "isWildcard" | "isTypeOnly" | "members"
+      "name" | "isDefault" | "isReExport" | "isWildcard" | "isTypeOnly" | "members" | "tags"
     >
   > = {},
 ): void {
@@ -378,6 +391,15 @@ function addExport(
     isTypeOnly: options.isTypeOnly ?? false,
   };
   if (options.members) candidate.members = options.members;
+  const tags =
+    options.tags ??
+    Array.from(
+      new Set([
+        ...jsdocTagsBefore(_yukuSource, node),
+        ...jsdocTagsBefore(_yukuSource, identifierNode),
+      ]),
+    );
+  if (tags.length > 0) candidate.tags = tags;
   // Use precise identifier node location if provided, otherwise default to full node
   const location = positionRange(identifierNode) ?? positionRange(node);
   if (location) {
@@ -390,6 +412,23 @@ function addExport(
   ) {
     exportsList.push(candidate);
   }
+}
+
+/** Extract normalized JSDoc tag names immediately preceding an AST node. */
+function jsdocTagsBefore(source: string, node: AstNode | undefined): string[] {
+  if (!node || typeof node.start !== "number" || !source) return [];
+  const prefix = source.slice(0, node.start);
+  const commentStart = prefix.lastIndexOf("/**");
+  if (commentStart < 0) return [];
+  const commentEnd = prefix.indexOf("*/", commentStart + 3);
+  if (commentEnd < 0 || prefix.slice(commentEnd + 2).trim().length > 0) return [];
+  const comment = prefix.slice(commentStart + 3, commentEnd);
+  const tags: string[] = [];
+  for (const tagMatch of comment.matchAll(/@([A-Za-z][\w-]*)\b/g)) {
+    const tag = tagMatch[1]?.toLowerCase();
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags;
 }
 
 function addEdge(
@@ -1084,6 +1123,7 @@ function extractAstModule(
     }
 
     if (node.type === "ExportNamedDeclaration") {
+      if (stack.some((ancestor) => ancestor.type === "TSModuleBlock")) return;
       const specifier = nodeStringValue(node.source);
       if (specifier) {
         const specifiers = asArray(node.specifiers);
@@ -1118,7 +1158,48 @@ function extractAstModule(
         addEdge(edges, file, specifier, "export-from", node, localNames, isTypeOnly);
       } else if (isNode(node.declaration)) {
         const declaration = node.declaration;
-        if (
+        if (declaration.type === "TSModuleDeclaration" && nodeIdentifierName(declaration.id)) {
+          const members: any[] = [];
+          const collect = (value: any): void => {
+            if (!isNode(value)) return;
+            if (value.type === "ExportNamedDeclaration" && isNode(value.declaration)) {
+              const nested = value.declaration as any;
+              const nestedName = nodeIdentifierName(nested.id);
+              if (nestedName) {
+                members.push({
+                  name: nestedName,
+                  location: positionRange(nested.id as AstNode) ?? positionRange(nested),
+                  tags: jsdocTagsBefore(sourceText, value),
+                });
+              } else if (nested.type === "VariableDeclaration") {
+                for (const declarator of asArray(nested.declarations)) {
+                  if (!isNode(declarator)) continue;
+                  for (const name of bindingNames(declarator.id)) {
+                    members.push({
+                      name,
+                      location:
+                        positionRange(declarator.id as AstNode) ?? positionRange(declarator),
+                      tags: jsdocTagsBefore(sourceText, value),
+                    });
+                  }
+                }
+              }
+              return;
+            }
+            for (const child of Object.values(value)) {
+              if (Array.isArray(child)) child.forEach((item) => collect(item));
+              else if (isNode(child)) collect(child);
+            }
+          };
+          collect((declaration as any).body);
+          addExport(
+            exportsList,
+            nodeIdentifierName(declaration.id)!,
+            node,
+            declaration.id as AstNode,
+            members.length > 0 ? { members } : {},
+          );
+        } else if (
           (declaration.type === "FunctionDeclaration" ||
             declaration.type === "ClassDeclaration" ||
             declaration.type === "TSInterfaceDeclaration" ||
@@ -1144,14 +1225,24 @@ function extractAstModule(
             for (const member of asArray(enumMembers)) {
               const m = member as any;
               const name = nodeIdentifierName(m.id) || nodeStringValue(m.id);
-              if (name) members.push({ name, location: positionRange(m) });
+              if (name)
+                members.push({
+                  name,
+                  location: positionRange(m),
+                  tags: jsdocTagsBefore(sourceText, m),
+                });
             }
           } else if (decl.type === "TSInterfaceDeclaration") {
             const body = decl.body?.body || [];
             for (const member of asArray(body)) {
               const m = member as any;
               const name = nodeIdentifierName(m.key) || nodeStringValue(m.key);
-              if (name) members.push({ name, location: positionRange(m) });
+              if (name)
+                members.push({
+                  name,
+                  location: positionRange(m),
+                  tags: jsdocTagsBefore(sourceText, m),
+                });
             }
           } else if (decl.type === "ClassDeclaration") {
             const body = decl.body?.body || [];
@@ -1165,7 +1256,11 @@ function extractAstModule(
               ) {
                 const name = nodeIdentifierName(m.key) || nodeStringValue(m.key);
                 if (name && name !== "constructor")
-                  members.push({ name, location: positionRange(m) });
+                  members.push({
+                    name,
+                    location: positionRange(m),
+                    tags: jsdocTagsBefore(sourceText, m),
+                  });
               }
             }
           }
