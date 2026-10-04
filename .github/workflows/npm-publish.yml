@@ -28,6 +28,8 @@ jobs:
 
       - name: Publish @optiprune/core
         run: npm publish --workspace @optiprune/core --access public --provenance
+        continue-on-error: true
 
       - name: Publish @optiprune/language-server
         run: npm publish --workspace @optiprune/language-server --access public --provenance
+        continue-on-error: true
