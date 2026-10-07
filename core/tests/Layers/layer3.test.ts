@@ -6,6 +6,8 @@ import { analyze } from "../../src/index.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../fixtures/layers/layer3");
 const shadowedCallRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-shadowed-call");
+const phiRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-phi");
+const edgeCasesRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-edge-cases");
 
 describe("Layer 3: SMT Constraint Solver", () => {
   it("should detect mathematically impossible paths using Z3", async () => {
@@ -53,5 +55,38 @@ describe("Layer 3: SMT Constraint Solver", () => {
       includeConventionalEntries: false,
     });
     expect(report.findings.filter((finding) => finding.rule === "constant-condition")).toEqual([]);
+  });
+
+  it("tracks assignments through phi joins and proves impossible while bodies", async () => {
+    const report = await analyze({
+      rootDir: phiRootDir,
+      entry: ["phi-loop.ts"],
+      includeConventionalEntries: false,
+    });
+    const findings = report.findings.filter((finding) => finding.rule === "constant-condition");
+    expect(findings.some((finding) => finding.evidence.phi === true)).toBe(true);
+    expect(findings.some((finding) => finding.evidence.loop === true)).toBe(true);
+  });
+
+  it("handles do-while execution, natural loop exits, and unbraced branches", async () => {
+    const report = await analyze({
+      rootDir: edgeCasesRootDir,
+      entry: ["edge-cases.ts"],
+      includeConventionalEntries: false,
+    });
+    const findings = report.findings.filter((finding) => finding.rule === "constant-condition");
+
+    // A normal loop exit must not be reported as an unreachable body, while a
+    // contradictory do-while test remains diagnosable after its first run.
+    expect(
+      findings.some(
+        (finding) => finding.evidence.loop === true && finding.evidence.doWhile !== true,
+      ),
+    ).toBe(false);
+    expect(findings.filter((finding) => finding.evidence.doWhile === true)).toHaveLength(1);
+    // The body of do-while(false) executes once, so value === 0 is dead.
+    // The finding proves that the body was analyzed rather than skipped as an
+    // initially-false loop condition.
+    expect(findings.some((finding) => finding.evidence.phi === true)).toBe(true);
   });
 });

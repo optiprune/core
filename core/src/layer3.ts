@@ -123,6 +123,14 @@ type SsaState = {
   versions: Map<string, number>;
 };
 
+/**
+ * The symbolic pass deliberately uses expressions as SSA values.  A merged
+ * value is therefore a real Z3 ITE (our phi node), rather than a value copied
+ * from one of the paths.  This keeps assignments made on either side of a
+ * join visible to all following predicates.
+ */
+const MAX_LOOP_UNROLL = 4;
+
 function cloneSsaState(state: SsaState): SsaState {
   return { bindings: new Map(state.bindings), versions: new Map(state.versions) };
 }
@@ -157,6 +165,30 @@ function isTerminalStatement(stmt: any): boolean {
     return Boolean(last && isTerminalStatement(last));
   }
   return false;
+}
+
+function branchTerminates(branch: any): boolean {
+  if (!branch) return false;
+  if (isTerminalStatement(branch)) return true;
+  if (branch.type === "BlockStatement") {
+    for (const statement of branch.body ?? []) {
+      if (branchTerminates(statement)) return true;
+    }
+    return false;
+  }
+  if (branch.type === "IfStatement") {
+    return Boolean(
+      branch.alternate && branchTerminates(branch.consequent) && branchTerminates(branch.alternate),
+    );
+  }
+  return false;
+}
+
+function isSyntacticallyFalse(node: any): boolean {
+  return (
+    (node?.type === "BooleanLiteral" && node.value === false) ||
+    (node?.type === "Literal" && node.value === false)
+  );
 }
 
 async function analyzeSsaStatements(
@@ -208,7 +240,7 @@ async function analyzeSsaStatements(
       if (!predicate || typeof predicate === "string" || !z3.isBool(predicate)) continue;
       const thenState = cloneSsaState(state);
       const elseState = cloneSsaState(state);
-      await analyzeSsaBranch(
+      const thenReachable = await analyzeSsaBranch(
         stmt.consequent,
         predicate,
         pathConditions,
@@ -220,33 +252,74 @@ async function analyzeSsaStatements(
         context,
         thenState,
       );
-      if (stmt.alternate) {
-        await analyzeSsaBranch(
-          stmt.alternate,
-          z3.Not(predicate),
-          pathConditions,
-          false,
+      const elseReachable = stmt.alternate
+        ? await analyzeSsaBranch(
+            stmt.alternate,
+            z3.Not(predicate),
+            pathConditions,
+            false,
+            z3,
+            solver,
+            module,
+            findings,
+            context,
+            elseState,
+          )
+        : true;
+      mergeSsaStates(
+        state,
+        thenState,
+        elseState,
+        predicate,
+        z3,
+        thenReachable && !branchTerminates(stmt.consequent),
+        elseReachable && (!stmt.alternate || !branchTerminates(stmt.alternate)),
+      );
+      continue;
+    }
+    if (stmt.type === "WhileStatement" || stmt.type === "DoWhileStatement") {
+      await analyzeSsaLoop(stmt, z3, solver, module, findings, pathConditions, context, state);
+      continue;
+    }
+    if (stmt.type === "ForStatement") {
+      // Treat the initializer and update as ordinary SSA statements and use
+      // the same bounded loop engine for the test/body.  This covers the
+      // common numeric-loop form without pretending to prove unbounded JS.
+      if (stmt.init?.type === "VariableDeclaration") {
+        await analyzeSsaStatements(
+          [stmt.init],
           z3,
           solver,
           module,
           findings,
+          pathConditions,
           context,
-          elseState,
+          state,
+        );
+      } else if (stmt.init?.type === "ExpressionStatement") {
+        await analyzeSsaStatements(
+          [stmt.init],
+          z3,
+          solver,
+          module,
+          findings,
+          pathConditions,
+          context,
+          state,
         );
       }
-      const mergedNames = new Set([...thenState.bindings.keys(), ...elseState.bindings.keys()]);
-      for (const name of mergedNames) {
-        const thenValue = thenState.bindings.get(name) ?? state.bindings.get(name);
-        const elseValue = elseState.bindings.get(name) ?? state.bindings.get(name);
-        if (thenValue === undefined && elseValue === undefined) continue;
-        if (thenValue === undefined || elseValue === undefined) {
-          nextSsaValue(name, null, z3, state);
-        } else if (thenValue !== elseValue) {
-          nextSsaValue(name, z3.If(predicate, thenValue, elseValue), z3, state);
-        } else {
-          state.bindings.set(name, thenValue);
-        }
-      }
+      const loop = { ...stmt, test: stmt.test ?? { type: "Literal", value: true, raw: "true" } };
+      await analyzeSsaLoop(
+        loop,
+        z3,
+        solver,
+        module,
+        findings,
+        pathConditions,
+        context,
+        state,
+        stmt.update,
+      );
       continue;
     }
     if (stmt.type === "BlockStatement") {
@@ -266,6 +339,139 @@ async function analyzeSsaStatements(
   return state;
 }
 
+function mergeSsaStates(
+  state: SsaState,
+  thenState: SsaState,
+  elseState: SsaState,
+  predicate: any,
+  z3: any,
+  thenReachable = true,
+  elseReachable = true,
+): void {
+  const mergedNames = new Set([
+    ...state.bindings.keys(),
+    ...thenState.bindings.keys(),
+    ...elseState.bindings.keys(),
+  ]);
+  for (const name of mergedNames) {
+    const before = state.bindings.get(name);
+    const thenValue = thenState.bindings.get(name) ?? before;
+    const elseValue = elseState.bindings.get(name) ?? before;
+    if (thenValue === undefined && elseValue === undefined) continue;
+    const selected = !thenReachable
+      ? elseValue
+      : !elseReachable
+        ? thenValue
+        : thenValue === elseValue
+          ? thenValue
+          : (z3.isBool(thenValue) && z3.isBool(elseValue)) ||
+              (z3.isArith(thenValue) && z3.isArith(elseValue))
+            ? z3.If(predicate, thenValue, elseValue)
+            : null;
+    if (selected !== undefined) nextSsaValue(name, selected, z3, state);
+  }
+}
+
+async function analyzeSsaLoop(
+  node: any,
+  z3: any,
+  solver: any,
+  module: ModuleRecord,
+  findings: Finding[],
+  pathConditions: any[],
+  context: AnalysisContext,
+  state: SsaState,
+  update?: any,
+): Promise<void> {
+  let current = cloneSsaState(state);
+  const isDoWhile = node.type === "DoWhileStatement";
+  for (let iteration = 0; iteration < MAX_LOOP_UNROLL; iteration++) {
+    // A do-while executes its body once before evaluating the test.
+    const predicate =
+      isDoWhile && iteration === 0
+        ? z3.Bool.val(true)
+        : encodePredicate(node.test, z3, solver, module, current.bindings);
+    if (!predicate || typeof predicate === "string" || !z3.isBool(predicate)) return;
+    solver.push();
+    let loopResult: any;
+    try {
+      for (const path of pathConditions) solver.add(path);
+      solver.add(predicate);
+      loopResult = await solver.check();
+    } finally {
+      solver.pop();
+    }
+    if (loopResult === "unsat") {
+      // A standard while tests its body condition at iteration 0. A do-while
+      // performs its first test only after the initial body execution.
+      const isFirstTest = isDoWhile ? iteration === 1 : iteration === 0;
+      if (!isFirstTest || (isDoWhile && isSyntacticallyFalse(node.test))) break;
+      findings.push({
+        rule: "constant-condition",
+        severity: "warning",
+        confidence: "high",
+        message: "Logical path is mathematically unreachable (Always False).",
+        file: module.id,
+        location: node.body?.loc,
+        evidence: {
+          reason: "unsat-path-then",
+          phi: true,
+          loop: true,
+          iteration,
+          ...(isDoWhile && { doWhile: true }),
+        },
+      });
+      return;
+    }
+    const bodyState = cloneSsaState(current);
+    const findingStart = findings.length;
+    const reachable = await analyzeSsaBranch(
+      node.body,
+      predicate,
+      pathConditions,
+      true,
+      z3,
+      solver,
+      module,
+      findings,
+      context,
+      bodyState,
+    );
+    if (!reachable) {
+      for (let index = findingStart; index < findings.length; index++) {
+        const finding = findings[index];
+        if (finding) {
+          finding.evidence.loop = true;
+          finding.evidence.iteration = iteration;
+        }
+      }
+      return;
+    }
+    if (update) {
+      await analyzeSsaStatements(
+        [{ type: "ExpressionStatement", expression: update }],
+        z3,
+        solver,
+        module,
+        findings,
+        [...pathConditions, predicate],
+        context,
+        bodyState,
+      );
+    }
+    // The next iteration is the loop-header phi: initial/header state and the
+    // back-edge state are selected by the current condition.
+    const next = cloneSsaState(current);
+    mergeSsaStates(next, current, bodyState, predicate, z3, true, true);
+    current = next;
+  }
+  // State after the bounded loop is the conservative header state.  We do not
+  // report the bound as an error; only solver-proven infeasible bodies above
+  // produce findings.
+  state.bindings = current.bindings;
+  state.versions = current.versions;
+}
+
 async function analyzeSsaBranch(
   branch: any,
   condition: any,
@@ -277,7 +483,7 @@ async function analyzeSsaBranch(
   findings: Finding[],
   context: AnalysisContext,
   state: SsaState,
-) {
+): Promise<boolean> {
   solver.push();
   try {
     for (const path of pathConditions) solver.add(path);
@@ -293,35 +499,27 @@ async function analyzeSsaBranch(
           : "Logical path is mathematically unreachable (Always True).",
         file: module.id,
         location: branch.loc,
-        evidence: { reason: isThen ? "unsat-path-then" : "unsat-path-else" },
+        evidence: {
+          reason: isThen ? "unsat-path-then" : "unsat-path-else",
+          phi: true,
+        },
       });
-      return;
+      return false;
     }
-    if (branch.type === "BlockStatement") {
-      await analyzeSsaStatements(
-        branch.body ?? [],
-        z3,
-        solver,
-        module,
-        findings,
-        [...pathConditions, condition],
-        context,
-        state,
-      );
-    } else if (branch.type === "IfStatement") {
-      await analyzeSsaStatements(
-        [branch],
-        z3,
-        solver,
-        module,
-        findings,
-        [...pathConditions, condition],
-        context,
-        state,
-      );
-    }
+    const branchStatements = branch.type === "BlockStatement" ? (branch.body ?? []) : [branch];
+    await analyzeSsaStatements(
+      branchStatements,
+      z3,
+      solver,
+      module,
+      findings,
+      [...pathConditions, condition],
+      context,
+      state,
+    );
+    return result === "sat";
   } catch {
-    // A solver/backend failure must not invalidate the rest of the analysis.
+    return false;
   } finally {
     solver.pop();
   }
