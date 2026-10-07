@@ -191,6 +191,12 @@ function isSyntacticallyFalse(node: any): boolean {
   );
 }
 
+function asBooleanPredicate(value: any, z3: any): any {
+  if (value && z3.isBool(value)) return value;
+  if (value && z3.isArith(value)) return z3.Not(value.eq(z3.Real.val(0)));
+  return null;
+}
+
 async function analyzeSsaStatements(
   statements: any[],
   z3: any,
@@ -236,8 +242,11 @@ async function analyzeSsaStatements(
       continue;
     }
     if (stmt.type === "IfStatement") {
-      const predicate = encodePredicate(stmt.test, z3, solver, module, state.bindings);
-      if (!predicate || typeof predicate === "string" || !z3.isBool(predicate)) continue;
+      const predicate = asBooleanPredicate(
+        encodePredicate(stmt.test, z3, solver, module, state.bindings),
+        z3,
+      );
+      if (!predicate) continue;
       const thenState = cloneSsaState(state);
       const elseState = cloneSsaState(state);
       const thenReachable = await analyzeSsaBranch(
@@ -279,6 +288,19 @@ async function analyzeSsaStatements(
     }
     if (stmt.type === "WhileStatement" || stmt.type === "DoWhileStatement") {
       await analyzeSsaLoop(stmt, z3, solver, module, findings, pathConditions, context, state);
+      continue;
+    }
+    if (stmt.type === "ForOfStatement" || stmt.type === "ForInStatement") {
+      await analyzeSsaIterableLoop(
+        stmt,
+        z3,
+        solver,
+        module,
+        findings,
+        pathConditions,
+        context,
+        state,
+      );
       continue;
     }
     if (stmt.type === "ForStatement") {
@@ -337,6 +359,62 @@ async function analyzeSsaStatements(
     if (isTerminalStatement(stmt)) break;
   }
   return state;
+}
+
+async function analyzeSsaIterableLoop(
+  node: any,
+  z3: any,
+  solver: any,
+  module: ModuleRecord,
+  findings: Finding[],
+  pathConditions: any[],
+  context: AnalysisContext,
+  state: SsaState,
+): Promise<void> {
+  // An iterable may be empty or may execute an arbitrary number of times.
+  // Analyze one symbolic body execution and merge it with the zero-iteration
+  // path.  This is deliberately conservative: values written in the body
+  // cannot remain falsely constant after an unknown iterable loop.
+  const loopMayExecute = z3.Bool.const(
+    `iterable_loop_${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`,
+  );
+  const bodyState = cloneSsaState(state);
+  const target = node.left;
+  if (target?.type === "VariableDeclaration") {
+    for (const declaration of target.declarations ?? []) {
+      if (declaration.id?.type === "Identifier") {
+        nextSsaValue(declaration.id.name, null, z3, bodyState);
+      }
+    }
+  } else if (target?.type === "Identifier") {
+    nextSsaValue(target.name, null, z3, bodyState);
+  }
+
+  const findingStart = findings.length;
+  const reachable = await analyzeSsaBranch(
+    node.body,
+    loopMayExecute,
+    pathConditions,
+    true,
+    z3,
+    solver,
+    module,
+    findings,
+    context,
+    bodyState,
+  );
+  if (reachable) {
+    mergeSsaStates(state, bodyState, state, loopMayExecute, z3, true, true);
+  } else {
+    // A symbolic loop guard should be satisfiable.  If an analyzer backend
+    // rejects the body, invalidate its writes rather than retaining stale
+    // constants from before the unsupported loop.
+    for (let index = findingStart; index < findings.length; index++) {
+      const finding = findings[index];
+      if (finding) finding.evidence.loop = true;
+    }
+    mergeSsaStates(state, bodyState, state, loopMayExecute, z3, false, true);
+  }
 }
 
 function mergeSsaStates(
@@ -900,6 +978,14 @@ export function encodePredicate(
     }
   }
 
+  if (node.type === "AwaitExpression") {
+    const awaited = encodePredicate(node.argument, z3, solver, module, bindings);
+    if (awaited) return awaited;
+    return z3.Bool.const(
+      `unknown_await_${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`,
+    );
+  }
+
   if (node.type === "CallExpression") {
     const callee = node.callee;
     // Handle Math.random()
@@ -926,6 +1012,11 @@ export function encodePredicate(
     // `value()` as a module-level pure function in that situation creates a
     // high-confidence false `constant-condition` finding. Pure-call folding
     // must happen only in a scope-aware pass with declaration identity.
+    // Ordinary calls remain unsupported here to avoid inventing a return sort
+    // for arbitrary JavaScript. AwaitExpression models async/I/O calls as
+    // symbolic booleans, which is the conservative case needed by plugin
+    // discovery loops.
+    return null;
   }
 
   if (node.type === "LogicalExpression") {

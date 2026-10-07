@@ -8,6 +8,7 @@ const rootDir = path.resolve(__dirname, "../fixtures/layers/layer3");
 const shadowedCallRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-shadowed-call");
 const phiRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-phi");
 const edgeCasesRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-edge-cases");
+const iterableRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-iterable");
 
 describe("Layer 3: SMT Constraint Solver", () => {
   it("should detect mathematically impossible paths using Z3", async () => {
@@ -88,5 +89,18 @@ describe("Layer 3: SMT Constraint Solver", () => {
     // The finding proves that the body was analyzed rather than skipped as an
     // initially-false loop condition.
     expect(findings.some((finding) => finding.evidence.phi === true)).toBe(true);
+  });
+
+  it("keeps for-of and for-in side effects conservatively symbolic", async () => {
+    const report = await analyze({
+      rootDir: iterableRootDir,
+      entry: ["plugin-style.ts", "for-in.ts"],
+      includeConventionalEntries: false,
+    });
+    const findings = report.findings.filter((finding) => finding.rule === "constant-condition");
+
+    // External async calls and unknown iterable execution must not turn the
+    // post-loop flags into proven constants.
+    expect(findings).toEqual([]);
   });
 });
