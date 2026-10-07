@@ -3,3 +3,4 @@
 tests/fixtures/**
 tests/test-repos/**
 /README.md
+.optiprune/
