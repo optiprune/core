@@ -47,6 +47,7 @@ export function formatTerminal(
 
   if (report.findings.length === 0) {
     lines.push("\x1b[32m✔ No issues found!\x1b[0m");
+    appendHints(lines, report);
     return lines.join("\n");
   }
 
@@ -76,7 +77,24 @@ export function formatTerminal(
     }
   }
 
+  appendHints(lines, report);
   return lines.join("\n");
+}
+
+/**
+ * Hints are informational observations about configuration that had no effect
+ * (for example an `@ignore` tag on a symbol that is referenced anyway). They are
+ * reported after the findings and never influence the exit code.
+ */
+function appendHints(lines: string[], report: AnalysisReport): void {
+  const hints = report.hints ?? [];
+  if (hints.length === 0) return;
+  lines.push("");
+  lines.push(`\x1b[1mHints:\x1b[0m`);
+  for (const hint of hints) {
+    lines.push(`  \x1b[36mHINT\x1b[0m ${hint.message}`);
+    lines.push(`    at ${hint.file}`);
+  }
 }
 
 export function formatSarif(report: AnalysisReport): string {

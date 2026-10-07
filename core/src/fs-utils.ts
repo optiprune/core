@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import { parseJsonDocument, type JsonParseResult } from "./json-utils.js";
+import { loadSourceMappings, sourceCandidatesForOutput } from "./source-mapping.js";
 import {
   normalize,
   resolve,
@@ -483,59 +484,41 @@ export interface PackageScriptTarget {
   exists: boolean;
 }
 
-type ScriptPathConfig = {
-  compilerOptions?: {
-    outDir?: string;
-    rootDir?: string;
-  };
-};
-
-async function sourceCandidatesForScript(rootDir: string, relativePath: string): Promise<string[]> {
+async function sourceCandidatesForScript(
+  rootDir: string,
+  relativePath: string,
+  compilerExtensions: string[] = [],
+): Promise<string[]> {
   const candidates = new Set<string>();
   const normalized = relativePath.replace(/\\/g, "/");
-  const extension = extname(normalized).toLowerCase();
-  const sourceExtensions = SOURCE_EXTENSION_ALIASES.get(extension) ?? [extension];
-  const configs = [
-    "tsconfig.json",
-    "tsconfig.build.json",
-    "tsconfig.app.json",
-    "tsconfig.node.json",
-  ];
+  const absoluteTarget = normalizeAbsolute(resolve(rootDir, normalized));
+  const mappings = await loadSourceMappings(rootDir, { extensions: compilerExtensions });
 
-  for (const configName of configs) {
-    const config = await readJsonFile<ScriptPathConfig>(join(rootDir, configName));
-    const outDir = config?.compilerOptions?.outDir;
-    const rootDirOption = config?.compilerOptions?.rootDir;
-    if (!outDir) continue;
-    const outputRoot = normalizeAbsolute(resolve(rootDir, outDir));
-    const absoluteTarget = normalizeAbsolute(resolve(rootDir, normalized));
-    if (!pathInside(outputRoot, absoluteTarget)) continue;
-    const relativeFromOutput = patheRelative(outputRoot, absoluteTarget);
-    const sourceRoot = normalizeAbsolute(resolve(rootDir, rootDirOption ?? "src"));
-    const sourceStem = resolve(sourceRoot, relativeFromOutput);
-    for (const sourceExtension of sourceExtensions) {
-      candidates.add(
-        toPosix(
-          patheRelative(
-            normalizeAbsolute(rootDir),
-            `${sourceStem.slice(0, -extension.length)}${sourceExtension}`,
-          ),
-        ),
-      );
+  for (const mapping of mappings) {
+    for (const candidate of sourceCandidatesForOutput(absoluteTarget, mapping)) {
+      candidates.add(toPosix(patheRelative(normalizeAbsolute(rootDir), candidate)));
     }
   }
 
   // Common convention fallback for projects that omit outDir/rootDir metadata.
-  const segments = normalized.split("/");
-  const outputIndex = segments.findIndex((segment) =>
-    ["dist", "build", "out", "lib"].includes(segment),
-  );
-  if (outputIndex >= 0) {
-    const sourceSegments = [...segments];
-    sourceSegments[outputIndex] = "src";
-    const sourceBase = sourceSegments.join("/");
-    for (const sourceExtension of sourceExtensions) {
-      candidates.add(`${sourceBase.slice(0, -extension.length)}${sourceExtension}`);
+  // This is intentionally modelled as a mapping too, so JSX and custom compiler
+  // extensions use the same candidate ordering as tsconfig-based mappings.
+  if (mappings.length === 0) {
+    const segments = normalized.split("/");
+    const outputIndex = segments.findIndex((segment) =>
+      ["dist", "build", "out", "lib"].includes(segment),
+    );
+    if (outputIndex >= 0) {
+      const outputRoot = resolve(rootDir, ...segments.slice(0, outputIndex + 1));
+      const sourceRoot = resolve(rootDir, ...segments.slice(0, outputIndex), "src");
+      for (const candidate of sourceCandidatesForOutput(absoluteTarget, {
+        outDir: normalizeAbsolute(outputRoot),
+        srcDir: normalizeAbsolute(sourceRoot),
+        sourceExtensions: [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"],
+        compilerExtensions,
+      })) {
+        candidates.add(toPosix(patheRelative(normalizeAbsolute(rootDir), candidate)));
+      }
     }
   }
 
@@ -551,6 +534,7 @@ async function sourceCandidatesForScript(rootDir: string, relativePath: string):
  */
 export async function discoverPackageScriptTargets(
   rootDir: string,
+  compilerExtensions: string[] = [],
 ): Promise<PackageScriptTarget[]> {
   const packageFile = join(rootDir, "package.json");
   try {
@@ -590,6 +574,7 @@ export async function discoverPackageScriptTargets(
             for (const sourceCandidate of await sourceCandidatesForScript(
               normalizedRoot,
               relativePath,
+              compilerExtensions,
             )) {
               try {
                 if ((await fs.stat(resolve(normalizedRoot, sourceCandidate))).isFile()) {
@@ -819,17 +804,7 @@ function collectPackageExportStrings(
     }
   } else if (value !== null && typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
-    const conditions = new Set([
-      "production",
-      "node",
-      "import",
-      "default",
-      "require",
-      "browser",
-      "development",
-      "types",
-    ]);
-    const isConditionMap = entries.some(([key]) => conditions.has(key));
+    const isConditionMap = entries.some(([key]) => PACKAGE_EXPORT_RESOLUTION_CONDITIONS.has(key));
     const selected =
       production && isConditionMap
         ? entries.filter(([key]) => ["production", "node", "import", "default"].includes(key))
@@ -838,6 +813,165 @@ function collectPackageExportStrings(
       collectPackageExportStrings(nested, collected, production);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Semantic package.json `exports` resolution
+// ---------------------------------------------------------------------------
+
+/** Conditions that describe a type surface rather than a runtime module. */
+const NON_RUNTIME_EXPORT_CONDITIONS = new Set(["types", "typings"]);
+/** Conditions excluded when the analysis targets a production build. */
+const PRODUCTION_EXCLUDED_CONDITIONS = new Set(["development"]);
+/** Conditions that participate in package `exports` resolution. */
+const PACKAGE_EXPORT_RESOLUTION_CONDITIONS = new Set([
+  "production",
+  "browser",
+  "node",
+  "import",
+  "require",
+  "module",
+  "default",
+  "development",
+  "types",
+]);
+
+/**
+ * Runtime condition evaluation order. `default` is deliberately last so a
+ * `default` fallback can never override an explicit runtime condition, which is
+ * the behavior Node and bundlers actually implement. Project-specific
+ * conditions (for example `development`) rank after every standard runtime
+ * condition but still before `default`, so declaring one opts into it without
+ * being able to shadow `browser`/`import`/`node`.
+ */
+const RUNTIME_CONDITION_RANK = new Map([
+  ["browser", 0],
+  ["import", 1],
+  ["node", 2],
+  ["module", 3],
+  ["require", 4],
+]);
+const CUSTOM_CONDITION_RANK = 5;
+const DEFAULT_CONDITION_RANK = 6;
+
+function conditionRank(key: string): number {
+  if (key === "default") return DEFAULT_CONDITION_RANK;
+  return RUNTIME_CONDITION_RANK.get(key) ?? CUSTOM_CONDITION_RANK;
+}
+
+function orderedExportConditions(
+  entries: Array<[string, unknown]>,
+  production: boolean,
+): Array<[string, unknown]> {
+  const runtime = entries.filter(([key]) => !NON_RUNTIME_EXPORT_CONDITIONS.has(key));
+  const allowed = production
+    ? runtime.filter(([key]) => !PRODUCTION_EXCLUDED_CONDITIONS.has(key))
+    : runtime;
+  // A stable sort keeps the declaration order for conditions without an
+  // explicit rank, so custom conditions still resolve deterministically.
+  return [...allowed].sort(([left], [right]) => {
+    return conditionRank(left) - conditionRank(right);
+  });
+}
+
+/**
+ * Selects the first resolvable target from a package `exports` value.
+ *
+ * Fallback arrays are evaluated recursively (a nested condition object inside
+ * an array element is fully resolved before the next array item is tried), so
+ * `["./dist/index.js", "./dist/fallback.js"]` and
+ * `[{ import: "./dist/index.js" }, "./dist/fallback.js"]` both resolve.
+ */
+export function pickPackageExportTarget(value: unknown, production = false): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const target = pickPackageExportTarget(item, production);
+      if (target) return target;
+    }
+    return undefined;
+  }
+  if (value !== null && typeof value === "object") {
+    for (const [, nested] of orderedExportConditions(
+      Object.entries(value as Record<string, unknown>),
+      production,
+    )) {
+      const target = pickPackageExportTarget(nested, production);
+      if (target) return target;
+    }
+  }
+  return undefined;
+}
+
+export interface WorkspaceExportResolution {
+  /** The selected target, as written in package.json. */
+  target?: string | undefined;
+  /** Every target the matching exports entry mentions, in declaration order. */
+  all: string[];
+  /** Whether a matching exports entry was found at all. */
+  matched: boolean;
+}
+
+/** Whether an `exports` value is a subpath map (`{".": ...}`) rather than a condition map. */
+function isSubpathExportMap(exportsField: Record<string, unknown>): boolean {
+  const keys = Object.keys(exportsField);
+  return keys.length > 0 && keys.every((key) => key === "." || key.startsWith("./"));
+}
+
+function matchExportSubpathKey(keys: string[], subpath: string): string | undefined {
+  if (keys.includes(subpath)) return subpath;
+  let best: string | undefined;
+  for (const key of keys) {
+    const star = key.indexOf("*");
+    if (star < 0) continue;
+    const prefix = key.slice(0, star);
+    const suffix = key.slice(star + 1);
+    if (!subpath.startsWith(prefix) || !subpath.endsWith(suffix)) continue;
+    if (subpath.length < prefix.length + suffix.length) continue;
+    // Prefer the longest literal prefix so `./a/*` beats `./*`.
+    if (!best || prefix.length > best.indexOf("*")) best = key;
+  }
+  return best;
+}
+
+/**
+ * Resolves a package `exports` subpath to the target that a runtime consumer
+ * would load. Condition order and fallback arrays are evaluated semantically
+ * instead of collecting every string in the declaration.
+ */
+export function resolvePackageExportTargets(
+  exportsField: unknown,
+  subpath: string,
+  options: { production?: boolean } = {},
+): WorkspaceExportResolution {
+  const production = options.production ?? false;
+  if (exportsField === undefined) return { all: [], matched: false };
+
+  let matchedValue: unknown;
+  if (exportsField !== null && typeof exportsField === "object" && !Array.isArray(exportsField)) {
+    const record = exportsField as Record<string, unknown>;
+    if (isSubpathExportMap(record)) {
+      const key = matchExportSubpathKey(Object.keys(record), subpath);
+      if (!key) return { all: [], matched: false };
+      matchedValue = record[key];
+    } else {
+      // A bare condition map is the "." entry.
+      if (subpath !== ".") return { all: [], matched: false };
+      matchedValue = record;
+    }
+  } else {
+    if (subpath !== ".") return { all: [], matched: false };
+    matchedValue = exportsField;
+  }
+
+  const all: string[] = [];
+  collectPackageExportStrings(matchedValue, new Set(all), false);
+  const target = pickPackageExportTarget(matchedValue, production);
+  return {
+    target,
+    all: [...new Set(all)],
+    matched: true,
+  };
 }
 
 export function conventionalEntryPatterns(): string[] {

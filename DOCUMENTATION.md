@@ -30,14 +30,36 @@ A helper function for CI systems. It checks if the report contains findings with
 
 The configuration controls the scope and depth of the analysis.
 
-| Option                | Type       | Description                                                                                                        |
-| --------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
-| `rootDir`             | `string`   | The root directory of the project (default: `process.cwd()`).                                                      |
-| `entry`               | `string[]` | Glob patterns for the application's entry points.                                                                  |
-| `extensions`          | `string[]` | File extensions to analyze (default: `.ts`, `.tsx`, `.js`, `.jsx`).                                                |
-| `reportUnusedExports` | `boolean`  | Whether to report unused exports.                                                                                  |
-| `verbose`             | `boolean`  | Enables detailed logging of the analysis process, including Layer 4 sandbox simulation details and resolved paths. |
-| `skip3` / `skip4`     | `boolean`  | Disables the SMT solver (Layer 3) or concolic execution (Layer 4).                                                 |
+| Option                      | Type       | Description                                                                                                                               |
+| --------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `rootDir`                   | `string`   | The root directory of the project (default: `process.cwd()`).                                                                             |
+| `entry`                     | `string[]` | Glob patterns for the application's entry points.                                                                                         |
+| `extensions`                | `string[]` | File extensions to analyze (default: `.ts`, `.tsx`, `.js`, `.jsx`).                                                                       |
+| `reportUnusedExports`       | `boolean`  | Whether to report unused exports.                                                                                                         |
+| `sourceMapping`             | `object`   | Reverse-maps compiled build artifacts back to source files. Normally derived from `tsconfig` `outDir`/`rootDir`; see below for overrides. |
+| `tagHints`                  | `object`   | Maps JSDoc tag names to `ignore` or `public` semantics.                                                                                   |
+| `ignoreTags` / `publicTags` | `string[]` | Additional tag names that exempt an export or member from reporting.                                                                      |
+| `verbose`                   | `boolean`  | Enables detailed logging of the analysis process, including Layer 4 sandbox simulation details and resolved paths.                        |
+| `skip3` / `skip4`           | `boolean`  | Disables the SMT solver (Layer 3) or concolic execution (Layer 4).                                                                        |
+
+#### Reverse source mapping (`sourceMapping`)
+
+Projects that compile `src/**` into `dist/**` are analyzed through their sources,
+but manifests, package scripts and consumers point at the build output. The
+mapper translates those references back to source files using the `outDir` and
+`rootDir` pairs found in `tsconfig.json` (including `extends` chains) and the
+conventional `dist/` → `src/` layout.
+
+| Field                | Type       | Description                                                                                                                                                                            |
+| -------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `srcDir`             | `string`   | Source directory, relative to the project root or absolute. Defaults to `src`.                                                                                                         |
+| `outDir`             | `string`   | Build output directory, relative to the project root or absolute. Required for the explicit mapping.                                                                                   |
+| `sourceExtensions`   | `string[]` | Replaces the standard source extension list.                                                                                                                                           |
+| `compilerExtensions` | `string[]` | Extensions handled by a custom compiler, e.g. `.foo`, `.mdx`, `.svelte`. They are probed after the standard source extensions, so they can never shadow a real TypeScript source file. |
+
+All compiled output extensions are recognized, including the JSX variants: a
+`dist/index.jsx` artifact maps back to `src/index.tsx`, and a `dist/index.js`
+artifact maps back to `src/index.ts`.
 
 ### AnalysisReport
 

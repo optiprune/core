@@ -133,13 +133,21 @@ export function extractSfcScript(source: string, filePath: string): SfcExtractRe
   }
 
   // ── 2. Handle <script> tags (Vue, Svelte, Astro) ─────────────────────────
-  const scriptTagRe = /<script(\b[^>]*)?>([\s\S]*?)<\/script>/gi;
+  // A self-closing `<script … />` tag (common in Astro for JSON-LD payloads via
+  // `set:html`) is not an opening tag. The final attribute character must be
+  // neither whitespace nor `/`, so both `.../>` and `.../ >` are excluded before
+  // the lazy body match can swallow a later real script block.
+  const scriptTagRe = /<script\b((?:[^>]*?[^\/\s])?)\s*>([\s\S]*?)<\/script>/gi;
   let m: RegExpExecArray | null;
 
   while ((m = scriptTagRe.exec(source)) !== null) {
     const attrs = m[1] ?? "";
     const content = m[2] ?? "";
     const matchStart = m.index;
+
+    // Defensive guard for parser backends that report the self-closing marker
+    // inside the captured attribute text instead of before the closing bracket.
+    if (attrs.trim().endsWith("/")) continue;
 
     if (/\bsetup\b/i.test(attrs)) {
       isSetup = true;
@@ -212,6 +220,7 @@ export function resolveParserLang(filePath: string): "ts" | "tsx" | "jsx" | "js"
 }
 import type {
   DependencyEdge,
+  ExportMember,
   ExportRecord,
   ModuleRecord,
   ParseDiagnostic,
@@ -441,6 +450,7 @@ function addEdge(
   isTypeOnly: boolean = false,
   dynamicExpression?: string,
   importedLocals: string[] = [],
+  tags: string[] = [],
 ): void {
   const edge: DependencyEdge = {
     source: sourceFile,
@@ -451,6 +461,7 @@ function addEdge(
     resolution: "unknown",
     isTypeOnly,
     dynamicExpression,
+    ...(tags.length > 0 ? { tags } : {}),
   };
   const location = positionRange(node);
   if (location) {
@@ -725,6 +736,419 @@ function walk(
   } finally {
     stack.pop();
   }
+}
+
+// ---------------------------------------------------------------------------
+// TypeScript namespace member analysis
+// ---------------------------------------------------------------------------
+// `export namespace NS { … }` is a single export whose members are the symbols
+// declared inside it. Those members cannot be imported individually, so a
+// member that only sibling code inside the same namespace reads is still live.
+// Reporting it as unused makes `--fix` delete a symbol the namespace itself
+// needs. The analysis below records every member (including nested namespace
+// paths) and resolves references made from within the namespace scope.
+
+interface NamespaceMemberDraft {
+  /** Simple member name as declared, e.g. `Size`. */
+  name: string;
+  /** Namespace-relative dotted path, e.g. `Sizes.Size`. */
+  path: string;
+  /** The namespace declaration that directly declares this member. */
+  owner: AstNode;
+  /** Innermost declaration node, used to detect self-references. */
+  declNode: AstNode;
+  /** Node whose preceding JSDoc comment belongs to the member. */
+  tagNode: AstNode;
+  location?: Range | undefined;
+  tags: string[];
+  hasRefsInFile: boolean;
+}
+
+const SHADOW_FUNCTION_SCOPES = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+  "ClassMethod",
+  "ObjectMethod",
+  "StaticBlock",
+  "ClassStaticBlock",
+]);
+
+const SHADOW_BLOCK_SCOPES = new Set([
+  "BlockStatement",
+  "ForStatement",
+  "ForInStatement",
+  "ForOfStatement",
+  "CatchClause",
+  "SwitchCase",
+]);
+
+function tsModuleStatements(moduleNode: AstNode): AstNode[] {
+  const body = moduleNode.body;
+  if (!isNode(body)) return [];
+  if (body.type === "TSModuleBlock") {
+    return asArray(body.body).filter(isNode) as AstNode[];
+  }
+  return [body];
+}
+
+/**
+ * Collects the direct members of a namespace, recursing into nested namespaces
+ * with a dotted path prefix so `namespace NS { namespace Inner { export type
+ * Deep = 1 } }` yields both `Inner` and `Inner.Deep`.
+ */
+function collectNamespaceMemberDrafts(
+  moduleNode: AstNode,
+  owner: AstNode,
+  prefix: string,
+  drafts: NamespaceMemberDraft[],
+  sourceText: string,
+): void {
+  const qualify = (name: string): string => (prefix ? `${prefix}.${name}` : name);
+
+  for (const statement of tsModuleStatements(moduleNode)) {
+    let declaration: AstNode | undefined;
+    if (statement.type === "ExportNamedDeclaration") {
+      if (isNode(statement.source)) continue;
+      declaration = isNode(statement.declaration) ? statement.declaration : undefined;
+    } else if (
+      statement.type === "VariableDeclaration" ||
+      statement.type === "FunctionDeclaration" ||
+      statement.type === "ClassDeclaration" ||
+      statement.type === "TSInterfaceDeclaration" ||
+      statement.type === "TSTypeAliasDeclaration" ||
+      statement.type === "TSEnumDeclaration" ||
+      statement.type === "TSModuleDeclaration"
+    ) {
+      declaration = statement;
+    }
+    if (!declaration) continue;
+
+    const tagNode = statement;
+    const tags = jsdocTagsBefore(sourceText, tagNode);
+
+    const pushDraft = (name: string, idNode: AstNode | undefined, declNode: AstNode): void => {
+      drafts.push({
+        name,
+        path: qualify(name),
+        owner,
+        declNode,
+        tagNode,
+        location: positionRange(idNode) ?? positionRange(declNode),
+        tags,
+        hasRefsInFile: false,
+      });
+    };
+
+    if (declaration.type === "TSModuleDeclaration") {
+      const nestedName = nodeIdentifierName(declaration.id);
+      if (!nestedName) continue;
+      pushDraft(nestedName, isNode(declaration.id) ? declaration.id : undefined, declaration);
+      collectNamespaceMemberDrafts(
+        declaration,
+        declaration,
+        qualify(nestedName),
+        drafts,
+        sourceText,
+      );
+      continue;
+    }
+
+    if (declaration.type === "VariableDeclaration") {
+      for (const declarator of asArray(declaration.declarations)) {
+        if (!isNode(declarator)) continue;
+        for (const name of bindingNames(declarator.id)) {
+          pushDraft(name, isNode(declarator.id) ? declarator.id : undefined, declarator);
+        }
+      }
+      continue;
+    }
+
+    const id = declaration.id;
+    const name = nodeIdentifierName(id);
+    if (name) pushDraft(name, isNode(id) ? id : undefined, declaration);
+  }
+}
+
+/**
+ * Resolves references made inside a namespace to its members.
+ *
+ * Bare identifiers are looked up through the chain of enclosing namespaces
+ * (innermost first). Qualified references keep namespace and member together,
+ * so `Sizes.Size` marks both `Sizes` and `Sizes.Size`, while `[1, 2].length`
+ * cannot mark a sibling member named `length`. Local bindings shadow members,
+ * but their type annotations are still visited, and a member's own declaration
+ * never counts as a reference to itself.
+ */
+function markNamespaceMemberReferences(
+  rootNode: AstNode,
+  namespaceName: string,
+  drafts: NamespaceMemberDraft[],
+): void {
+  if (drafts.length === 0) return;
+
+  const memberByPath = new Map<string, NamespaceMemberDraft>();
+  for (const draft of drafts) {
+    if (!memberByPath.has(draft.path)) memberByPath.set(draft.path, draft);
+  }
+
+  // Simple name -> full path, per namespace declaration that owns the member.
+  const scopeIndex = new Map<AstNode, Map<string, string>>();
+  const declNodePaths = new Map<AstNode, string>();
+  for (const draft of drafts) {
+    let index = scopeIndex.get(draft.owner);
+    if (!index) {
+      index = new Map<string, string>();
+      scopeIndex.set(draft.owner, index);
+    }
+    if (!index.has(draft.name)) index.set(draft.name, draft.path);
+    if (!declNodePaths.has(draft.declNode)) declNodePaths.set(draft.declNode, draft.path);
+  }
+
+  // Bindings that shadow namespace members. Hoisted bindings (`var`, function
+  // declarations) apply to their whole scope; block-scoped bindings only apply
+  // from their declaration onwards.
+  const hoistedBindings = new Map<AstNode, Set<string>>();
+  const blockBindings = new Map<AstNode, Array<{ name: string; start: number }>>();
+  const addHoisted = (scope: AstNode | undefined, names: string[]): void => {
+    if (!scope || names.length === 0) return;
+    if (!hoistedBindings.has(scope)) hoistedBindings.set(scope, new Set());
+    for (const name of names) hoistedBindings.get(scope)!.add(name);
+  };
+  const addBlockScoped = (scope: AstNode | undefined, names: string[], start: number): void => {
+    if (!scope || names.length === 0) return;
+    if (!blockBindings.has(scope)) blockBindings.set(scope, []);
+    for (const name of names) blockBindings.get(scope)!.push({ name, start });
+  };
+
+  const nearestFunctionScope = (stack: AstNode[]): AstNode | undefined => {
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const scope = stack[index];
+      if (scope && SHADOW_FUNCTION_SCOPES.has(scope.type ?? "")) return scope;
+    }
+    return undefined;
+  };
+  const nearestVarScope = (stack: AstNode[]): AstNode | undefined => {
+    const fn = nearestFunctionScope(stack);
+    if (fn) return fn;
+    // Without an enclosing function, a `var` hoists to the nearest real block
+    // inside the namespace. Namespace-level declarations are the members
+    // themselves, so they never shadow.
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const scope = stack[index];
+      if (!scope) continue;
+      if (scope.type === "BlockStatement") return scope;
+      if (scope.type === "TSModuleBlock") return undefined;
+    }
+    return undefined;
+  };
+  const nearestBlockScope = (stack: AstNode[]): AstNode | undefined => {
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const scope = stack[index];
+      if (!scope) continue;
+      if (SHADOW_FUNCTION_SCOPES.has(scope.type ?? "")) return scope;
+      if (SHADOW_BLOCK_SCOPES.has(scope.type ?? "")) return scope;
+    }
+    return undefined;
+  };
+
+  // Index shadowing bindings first; the reference pass runs on the same tree.
+  walk(rootNode, (node, stack) => {
+    const current = node as any;
+    if (node.type === "VariableDeclarator") {
+      const declaration = [...stack]
+        .reverse()
+        .find((ancestor) => ancestor.type === "VariableDeclaration") as any;
+      const names = bindingNames(current.id);
+      if (declaration?.kind === "var") addHoisted(nearestVarScope(stack), names);
+      else addBlockScoped(nearestBlockScope(stack), names, node.start ?? 0);
+      return;
+    }
+    if (node.type === "FunctionDeclaration") {
+      addHoisted(nearestBlockScope(stack), bindingNames(current.id));
+      addHoisted(node, [
+        ...bindingNames(current.id),
+        ...asArray(current.params).flatMap((parameter: any) => bindingNames(parameter)),
+      ]);
+      return;
+    }
+    if (node.type === "ClassDeclaration") {
+      addBlockScoped(nearestBlockScope(stack), bindingNames(current.id), node.start ?? 0);
+      return;
+    }
+    if (node.type === "FunctionExpression" || node.type === "ClassExpression") {
+      addHoisted(node, bindingNames(current.id));
+      if (node.type === "FunctionExpression") {
+        addHoisted(
+          node,
+          asArray(current.params).flatMap((parameter: any) => bindingNames(parameter)),
+        );
+      }
+      return;
+    }
+    if (node.type === "CatchClause") {
+      addHoisted(node, bindingNames(current.param));
+      return;
+    }
+    if (SHADOW_FUNCTION_SCOPES.has(node.type ?? "")) {
+      addHoisted(
+        node,
+        asArray(current.params).flatMap((parameter: any) => bindingNames(parameter)),
+      );
+    }
+  });
+
+  const isShadowed = (stack: AstNode[], start: number, name: string): boolean => {
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const scope = stack[index];
+      if (!scope) continue;
+      // Namespace-level declarations are the members themselves.
+      if (scope.type === "TSModuleBlock" || scope.type === "Program" || scope.type === "File") {
+        return false;
+      }
+      if (hoistedBindings.get(scope)?.has(name)) return true;
+      const bindings = blockBindings.get(scope);
+      if (bindings) {
+        for (const binding of bindings) {
+          if (binding.name === name && binding.start <= start) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const resolveSimple = (name: string, namespaceChain: AstNode[]): string | undefined => {
+    for (let index = namespaceChain.length - 1; index >= 0; index -= 1) {
+      const scope = namespaceChain[index];
+      const path = scope ? scopeIndex.get(scope)?.get(name) : undefined;
+      if (path) return path;
+    }
+    return undefined;
+  };
+
+  /** The member declaration currently being visited, if any. */
+  const activeMemberPath = (stack: AstNode[]): string | undefined => {
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const ancestor = stack[index];
+      const path = ancestor ? declNodePaths.get(ancestor) : undefined;
+      if (path) return path;
+    }
+    return undefined;
+  };
+
+  /** Leading non-computed property/qualified-name segments above `node`. */
+  const qualifiedSegments = (node: AstNode, stack: AstNode[]): string[] => {
+    const segments: string[] = [];
+    let current: AstNode = node;
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      const parent = stack[index];
+      if (!parent) break;
+      const isMember =
+        (parent.type === "MemberExpression" || parent.type === "TSQualifiedName") &&
+        ((parent as any).object === current || (parent as any).left === current);
+      if (!isMember) break;
+      if ((parent as any).computed) break;
+      const propertyNode = (parent as any).property ?? (parent as any).right;
+      const propertyName = nodeIdentifierName(propertyNode) ?? nodeStringValue(propertyNode);
+      if (propertyName === undefined) break;
+      segments.push(propertyName);
+      current = parent;
+    }
+    return segments;
+  };
+
+  /** Non-computed property names, declaration ids and binding patterns. */
+  const isBindingOrKeyPosition = (node: AstNode, parent: AstNode): boolean => {
+    if (parent.type === "MemberExpression" && (parent as any).property === node) {
+      return !(parent as any).computed;
+    }
+    if (parent.type === "TSQualifiedName" && (parent as any).right === node) return true;
+    if (
+      (parent.type === "Property" || parent.type === "ObjectProperty") &&
+      (parent as any).key === node
+    ) {
+      return !(parent as any).computed;
+    }
+    if (
+      (parent.type === "TSPropertySignature" || parent.type === "TSMethodSignature") &&
+      (parent as any).key === node
+    ) {
+      return true;
+    }
+    if (parent.type === "TSTypeParameter" || parent.type === "TSTypeParameterDeclaration") {
+      return true;
+    }
+    if (
+      parent.type === "ObjectPattern" ||
+      parent.type === "ArrayPattern" ||
+      parent.type === "RestElement" ||
+      parent.type === "AssignmentPattern"
+    ) {
+      return true;
+    }
+    if (
+      parent.type === "ImportSpecifier" ||
+      parent.type === "ImportDefaultSpecifier" ||
+      parent.type === "ImportNamespaceSpecifier" ||
+      parent.type === "ExportSpecifier"
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const declarationIdParents = new Set([
+    "VariableDeclarator",
+    "FunctionDeclaration",
+    "ClassDeclaration",
+    "ClassExpression",
+    "FunctionExpression",
+    "TSInterfaceDeclaration",
+    "TSTypeAliasDeclaration",
+    "TSEnumDeclaration",
+    "TSModuleDeclaration",
+  ]);
+
+  walk(rootNode, (node, stack) => {
+    if (node.type !== "Identifier") return;
+    const parent = stack[stack.length - 1];
+    if (!parent) return;
+    if (isBindingOrKeyPosition(node, parent)) return;
+    // A declaration identifier binds a name; its type annotations are separate
+    // nodes and are still visited as references.
+    if ((parent as any).id === node && declarationIdParents.has(parent.type ?? "")) return;
+
+    const name =
+      typeof (node as any).name === "string" ? ((node as any).name as string) : undefined;
+    if (!name) return;
+    const start = typeof node.start === "number" ? node.start : 0;
+    if (isShadowed(stack, start, name)) return;
+
+    const namespaceChain = stack.filter((ancestor) => ancestor.type === "TSModuleDeclaration");
+
+    // A reference from module scope may qualify the namespace by its own name
+    // (`API.Inner.Deep`), in which case the namespace root is the base path.
+    let base = resolveSimple(name, namespaceChain);
+    if (!base) {
+      if (namespaceChain.length === 0 && name === namespaceName) base = "";
+      else return;
+    }
+
+    const active = activeMemberPath(stack);
+    const paths: string[] = base ? [base] : [];
+    let currentPath = base;
+    for (const segment of qualifiedSegments(node, stack)) {
+      const candidate = currentPath ? `${currentPath}.${segment}` : segment;
+      if (!memberByPath.has(candidate)) break;
+      currentPath = candidate;
+      paths.push(candidate);
+    }
+    for (const path of paths) {
+      if (path === active) continue;
+      const draft = memberByPath.get(path);
+      if (draft) draft.hasRefsInFile = true;
+    }
+  });
 }
 
 function extractAstModule(
@@ -1155,43 +1579,42 @@ function extractAstModule(
             });
           }
         }
-        addEdge(edges, file, specifier, "export-from", node, localNames, isTypeOnly);
+        addEdge(
+          edges,
+          file,
+          specifier,
+          "export-from",
+          node,
+          localNames,
+          isTypeOnly,
+          undefined,
+          [],
+          jsdocTagsBefore(sourceText, node),
+        );
       } else if (isNode(node.declaration)) {
         const declaration = node.declaration;
         if (declaration.type === "TSModuleDeclaration" && nodeIdentifierName(declaration.id)) {
-          const members: any[] = [];
-          const collect = (value: any): void => {
-            if (!isNode(value)) return;
-            if (value.type === "ExportNamedDeclaration" && isNode(value.declaration)) {
-              const nested = value.declaration as any;
-              const nestedName = nodeIdentifierName(nested.id);
-              if (nestedName) {
-                members.push({
-                  name: nestedName,
-                  location: positionRange(nested.id as AstNode) ?? positionRange(nested),
-                  tags: jsdocTagsBefore(sourceText, value),
-                });
-              } else if (nested.type === "VariableDeclaration") {
-                for (const declarator of asArray(nested.declarations)) {
-                  if (!isNode(declarator)) continue;
-                  for (const name of bindingNames(declarator.id)) {
-                    members.push({
-                      name,
-                      location:
-                        positionRange(declarator.id as AstNode) ?? positionRange(declarator),
-                      tags: jsdocTagsBefore(sourceText, value),
-                    });
-                  }
-                }
-              }
-              return;
-            }
-            for (const child of Object.values(value)) {
-              if (Array.isArray(child)) child.forEach((item) => collect(item));
-              else if (isNode(child)) collect(child);
-            }
-          };
-          collect((declaration as any).body);
+          // Collect every member (including nested namespace paths) and resolve
+          // references made from within the namespace scope, so a member that a
+          // sibling uses is never reported as unused.
+          const drafts: NamespaceMemberDraft[] = [];
+          collectNamespaceMemberDrafts(declaration, declaration, "", drafts, sourceText);
+          markNamespaceMemberReferences(ast, nodeIdentifierName(declaration.id)!, drafts);
+          // Overload signatures share one member; the first draft carries the
+          // reference flag, so the list keeps that entry only.
+          const seenMembers = new Set<string>();
+          const members: ExportMember[] = [];
+          for (const draft of drafts) {
+            if (seenMembers.has(draft.path)) continue;
+            seenMembers.add(draft.path);
+            members.push({
+              name: draft.name,
+              path: draft.path,
+              ...(draft.location && { location: draft.location }),
+              tags: draft.tags,
+              ...(draft.hasRefsInFile && { hasRefsInFile: true }),
+            });
+          }
           addExport(
             exportsList,
             nodeIdentifierName(declaration.id)!,
@@ -1308,7 +1731,18 @@ function extractAstModule(
     if (node.type === "ExportAllDeclaration") {
       const specifier = nodeStringValue(node.source);
       if (specifier) {
-        addEdge(edges, file, specifier, "export-all", node, ["*"], node.exportKind === "type");
+        addEdge(
+          edges,
+          file,
+          specifier,
+          "export-all",
+          node,
+          ["*"],
+          node.exportKind === "type",
+          undefined,
+          [],
+          jsdocTagsBefore(sourceText, node),
+        );
         const namespaceName = propertyKeyName(node.exported);
         addExport(exportsList, namespaceName ?? "*", node, node.exported as AstNode, {
           name: "*",

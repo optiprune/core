@@ -113,6 +113,7 @@ export async function buildMonorepoTopology(
       manifestPath: normalizeAbsolute(manifestPath),
       dependencies: new Set(),
       allDependencies: allDeps,
+      exportsField: manifest.exports,
     });
   }
 

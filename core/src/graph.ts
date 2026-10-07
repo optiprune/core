@@ -1,5 +1,15 @@
 import path from "pathe";
-import { resolveDynamicPattern, resolveLocalSpecifier } from "./fs-utils.js";
+import {
+  normalizeCanonicalPath,
+  resolveDynamicPattern,
+  resolveLocalSpecifier,
+  resolvePackageExportTargets,
+} from "./fs-utils.js";
+import {
+  STANDARD_SOURCE_EXTENSIONS,
+  sourceCandidatesForOutput,
+  stripOutputExtension,
+} from "./source-mapping.js";
 import { walkAst } from "./parser.js";
 import type {
   AnalysisContext,
@@ -34,17 +44,53 @@ export function hasTagSemantic(
   options: ResolvedOptions,
   semantic: "ignore" | "public",
 ): boolean {
-  if (semantic === "ignore" && value.isIgnored) return true;
-  if (semantic === "public" && value.isPublic) return true;
-  const configured = new Set(
-    [
-      ...(semantic === "ignore" ? options.ignoreTags : options.publicTags),
-      ...Object.entries(options.tagHints ?? {})
-        .filter(([, mapped]) => mapped === semantic)
-        .map(([tag]) => tag),
-    ].map((tag) => tag.toLowerCase().replace(/^@/, "")),
-  );
-  return (value.tags ?? []).some((tag) => configured.has(tag.toLowerCase().replace(/^@/, "")));
+  return matchingTagSemantic(value, options, semantic) !== undefined;
+}
+
+/**
+ * Returns the tag (without `@`) that gives an export/member a configured
+ * semantic, or `undefined`. Reporting needs the tag's own name to tell the user
+ * which tag had no effect, so callers use this instead of the boolean form.
+ */
+export function matchingTagSemantic(
+  value: { tags?: string[]; isIgnored?: boolean; isPublic?: boolean },
+  options: ResolvedOptions,
+  semantic: "ignore" | "public",
+): string | undefined {
+  if (semantic === "ignore" && value.isIgnored) return configuredSemanticTags(options, semantic)[0];
+  if (semantic === "public" && value.isPublic) return configuredSemanticTags(options, semantic)[0];
+  const configured = new Set(configuredSemanticTags(options, semantic));
+  for (const tag of value.tags ?? []) {
+    const normalized = tag.toLowerCase().replace(/^@/, "");
+    if (configured.has(normalized)) return normalized;
+  }
+  return undefined;
+}
+
+function configuredSemanticTags(options: ResolvedOptions, semantic: "ignore" | "public"): string[] {
+  return [
+    ...(semantic === "ignore" ? options.ignoreTags : options.publicTags),
+    ...Object.entries(options.tagHints ?? {})
+      .filter(([, mapped]) => mapped === semantic)
+      .map(([tag]) => tag),
+  ].map((tag) => tag.toLowerCase().replace(/^@/, ""));
+}
+
+/**
+ * Tags that make an entry re-export protect the symbol it points to. Knip
+ * documents `@public`, `@beta`, `@alias` and any excluded tag for this check, so
+ * the marker tags are accepted here in addition to the configured semantics.
+ */
+const RE_EXPORT_PUBLIC_TAGS = new Set(["public", "beta", "alias"]);
+
+export function isReExportProtectingTag(
+  tags: string[] | undefined,
+  options: ResolvedOptions,
+): boolean {
+  if (!tags || tags.length === 0) return false;
+  if (matchingTagSemantic({ tags }, options, "ignore")) return true;
+  if (matchingTagSemantic({ tags }, options, "public")) return true;
+  return tags.some((tag) => RE_EXPORT_PUBLIC_TAGS.has(tag.toLowerCase().replace(/^@/, "")));
 }
 
 function dynamicParts(rawSpecifier: string): { prefix: string; suffix: string } | undefined {
@@ -57,6 +103,47 @@ function dynamicParts(rawSpecifier: string): { prefix: string; suffix: string } 
     prefix: rawSpecifier.slice(0, index),
     suffix: rawSpecifier.slice(index + marker.length),
   };
+}
+
+/**
+ * Reverse-maps a build artifact inside a package to the source files that may
+ * have produced it. `tsconfig`-derived mappings are used when available; the
+ * conventional `dist/` -> `src/` layout is the fallback so projects without
+ * compiler metadata still resolve.
+ */
+function mappedSourceCandidates(
+  absoluteTarget: string,
+  pkgRoot: string,
+  options: ResolvedOptions,
+): string[] {
+  const normalizedTarget = normalizeCanonicalPath(absoluteTarget);
+  const normalizedPkgRoot = normalizeCanonicalPath(pkgRoot);
+  const candidates: string[] = [];
+
+  const mappings =
+    options.sourceMappings?.get(normalizedPkgRoot) ??
+    options.sourceMappings?.get(normalizeCanonicalPath(options.rootDir)) ??
+    [];
+  for (const mapping of mappings) {
+    for (const candidate of sourceCandidatesForOutput(normalizedTarget, mapping)) {
+      candidates.push(normalizeCanonicalPath(candidate));
+    }
+  }
+
+  const relative = path.relative(normalizedPkgRoot, normalizedTarget);
+  const [head, ...rest] = relative.split("/");
+  if (head && ["dist", "build", "out", "lib"].includes(head) && rest.length > 0) {
+    const stem = stripOutputExtension(rest.join("/"));
+    if (stem !== undefined) {
+      for (const extension of STANDARD_SOURCE_EXTENSIONS) {
+        candidates.push(
+          normalizeCanonicalPath(path.join(normalizedPkgRoot, "src", `${stem}${extension}`)),
+        );
+      }
+    }
+  }
+
+  return [...new Set(candidates)];
 }
 
 function resolveEdge(
@@ -195,7 +282,40 @@ function resolveEdge(
         // Check if the subpath is empty or points to the root directory
         const isRoot = !subPath || subPath === "/" || subPath === "." || subPath === "./";
 
+        // (a) Semantic `exports` resolution first. Condition order and fallback
+        // arrays select the artifact a real consumer loads; the selected
+        // artifact is then reverse-mapped to the source file that produced it.
+        const subpathKey = isRoot
+          ? "."
+          : subPath.startsWith("./")
+            ? subPath
+            : `./${subPath.replace(/^\//, "")}`;
+        const exportResolution = resolvePackageExportTargets(pkg.exportsField, subpathKey, {
+          production: options.production,
+        });
+        if (exportResolution.matched) {
+          const specifiers = [
+            ...(exportResolution.target ? [exportResolution.target] : []),
+            ...exportResolution.all.filter((candidate) => candidate !== exportResolution.target),
+          ];
+          for (const specifier of specifiers) {
+            if (!specifier.startsWith(".")) continue;
+            const absoluteTarget = normalize(path.resolve(pkgRoot, specifier));
+            const mapped = mappedSourceCandidates(absoluteTarget, pkgRoot, options);
+            target = mapped.find((candidate) => knownFiles.has(candidate));
+            if (target) break;
+            target = resolveLocalSpecifier(
+              path.join(pkgRoot, "package.json"),
+              specifier,
+              knownFiles,
+              options.extensions,
+            );
+            if (target) break;
+          }
+        }
+
         if (isRoot) {
+          if (target) break;
           const entries = [
             "src/index.ts",
             "src/index.tsx",
@@ -223,7 +343,7 @@ function resolveEdge(
               break;
             }
           }
-        } else {
+        } else if (!target) {
           // Try the package-local sub-path first. Source repositories often
           // expose TypeScript source while their package export map names the
           // eventual JavaScript artifact.

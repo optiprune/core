@@ -1,0 +1,14 @@
+{
+  "name": "@fixture/ui",
+  "exports": {
+    ".": [
+      { "types": "./dist/index.d.ts" },
+      { "import": "./dist/index.js" },
+      "./src/index.ts"
+    ],
+    "./feature/*": {
+      "default": "./dist/*.js",
+      "development": "./src/*.ts"
+    }
+  }
+}

@@ -11,6 +11,8 @@ import {
   calculateComponentReachability,
   edgeTargets,
   hasTagSemantic,
+  isReExportProtectingTag,
+  matchingTagSemantic,
 } from "./graph.js";
 import { analyzeLayer2 } from "./layer2.js";
 import { analyzeLayer3 } from "./layer3.js";
@@ -47,10 +49,16 @@ import {
   rootLooksValid,
   isConfigurationFile,
 } from "./fs-utils.js";
+import {
+  loadSourceMappings,
+  sourceCandidatesForOutput,
+  toSourceMappedSpecifiers,
+} from "./source-mapping.js";
 import type {
   AnalysisContext,
   AnalyzerOptions,
   AnalysisReport,
+  SymbolHint,
   AnalysisSummary,
   Finding,
   ModuleRecord,
@@ -221,6 +229,18 @@ function rebaseWorkspacePattern(rootDir: string, packageRoot: string, pattern: s
 }
 
 /**
+ * In production mode a manifest or plugin entry glob must not promote a test
+ * file to a production entry. A wildcard such as `"./*": "./src/*.ts"` matches
+ * `src/math.test.ts`; analyzing that file as a production root hides the fact
+ * that the symbols it imports are only used by tests.
+ */
+const compiledProductionEntryNegations = compileGlobs(TEST_IGNORE_PATTERNS);
+
+function isProductionExcludedEntry(relativePath: string): boolean {
+  return matchesAnyGlob(relativePath, compiledProductionEntryNegations);
+}
+
+/**
  * Applies only the configuration fields that have package-local semantics. The
  * root configuration remains the source of global analyzer options; workspace
  * configuration can contribute its own entry points, discovery ignores, source
@@ -368,6 +388,33 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   if (hasMonorepo) {
     await applyWorkspacePackageConfigs(resolvedOptions);
   }
+
+  // Preload reverse source mappings for the project root and every workspace
+  // package. Graph resolution is synchronous, so it reads these instead of
+  // touching the filesystem while resolving an import edge.
+  const compilerExtensions = resolvedOptions.extensions.filter(
+    (extension) =>
+      ![".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"].includes(extension),
+  );
+  const sourceMappings = new Map<string, Awaited<ReturnType<typeof loadSourceMappings>>>();
+  sourceMappings.set(
+    normalizeAbsolute(rootDir),
+    await loadSourceMappings(rootDir, {
+      extensions: resolvedOptions.extensions,
+      sourceMapping: resolvedOptions.sourceMapping,
+    }),
+  );
+  for (const pkg of resolvedOptions.monorepo?.packageMap.values() ?? []) {
+    if (sourceMappings.has(normalizeAbsolute(pkg.location))) continue;
+    sourceMappings.set(
+      normalizeAbsolute(pkg.location),
+      await loadSourceMappings(pkg.location, {
+        extensions: resolvedOptions.extensions,
+        sourceMapping: resolvedOptions.sourceMapping,
+      }),
+    );
+  }
+  resolvedOptions.sourceMappings = sourceMappings;
 
   // Re-read configuration options after plugin initialization
   const { extensions, entry, includeConventionalEntries } = resolvedOptions;
@@ -569,16 +616,25 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     relativeToRoot: string = "",
     isRoot: boolean = false,
   ) => {
+    // Reverse-map every declared entry artifact back to the source files it may
+    // have been produced from. `tsconfig` `outDir`/`rootDir` pairs define the
+    // directory translation, and `.jsx`/`.tsx` as well as custom compiler
+    // extensions are handled by the shared resolver. The original entry stays
+    // first so a real build output still wins when it exists in the project.
+    const packageMappings =
+      resolvedOptions.sourceMappings?.get(normalizeAbsolute(baseDir)) ??
+      (await loadSourceMappings(baseDir, {
+        extensions: resolvedOptions.extensions,
+        sourceMapping: resolvedOptions.sourceMapping,
+      }));
     const expandBuildEntryToSourceCandidates = (entries: string[]) =>
       entries.flatMap((entry) => {
-        if (entry.startsWith("dist/")) {
-          const srcEntry = entry
-            .replace("dist/", "src/")
-            .replace(/\.js$/, ".ts")
-            .replace(/\.jsx$/, ".tsx");
-          return [entry, srcEntry];
-        }
-        return [entry];
+        const mapped = packageMappings.flatMap((mapping) =>
+          toSourceMappedSpecifiers(path.resolve(baseDir, entry), mapping).map((candidate) =>
+            path.relative(baseDir, candidate).replace(/\\/g, "/"),
+          ),
+        );
+        return [entry, ...mapped];
       });
 
     const packageManifest = await readJsonFile<{ private?: boolean }>(
@@ -593,7 +649,16 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     const publicExportEntries = expandBuildEntryToSourceCandidates(
       await discoverPackageExportEntryPatterns(baseDir, resolvedOptions.production),
     );
-    const scriptTargets = await discoverPackageScriptTargets(baseDir);
+    const scriptTargets = await discoverPackageScriptTargets(baseDir, compilerExtensions);
+
+    // Production mode subtracts test files from manifest- and convention-derived
+    // entries. A wildcard export such as `"./*": "./src/*.ts"` matches
+    // `src/math.test.ts`; treating that test as a production root would hide
+    // symbols that only tests import.
+    const productionEntryAllowed = (absoluteFile: string): boolean => {
+      if (!resolvedOptions.production) return true;
+      return !isProductionExcludedEntry(path.relative(rootDir, absoluteFile).replace(/\\/g, "/"));
+    };
 
     for (const scriptTarget of scriptTargets) {
       const adjustedPattern = relativeToRoot
@@ -634,6 +699,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           ? path.posix.join(relativeToRoot, entryPattern)
           : entryPattern;
       for (const entryFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
+        if (!productionEntryAllowed(entryFile)) continue;
         const normalized = path.normalize(entryFile);
         entryPoints.add(normalized);
         publicEntryPoints.add(normalized);
@@ -653,6 +719,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
       const expanded = expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern]);
       for (const e of expanded) {
+        if (!productionEntryAllowed(e)) continue;
         const normalized = path.normalize(e);
         if (isRoot && includeConventionalEntries) {
           entryPoints.add(normalized);
@@ -687,6 +754,9 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   }
 
   const findings: Finding[] = [];
+  // Informational observations, e.g. a tag on a symbol that is referenced
+  // anyway. Hints never fail a build and never drive a fix.
+  const hints: SymbolHint[] = [];
   for (const diagnostic of packageJsonDiagnostics) {
     findings.push({
       rule: "parse-recovery",
@@ -903,12 +973,27 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       ) {
         let allExportsUnused = module.exports.length > 0;
         for (const exp of module.exports) {
-          if (
-            exp.isExternalContract ||
-            hasTagSemantic(exp, resolvedOptions, "ignore") ||
-            hasTagSemantic(exp, resolvedOptions, "public")
-          ) {
+          const ignoredTag = matchingTagSemantic(exp, resolvedOptions, "ignore");
+          const publicTag = matchingTagSemantic(exp, resolvedOptions, "public");
+          if (exp.isExternalContract || ignoredTag || publicTag) {
             allExportsUnused = false;
+            // A tag only "applies" when it suppresses something. Knowing that an
+            // export is referenced anyway lets the report point out the tag that
+            // had no effect, instead of silently hiding a live symbol.
+            const tag = ignoredTag ?? publicTag;
+            if (
+              tag &&
+              (context.usedExports.has(`${module.id}:${exp.exportedAs}`) ||
+                context.usedExports.has(`${module.id}:*`))
+            ) {
+              hints.push({
+                file: module.id,
+                symbol: exp.exportedAs,
+                tag,
+                severity: "hint",
+                message: `Unused tag: @${tag} (${exp.exportedAs})`,
+              });
+            }
             continue;
           }
 
@@ -987,6 +1072,17 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
               for (const edge of consumer.edges) {
                 if (!edgeTargets(edge).includes(moduleId)) continue;
 
+                // An exclude or public tag on the re-export declaration protects
+                // the symbol it points to, exactly like a tagged declaration
+                // does. Only checking the declaration's own tags missed this.
+                // An exclude or public tag on the re-export declaration protects
+                // the symbol it points to, exactly like a tagged declaration
+                // does. Reading only the declaration's own tags missed this, and
+                // reading them under the origin name broke renamed re-exports.
+                if (isReExportProtectingTag(edge.tags, resolvedOptions)) {
+                  return true;
+                }
+
                 // A private workspace barrel exposes its own surface to local
                 // consumers, but its re-export alone is not evidence that the
                 // underlying source symbol is externally consumed.
@@ -1017,8 +1113,15 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
                 if (deepVisited.has(consumerId)) return false;
                 deepVisited.add(consumerId);
 
-                if (context.entryPoints.has(consumerId)) return true;
-                if (publicEntryPoints.has(consumerId)) return true;
+                // With includeEntryExports the entry's own exports are checked
+                // too, so reaching an entry through a re-export is not by itself
+                // a real consumer: the entry export must be consumed further
+                // down the chain. Without it an entry export is never reported,
+                // so the short circuit stays correct.
+                if (!resolvedOptions.includeEntryExports) {
+                  if (context.entryPoints.has(consumerId)) return true;
+                  if (publicEntryPoints.has(consumerId)) return true;
+                }
 
                 const consumerUsage = importUsage.get(consumerId);
                 if (!consumerUsage) return false;
@@ -1062,11 +1165,32 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
             exp.members.length > 0
           ) {
             for (const member of exp.members) {
-              if (
-                hasTagSemantic(member, resolvedOptions, "ignore") ||
-                hasTagSemantic(member, resolvedOptions, "public")
-              )
+              // A member referenced by sibling code inside its own namespace is
+              // live even when nothing outside the namespace reads it. Deleting
+              // it would break the namespace, so it is never reported.
+              if (member.hasRefsInFile) continue;
+              const memberIgnoredTag = matchingTagSemantic(member, resolvedOptions, "ignore");
+              const memberPublicTag = matchingTagSemantic(member, resolvedOptions, "public");
+              if (memberIgnoredTag || memberPublicTag) {
+                // The member's own tags decide the hint. Reading the parent
+                // export's tags (the previous behavior) meant a hint could never
+                // fire for a namespaced or enum member.
+                const memberTag = memberIgnoredTag ?? memberPublicTag;
+                const isMemberReferenced =
+                  context.usedMembers.has(`${module.id}:${exp.exportedAs}:${member.name}`) ||
+                  context.usedMembers.has(`${module.id}:${exp.name}:${member.name}`);
+                if (memberTag && isMemberReferenced) {
+                  hints.push({
+                    file: module.id,
+                    symbol: `${exp.exportedAs}.${member.name}`,
+                    member: member.name,
+                    tag: memberTag,
+                    severity: "hint",
+                    message: `Unused tag: @${memberTag} (${exp.exportedAs}.${member.name})`,
+                  });
+                }
                 continue;
+              }
               const memberKey = `${module.id}:${exp.exportedAs}:${member.name}`;
               const internalKey = `${module.id}:${exp.name}:${member.name}`;
               if (!context.usedMembers.has(memberKey) && !context.usedMembers.has(internalKey)) {
@@ -1224,6 +1348,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       }
       return 0;
     }),
+    hints,
     modules: [...modules.values()].map((module) => ({
       path: relativeDisplayPath(rootDir, module.id),
       parseStatus: module.parseStatus,

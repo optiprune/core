@@ -1,0 +1,6 @@
+{
+  "name": "fixture-source-mapping",
+  "private": true,
+  "exports": { ".": "./dist/index.jsx", "./custom": "./dist/custom.js" },
+  "scripts": { "start": "node dist/cli.jsx" }
+}

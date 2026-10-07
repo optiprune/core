@@ -42,6 +42,15 @@ export interface ExportMember {
   tags?: string[];
   isIgnored?: boolean;
   isPublic?: boolean;
+  /**
+   * Whether the member is referenced by other code inside its own declaration
+   * scope (for example a namespace member used by a sibling). Such a member is
+   * live even when nothing outside the namespace reads it, so it must never be
+   * reported as unused or removed by the fixer.
+   */
+  hasRefsInFile?: boolean;
+  /** Fully qualified path of a nested namespace member, e.g. `Sizes.Size`. */
+  path?: string;
 }
 
 export interface ExportRecord {
@@ -74,6 +83,12 @@ export interface DependencyEdge {
   dynamicExpression?: string | undefined;
   resolution: "resolved" | "unresolved" | "external" | "unknown";
   isTypeOnly?: boolean;
+  /**
+   * JSDoc tags attached to the declaration that created this edge. A re-export
+   * carrying an exclude or public tag protects the symbol it points to, so the
+   * tags must travel with the edge.
+   */
+  tags?: string[];
 }
 
 export interface DynamicPattern {
@@ -111,6 +126,12 @@ export interface WorkspacePackage {
   manifestPath: string;
   dependencies: Set<string>;
   allDependencies: Set<string>;
+  /**
+   * Raw `exports` field of the package manifest. Graph resolution evaluates it
+   * semantically (condition order and fallback arrays) instead of re-reading the
+   * manifest for every import edge.
+   */
+  exportsField?: unknown;
 }
 
 export interface MonorepoGraph {
@@ -179,6 +200,22 @@ export interface Finding {
   evidence: Record<string, unknown>;
 }
 
+/**
+ * A symbol observed during analysis whose configuration tag had no effect. Hints
+ * are informational: they never fail a build and never drive a fix.
+ */
+export interface SymbolHint {
+  file: string;
+  /** The export name, or `Parent.member` for a member hint. */
+  symbol: string;
+  /** Member name when the hint concerns a member of an export. */
+  member?: string;
+  /** Tag name without the leading `@`. */
+  tag: string;
+  message: string;
+  severity: "hint";
+}
+
 export interface AnalyzerOptions {
   rootDir?: string;
   entry?: string[];
@@ -216,6 +253,12 @@ export interface AnalyzerOptions {
   /** Skip SMT analysis and suppress impossible-condition findings from Layer 2. */
   skipSmt?: boolean;
   verbose?: boolean;
+  /**
+   * Reverse mapping configuration from compiled build artifacts back to source
+   * files. `outDir`/`rootDir` are normally read from `tsconfig`; this option
+   * adds explicit overrides and the extensions a custom compiler owns.
+   */
+  sourceMapping?: import("./source-mapping.js").SourceMappingConfigInput;
   fix?: boolean | FixConfig;
   /** Reuse cache entries across Core or plugin version updates. */
   stopNewCacheOnUpdate?: boolean;
@@ -299,6 +342,8 @@ export interface Config {
    */
   output?: OutputFormat;
   verbose?: boolean;
+  /** Reverse mapping configuration from compiled artifacts back to sources. */
+  sourceMapping?: import("./source-mapping.js").SourceMappingConfigInput;
   fix?: boolean | FixConfig;
   /** Reuse cache entries across Core or plugin version updates. */
   stopNewCacheOnUpdate?: boolean;
@@ -374,6 +419,13 @@ export interface ResolvedOptions {
   projectPatterns: string[];
   unreachableFileIgnorePatterns: string[];
   protectedExportPatterns: string[];
+  /** Reverse mapping configuration from compiled artifacts back to sources. */
+  sourceMapping: import("./source-mapping.js").SourceMappingConfigInput;
+  /**
+   * Preloaded reverse mappings keyed by absolute package root. Populated after
+   * workspace topology discovery so graph resolution stays synchronous.
+   */
+  sourceMappings?: Map<string, import("./source-mapping.js").SourceMapping[]>;
   repositoryType?: "single-package" | "workspace" | "monorepo";
   frameworks: string[];
 }
@@ -418,6 +470,11 @@ export interface AnalysisReport {
   entryPoints: string[];
   summary: AnalysisSummary;
   findings: Finding[];
+  /**
+   * Non-blocking observations about a JSDoc tag that had no effect, for example
+   * an `@ignore` tag on an export or member that is referenced anyway.
+   */
+  hints?: SymbolHint[];
   /** Present only when verbose JSON output is requested. */
   debug?: AnalysisDebugInfo;
   modules: Array<{

@@ -1,0 +1,9 @@
+---
+import { greet } from "./greet";
+const data = { greeting: greet() };
+---
+<script type="application/ld+json" set:html={data} / >
+<script>
+import { track } from "./analytics";
+track();
+</script>

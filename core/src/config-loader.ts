@@ -57,6 +57,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   projectPatterns: [],
   unreachableFileIgnorePatterns: [],
   protectedExportPatterns: [],
+  sourceMapping: {},
   frameworks: [],
   pathAliases: new Map<string, string[]>(),
   packageImports: new Map<string, string[]>(),
@@ -245,6 +246,20 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
   const userIgnore = Array.isArray(userConfig.ignore) ? userConfig.ignore : [];
   const ignore = Array.from(new Set([...DEFAULT_IGNORE, ...userIgnore]));
 
+  // ── sourceMapping ────────────────────────────────────────────────────────
+  const sourceMapping = {
+    ...(base.sourceMapping ?? {}),
+    ...(userConfig.sourceMapping ?? {}),
+  };
+  if (base.sourceMapping?.compilerExtensions || userConfig.sourceMapping?.compilerExtensions) {
+    sourceMapping.compilerExtensions = Array.from(
+      new Set([
+        ...(base.sourceMapping?.compilerExtensions ?? []),
+        ...(userConfig.sourceMapping?.compilerExtensions ?? []),
+      ]),
+    );
+  }
+
   // ── ignoreDependencies ───────────────────────────────────────────────────
   const ignoreDependencies = Array.isArray(userConfig.ignoreDependencies)
     ? userConfig.ignoreDependencies
@@ -309,6 +324,7 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     ignoreUnknownImport: userConfig.ignoreUnknownImport ?? base.ignoreUnknownImport,
     extensions,
     ignore,
+    sourceMapping,
     ignoreDependencies,
     externalContracts,
     output,

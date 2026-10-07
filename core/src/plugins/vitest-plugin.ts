@@ -1,7 +1,19 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
-import { loadStaticPluginConfig, stringRecord, type StaticConfigValue } from "../plugin-config.js";
+import {
+  loadStaticPluginConfig,
+  stringArray,
+  stringRecord,
+  type StaticConfigValue,
+} from "../plugin-config.js";
 import path from "pathe";
+
+/**
+ * Vitest root per config file, captured while the static config is parsed.
+ * `onASTNode` runs later without access to the parsed config, but it resolves
+ * `setupFiles` and needs the same root.
+ */
+const vitestRootsByConfigFile = new Map<string, string>();
 
 const VITEST_CONFIG_BASENAMES = [
   "vitest.config.ts",
@@ -118,6 +130,56 @@ function shouldInspectConfig(
 }
 
 /**
+ * Vitest resolves its project root as `test.root || root || cwd`
+ * (`packages/vitest/src/node/plugins/index.ts`). `setupFiles`, `include` and the
+ * scan directory are relative to that root, not to the config file. Reading only
+ * `test.root` made a config that sets `root: "packages/app"` resolve everything
+ * from the project directory.
+ *
+ * Without a working-directory hint, an absent or relative root is anchored at
+ * the config directory, which is where Vite resolves config-relative paths.
+ */
+export function resolveVitestRoot(
+  configFile: string,
+  config: Record<string, StaticConfigValue>,
+): string {
+  const configDirectory = path.dirname(normalize(configFile));
+  const test = stringRecord(config.test);
+  const configured =
+    (typeof test.root === "string" && test.root.trim().length > 0 ? test.root : undefined) ??
+    (typeof config.root === "string" && config.root.trim().length > 0 ? config.root : undefined);
+  if (!configured) return configDirectory;
+  return path.isAbsolute(configured) ? configured : path.join(configDirectory, configured);
+}
+
+function isModuleReference(value: string): boolean {
+  return !value.startsWith(".") && !path.isAbsolute(value) && !value.startsWith("<");
+}
+
+/**
+ * Entry patterns for the files Vitest actually runs, rebased to the Vitest root.
+ * `test.include` defaults to `**\/*.{test,spec}.?(c|m)[jt]s?(x)`, but the default
+ * is left to the framework heuristic; only explicit configuration is applied here
+ * so a project that never narrowed its scope keeps the broader detection.
+ */
+function vitestEntryPatterns(
+  configFile: string,
+  config: Record<string, StaticConfigValue>,
+): string[] {
+  const test = stringRecord(config.test);
+  const vitestRoot = resolveVitestRoot(configFile, config);
+  const patterns: string[] = [];
+  for (const include of stringArray(test.include)) {
+    patterns.push(path.isAbsolute(include) ? include : path.join(vitestRoot, include));
+  }
+  if (typeof test.dir === "string" && test.dir.trim().length > 0) {
+    const directory = path.isAbsolute(test.dir) ? test.dir : path.join(vitestRoot, test.dir);
+    patterns.push(path.join(directory, "**"));
+  }
+  return patterns;
+}
+
+/**
  * Vitest loads test environments from configuration rather than a source
  * import. This plugin checks statically readable config before package-use
  * analysis and emits a diagnostic when the configured environment or coverage
@@ -125,7 +187,7 @@ function shouldInspectConfig(
  */
 export const VitestPlugin: AnalyzerPlugin = {
   name: "vitest-plugin",
-  version: "1.2.0",
+  version: "1.3.0",
 
   detect: async (adapter) => {
     const packageJson = await adapter.readJson("package.json");
@@ -213,6 +275,27 @@ export const VitestPlugin: AnalyzerPlugin = {
       }
 
       for (const loaded of parsedConfigs) {
+        const vitestRoot = resolveVitestRoot(loaded.file, loaded.config);
+        vitestRootsByConfigFile.set(normalize(loaded.file), vitestRoot);
+        const testSection = stringRecord(loaded.config.test);
+
+        // `setupFiles` are relative to the Vitest root, not to the config file.
+        for (const setupFile of stringArray(testSection.setupFiles)) {
+          if (isModuleReference(setupFile)) {
+            adapter.markPackageAsUsed(setupFile);
+            continue;
+          }
+          adapter.markAsUsed(
+            path.isAbsolute(setupFile) ? setupFile : path.join(vitestRoot, setupFile),
+          );
+        }
+
+        // Files Vitest actually runs are analysis roots; without this a project
+        // that narrows `test.include` (or sets a scan `dir`) reports its suites
+        // as unreachable.
+        const entryPatterns = vitestEntryPatterns(loaded.file, loaded.config);
+        if (entryPatterns.length > 0) adapter.addEntryPatterns(entryPatterns);
+
         const environment = configuredEnvironment(loaded.config);
         const environmentPackage = environment ? ENVIRONMENT_PACKAGES[environment] : undefined;
 
@@ -280,8 +363,15 @@ export const VitestPlugin: AnalyzerPlugin = {
       // Static setupFiles references are safe to mark as used. Dynamic config
       // expressions are intentionally ignored rather than guessed.
       if (t.isObjectProperty(node) && t.isIdentifier(node.key) && node.key.name === "setupFiles") {
-        const configDirectory = path.dirname(fileId);
+        // falls back to the config directory when the static config could not be
+        // read; otherwise the Vitest root (`test.root || root`) wins.
+        const configDirectory =
+          vitestRootsByConfigFile.get(normalize(fileId)) ?? path.dirname(normalize(fileId));
         const markSetupFile = (configuredPath: string) => {
+          if (isModuleReference(configuredPath)) {
+            adapter.markPackageAsUsed(configuredPath);
+            return;
+          }
           const target = path.isAbsolute(configuredPath)
             ? configuredPath
             : path.join(configDirectory, configuredPath);

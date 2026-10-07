@@ -1,0 +1,5 @@
+{
+  "name": "fixture-production-exports",
+  "private": true,
+  "exports": { "./*": "./src/*.ts" }
+}
