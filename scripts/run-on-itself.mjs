@@ -1,7 +1,7 @@
-import { analyze } from "./core/dist/index.js";
+import { analyze } from "../core/dist/index.js";
 
 const report = await analyze({
-  rootDir: "./",
+  rootDir: "../",
 
   entry: ["core/src/index.ts", "language-server/src/language-server.ts"],
 
