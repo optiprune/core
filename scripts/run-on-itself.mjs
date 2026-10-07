@@ -3,20 +3,9 @@ import { analyze } from "./core/dist/index.js";
 const report = await analyze({
   rootDir: "./",
 
-  entry: [
-    "core/src/index.ts",
-    "language-server/src/language-server.ts",
-  ],
+  entry: ["core/src/index.ts", "language-server/src/language-server.ts"],
 
-  extensions: [
-    ".ts",
-    ".tsx",
-    ".js",
-    ".jsx",
-    ".mjs",
-    ".cjs",
-    ".vue",
-  ],
+  extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue"],
 
   ignore: [
     "**/node_modules/**",
