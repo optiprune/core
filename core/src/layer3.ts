@@ -184,6 +184,48 @@ function branchTerminates(branch: any): boolean {
   return false;
 }
 
+/**
+ * A loop-body state can only be used as a back-edge state when execution can
+ * continue to the next loop header. A direct break/return/throw exits that
+ * path instead. We keep conditional exits conservative: if a body contains
+ * one, writes made by the body are invalidated before the back-edge merge so
+ * an exit value can never be mistaken for a looping value.
+ */
+function hasNonBackEdgeExit(node: any, nestedBreakTarget = false): boolean {
+  if (!node || typeof node !== "object") return false;
+  if (
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "ArrowFunctionExpression"
+  ) {
+    return false;
+  }
+  if (node.type === "ReturnStatement" || node.type === "ThrowStatement") return true;
+  // An unlabeled break exits the nearest loop or switch. A labeled break may
+  // target this loop (or an outer labeled loop), so it is always treated as a
+  // possible non-back-edge exit when using this intentionally conservative
+  // heuristic.
+  if (node.type === "BreakStatement") return node.label ? true : !nestedBreakTarget;
+
+  const childNestedLoop =
+    nestedBreakTarget ||
+    node.type === "WhileStatement" ||
+    node.type === "DoWhileStatement" ||
+    node.type === "ForStatement" ||
+    node.type === "ForInStatement" ||
+    node.type === "ForOfStatement" ||
+    node.type === "SwitchStatement";
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "loc" || key === "parent") continue;
+    if (Array.isArray(value)) {
+      if (value.some((child) => hasNonBackEdgeExit(child, childNestedLoop))) return true;
+    } else if (hasNonBackEdgeExit(value, childNestedLoop)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isSyntacticallyFalse(node: any): boolean {
   return (
     (node?.type === "BooleanLiteral" && node.value === false) ||
@@ -537,10 +579,25 @@ async function analyzeSsaLoop(
         bodyState,
       );
     }
-    // The next iteration is the loop-header phi: initial/header state and the
-    // back-edge state are selected by the current condition.
+    if (hasNonBackEdgeExit(node.body)) {
+      // The body state may include values from a break/return/throw path.
+      // Do not feed those concrete values into the loop-header phi as if they
+      // were guaranteed to reach the back edge. Unknown values preserve sound
+      // reachability without claiming that the exit path iterates again.
+      for (const name of new Set([...current.bindings.keys(), ...bodyState.bindings.keys()])) {
+        if (bodyState.bindings.get(name) !== current.bindings.get(name)) {
+          nextSsaValue(name, null, z3, bodyState);
+        }
+      }
+    }
+    // The next iteration is the loop-header phi. If the current header
+    // predicate is true, execution takes the body/back-edge value; otherwise
+    // the loop is skipped and the pre-loop/header value is retained. Passing
+    // `current` first here reverses those arms and makes values written in a
+    // loop appear to have happened on the exit path, producing false
+    // `constant-condition` findings in plugin-style code.
     const next = cloneSsaState(current);
-    mergeSsaStates(next, current, bodyState, predicate, z3, true, true);
+    mergeSsaStates(next, bodyState, current, predicate, z3, true, true);
     current = next;
   }
   // State after the bounded loop is the conservative header state.  We do not
@@ -595,9 +652,14 @@ async function analyzeSsaBranch(
       context,
       state,
     );
-    return result === "sat";
+    // Only UNSAT proves that a branch is unreachable. `unknown` (for example
+    // after an SMT timeout) must remain reachable so the phi merge keeps both
+    // incoming values instead of silently selecting the other arm and
+    // manufacturing a downstream constant-condition finding.
+    return result !== "unsat";
   } catch {
-    return false;
+    // Backend/parser failures are inconclusive, not proofs of dead code.
+    return true;
   } finally {
     solver.pop();
   }

@@ -9,6 +9,7 @@ const shadowedCallRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-s
 const phiRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-phi");
 const edgeCasesRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-edge-cases");
 const iterableRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-iterable");
+const pluginPhiRootDir = path.resolve(__dirname, "../fixtures/layers/layer3-plugin-phi");
 
 describe("Layer 3: SMT Constraint Solver", () => {
   it("should detect mathematically impossible paths using Z3", async () => {
@@ -67,6 +68,15 @@ describe("Layer 3: SMT Constraint Solver", () => {
     const findings = report.findings.filter((finding) => finding.rule === "constant-condition");
     expect(findings.some((finding) => finding.evidence.phi === true)).toBe(true);
     expect(findings.some((finding) => finding.evidence.loop === true)).toBe(true);
+    // counterLoop requires the predicate to be re-encoded from the updated
+    // SSA state on successive unrolling iterations; its post-loop check adds
+    // another proven phi contradiction to the existing join/loop cases.
+    // The switch and labeled-break cases must remain represented by the
+    // conservative loop analysis without turning their valid exits into
+    // ordinary back-edge values.
+    expect(
+      findings.filter((finding) => finding.evidence.phi === true).length,
+    ).toBeGreaterThanOrEqual(5);
   });
 
   it("handles do-while execution, natural loop exits, and unbraced branches", async () => {
@@ -102,5 +112,22 @@ describe("Layer 3: SMT Constraint Solver", () => {
     // External async calls and unknown iterable execution must not turn the
     // post-loop flags into proven constants.
     expect(findings).toEqual([]);
+  });
+
+  it("keeps plugin loop values sound across the loop-header phi", async () => {
+    const report = await analyze({
+      rootDir: pluginPhiRootDir,
+      entry: ["plugin-style.ts"],
+      includeConventionalEntries: false,
+    });
+    const findings = report.findings.filter((finding) => finding.rule === "constant-condition");
+
+    // The first post-loop check is reachable when shouldScan is true and the
+    // async probe finds a config file. The second check is genuinely
+    // impossible: either the loop did not run (hasConfigFile is false) or it
+    // ran and remaining is false. A sound loop-header phi reports only that
+    // latter branch and does not manufacture a finding for the plugin check.
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence).toMatchObject({ phi: true });
   });
 });

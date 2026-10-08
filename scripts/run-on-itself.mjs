@@ -1,7 +1,11 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { analyze } from "../core/dist/index.js";
 
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
 const report = await analyze({
-  rootDir: "../",
+  rootDir,
 
   entry: ["core/src/index.ts", "language-server/src/language-server.ts"],
 
