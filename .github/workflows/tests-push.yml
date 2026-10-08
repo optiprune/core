@@ -23,13 +23,29 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm run test:ci
+
+      # Vitest will filter tests matching the core directory path
+      - name: Run Core Tests
+        run: npm run test -- core
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: optiprune/core
-          flags: ${{ matrix.os }}-node-${{ matrix.node-version }}
-          name: codecov-${{ matrix.os }}-node-${{ matrix.node-version }}
+          flags: core,${{ matrix.os }}-node-${{ matrix.node-version }}
+          name: codecov-${{ matrix.os }}-node-${{ matrix.node-version }}-core
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      - name: Run Language Server Tests
+        run: npm run test --workspace @optiprune/language-server
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: optiprune/core
+          flags: lsp,${{ matrix.os }}-node-${{ matrix.node-version }}
+          name: codecov-${{ matrix.os }}-node-${{ matrix.node-version }}-language-server
           fail_ci_if_error: false
         continue-on-error: true
