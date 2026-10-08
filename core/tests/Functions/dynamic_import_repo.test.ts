@@ -6,14 +6,16 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("Dynamic Import Analysis Reproduction", () => {
-  const rootDir = path.resolve(__dirname, "../..");
+  // Keep this regression focused. Analysing the repository root loads every
+  // production plugin and makes the test exceed Windows' 45s test timeout.
+  const rootDir = path.resolve(__dirname, "../fixtures/functions/dynamic-angular-plugin");
 
   it("should NOT flag AngularPlugin as unused when Layer 4 simulation is ENABLED", async () => {
     const results = await analyze({
       rootDir,
       entryPoints: [path.join(rootDir, "src/engine.ts")],
       reportUnusedExports: true,
-      verbose: true,
+      verbose: false,
       layers: { skip3: false, skip4: false },
     });
 

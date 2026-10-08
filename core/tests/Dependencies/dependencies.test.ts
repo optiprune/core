@@ -47,6 +47,11 @@ describe("dependency attribution with isolated fixture roots", () => {
     expect(hasFinding(report, "unused-dependency", "unused-runtime")).toBe(true);
   });
 
+  it("attributes an imported transitive dependency to its declared provider", async () => {
+    const report = await analyzeFixture("phantom-node-modules");
+    expect(hasFinding(report, "unused-dependency", "provider-a")).toBe(false);
+  });
+
   it("attributes Bun binary script usage", async () => {
     const report = await analyzeFixture("bun-binary-script");
     expect(hasFinding(report, "unused-dev-dependency", "bun-tool")).toBe(false);

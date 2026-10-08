@@ -10,12 +10,17 @@ export interface CacheEntry {
   hash: string;
   moduleRecord: ModuleRecord;
   timestamp: number;
+  findings?: unknown[];
 }
 
 /** Persistent cache of parsed module records only. Analysis results are never cached. */
 export interface AnalysisCache {
   version: string;
   entries: Record<string, CacheEntry>;
+  /** Optional compatibility metadata consumed by the language-server integration. */
+  report?: unknown;
+  fileStats?: Record<string, { findings: unknown[] }>;
+  fileHashes?: Record<string, string>;
 }
 
 const CACHE_DIR = ".optiprune";
@@ -36,6 +41,7 @@ function sanitizeEntries(entries: unknown): Record<string, CacheEntry> {
       hash: entry.hash,
       moduleRecord: entry.moduleRecord,
       timestamp: typeof entry.timestamp === "number" ? entry.timestamp : Date.now(),
+      ...(Array.isArray(entry.findings) && { findings: entry.findings }),
     };
   }
   return sanitized;
@@ -55,6 +61,15 @@ export function parseCacheContent(raw: string): AnalysisCache {
       return {
         version: typeof parsed.version === "string" ? parsed.version : CACHE_VERSION,
         entries: sanitizeEntries(parsed.entries),
+        ...(parsed.report !== undefined && { report: parsed.report }),
+        ...(parsed.fileStats &&
+          typeof parsed.fileStats === "object" && {
+            fileStats: parsed.fileStats as Record<string, { findings: unknown[] }>,
+          }),
+        ...(parsed.fileHashes &&
+          typeof parsed.fileHashes === "object" && {
+            fileHashes: parsed.fileHashes as Record<string, string>,
+          }),
       };
     }
   } catch {

@@ -306,8 +306,11 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
       const snapshots = parsed.snapshots || {};
 
       for (const [pkgId, meta] of Object.entries<any>(snapshots)) {
-        const nameMatch = pkgId.match(/^\/(@?[^@]+)/);
-        const cleanName = (nameMatch ? nameMatch[1] : pkgId) as string;
+        const normalizedId = pkgId.replace(/^\/+/, "");
+        const versionSeparator = normalizedId.lastIndexOf("@");
+        const cleanName = (
+          versionSeparator > 0 ? normalizedId.slice(0, versionSeparator) : normalizedId
+        ) as string;
 
         const deps = new Set<string>(
           Object.keys(meta.dependencies || {}).concat(Object.keys(meta.peerDependencies || {})),
@@ -323,6 +326,86 @@ export function buildLockfileGraph(projectRoot: string): Map<string, DependencyN
   }
 
   return graph;
+}
+
+/**
+ * Maps each declared provider to the packages it provides transitively.
+ * This is deliberately enabled only for an inspectable install (node_modules)
+ * or a parsed lockfile; registry guesses would hide real missing dependencies.
+ */
+function buildPhantomDependencyProviders(
+  projectRoot: string,
+  manifestPaths: Map<string, string>,
+  lockfileGraph: Map<string, DependencyNode>,
+): Map<string, Set<string>> {
+  const providerToTransitives = new Map<string, Set<string>>();
+  const manifests = new Map<string, Record<string, any> | null>();
+  const readManifest = (file: string): Record<string, any> | null => {
+    if (manifests.has(file)) return manifests.get(file) ?? null;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+      const result = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+      manifests.set(file, result);
+      return result;
+    } catch {
+      manifests.set(file, null);
+      return null;
+    }
+  };
+  const installedManifest = (fromDir: string, packageName: string): string | null => {
+    const segments = packageName.split("/");
+    let current = fromDir;
+    while (true) {
+      const candidate = path.join(current, "node_modules", ...segments, "package.json");
+      if (fs.existsSync(candidate)) return candidate;
+      if (current === projectRoot || path.dirname(current) === current) return null;
+      const parent = path.dirname(current);
+      current = parent;
+    }
+  };
+  const hasNodeModules = [...manifestPaths.values()].some((manifestPath) =>
+    fs.existsSync(path.join(path.dirname(manifestPath), "node_modules")),
+  );
+  if (!hasNodeModules && lockfileGraph.size === 0) {
+    return providerToTransitives;
+  }
+  for (const manifestPath of manifestPaths.values()) {
+    const manifest = readManifest(manifestPath);
+    if (!manifest) continue;
+    const direct = new Set([
+      ...Object.keys(manifest.dependencies ?? {}),
+      ...Object.keys(manifest.devDependencies ?? {}),
+    ]);
+    for (const provider of direct) {
+      const visited = new Set<string>();
+      visited.add(provider);
+      const queue = [provider];
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current) continue;
+        const installed = installedManifest(path.dirname(manifestPath), current);
+        const packageManifest = installed ? readManifest(installed) : null;
+        const transitiveDependencies = packageManifest
+          ? [
+              ...Object.keys(packageManifest.dependencies ?? {}),
+              ...Object.keys(packageManifest.optionalDependencies ?? {}),
+            ]
+          : [...(lockfileGraph.get(current)?.dependencies ?? [])];
+        for (const dependency of transitiveDependencies) {
+          if (dependency !== provider) {
+            const transitiveSet = providerToTransitives.get(provider) ?? new Set<string>();
+            transitiveSet.add(dependency);
+            providerToTransitives.set(provider, transitiveSet);
+          }
+          if (!visited.has(dependency)) {
+            visited.add(dependency);
+            queue.push(dependency);
+          }
+        }
+      }
+    }
+  }
+  return providerToTransitives;
 }
 
 export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]> {
@@ -532,6 +615,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
       manifestPaths.set(name, pkg.manifestPath);
     }
   }
+  const providerToTransitives = buildPhantomDependencyProviders(
+    projectRoot,
+    manifestPaths,
+    lockfileGraph,
+  );
 
   // Build a Set of dependencies the user explicitly wants to ignore so we
   // never emit unused-dependency / unused-dev-dependency findings for them.
@@ -568,6 +656,8 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         importFilesFor(dependency).some(
           (fileId) => context.reachable.has(fileId) || context.maybeReachable.has(fileId),
         );
+      const hasPhantomUsage = (provider: string): boolean =>
+        [...(providerToTransitives.get(provider) ?? [])].some((dep) => hasReachableImport(dep));
       const onlyUsedByUnreachableFiles = (dependency: string): string[] => {
         const files = importFilesFor(dependency);
         return files.length > 0 && !hasReachableImport(dependency) ? files : [];
@@ -1033,6 +1123,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const isUsed =
           isMarkedUsed ||
           hasReachableImport(dep) ||
+          hasPhantomUsage(dep) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||
           scriptPackages.has(dep) ||
@@ -1112,6 +1203,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         const isUsed =
           isMarkedUsed ||
           hasReachableImport(dep) ||
+          hasPhantomUsage(dep) ||
           (isRootMonorepoManifest && reachableGlobalImports.has(dep)) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||

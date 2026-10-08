@@ -1,0 +1,5 @@
+{
+  "name": "phantom-node-modules",
+  "private": true,
+  "dependencies": { "provider-a": "1.0.0" }
+}

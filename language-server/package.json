@@ -34,6 +34,7 @@
   "types": "./dist/language-server.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "pretest": "npm run build --workspace @optiprune/core",
     "test": "vitest run --no-file-parallelism --coverage",
     "format:check": "oxfmt --ignore-path ../.oxfmtignore --check",
     "format": "oxfmt --ignore-path ../.oxfmtignore"

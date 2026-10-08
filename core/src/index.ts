@@ -1348,7 +1348,31 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
 
-  // Persist ASTs only. The report is intentionally never written to the cache.
+  // Persist ASTs plus compatibility metadata used by the language-server
+  // integration. The analyzer still ignores the report on input, so stale
+  // reports can never affect a fresh analysis.
+  newCache.report = report;
+  newCache.fileHashes = Object.fromEntries(
+    [...sourceTexts.entries()].map(([file, source]) => [file, getFileHash(source)]),
+  );
+  const canonicalFilePath = (file: string): string => {
+    const absolute = path.normalize(path.isAbsolute(file) ? file : path.resolve(rootDir, file));
+    const normalized = absolute.replace(/\\/g, "/");
+    return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+  };
+  newCache.fileStats = Object.fromEntries(
+    [...sourceTexts.keys()].map((file) => [
+      file,
+      {
+        findings: report.findings.filter(
+          (finding) => canonicalFilePath(finding.file) === canonicalFilePath(file),
+        ),
+      },
+    ]),
+  );
+  for (const [file, entry] of Object.entries(newCache.entries)) {
+    entry.findings = newCache.fileStats[file]?.findings ?? [];
+  }
   saveCache(resolvedOptions.rootDir, newCache);
 
   // Support external cache-to path
