@@ -55,8 +55,8 @@
   "scripts": {
     "build": "npm run build --workspace @optiprune/core && npm run build --workspace @optiprune/language-server",
     "prepublishOnly": "npm run build",
-    "test": "vitest run --no-file-parallelism && npm run test --workspace @optiprune/language-server",
-    "test:local": "vitest run --no-file-parallelism",
+    "test:ci": "vitest run --no-file-parallelism --coverage && npm run test --workspace @optiprune/language-server --coverage",
+    "test": "vitest run --no-file-parallelism --coverage",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
     "format": "oxfmt --ignore-path .oxfmtignore"
   },
@@ -64,7 +64,8 @@
     "@types/node": "^22.15.3",
     "oxfmt": "^0.65.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "@vitest/coverage-v8": "^3.2.7"
   },
   "optionalDependencies": {
     "@esbuild/darwin-arm64": "0.28.2",

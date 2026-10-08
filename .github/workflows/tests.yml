@@ -24,7 +24,7 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm test
+      - run: npm run test:ci
       - run: npm run format:check
       - run: npm run build --workspace @optiprune/docs
       - run: npm run check --workspace @optiprune/docs
