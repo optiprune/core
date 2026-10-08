@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { promises as fsp } from "node:fs";
 import path from "pathe";
 import { fileURLToPath } from "node:url";
-import { parseModule, walkAst } from "./parser.js";
+import { walkAst } from "./parser.js";
 import {
   buildGraph,
   contextWithGraph,
@@ -25,7 +25,16 @@ import { TopologyManager } from "./topology-manager.js";
 import { SymbolicEngine } from "./symbolic-engine.js";
 import { buildMonorepoTopology } from "./workspace.js";
 import { PluginEngine } from "./engine.js";
-import { loadCache, saveCache, getFileHash, isCacheValid, AnalysisCache } from "./cache.js";
+import {
+  CACHE_VERSION,
+  loadCache,
+  parseCacheContent,
+  saveCache,
+  getFileHash,
+  isCacheValid,
+  AnalysisCache,
+} from "./cache.js";
+import { parseModulesInWorkers, parseModulesSynchronously } from "./parse-workers.js";
 import { formatTerminal, formatSarif } from "./reporters.js";
 import {
   compileGlobs,
@@ -74,8 +83,6 @@ if (!pkg?.version) {
   throw new Error("Unable to determine @optiprune/core version from package.json");
 }
 const VERSION = pkg.version;
-const CACHE_SEMANTICS_REVISION = "3";
-const CACHE_CORE_VERSION = `${VERSION}+semantics-${CACHE_SEMANTICS_REVISION}`;
 
 import { DEFAULT_CONFIG, loadConfig, mergeConfig } from "./config-loader.js";
 import { applyFixes as runFixes } from "./fixer.js";
@@ -154,27 +161,6 @@ function isPureExportOnlyModule(module: ModuleRecord): boolean {
     }
     return false;
   });
-}
-
-async function discoverCacheInputFiles(rootDir: string): Promise<string[]> {
-  const ignored = new Set(["node_modules", ".git", ".optiprune", "dist", "build", "coverage"]);
-  const files: string[] = [];
-  const visit = async (directory: string): Promise<void> => {
-    let entries;
-    try {
-      entries = await fsp.readdir(directory, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (ignored.has(entry.name)) continue;
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) await visit(absolute);
-      else if (entry.isFile()) files.push(absolute);
-    }
-  };
-  await visit(rootDir);
-  return files.sort((left, right) => left.localeCompare(right));
 }
 
 async function resolveOptions(options: AnalyzerOptions): Promise<ResolvedOptions> {
@@ -312,19 +298,22 @@ export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["fail
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
 
-  // Support external cache-from path
+  // Load only the traditional per-file AST cache. Reports are always rebuilt so
+  // plugin, graph, and configuration changes cannot return stale analysis.
   let cache: AnalysisCache;
   if ((options as any).cacheFrom && fs.existsSync((options as any).cacheFrom)) {
     try {
-      cache = JSON.parse(fs.readFileSync((options as any).cacheFrom, "utf-8"));
-    } catch (e) {
+      cache = parseCacheContent(fs.readFileSync((options as any).cacheFrom, "utf-8"));
+    } catch {
       cache = loadCache(resolvedOptions.rootDir);
     }
   } else {
     cache = loadCache(resolvedOptions.rootDir);
   }
-
-  const newCache: AnalysisCache = { version: "2.1", entries: {} };
+  // v2.1 entries contain the same per-file AST records. Upgrade the envelope
+  // without discarding valid ASTs; only the old report-level fields disappear.
+  if (cache.version !== CACHE_VERSION) cache = { version: CACHE_VERSION, entries: cache.entries };
+  const newCache: AnalysisCache = { version: CACHE_VERSION, entries: {} };
 
   // Phase 1: Core Graph & AST (Instant)
   const { rootDir } = resolvedOptions;
@@ -357,15 +346,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
-  const pluginVersions = pluginEngine.getEnabledPluginVersions();
-  const cacheVersionsMatch =
-    cache.coreVersion === CACHE_CORE_VERSION &&
-    JSON.stringify(cache.pluginVersions ?? {}) === JSON.stringify(pluginVersions);
-  // A version change can alter parsing, graph construction, or plugin findings.
-  // Unless explicitly overridden, discard all old entries before incremental work.
-  if (!resolvedOptions.stopNewCacheOnUpdate && !cacheVersionsMatch) {
-    cache = { version: "2.1", entries: {} };
-  }
   // Package-manager and framework plugins can contribute workspace patterns
   // during their early configuration pass. Build topology only after those
   // declarations have been applied so no workspace metadata is discarded.
@@ -445,68 +425,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
           return included && !matchesAnyGlob(file, compiledExcludedProjectPatterns, rootDir);
         });
 
-  const analysisKey = JSON.stringify({
-    version: VERSION, //ex 388
-    cacheSemanticsRevision: CACHE_SEMANTICS_REVISION,
-    entry: resolvedOptions.entry,
-    extensions: resolvedOptions.extensions,
-    ignore: resolvedOptions.ignore,
-    ignoreTests: resolvedOptions.ignoreTests,
-    ignoreUnknownImport: resolvedOptions.ignoreUnknownImport,
-    layers: resolvedOptions.layers,
-    rules: resolvedOptions.rules,
-    reportUnusedExports: resolvedOptions.reportUnusedExports,
-    reportUnusedExportsInUnreachableFiles: resolvedOptions.reportUnusedExportsInUnreachableFiles,
-    includeConventionalEntries: resolvedOptions.includeConventionalEntries,
-    includeEntryExports: resolvedOptions.includeEntryExports,
-    includeEntryMembers: resolvedOptions.includeEntryMembers,
-    cycles: resolvedOptions.cycles,
-    externalContracts: resolvedOptions.externalContracts,
-    plugins: resolvedOptions.plugins,
-  });
-  // Include configuration and plugin metadata in cache inputs. File metadata is
-  // only a cheap hint, so hashes remain the correctness check for same-size,
-  // same-mtime rewrites.
-  const cacheInputFiles = await discoverCacheInputFiles(rootDir);
-  const currentFileStats: Record<string, { size: number; mtimeMs: number }> = {};
-  for (const file of cacheInputFiles) {
-    try {
-      const stat = await fsp.stat(file);
-      currentFileStats[file] = { size: stat.size, mtimeMs: stat.mtimeMs };
-    } catch {
-      // The normal parse loop handles files that disappear during analysis.
-    }
-  }
-  const currentFileHashes: Record<string, string> = {};
-  for (const file of cacheInputFiles) {
-    try {
-      currentFileHashes[file] = getFileHash(await fsp.readFile(file, "utf8"));
-    } catch {
-      // The normal parse loop handles files that disappear during analysis.
-    }
-  }
-  const sameHashes =
-    cache.fileHashes &&
-    Object.keys(cache.fileHashes).length === Object.keys(currentFileHashes).length &&
-    Object.entries(currentFileHashes).every(([file, hash]) => cache.fileHashes?.[file] === hash);
-  const sameStats =
-    cache.fileStats &&
-    Object.keys(cache.fileStats).length === Object.keys(currentFileStats).length &&
-    Object.entries(currentFileStats).every(([file, stat]) => {
-      const cached = cache.fileStats?.[file];
-      return cached?.size === stat.size && cached.mtimeMs === stat.mtimeMs;
-    });
-  if (
-    !resolvedOptions.fix &&
-    cache.version === "2.1" &&
-    (resolvedOptions.stopNewCacheOnUpdate || cacheVersionsMatch) &&
-    cache.report &&
-    cache.analysisKey === analysisKey &&
-    sameStats &&
-    sameHashes
-  ) {
-    return cache.report;
-  }
   const modules = new Map<string, ModuleRecord>();
   const semanticGraph = new SemanticGraph();
   const topologyManager = new TopologyManager(semanticGraph);
@@ -515,38 +433,54 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   let filesParsed = 0;
   let filesRecovered = 0;
   let filesFallback = 0;
-  let cacheDirty = false;
   let hasFrameworkNodes = false;
+  const sourceTexts = new Map<string, string>();
+  const uncachedTasks: Array<{ file: string; sourceText: string }> = [];
+  const uncachedHashes = new Map<string, string>();
 
+  // Read files once, reuse valid ASTs immediately, and send only cache misses
+  // to the bounded parser worker pool.
   for (const file of allSourceFiles) {
     let rawText: string;
     try {
-      // BOM-safe file reader to prevent Babel/TS AST parse recovery warnings
       rawText = await fsp.readFile(file, "utf8");
     } catch (e: any) {
       if (e.code === "ENOENT") continue;
       throw e;
     }
     const sourceText = rawText.charCodeAt(0) === 0xfeff ? rawText.slice(1) : rawText;
-
-    const currentHash = getFileHash(sourceText);
-
-    let moduleRecord: ModuleRecord;
+    sourceTexts.set(file, sourceText);
     const cached = cache.entries[file];
-
     if (cached && isCacheValid(cached, sourceText)) {
-      moduleRecord = cached.moduleRecord;
       newCache.entries[file] = cached;
     } else {
-      cacheDirty = true;
-      moduleRecord = parseModule(sourceText, file);
-      newCache.entries[file] = {
-        hash: currentHash,
-        moduleRecord,
-        timestamp: Date.now(),
-      };
+      uncachedHashes.set(file, getFileHash(sourceText));
+      uncachedTasks.push({ file, sourceText });
     }
+  }
+  let parsedWorkers: Map<string, ModuleRecord>;
+  try {
+    parsedWorkers = await parseModulesInWorkers(uncachedTasks);
+  } catch {
+    parsedWorkers = await parseModulesSynchronously(uncachedTasks);
+  }
 
+  for (const file of allSourceFiles) {
+    const sourceText = sourceTexts.get(file);
+    if (sourceText === undefined) continue;
+    const cached = newCache.entries[file];
+    const moduleRecord = cached?.moduleRecord ?? parsedWorkers.get(file);
+    if (!moduleRecord) continue;
+    if (!cached) {
+      const hash = uncachedHashes.get(file);
+      if (hash) {
+        newCache.entries[file] = {
+          hash,
+          moduleRecord,
+          timestamp: Date.now(),
+        };
+      }
+    }
     modules.set(file, moduleRecord);
 
     if (moduleRecord.parseStatus === "parsed") {
@@ -578,8 +512,6 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       filesFallback += 1;
     }
   }
-
-  if (Object.keys(cache.entries).length !== allSourceFiles.length) cacheDirty = true;
 
   let entryPoints = new Set<string>();
   // Tool configuration files are protected separately in the unreachable-file
@@ -1416,25 +1348,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     }
   }
 
-  // Persist the compact report only after all analysis layers have completed.
-  newCache.version = "2.1";
-  newCache.coreVersion = CACHE_CORE_VERSION;
-  newCache.pluginVersions = pluginVersions;
-  newCache.analysisKey = analysisKey;
-  newCache.fileHashes = currentFileHashes;
-  newCache.fileStats = currentFileStats;
-  newCache.report = report;
-  for (const [file, entry] of Object.entries(newCache.entries)) {
-    const fileFindings = report.findings.filter((finding) => finding.file === file);
-    // Store the complete per-file result. An explicit empty array distinguishes
-    // a clean, analyzed file from a legacy entry without a cached result.
-    entry.findings = fileFindings;
-    entry.result = fileFindings.map((finding) => ({
-      ...(finding.location?.start.line !== undefined && { line: finding.location.start.line }),
-      rule: finding.rule,
-      message: finding.message,
-    }));
-  }
+  // Persist ASTs only. The report is intentionally never written to the cache.
   saveCache(resolvedOptions.rootDir, newCache);
 
   // Support external cache-to path

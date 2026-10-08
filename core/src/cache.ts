@@ -1,33 +1,21 @@
 import fs from "node:fs";
 import path from "pathe";
 import crypto from "node:crypto";
-import type { ModuleRecord, Finding, AnalysisReport } from "./types.js";
+import type { ModuleRecord } from "./types.js";
+
+export const CACHE_VERSION = "3.0";
 
 export interface CacheEntry {
+  /** Content fingerprint used to validate the serialized AST. */
   hash: string;
   moduleRecord: ModuleRecord;
-  findings?: Finding[];
-  isReachable?: boolean;
   timestamp: number;
-  /** Compact per-file analysis summary for tooling and diagnostics. */
-  result?: Array<{ line?: number; rule: string; message: string }>;
 }
 
+/** Persistent cache of parsed module records only. Analysis results are never cached. */
 export interface AnalysisCache {
   version: string;
-  /** Core package version that produced this cache. */
-  coreVersion?: string;
-  /** Versions of the enabled plugins that produced this cache. */
-  pluginVersions?: Record<string, string>;
   entries: Record<string, CacheEntry>;
-  /** Fingerprint of options that affect analysis output. */
-  analysisKey?: string;
-  /** SHA-256 fingerprints for every discovered source file. */
-  fileHashes?: Record<string, string>;
-  /** Cheap filesystem metadata used to avoid rereading unchanged files. */
-  fileStats?: Record<string, { size: number; mtimeMs: number }>;
-  /** Complete report, stored compactly enough for fast unchanged reruns. */
-  report?: AnalysisReport;
 }
 
 const CACHE_DIR = ".optiprune";
@@ -37,50 +25,74 @@ export function getFileHash(content: string): string {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
 
+function sanitizeEntries(entries: unknown): Record<string, CacheEntry> {
+  if (!entries || typeof entries !== "object" || Array.isArray(entries)) return {};
+  const sanitized: Record<string, CacheEntry> = {};
+  for (const [file, value] of Object.entries(entries)) {
+    if (!value || typeof value !== "object") continue;
+    const entry = value as Partial<CacheEntry>;
+    if (typeof entry.hash !== "string" || !entry.moduleRecord) continue;
+    sanitized[file] = {
+      hash: entry.hash,
+      moduleRecord: entry.moduleRecord,
+      timestamp: typeof entry.timestamp === "number" ? entry.timestamp : Date.now(),
+    };
+  }
+  return sanitized;
+}
+
+/** Parse and sanitize local, imported, and externally supplied cache content. */
+export function parseCacheContent(raw: string): AnalysisCache {
+  try {
+    const parsed = JSON.parse(raw) as Partial<AnalysisCache>;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.entries &&
+      typeof parsed.entries === "object" &&
+      !Array.isArray(parsed.entries)
+    ) {
+      return {
+        version: typeof parsed.version === "string" ? parsed.version : CACHE_VERSION,
+        entries: sanitizeEntries(parsed.entries),
+      };
+    }
+  } catch {
+    // Ignore malformed cache content and rebuild the AST cache.
+  }
+  return { version: CACHE_VERSION, entries: {} };
+}
+
 export function loadCache(rootDir: string): AnalysisCache {
   const cachePath = path.join(rootDir, CACHE_DIR, CACHE_FILE);
-  if (fs.existsSync(cachePath)) {
-    try {
-      return JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-    } catch (e) {
-      // Ignore
-    }
+  if (!fs.existsSync(cachePath)) return { version: CACHE_VERSION, entries: {} };
+  try {
+    return parseCacheContent(fs.readFileSync(cachePath, "utf-8"));
+  } catch {
+    return { version: CACHE_VERSION, entries: {} };
   }
-  return { version: "2.1", entries: {} };
 }
 
 export function saveCache(rootDir: string, cache: AnalysisCache): void {
   try {
     const dirPath = path.join(rootDir, CACHE_DIR);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-    // Cache files are machine-only data. Compact serialization substantially
-    // reduces both synchronous write time and the next run's parse/IO cost.
+    fs.mkdirSync(dirPath, { recursive: true });
     fs.writeFileSync(path.join(dirPath, CACHE_FILE), JSON.stringify(cache));
-  } catch (e) {
-    // Ignore cache write errors in environments like tests where rootDir might be problematic
+  } catch {
+    // Cache writes are best-effort and must never fail an analysis.
   }
 }
 
-/**
- * Exports the current cache to a standalone JSON file,
- * suitable for uploading to a remote storage or CI cache.
- */
 export async function exportCache(rootDir: string, targetPath: string): Promise<void> {
   const cache = loadCache(rootDir);
   await fs.promises.writeFile(targetPath, JSON.stringify(cache));
 }
 
-/**
- * Imports a cache from an external JSON file into the local .optiprune directory.
- */
 export async function importCache(rootDir: string, sourcePath: string): Promise<void> {
   const content = await fs.promises.readFile(sourcePath, "utf-8");
-  const cache = JSON.parse(content) as AnalysisCache;
-  saveCache(rootDir, cache);
+  saveCache(rootDir, parseCacheContent(content));
 }
 
 export function isCacheValid(entry: CacheEntry, currentContent: string): boolean {
-  return entry.hash === getFileHash(currentContent);
+  return Boolean(entry?.hash && entry.moduleRecord) && entry.hash === getFileHash(currentContent);
 }

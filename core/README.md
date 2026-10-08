@@ -208,7 +208,7 @@ await importCache(process.cwd(), "./.optiprune/cache.json");
 
 The cache module also exposes `getFileHash()` and `isCacheValid()` for integrations that need to inspect cache freshness.
 
-On an unchanged workspace, `analyze()` first compares the cached analysis key and inexpensive per-file filesystem metadata (`size` and `mtimeMs`). If both match, Core returns the persisted `AnalysisReport` directly without rereading or hashing source files. If metadata is unavailable or differs, Core falls back to SHA-256 content hashes. During an invalidated run, unchanged files reuse their cached module records, changed files are reparsed, and every file receives a persisted `findings` array, including an empty array for a clean file.
+The cache stores parsed `ModuleRecord` values per source file, keyed by a SHA-256 content hash. Each analysis still rebuilds the graph, plugins, and report, so changes to configuration or plugin behavior cannot return stale findings. Unchanged files reuse their cached AST/module records; changed files are reparsed. Cache misses in compiled builds are parsed through a bounded worker-thread pool, while graph construction and plugin execution remain deterministic on the main thread.
 
 ## Language Server
 
