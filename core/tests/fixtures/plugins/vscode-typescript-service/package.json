@@ -1,0 +1,14 @@
+{
+  "name": "vscode-typescript-service-fixture",
+  "private": true,
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

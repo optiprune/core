@@ -1,0 +1,10 @@
+{
+  "name": "gatsby-content-site-fixture",
+  "private": true,
+  "scripts": { "develop": "gatsby develop", "build": "gatsby build" },
+  "dependencies": {
+    "gatsby": "^5.0.0",
+    "gatsby-plugin-image": "^3.0.0",
+    "gatsby-plugin-manifest": "^5.0.0"
+  }
+}

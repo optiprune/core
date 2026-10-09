@@ -1,0 +1,10 @@
+{
+  "name": "commitlint-husky-workflow-fixture",
+  "private": true,
+  "scripts": { "lint:commits": "commitlint --from HEAD~1" },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "commitlint-plugin-jira": "^2.0.0"
+  }
+}

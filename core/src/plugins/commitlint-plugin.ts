@@ -92,6 +92,13 @@ function isGlobalOrTransientExecution(content: string): boolean {
   );
 }
 
+async function findMatchingFiles(adapter: PluginAdapter, patterns: string[]): Promise<string[]> {
+  if (typeof adapter.findFilesByGlob === "function") {
+    return adapter.findFilesByGlob(patterns);
+  }
+  return adapter.findFiles(patterns);
+}
+
 export const CommitlintPlugin: AnalyzerPlugin = {
   name: "commitlint-plugin",
   version: "1.2.1",
@@ -124,13 +131,13 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    const hookFiles = await adapter.findFiles(HOOK_PATTERNS);
+    const hookFiles = await findMatchingFiles(adapter, HOOK_PATTERNS);
     for (const hookFile of hookFiles) {
       const raw = await readRawFile(adapter, hookFile);
       if (raw && isCommitlintInvocation(raw)) return true;
     }
 
-    const workflowFiles = await adapter.findFiles(WORKFLOW_PATTERNS);
+    const workflowFiles = await findMatchingFiles(adapter, WORKFLOW_PATTERNS);
     for (const workflow of workflowFiles) {
       const raw = await readRawFile(adapter, workflow);
       if (raw.includes("commitlint") || raw.includes("commitlint-github-action")) {
@@ -205,7 +212,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       }
 
       // 4. Git hook configurations
-      const hookFiles = await adapter.findFiles(HOOK_PATTERNS);
+      const hookFiles = await findMatchingFiles(adapter, HOOK_PATTERNS);
       for (const hookFile of hookFiles) {
         const raw = await readRawFile(adapter, hookFile);
         if (isCommitlintInvocation(raw)) {
@@ -218,7 +225,7 @@ export const CommitlintPlugin: AnalyzerPlugin = {
       }
 
       // 5. GitHub Actions workflows
-      const workflowFiles = await adapter.findFiles(WORKFLOW_PATTERNS);
+      const workflowFiles = await findMatchingFiles(adapter, WORKFLOW_PATTERNS);
       for (const workflow of workflowFiles) {
         const raw = await readRawFile(adapter, workflow);
         if (raw.includes("commitlint") || raw.includes("commitlint-github-action")) {

@@ -1,0 +1,6 @@
+{
+  "name": "convex-backend-fixture",
+  "private": true,
+  "scripts": { "dev": "convex dev", "deploy": "convex deploy" },
+  "dependencies": { "convex": "^1.17.0" }
+}
