@@ -84,18 +84,18 @@
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/changesets-plugin.ts"
   },
   {
+    "name": "commitizen-plugin",
+    "version": "current",
+    "category": "Project conventions",
+    "summary": "Project-aware analysis for Commitizen conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/commitizen-plugin.ts"
+  },
+  {
     "name": "commitlint-plugin",
     "version": "current",
     "category": "Project conventions",
     "summary": "Project-aware analysis for Commitlint conventions, configuration, package usage, and reachable source files.",
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/commitlint-plugin.ts"
-  },
-  {
-    "name": "commitzen-plugin",
-    "version": "current",
-    "category": "Project conventions",
-    "summary": "Project-aware analysis for Commitzen conventions, configuration, package usage, and reachable source files.",
-    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/commitzen-plugin.ts"
   },
   {
     "name": "convex-plugin",
@@ -490,11 +490,11 @@
     "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/node-types-plugin.ts"
   },
   {
-    "name": "nodemon-plugin-plugin",
+    "name": "nodemon-plugin",
     "version": "current",
     "category": "Project conventions",
-    "summary": "Project-aware analysis for Nodemon Plugin conventions, configuration, package usage, and reachable source files.",
-    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/nodemon-plugin-plugin.ts"
+    "summary": "Project-aware analysis for Nodemon conventions, configuration, package usage, and reachable source files.",
+    "source": "https://github.com/optiprune/core/blob/main/core/src/plugins/nodemon-plugin.ts"
   },
   {
     "name": "npm-package-json-lint-plugin",
