@@ -62,3 +62,7 @@ docs/dist/
 
 # Custom Local Files
 /*.patch
+
+# WebContainer integration test artifacts
+webcontainer-tests/fixture/
+webcontainer-tests/client.bundle.js

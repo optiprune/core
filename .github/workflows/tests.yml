@@ -36,12 +36,8 @@ jobs:
         run: npm run test --workspace @optiprune/language-server
 
   webcontainer:
-    name: Validate (StackBlitz/WebContainer WASM)
+    name: Validate (WebContainer)
     runs-on: ubuntu-latest
-    env:
-      # StackBlitz sets this in WebContainers. This exercises the same runtime
-      # branch in CI without requiring a hosted browser session.
-      STACKBLITZ: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,5 +46,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Run Core Tests with WASM (Webcontainer)
-        run: npm run test -- core
+      - run: npx playwright install --with-deps chromium
+      - name: Run @webcontainer/api integration test
+        run: npm run test:webcontainer

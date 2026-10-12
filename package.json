@@ -57,12 +57,15 @@
     "prepublishOnly": "npm run build",
     "test:ci": "vitest run --no-file-parallelism --coverage && npm run test --workspace @optiprune/language-server --coverage",
     "test": "vitest run --no-file-parallelism --coverage",
+    "test:webcontainer": "node webcontainer-tests/run.mjs",
     "format:check": "oxfmt --ignore-path .oxfmtignore --check",
     "format": "oxfmt --ignore-path .oxfmtignore"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@types/node": "^22.15.3",
     "@vitest/coverage-v8": "^3.2.7",
+    "@webcontainer/api": "^1.6.4",
     "oxfmt": "^0.72.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.7"
@@ -88,5 +91,10 @@
     "@rollup/rollup-linux-x64-gnu": "^4.34.0",
     "@rollup/rollup-win32-arm64-msvc": "^4.34.0",
     "@rollup/rollup-win32-x64-msvc": "^4.34.0"
+  },
+  "overrides": {
+    "vitest": {
+      "tinypool": "^2.1.2"
+    }
   }
 }

@@ -1284,6 +1284,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     modules: [...modules.values()].map((module) => ({
       path: relativeDisplayPath(rootDir, module.id),
       parseStatus: module.parseStatus,
+      parserBackend: module.parserBackend,
       parseDiagnostics: module.parseDiagnostics.map((diagnostic) => ({
         ...diagnostic,
         file: relativeDisplayPath(rootDir, diagnostic.file),
