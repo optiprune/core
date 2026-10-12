@@ -34,7 +34,9 @@ export function isMuslLinux(): boolean {
       | undefined;
     if (report?.header?.glibcVersionRuntime) return false;
     if (Array.isArray(report?.sharedObjects)) {
-      return report.sharedObjects.some((lib) => lib.includes("ld-musl-") || lib.includes("libc.musl-"));
+      return report.sharedObjects.some(
+        (lib) => lib.includes("ld-musl-") || lib.includes("libc.musl-"),
+      );
     }
   } catch {
     return false;
@@ -46,6 +48,7 @@ export function isNativePlatformSupported(): boolean {
   if (isRunningInWebContainer()) return false;
 
   const platformKey = `${process.platform}-${process.arch}`;
-  const expectedBinding = process.platform === "linux" ? `${platformKey}-${isMuslLinux() ? "musl" : "gnu"}` : platformKey;
+  const expectedBinding =
+    process.platform === "linux" ? `${platformKey}-${isMuslLinux() ? "musl" : "gnu"}` : platformKey;
   return getNativeBindingNames().some((binding) => binding === expectedBinding);
 }
