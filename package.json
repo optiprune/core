@@ -94,7 +94,8 @@
   },
   "overrides": {
     "vitest": {
-      "tinypool": "^2.1.2"
+      "tinypool": "^2.1.2",
+      "source-map-js": "^1.2.2"
     }
   }
 }
