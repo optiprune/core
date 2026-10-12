@@ -92,9 +92,10 @@
     "jsonc-parser": "^3.3.1",
     "pathe": "2.0.3",
     "quickjs-emscripten": "^0.32.0",
-    "yuku-ast": "^0.10.2",
-    "yuku-codegen": "^0.10.2",
-    "yuku-parser": "^0.10.2",
+    "yuku-ast": "^0.19.0",
+    "yuku-codegen": "^0.19.0",
+    "yuku-core": "^0.19.0",
+    "yuku-parser": "^0.19.0",
     "z3-solver": "^5.0.0"
   },
   "devDependencies": {
@@ -102,17 +103,8 @@
     "oxfmt": "^0.72.0",
     "typescript": "^5.8.3"
   },
-  "peerDependencies": {
-    "@yuku-codegen/wasm": "^0.8.7",
-    "@yuku-parser/wasm": "^0.8.7"
-  },
-  "peerDependenciesMeta": {
-    "@yuku-parser/wasm": {
-      "optional": true
-    },
-    "@yuku-codegen/wasm": {
-      "optional": true
-    }
+  "optionalDependencies": {
+    "@yuku-core/wasm": "^0.19.0"
   },
   "engines": {
     "node": ">=20.0.0"

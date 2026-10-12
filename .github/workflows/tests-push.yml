@@ -50,3 +50,21 @@ jobs:
           name: codecov-${{ matrix.os }}-node-${{ matrix.node-version }}-language-server
           fail_ci_if_error: false
         continue-on-error: true
+
+  webcontainer:
+    name: Validate (StackBlitz/WebContainer WASM)
+    runs-on: ubuntu-latest
+    env:
+      # StackBlitz sets this in WebContainers. This exercises the same runtime
+      # branch in CI without requiring a hosted browser session.
+      STACKBLITZ: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Run Core Tests with WASM (Webcontainer)
+        run: npm run test -- core

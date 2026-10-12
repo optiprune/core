@@ -1,4 +1,5 @@
 import { isIgnored } from "./fs-utils.js";
+import { isNativePlatformSupported } from "./platform.js";
 import path from "pathe";
 
 type ParserOptions = {
@@ -19,7 +20,7 @@ type ParserResult = {
 };
 
 type ParserModule = {
-  parse: (source: string, options: ParserOptions) => ParserResult;
+  parse: (source: string, options: ParserOptions & { core?: unknown }) => ParserResult;
   langFromPath: (path: string) => string;
   sourceTypeFromPath: (path: string) => string;
 };
@@ -27,23 +28,47 @@ type ParserModule = {
 async function loadParserBackend(): Promise<
   (ParserModule & { kind: Exclude<ParserBackendName, "regex"> }) | undefined
 > {
+  const errors: unknown[] = [];
+  let parser: ParserModule;
   try {
-    return { ...((await import("yuku-parser")) as unknown as ParserModule), kind: "node" };
-  } catch (nativeError) {
+    parser = (await import("yuku-parser")) as unknown as ParserModule;
+  } catch (error) {
+    parserBackendLoadError = new Error("Yuku parser is not installed.", { cause: error });
+    return undefined;
+  }
+
+  if (isNativePlatformSupported()) {
     try {
+      // Verify that the optional platform-specific .node package is really
+      // present, rather than merely listed in yuku-core's package metadata.
+      const { load } = await import("yuku-core");
+      const core = load();
       return {
-        ...((await import(/* @vite-ignore */ "@yuku-parser/wasm")) as unknown as ParserModule),
-        kind: "wasm",
+        ...parser,
+        parse: (source, options) => parser.parse(source, { ...options, core }),
+        kind: "node",
       };
-    } catch (wasmError) {
-      // Preserve both load errors for a useful diagnostic.
-      parserBackendLoadError = new Error(
-        "Yuku could not load its native .node parser and @yuku-parser/wasm is not installed. " +
-          "Install the optional peer dependency with `npm install @yuku-parser/wasm` to run in this environment.",
-        { cause: new AggregateError([nativeError, wasmError]) },
-      );
-      return undefined;
+    } catch (error) {
+      errors.push(error);
     }
+  }
+
+  try {
+    const { load } = await import(/* @vite-ignore */ "@yuku-core/wasm");
+    const core = await load();
+    return {
+      ...parser,
+      parse: (source, options) => parser.parse(source, { ...options, core }),
+      kind: "wasm",
+    };
+  } catch (wasmError) {
+    errors.push(wasmError);
+    parserBackendLoadError = new Error(
+      "Yuku could not load a supported native .node binding or @yuku-core/wasm. " +
+        "Install `@yuku-core/wasm` to run in this environment.",
+      { cause: new AggregateError(errors) },
+    );
+    return undefined;
   }
 }
 

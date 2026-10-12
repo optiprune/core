@@ -8,20 +8,16 @@ let codegenLoadError: Error | undefined;
 
 async function loadCodegenBackend(): Promise<CodegenBackend> {
   try {
-    const native = await import("yuku-codegen");
-    return { print: native.print as CodegenBackend["print"], kind: "node" };
-  } catch (nativeError) {
-    try {
-      const wasm = await import(/* @vite-ignore */ "@yuku-codegen/wasm");
-      return { print: wasm.print as CodegenBackend["print"], kind: "wasm" };
-    } catch (wasmError) {
-      codegenLoadError = new Error(
-        "Yuku could not load its native yuku-codegen binding and @yuku-codegen/wasm is not installed. " +
-          "Install the optional peer dependency with `npm install @yuku-codegen/wasm` to instrument code in this environment.",
-        { cause: new AggregateError([nativeError, wasmError]) },
-      );
-      throw codegenLoadError;
-    }
+    const native = (await import("yuku-codegen")) as unknown as {
+      generate?: (program: any) => string | { code?: string };
+      print?: (program: any) => string | { code?: string };
+    };
+    const generate = native.generate ?? native.print;
+    if (!generate) throw new Error("yuku-codegen does not export generate or print");
+    return { print: generate, kind: "node" };
+  } catch (error) {
+    codegenLoadError = new Error("Yuku codegen could not be loaded.", { cause: error });
+    throw codegenLoadError;
   }
 }
 

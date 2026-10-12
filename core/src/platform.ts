@@ -46,9 +46,15 @@ export function isMuslLinux(): boolean {
 
 export function isNativePlatformSupported(): boolean {
   if (isRunningInWebContainer()) return false;
+  return getNativeBindingNames().includes(nativeBindingName());
+}
 
-  const platformKey = `${process.platform}-${process.arch}`;
-  const expectedBinding =
-    process.platform === "linux" ? `${platformKey}-${isMuslLinux() ? "musl" : "gnu"}` : platformKey;
-  return getNativeBindingNames().some((binding) => binding === expectedBinding);
+/** Return Yuku's optional binding key for a Node platform tuple. */
+export function nativeBindingName(
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
+  musl = isMuslLinux(),
+): string {
+  const platformKey = `${platform}-${arch}`;
+  return platform === "linux" ? `${platformKey}-${musl ? "musl" : "gnu"}` : platformKey;
 }
