@@ -1,4 +1,6 @@
 # socket.yml
-project:
-  ignore:
-    - "tests/fixtures/**"
+version: 2
+projectIgnorePaths:
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/fixtures/**"
