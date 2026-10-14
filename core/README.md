@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Fast, focused filesystem utilities for Node.js.</strong><br>
-  Iterative traversal, glob-aware search, and cross-platform path helpers — with no runtime dependencies.
+  <strong>Fast, focused Static Code Analyzer for Node.js.</strong><br>
+  Powered with Z3-solver, WASM Sandbox and yuku-parser
 </p>
 
 <p align="center">
