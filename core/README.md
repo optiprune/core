@@ -1,8 +1,21 @@
-![OptiPrune analyzer animation](https://github.com/optiprune/core/blob/main/animation.svg)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/optiprune/core/refs/heads/main/animation.svg" alt="OptiPrune" width="520">
+</p>
 
-[![npm version](https://img.shields.io/npm/v/%40optiprune%2Fcore?label=%40optiprune%2Fcore)](https://www.npmjs.com/package/@optiprune/core)[![npm version](https://img.shields.io/npm/v/%40optiprune%2Fcli?label=%40optiprune%2Fcli)](https://www.npmjs.com/package/@optiprune/cli)[![Tests](https://img.shields.io/github/actions/workflow/status/optiprune/core/tests-push.yml?branch=main&label=tests)](https://github.com/optiprune/core/actions/workflows/tests-push.yml)[![License](https://img.shields.io/github/license/optiprune/core)](./LICENSE)[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+<p align="center">
+  <strong>Fast, focused filesystem utilities for Node.js.</strong><br>
+  Iterative traversal, glob-aware search, and cross-platform path helpers — with no runtime dependencies.
+</p>
 
-[Preview](https://github.com/optiprune/core/blob/main/demo.gif)
+<p align="center">
+  <a href="https://www.npmjs.com/package/@optiprune/core"><img src="https://img.shields.io/npm/v/%40optiprune%2Fcore?label=%40optiprune%2Fcore" alt="Core Package"></a>
+  <a href="https://www.npmjs.com/package/@optiprune/cli"><img src="https://img.shields.io/npm/v/%40optiprune%2Fcli?label=%40optiprune%2Fcli" alt="CLI Package"></a>
+  <a href="https://github.com/optiprune/core/actions/workflows/tests-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/optiprune/core/tests-push.yml?branch=main&label=tests" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea043" alt="MIT License"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white" alt="Node Version"></a>
+</p>
+
+![Preview](https://github.com/optiprune/core/blob/main/demo.gif)
 
 # @optiprune/core
 
