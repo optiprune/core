@@ -256,11 +256,14 @@ function containsUnlabeledBreak(node: any): boolean {
     node.type === "ForStatement" ||
     node.type === "ForInStatement" ||
     node.type === "ForOfStatement"
-  ) return false;
+  )
+    return false;
   if (node.type === "BreakStatement" && !node.label) return true;
   return Object.entries(node).some(([key, value]) => {
     if (key === "loc" || key === "parent") return false;
-    return Array.isArray(value) ? value.some(containsUnlabeledBreak) : containsUnlabeledBreak(value);
+    return Array.isArray(value)
+      ? value.some(containsUnlabeledBreak)
+      : containsUnlabeledBreak(value);
   });
 }
 
@@ -299,11 +302,21 @@ async function analyzeSsaStatements(
         let value = right;
         if (assignment.operator !== "=") {
           const previous = state.bindings.get(assignment.left.name);
-          if (isSimpleArithmeticAssignment(assignment.operator) && previous && right &&
-              z3.isArith(previous) && z3.isArith(right)) {
-            value = assignment.operator === "+=" ? previous.add(right) :
-              assignment.operator === "-=" ? previous.sub(right) :
-                assignment.operator === "*=" ? previous.mul(right) : previous.div(right);
+          if (
+            isSimpleArithmeticAssignment(assignment.operator) &&
+            previous &&
+            right &&
+            z3.isArith(previous) &&
+            z3.isArith(right)
+          ) {
+            value =
+              assignment.operator === "+="
+                ? previous.add(right)
+                : assignment.operator === "-="
+                  ? previous.sub(right)
+                  : assignment.operator === "*="
+                    ? previous.mul(right)
+                    : previous.div(right);
           } else {
             value = null;
           }
@@ -436,22 +449,40 @@ async function analyzeSsaStatements(
     }
     if (stmt.type === "TryStatement") {
       await analyzeSsaStatements(
-        stmt.block?.body ?? [], z3, solver, module, findings,
-        pathConditions, context, cloneSsaState(state),
+        stmt.block?.body ?? [],
+        z3,
+        solver,
+        module,
+        findings,
+        pathConditions,
+        context,
+        cloneSsaState(state),
       );
       // A throw may occur after any try mutation. Catch and finally must not
       // inherit the pre-try bindings, and their sibling mutations must not leak.
       invalidateState(state, z3);
       if (stmt.handler?.body) {
         await analyzeSsaStatements(
-          stmt.handler.body.body ?? [], z3, solver, module, findings,
-          pathConditions, context, cloneSsaState(state),
+          stmt.handler.body.body ?? [],
+          z3,
+          solver,
+          module,
+          findings,
+          pathConditions,
+          context,
+          cloneSsaState(state),
         );
       }
       if (stmt.finalizer) {
         await analyzeSsaStatements(
-          stmt.finalizer.body ?? [], z3, solver, module, findings,
-          pathConditions, context, cloneSsaState(state),
+          stmt.finalizer.body ?? [],
+          z3,
+          solver,
+          module,
+          findings,
+          pathConditions,
+          context,
+          cloneSsaState(state),
         );
       }
       invalidateState(state, z3);
@@ -462,8 +493,14 @@ async function analyzeSsaStatements(
       for (const switchCase of stmt.cases ?? []) {
         const caseState = cloneSsaState(entryState);
         await analyzeSsaStatements(
-          switchCase.consequent ?? [], z3, solver, module, findings,
-          pathConditions, context, caseState,
+          switchCase.consequent ?? [],
+          z3,
+          solver,
+          module,
+          findings,
+          pathConditions,
+          context,
+          caseState,
         );
         const lastStmt = switchCase.consequent?.[switchCase.consequent.length - 1];
         const endsWithBreakOrTerm =
@@ -554,15 +591,7 @@ async function analyzeSsaIterableLoop(
   if (reachable) {
     // A break exits the loop but continues at the statement after it. Its
     // writes therefore belong to the post-loop merge, unlike return/throw.
-    mergeSsaStates(
-      state,
-      bodyState,
-      state,
-      loopMayExecute,
-      z3,
-      !branchTerminates(node.body),
-      true,
-    );
+    mergeSsaStates(state, bodyState, state, loopMayExecute, z3, !branchTerminates(node.body), true);
   } else {
     // A symbolic loop guard should be satisfiable.  If an analyzer backend
     // rejects the body, invalidate its writes rather than retaining stale
@@ -1182,8 +1211,10 @@ export function encodePredicate(
   if (node.type === "AwaitExpression") {
     const awaited = encodePredicate(node.argument, z3, solver, module, bindings);
     if (awaited) return awaited;
-    const id = typeof node.start === "number" ? node.start :
-      `${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`;
+    const id =
+      typeof node.start === "number"
+        ? node.start
+        : `${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`;
     return z3.Bool.const(`unknown_await_${id}`);
   }
 
@@ -1197,8 +1228,10 @@ export function encodePredicate(
       callee.property.type === "Identifier" &&
       callee.property.name === "random"
     ) {
-      const id = typeof node.start === "number" ? node.start :
-        `${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`;
+      const id =
+        typeof node.start === "number"
+          ? node.start
+          : `${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`;
       const randVar = z3.Real.const(`math_random_${id}`);
       if (solver) {
         solver.add(randVar.ge(z3.Real.val(0)));
