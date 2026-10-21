@@ -3,7 +3,7 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 # Force these files to use lf
-.{ts,tsx,js,jsx,mjs,cjs,json,md,html,css} text eol=lf
+*.{ts,tsx,js,jsx,mjs,cjs,json,md,html,css} text eol=lf
 # Keep the root README symlink target bytes unchanged on Windows.
 /README.md -text
 
