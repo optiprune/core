@@ -60,6 +60,7 @@ export const DEFAULT_IGNORE = [
   "**/.next/**",
   "**/.turbo/**",
   "**/.cache/**",
+  "**/.optiprune/**",
   "**/vendor/**",
 ];
 
@@ -615,7 +616,7 @@ async function expandLocalScriptGlob(rootDir: string, pattern: string): Promise<
       return;
     }
     for (const entry of entries) {
-      if (["node_modules", ".git", "dist", "build"].includes(entry.name)) continue;
+      if (["node_modules", ".git", "dist", "build", ".optiprune"].includes(entry.name)) continue;
       const absolute = join(directory, entry.name);
       if (entry.isDirectory()) await visit(absolute);
       else if (entry.isFile()) {
@@ -1195,6 +1196,7 @@ export async function ingestTsConfigPaths(
       ".next",
       ".turbo",
       ".cache",
+      ".optiprune",
     ]);
     const discovered: string[] = [];
 

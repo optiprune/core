@@ -132,7 +132,10 @@ type SsaState = {
 const MAX_LOOP_UNROLL = 4;
 
 function cloneSsaState(state: SsaState): SsaState {
-  return { bindings: new Map(state.bindings), versions: new Map(state.versions) };
+  // Bindings are path-local, but symbol versions belong to the whole solver
+  // analysis. Sharing the counter prevents sibling clones from generating the
+  // same name_version constant in a common Z3 context.
+  return { bindings: new Map(state.bindings), versions: state.versions };
 }
 
 function nextSsaValue(name: string, value: any, z3: any, state: SsaState): any {
@@ -233,6 +236,34 @@ function isSyntacticallyFalse(node: any): boolean {
   );
 }
 
+function invalidateState(state: SsaState, z3: any): void {
+  for (const name of state.bindings.keys()) nextSsaValue(name, null, z3, state);
+}
+
+function isSimpleArithmeticAssignment(operator: string): boolean {
+  return operator === "+=" || operator === "-=" || operator === "*=";
+}
+
+function containsUnlabeledBreak(node: any): boolean {
+  if (!node || typeof node !== "object") return false;
+  if (
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "ArrowFunctionExpression" ||
+    node.type === "SwitchStatement" ||
+    node.type === "WhileStatement" ||
+    node.type === "DoWhileStatement" ||
+    node.type === "ForStatement" ||
+    node.type === "ForInStatement" ||
+    node.type === "ForOfStatement"
+  ) return false;
+  if (node.type === "BreakStatement" && !node.label) return true;
+  return Object.entries(node).some(([key, value]) => {
+    if (key === "loc" || key === "parent") return false;
+    return Array.isArray(value) ? value.some(containsUnlabeledBreak) : containsUnlabeledBreak(value);
+  });
+}
+
 function asBooleanPredicate(value: any, z3: any): any {
   if (value && z3.isBool(value)) return value;
   if (value && z3.isArith(value)) return z3.Not(value.eq(z3.Real.val(0)));
@@ -264,7 +295,19 @@ async function analyzeSsaStatements(
     if (stmt.type === "ExpressionStatement" && stmt.expression?.type === "AssignmentExpression") {
       const assignment = stmt.expression;
       if (assignment.left?.type === "Identifier") {
-        const value = encodePredicate(assignment.right, z3, solver, module, state.bindings);
+        const right = encodePredicate(assignment.right, z3, solver, module, state.bindings);
+        let value = right;
+        if (assignment.operator !== "=") {
+          const previous = state.bindings.get(assignment.left.name);
+          if (isSimpleArithmeticAssignment(assignment.operator) && previous && right &&
+              z3.isArith(previous) && z3.isArith(right)) {
+            value = assignment.operator === "+=" ? previous.add(right) :
+              assignment.operator === "-=" ? previous.sub(right) :
+                assignment.operator === "*=" ? previous.mul(right) : previous.div(right);
+          } else {
+            value = null;
+          }
+        }
         nextSsaValue(assignment.left.name, value, z3, state);
       }
       continue;
@@ -288,7 +331,12 @@ async function analyzeSsaStatements(
         encodePredicate(stmt.test, z3, solver, module, state.bindings),
         z3,
       );
-      if (!predicate) continue;
+      if (!predicate) {
+        // Unsupported tests may execute and mutate bindings; retaining the
+        // pre-branch values would turn uncertainty into a false proof.
+        invalidateState(state, z3);
+        continue;
+      }
       const thenState = cloneSsaState(state);
       const elseState = cloneSsaState(state);
       const thenReachable = await analyzeSsaBranch(
@@ -386,7 +434,56 @@ async function analyzeSsaStatements(
       );
       continue;
     }
+    if (stmt.type === "TryStatement") {
+      await analyzeSsaStatements(
+        stmt.block?.body ?? [], z3, solver, module, findings,
+        pathConditions, context, cloneSsaState(state),
+      );
+      // A throw may occur after any try mutation. Catch and finally must not
+      // inherit the pre-try bindings, and their sibling mutations must not leak.
+      invalidateState(state, z3);
+      if (stmt.handler?.body) {
+        await analyzeSsaStatements(
+          stmt.handler.body.body ?? [], z3, solver, module, findings,
+          pathConditions, context, cloneSsaState(state),
+        );
+      }
+      if (stmt.finalizer) {
+        await analyzeSsaStatements(
+          stmt.finalizer.body ?? [], z3, solver, module, findings,
+          pathConditions, context, cloneSsaState(state),
+        );
+      }
+      invalidateState(state, z3);
+      continue;
+    }
+    if (stmt.type === "SwitchStatement") {
+      let entryState = cloneSsaState(state);
+      for (const switchCase of stmt.cases ?? []) {
+        const caseState = cloneSsaState(entryState);
+        await analyzeSsaStatements(
+          switchCase.consequent ?? [], z3, solver, module, findings,
+          pathConditions, context, caseState,
+        );
+        const lastStmt = switchCase.consequent?.[switchCase.consequent.length - 1];
+        const endsWithBreakOrTerm =
+          lastStmt && (lastStmt.type === "BreakStatement" || isTerminalStatement(lastStmt));
+        if (!endsWithBreakOrTerm) invalidateState(entryState, z3);
+      }
+      invalidateState(state, z3);
+      continue;
+    }
     if (stmt.type === "BlockStatement") {
+      const shadowed = new Map<string, any>();
+      for (const child of stmt.body ?? []) {
+        if (child.type === "VariableDeclaration" && child.kind !== "var") {
+          for (const declaration of child.declarations ?? []) {
+            if (declaration.id?.type === "Identifier" && state.bindings.has(declaration.id.name)) {
+              shadowed.set(declaration.id.name, state.bindings.get(declaration.id.name));
+            }
+          }
+        }
+      }
       await analyzeSsaStatements(
         stmt.body ?? [],
         z3,
@@ -397,6 +494,9 @@ async function analyzeSsaStatements(
         context,
         state,
       );
+      for (const [name, value] of shadowed) {
+        nextSsaValue(name, value, z3, state);
+      }
     }
     if (isTerminalStatement(stmt)) break;
   }
@@ -445,8 +545,24 @@ async function analyzeSsaIterableLoop(
     context,
     bodyState,
   );
+  if (containsUnlabeledBreak(node.body)) {
+    // This executor has no separate break-exit state yet. Discard writes
+    // rather than turning one break path into a proof about the whole loop.
+    invalidateState(state, z3);
+    return;
+  }
   if (reachable) {
-    mergeSsaStates(state, bodyState, state, loopMayExecute, z3, true, true);
+    // A break exits the loop but continues at the statement after it. Its
+    // writes therefore belong to the post-loop merge, unlike return/throw.
+    mergeSsaStates(
+      state,
+      bodyState,
+      state,
+      loopMayExecute,
+      z3,
+      !branchTerminates(node.body),
+      true,
+    );
   } else {
     // A symbolic loop guard should be satisfiable.  If an analyzer backend
     // rejects the body, invalidate its writes rather than retaining stale
@@ -503,7 +619,9 @@ async function analyzeSsaLoop(
   state: SsaState,
   update?: any,
 ): Promise<void> {
+  const preLoop = cloneSsaState(state);
   let current = cloneSsaState(state);
+  let naturalExit = false;
   const isDoWhile = node.type === "DoWhileStatement";
   for (let iteration = 0; iteration < MAX_LOOP_UNROLL; iteration++) {
     // A do-while executes its body once before evaluating the test.
@@ -525,7 +643,10 @@ async function analyzeSsaLoop(
       // A standard while tests its body condition at iteration 0. A do-while
       // performs its first test only after the initial body execution.
       const isFirstTest = isDoWhile ? iteration === 1 : iteration === 0;
-      if (!isFirstTest || (isDoWhile && isSyntacticallyFalse(node.test))) break;
+      if (!isFirstTest || (isDoWhile && isSyntacticallyFalse(node.test))) {
+        naturalExit = true;
+        break;
+      }
       findings.push({
         rule: "constant-condition",
         severity: "warning",
@@ -557,6 +678,10 @@ async function analyzeSsaLoop(
       context,
       bodyState,
     );
+    if (containsUnlabeledBreak(node.body)) {
+      invalidateState(state, z3);
+      return;
+    }
     if (!reachable) {
       for (let index = findingStart; index < findings.length; index++) {
         const finding = findings[index];
@@ -600,11 +725,23 @@ async function analyzeSsaLoop(
     mergeSsaStates(next, bodyState, current, predicate, z3, true, true);
     current = next;
   }
-  // State after the bounded loop is the conservative header state.  We do not
-  // report the bound as an error; only solver-proven infeasible bodies above
-  // produce findings.
-  state.bindings = current.bindings;
-  state.versions = current.versions;
+  // A bounded symbolic unroll is not a proof of the runtime's final value.
+  // Keep a state only when the solver proved a natural exit; otherwise restore
+  // the pre-loop state and invalidate bindings changed by the loop.
+  if (naturalExit) {
+    state.bindings = current.bindings;
+    state.versions = current.versions;
+    return;
+  }
+  state.bindings = new Map(preLoop.bindings);
+  // Versions must remain monotonic: loop symbols may already exist in the
+  // solver, so rewinding would allow later assignments to reuse their names.
+  state.versions = new Map(current.versions);
+  for (const name of new Set([...preLoop.bindings.keys(), ...current.bindings.keys()])) {
+    if (preLoop.bindings.get(name) !== current.bindings.get(name)) {
+      nextSsaValue(name, null, z3, state);
+    }
+  }
 }
 
 async function analyzeSsaBranch(
@@ -989,6 +1126,8 @@ export function encodePredicate(
   }
 
   if (node.type === "Identifier") {
+    // NaN is not reflexive in JavaScript and is not representable by Z3 Real.
+    if (node.name === "NaN") return null;
     // Identifier binding is scope-sensitive. Without a lexical resolver, treating
     // a same-named function declaration as a constant is unsound under shadowing,
     // parameters, reassignment, and block scope. Keep the value symbolic instead.
@@ -1043,9 +1182,9 @@ export function encodePredicate(
   if (node.type === "AwaitExpression") {
     const awaited = encodePredicate(node.argument, z3, solver, module, bindings);
     if (awaited) return awaited;
-    return z3.Bool.const(
-      `unknown_await_${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`,
-    );
+    const id = typeof node.start === "number" ? node.start :
+      `${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`;
+    return z3.Bool.const(`unknown_await_${id}`);
   }
 
   if (node.type === "CallExpression") {
@@ -1058,9 +1197,9 @@ export function encodePredicate(
       callee.property.type === "Identifier" &&
       callee.property.name === "random"
     ) {
-      const randVar = z3.Real.const(
-        `math_random_${node.loc?.start.line}_${node.loc?.start.column}`,
-      );
+      const id = typeof node.start === "number" ? node.start :
+        `${node.loc?.start.line ?? 0}_${node.loc?.start.column ?? 0}`;
+      const randVar = z3.Real.const(`math_random_${id}`);
       if (solver) {
         solver.add(randVar.ge(z3.Real.val(0)));
         solver.add(randVar.lt(z3.Real.val(1)));

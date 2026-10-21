@@ -192,6 +192,10 @@ function evaluateStaticCondition(node: any): boolean | undefined {
   if (node.type === "Literal") {
     return Boolean(node.value);
   }
+  if (node.type === "BooleanLiteral") return Boolean(node.value);
+  if (node.type === "NumericLiteral" || node.type === "StringLiteral") {
+    return Boolean(node.value);
+  }
 
   if (node.type === "UnaryExpression" && node.operator === "!") {
     const val = evaluateStaticCondition(node.argument);
@@ -204,8 +208,15 @@ function evaluateStaticCondition(node: any): boolean | undefined {
     const rightLit = getLiteralValue(node.right);
 
     if (leftLit !== undefined && rightLit !== undefined) {
-      if (node.operator === "===" || node.operator === "==") return leftLit === rightLit;
-      if (node.operator === "!==" || node.operator === "!=") return leftLit !== rightLit;
+      if (node.operator === "===") return leftLit === rightLit;
+      if (node.operator === "!==") return leftLit !== rightLit;
+      // Abstract equality must not be implemented with strict equality.
+      if (node.operator === "==") return leftLit == rightLit;
+      if (node.operator === "!=") return leftLit != rightLit;
+      if (node.operator === ">") return leftLit > rightLit;
+      if (node.operator === ">=") return leftLit >= rightLit;
+      if (node.operator === "<") return leftLit < rightLit;
+      if (node.operator === "<=") return leftLit <= rightLit;
     }
   }
 
@@ -222,6 +233,14 @@ function getLiteralValue(node: any): any {
 
   // Handle BigInt literals if present in ESTree (e.g., 1n)
   if (node.type === "BigIntLiteral") {
+    return node.value;
+  }
+
+  if (
+    node.type === "BooleanLiteral" ||
+    node.type === "NumericLiteral" ||
+    node.type === "StringLiteral"
+  ) {
     return node.value;
   }
 

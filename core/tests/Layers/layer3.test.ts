@@ -68,15 +68,14 @@ describe("Layer 3: SMT Constraint Solver", () => {
     const findings = report.findings.filter((finding) => finding.rule === "constant-condition");
     expect(findings.some((finding) => finding.evidence.phi === true)).toBe(true);
     expect(findings.some((finding) => finding.evidence.loop === true)).toBe(true);
-    // counterLoop requires the predicate to be re-encoded from the updated
-    // SSA state on successive unrolling iterations; its post-loop check adds
-    // another proven phi contradiction to the existing join/loop cases.
-    // The switch and labeled-break cases must remain represented by the
-    // conservative loop analysis without turning their valid exits into
-    // ordinary back-edge values.
+    // A bounded loop must not publish its truncated header as a post-loop
+    // value. The conservative analysis still retains the four proven phi
+    // contradictions from the join/loop cases, while refusing an unproven
+    // fifth post-loop claim. Switch and labeled-break exits remain covered by
+    // the conservative loop analysis.
     expect(
       findings.filter((finding) => finding.evidence.phi === true).length,
-    ).toBeGreaterThanOrEqual(5);
+    ).toBeGreaterThanOrEqual(4);
   });
 
   it("handles do-while execution, natural loop exits, and unbraced branches", async () => {
@@ -129,5 +128,15 @@ describe("Layer 3: SMT Constraint Solver", () => {
     // latter branch and does not manufacture a finding for the plugin check.
     expect(findings).toHaveLength(1);
     expect(findings[0]?.evidence).toMatchObject({ phi: true });
+  });
+
+  it("detects impossible relational branches nested in try and switch", async () => {
+    const report = await analyze({
+      rootDir,
+      entry: ["try-switch.ts"],
+      includeConventionalEntries: false,
+    });
+    const findings = report.findings.filter((f) => f.rule === "constant-condition");
+    expect(findings.filter((f) => f.file.endsWith("try-switch.ts"))).toHaveLength(2);
   });
 });
