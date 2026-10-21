@@ -1,6 +1,6 @@
 import path from "pathe";
 import fs from "node:fs";
-import fg from "fast-glob";
+import { glob } from "tinyglobby";
 import * as yaml from "js-yaml";
 import { normalizeAbsolute, normalizeCanonicalPath, readJsonFile } from "./fs-utils.js";
 import type { WorkspacePackage, MonorepoGraph } from "./types.js";
@@ -78,18 +78,24 @@ export async function buildMonorepoTopology(
   }
 
   // 3. Find all package.json files matching the globs
-  let manifestFiles = await fg(
+  let manifestFiles = await glob(
     (uniquePackageGlobs.length > 0 ? uniquePackageGlobs : packageGlobs).map((g) =>
       path.posix.join(g, "package.json"),
     ),
-    { cwd: absoluteRoot, absolute: true, ignore: ["**/node_modules/**", ...discoveryIgnoreGlobs] },
+    {
+      cwd: absoluteRoot,
+      absolute: true,
+      expandDirectories: false,
+      ignore: ["**/node_modules/**", ...discoveryIgnoreGlobs],
+    },
   );
 
   // Auto-discovery: If no packages found via standard globs, search for any package.json
   if (manifestFiles.length === 0) {
-    manifestFiles = await fg("**/package.json", {
+    manifestFiles = await glob("**/package.json", {
       cwd: absoluteRoot,
       absolute: true,
+      expandDirectories: false,
       ignore: ["**/node_modules/**", "package.json", ...discoveryIgnoreGlobs],
     });
   }
