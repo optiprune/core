@@ -2,6 +2,20 @@ import type { AnalysisContext, Finding, ModuleRecord } from "./types.js";
 import { walkAst } from "./parser.js";
 import { instrumentCode } from "./instrument.js";
 
+// Initializing z3-solver creates a WebAssembly runtime and its linear memory.
+// Keep that runtime shared across analyze() calls; creating a new one for every
+// project can exhaust WebAssembly memory in long-running test/CLI processes.
+let z3ContextPromise: Promise<any> | undefined;
+
+async function getZ3Context(): Promise<any> {
+  z3ContextPromise ??= (async () => {
+    const { init } = await import("z3-solver");
+    const { Context } = await init();
+    return Context("main");
+  })();
+  return z3ContextPromise;
+}
+
 /**
  * Layer 3: SMT Constraint Solver
  * Uses Z3 to prove path unreachability in complex logical branches.
@@ -29,9 +43,7 @@ export async function analyzeLayer3(context: AnalysisContext): Promise<Finding[]
 
   let z3: any;
   try {
-    const { init } = await import("z3-solver");
-    const { Context } = await init();
-    z3 = Context("main");
+    z3 = await getZ3Context();
   } catch (e) {
     console.warn(
       `[Layer 3] Failed to initialize Z3 solver: ${e instanceof Error ? e.message : String(e)}`,
