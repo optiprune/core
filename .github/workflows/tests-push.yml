@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      debug:
+        description: "Enable OptiPrune debug output and unsilence test console logs"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test:
@@ -14,6 +20,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [20, 22]
     name: Validate (${{ matrix.os }}, Node ${{ matrix.node-version }})
+    env:
+      OPTIPRUNE_DEBUG: ${{ inputs.debug && '1' || '0' }}
+      OPTIPRUNE_TEST_QUIET: ${{ inputs.debug && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
 
