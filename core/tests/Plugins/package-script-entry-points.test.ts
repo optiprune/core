@@ -80,6 +80,118 @@ describe("package script entry points", () => {
     expect(report.findings.some((finding) => finding.rule === "missing-script-target")).toBe(false);
   });
 
+  it("retains files bundled by a script and accepts workspace-owned root tooling dependencies", async () => {
+    await fs.mkdir(path.join(fixtureRoot, "scripts"), { recursive: true });
+    await fs.mkdir(path.join(fixtureRoot, "packages", "core"), { recursive: true });
+    await fs.mkdir(path.join(fixtureRoot, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify(
+        {
+          name: "script-bundled-monorepo",
+          private: true,
+          workspaces: ["packages/*"],
+          type: "module",
+          scripts: {
+            check: "node scripts/run.mjs",
+            metadata: "node scripts/metadata.mjs",
+          },
+          devDependencies: { "@webcontainer/api": "1.0.0" },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "packages", "core", "package.json"),
+      JSON.stringify({ name: "@fixture/core", devDependencies: { esbuild: "1.0.0" } }),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "scripts", "run.mjs"),
+      'import { build } from "esbuild";\nconst options = { entryPoints: { "bundle.min.js": `client.js?worker` } };\nbuild(options);\n',
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "scripts", "metadata.mjs"),
+      'const metadata = { entryPoints: ["false-positive.js"] };\nvoid metadata;\n',
+    );
+    await fs.writeFile(path.join(fixtureRoot, "scripts", "false-positive.js"), "");
+    await fs.writeFile(
+      path.join(fixtureRoot, "scripts", "client.js"),
+      'import { WebContainer } from "@webcontainer/api";\nvoid WebContainer;\n',
+    );
+    await fs.writeFile(path.join(fixtureRoot, "scripts", "bundle.min.js"), "");
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: [],
+      extensions: [".js", ".mjs"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+      layers: { skip3: true, skip4: true },
+    });
+    expect(report.entryPoints).toContain("scripts/client.js");
+    expect(report.entryPoints).not.toContain("scripts/false-positive.js");
+    expect(
+      report.findings.some(
+        (finding) =>
+          (finding.rule === "unused-dev-dependency" || finding.rule === "unused-dependency") &&
+          finding.evidence?.package === "@webcontainer/api",
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          (finding.rule === "missing-dependency" || finding.rule === "missing-dev-dependency") &&
+          finding.evidence?.package === "esbuild",
+      ),
+    ).toBe(false);
+    expect(
+      report.findings.some(
+        (finding) =>
+          (finding.rule === "unused-dev-dependency" || finding.rule === "unused-dependency") &&
+          finding.evidence?.package === "esbuild",
+      ),
+    ).toBe(false);
+  });
+
+  it("reports a workspace-owned dependency imported by root production code", async () => {
+    await fs.mkdir(path.join(fixtureRoot, "packages", "core"), { recursive: true });
+    await fs.mkdir(path.join(fixtureRoot, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(fixtureRoot, "package.json"),
+      JSON.stringify({
+        name: "root-production-import",
+        private: true,
+        workspaces: ["packages/*"],
+        type: "module",
+      }),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "packages", "core", "package.json"),
+      JSON.stringify({ name: "@fixture/core", devDependencies: { esbuild: "1.0.0" } }),
+    );
+    await fs.writeFile(
+      path.join(fixtureRoot, "src", "root.mjs"),
+      'import { build } from "esbuild";\nvoid build;\n',
+    );
+
+    const report = await analyze({
+      rootDir: fixtureRoot,
+      entry: ["src/root.mjs"],
+      extensions: [".mjs"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+      layers: { skip3: true, skip4: true },
+    });
+
+    expect(
+      report.findings.some(
+        (finding) =>
+          (finding.rule === "missing-dependency" || finding.rule === "missing-dev-dependency") &&
+          finding.evidence?.package === "esbuild",
+      ),
+    ).toBe(true);
+  });
+
   it("treats Bun file arguments as reachable roots without treating Bun subcommands as files", async () => {
     await fs.mkdir(path.join(fixtureRoot, "perf"), { recursive: true });
     await fs.mkdir(path.join(fixtureRoot, "test", "integration"), { recursive: true });

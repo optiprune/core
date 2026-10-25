@@ -484,7 +484,11 @@ export interface PackageScriptTarget {
   requestedPath: string;
   exists: boolean;
 }
-
+/**
+ * Finds source files named by a script entry, such as esbuild's
+ * `entryPoints: ["client.js"]`. These files are runtime inputs to the script
+ * even though they are not imported with an ES module edge.
+ */
 async function sourceCandidatesForScript(
   rootDir: string,
   relativePath: string,

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "pathe";
 import { parseWithYukuBackend, walkAst } from "./parser.js";
 import * as yaml from "js-yaml";
-import { readJsonFile } from "./fs-utils.js";
+import { discoverPackageScriptTargets, normalizeAbsolute, readJsonFile } from "./fs-utils.js";
 import type { AnalysisContext, Finding, ModuleRecord } from "./types.js";
 
 export interface DtsExportGraph {
@@ -418,6 +418,11 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
   const globalImports = new Set<string>();
   const reachableGlobalImports = new Set<string>();
   const workspacePackageNames = new Set<string>(context.options.monorepo?.packageMap.keys() ?? []);
+  const rootToolingEntryPoints = new Set(
+    (await discoverPackageScriptTargets(projectRoot))
+      .filter((target) => target.exists)
+      .map((target) => normalizeAbsolute(path.resolve(projectRoot, target.relativePath))),
+  );
 
   const projectHasTypesNode = Array.from(context.modules.keys()).some((f) => {
     const normalized = f.replace(/\\/g, "/");
@@ -605,6 +610,17 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           }
         }
       }
+    }
+  }
+
+  const rootToolingProviders = new Map<string, Set<string>>();
+  for (const [dependency, files] of packageImportFiles.get("root") ?? []) {
+    if ([...files].some((fileId) => rootToolingEntryPoints.has(fileId))) {
+      const providers = new Set<string>();
+      for (const [name, pkg] of context.options.monorepo?.packageMap ?? []) {
+        if (pkg.allDependencies.has(dependency)) providers.add(name);
+      }
+      rootToolingProviders.set(dependency, providers);
     }
   }
 
@@ -975,6 +991,14 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
         if (
           !allDeclaredDeps.has(imp) &&
           !workspacePackageNames.has(imp) &&
+          // Root-level tooling in a monorepo may intentionally use a
+          // dependency owned by a workspace package, such as a root
+          // self-test invoking esbuild from the core package.
+          !(
+            isRootMonorepoManifest &&
+            workspaceDeclares(imp) &&
+            importFilesFor(imp).every((fileId) => rootToolingEntryPoints.has(fileId))
+          ) &&
           !imp.startsWith(".") &&
           !imp.startsWith("/") &&
           !imp.includes(":") &&
@@ -1124,6 +1148,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           isMarkedUsed ||
           hasReachableImport(dep) ||
           hasPhantomUsage(dep) ||
+          rootToolingProviders.get(dep)?.has(pkgName) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||
           scriptPackages.has(dep) ||
@@ -1204,6 +1229,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
           isMarkedUsed ||
           hasReachableImport(dep) ||
           hasPhantomUsage(dep) ||
+          rootToolingProviders.get(dep)?.has(pkgName) ||
           (isRootMonorepoManifest && reachableGlobalImports.has(dep)) ||
           (dep === "typescript" && workspaceHasTypeScriptSources) ||
           scriptUsages.has(dep) ||

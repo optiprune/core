@@ -227,6 +227,100 @@ function isProductionExcludedEntry(relativePath: string): boolean {
 }
 
 /**
+ * Finds local files supplied to bundler APIs as entryPoints. Restricting this
+ * to an object property named `entryPoints` avoids promoting arbitrary string
+ * literals such as output filenames or documentation to roots.
+ */
+function discoverScriptEntryPointReferences(
+  rootDir: string,
+  scriptTargets: Awaited<ReturnType<typeof discoverPackageScriptTargets>>,
+  sourceFiles: string[],
+  modules: Map<string, ModuleRecord>,
+): string[] {
+  const knownFiles = new Set(sourceFiles.map((file) => normalizeAbsolute(file)));
+  const referenced = new Set<string>();
+  const sourceExtensions = new Set(DEFAULT_EXTENSIONS);
+  const stringValue = (node: any): string | undefined => {
+    if (node?.type === "TemplateLiteral" && (node.expressions?.length ?? 0) === 0) {
+      return node.quasis?.[0]?.value?.cooked ?? node.quasis?.[0]?.value?.raw;
+    }
+    if (node?.type === "Literal" || node?.type === "StringLiteral") {
+      return typeof node.value === "string" ? node.value : undefined;
+    }
+    return undefined;
+  };
+  for (const target of scriptTargets) {
+    if (!target.exists) continue;
+    const scriptPath = normalizeAbsolute(path.resolve(rootDir, target.relativePath));
+    const module = modules.get(scriptPath);
+    if (!module?.ast || module.parseStatus !== "parsed") continue;
+    if (
+      !/\b(?:build|bundle|esbuild|rollup|webpack|rspack|vite|tsup|tsdown|parcel|swc|bun)\b/i.test(
+        module.sourceText,
+      )
+    ) {
+      continue;
+    }
+    const staticVariables = new Map<string, any>();
+    const program =
+      (module.ast as any)?.type === "Program" ? module.ast : (module.ast as any)?.program;
+    for (const statement of program?.body ?? []) {
+      if (statement.type !== "VariableDeclaration") continue;
+      for (const declaration of statement.declarations ?? []) {
+        if (declaration.id?.type === "Identifier" && declaration.init) {
+          staticVariables.set(declaration.id.name, declaration.init);
+        }
+      }
+    }
+    const collectStrings = (node: any, seen = new Set<string>()): string[] => {
+      if (!node) return [];
+      const literal = stringValue(node);
+      if (literal !== undefined) return [literal];
+      if (node.type === "Identifier") {
+        if (seen.has(node.name)) return [];
+        const init = staticVariables.get(node.name);
+        if (!init) return [];
+        const nextSeen = new Set(seen);
+        nextSeen.add(node.name);
+        return collectStrings(init, nextSeen);
+      }
+      if (node.type === "ArrayExpression") {
+        return node.elements?.flatMap((element: any) => collectStrings(element, seen)) ?? [];
+      }
+      if (node.type === "ObjectExpression") {
+        return (
+          node.properties?.flatMap((property: any) =>
+            property.type === "Property" && !property.computed
+              ? collectStrings(property.value, seen)
+              : [],
+          ) ?? []
+        );
+      }
+      return [];
+    };
+    walkAst(module.ast, (rawNode) => {
+      const node = rawNode as any;
+      if (node.type !== "Property" || node.computed) return;
+      const propertyName = node.key?.name ?? node.key?.value;
+      if (propertyName !== "entryPoints") return;
+      for (const requested of collectStrings(node.value)) {
+        const normalizedRequested = requested.replace(/\\/g, "/").split(/[?#]/, 1)[0];
+        if (!normalizedRequested || !sourceExtensions.has(path.extname(normalizedRequested))) {
+          continue;
+        }
+        const candidates = [
+          normalizeAbsolute(path.resolve(path.dirname(scriptPath), normalizedRequested)),
+          normalizeAbsolute(path.resolve(rootDir, normalizedRequested)),
+        ];
+        const resolved = candidates.find((candidate) => knownFiles.has(candidate));
+        if (resolved) referenced.add(resolved);
+      }
+    });
+  }
+  return [...referenced];
+}
+
+/**
  * Applies only the configuration fields that have package-local semantics. The
  * root configuration remains the source of global analyzer options; workspace
  * configuration can contribute its own entry points, discovery ignores, source
@@ -611,6 +705,17 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
       for (const scriptFile of expandEntryPatterns(allSourceFiles, rootDir, [adjustedPattern])) {
         entryPoints.add(path.normalize(scriptFile));
       }
+    }
+    // Build tools often receive local source files as string arguments rather
+    // than importing them (for example esbuild's `entryPoints`). Treat those
+    // files as script-owned roots so their dependencies remain live.
+    for (const referencedFile of discoverScriptEntryPointReferences(
+      baseDir,
+      scriptTargets,
+      allSourceFiles,
+      modules,
+    )) {
+      entryPoints.add(path.normalize(referencedFile));
     }
 
     for (const binPattern of binEntries) {
