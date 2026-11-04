@@ -235,13 +235,22 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
   if (userConfig.entry !== undefined && !Array.isArray(userConfig.entry)) {
     throw new TypeError("[Config] `entry` must be an array of path strings.");
   }
-  if (userConfig.entry !== undefined && !userConfig.entry.every((entry) => typeof entry === "string")) {
+  if (
+    userConfig.entry !== undefined &&
+    !userConfig.entry.every((entry) => typeof entry === "string")
+  ) {
     throw new TypeError("[Config] `entry` must contain only path strings.");
   }
-  if (userConfig.output !== undefined && !["terminal", "json", "sarif"].includes(userConfig.output)) {
+  if (
+    userConfig.output !== undefined &&
+    !["terminal", "json", "sarif"].includes(userConfig.output)
+  ) {
     throw new TypeError("[Config] `output` must be one of: terminal, json, sarif.");
   }
-  if (userConfig.failOn !== undefined && !["high", "medium", "low", "info", "none"].includes(userConfig.failOn)) {
+  if (
+    userConfig.failOn !== undefined &&
+    !["high", "medium", "low", "info", "none"].includes(userConfig.failOn)
+  ) {
     throw new TypeError("[Config] `failOn` must be one of: high, medium, low, info, none.");
   }
 

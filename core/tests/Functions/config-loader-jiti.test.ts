@@ -82,8 +82,15 @@ describe("Jiti configuration loading", () => {
 
   it("loads the legacy optiprune.config.json filename when canonical config files are absent", async () => {
     const rootDir = await createProject("legacy-json-config");
-    await write(rootDir, "optiprune.config.json", JSON.stringify({ failOn: "none", entry: ["src/index.ts"] }));
-    await expect(loadConfig(rootDir)).resolves.toMatchObject({ failOn: "none", entry: ["src/index.ts"] });
+    await write(
+      rootDir,
+      "optiprune.config.json",
+      JSON.stringify({ failOn: "none", entry: ["src/index.ts"] }),
+    );
+    await expect(loadConfig(rootDir)).resolves.toMatchObject({
+      failOn: "none",
+      entry: ["src/index.ts"],
+    });
   });
 
   it("does not reuse a stale TypeScript config during subsequent analysis requests", async () => {
