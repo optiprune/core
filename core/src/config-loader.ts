@@ -6,10 +6,11 @@
  * Resolution order (first match wins):
  *   1. optiprune.json   – plain JSON
  *   2. optiprune.jsonc  – JSON with // and /* … *\/ comments + trailing commas
- *   3. optiprune.config.ts  – TypeScript ESM default export
- *   4. optiprune.config.js  – JavaScript ESM default export
- *   5. optiprune.config.mjs – JavaScript ESM default export
- *   6. package.json "optiprune" field
+ *   3. optiprune.config.json – legacy JSON filename written by earlier CLI versions
+ *   4. optiprune.config.ts  – TypeScript ESM default export
+ *   5. optiprune.config.js  – JavaScript ESM default export
+ *   6. optiprune.config.mjs – JavaScript ESM default export
+ *   7. package.json "optiprune" field
  *
  * All sources are normalised through `mergeConfig` so the rest of the
  * codebase only ever sees a fully-resolved `ResolvedOptions` object.
@@ -151,7 +152,17 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     }
   }
 
-  // ── 3-5. optiprune.config.{ts,js,mjs} ───────────────────────────────────
+  // ── 3. Legacy JSON filename written by earlier CLI config editors ────────
+  const legacyJsonPath = path.join(rootDir, "optiprune.config.json");
+  if (fs.existsSync(legacyJsonPath)) {
+    const raw = tryReadFile(legacyJsonPath);
+    if (raw !== null) {
+      const parsed = parseConfigJson<Config>("optiprune.config.json", raw);
+      if (parsed !== null) return parsed;
+    }
+  }
+
+  // ── 4-6. optiprune.config.{ts,js,mjs} ───────────────────────────────────
   const scriptPaths = [
     path.join(rootDir, "optiprune.config.ts"),
     path.join(rootDir, "optiprune.config.js"),
@@ -194,7 +205,7 @@ export async function loadConfig(rootDir: string): Promise<Config> {
     }
   }
 
-  // ── 6. package.json "optiprune" field ────────────────────────────────────
+  // ── 7. package.json "optiprune" field ────────────────────────────────────
   const pkgPath = path.join(rootDir, "package.json");
   if (fs.existsSync(pkgPath)) {
     const raw = tryReadFile(pkgPath);
@@ -221,6 +232,19 @@ export async function loadConfig(rootDir: string): Promise<Config> {
  * Merge a base `ResolvedOptions` with a user-supplied `Config`.
  */
 export function mergeConfig(base: ResolvedOptions, userConfig: Config): ResolvedOptions {
+  if (userConfig.entry !== undefined && !Array.isArray(userConfig.entry)) {
+    throw new TypeError("[Config] `entry` must be an array of path strings.");
+  }
+  if (userConfig.entry !== undefined && !userConfig.entry.every((entry) => typeof entry === "string")) {
+    throw new TypeError("[Config] `entry` must contain only path strings.");
+  }
+  if (userConfig.output !== undefined && !["terminal", "json", "sarif"].includes(userConfig.output)) {
+    throw new TypeError("[Config] `output` must be one of: terminal, json, sarif.");
+  }
+  if (userConfig.failOn !== undefined && !["high", "medium", "low", "info", "none"].includes(userConfig.failOn)) {
+    throw new TypeError("[Config] `failOn` must be one of: high, medium, low, info, none.");
+  }
+
   // ── rootDir ──────────────────────────────────────────────────────────────
   const rootDir = userConfig.rootDir
     ? normalizeAbsolute(path.resolve(base.rootDir, userConfig.rootDir))

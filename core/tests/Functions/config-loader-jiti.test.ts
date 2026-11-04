@@ -27,6 +27,30 @@ afterEach(async () => {
 });
 
 describe("Jiti configuration loading", () => {
+  it("reports invalid scalar entry, output, and failOn values as config errors", () => {
+    const base = {
+      ...DEFAULT_CONFIG,
+      pathAliases: new Map(),
+      packageImports: new Map(),
+      packageIgnoreDependencies: new Map(),
+      layers: { ...DEFAULT_CONFIG.layers },
+      rules: { ...DEFAULT_CONFIG.rules },
+      plugins: { ...DEFAULT_CONFIG.plugins },
+    };
+
+    expect(() => mergeConfig(base, { entry: "index.ts" as unknown as string[] })).toThrow(
+      "[Config] `entry` must be an array of path strings.",
+    );
+    expect(() => mergeConfig(base, { entry: [1] as unknown as string[] })).toThrow(
+      "[Config] `entry` must contain only path strings.",
+    );
+    expect(() => mergeConfig(base, { output: "sarif-ish" as "sarif" })).toThrow(
+      "[Config] `output` must be one of: terminal, json, sarif.",
+    );
+    expect(() => mergeConfig(base, { failOn: "hihg" as "high" })).toThrow(
+      "[Config] `failOn` must be one of: high, medium, low, info, none.",
+    );
+  });
   it("resolves project tsconfig aliases in optiprune.config.ts", async () => {
     const rootDir = await createProject("jiti-alias");
     await write(rootDir, "package.json", JSON.stringify({ name: "jiti-alias", private: true }));
@@ -54,6 +78,12 @@ describe("Jiti configuration loading", () => {
       ignore: ["generated/**"],
       failOn: "none",
     });
+  });
+
+  it("loads the legacy optiprune.config.json filename when canonical config files are absent", async () => {
+    const rootDir = await createProject("legacy-json-config");
+    await write(rootDir, "optiprune.config.json", JSON.stringify({ failOn: "none", entry: ["src/index.ts"] }));
+    await expect(loadConfig(rootDir)).resolves.toMatchObject({ failOn: "none", entry: ["src/index.ts"] });
   });
 
   it("does not reuse a stale TypeScript config during subsequent analysis requests", async () => {
