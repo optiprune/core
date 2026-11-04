@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/optiprune/core/main/schema.json",
+  "title": "OptiPrune User Configuration",
+  "description": "Configuration schema for optiprune.json and optiprune.jsonc files.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL to the JSON schema for validation and autocompletion."
+    },
+    "rootDir": {
+      "type": "string",
+      "default": ".",
+      "description": "The root directory of the project source code relative to the workspace."
+    },
+    "entry": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Array of entry-point file patterns used as analysis roots. Their dependency chains are analyzed for reachability; only explicitly public entry APIs and package.json exports protect public exports from unused-export pruning."
+    },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        ".ts",
+        ".tsx",
+        ".mts",
+        ".cts",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".vue",
+        ".svelte",
+        ".astro",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        ".styl",
+        ".stylus"
+      ],
+      "description": "File extensions OptiPrune will process during analysis. Replaces the default list when provided."
+    },
+    "ignore": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Glob patterns or path segments to exclude from analysis. Use this to ignore entire folders (e.g., '**/tests/**'), specific files (e.g., '**/*.spec.ts'), or build artifacts. These patterns are appended to the built-in defaults like node_modules and dist.",
+      "examples": [["**/tests/**", "**/__mocks__/**", "**/*.test.ts"]]
+    },
+    "ignoreDependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "npm package names that OptiPrune should never flag as unused, regardless of whether they appear in import statements. Useful for packages used via global injection or peer dependencies."
+    },
+    "externalContracts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "List of public symbols or interfaces exported for external consumers to prevent OptiPrune from flagging them as unused."
+    },
+    "reportUnusedExports": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, flags exported symbols that are never imported elsewhere in the project."
+    },
+    "includeConventionalEntries": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically recognizes framework conventions (e.g., index.ts, main.js, App.tsx) as entry points."
+    },
+    "failOn": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "info", "none"],
+      "default": "high",
+      "description": "Minimum finding severity level that causes the execution process to exit with a non-zero code."
+    },
+    "verbose": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enables detailed step-by-step diagnostic logging during execution."
+    },
+    "fix": {
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "When true, automatically applies high-confidence fixes from the conservative default set: unreachable files and unused dependencies. Source-level fixes require an explicit rules category."
+        },
+        {
+          "type": "object",
+          "description": "Granular fix configuration.",
+          "properties": {
+            "confidence": {
+              "type": "string",
+              "enum": ["high", "medium+", "low+", "all"],
+              "default": "high",
+              "description": "Minimum confidence level to apply a fix."
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of fix categories or individual rule names. Categories include exports, files, dependencies, and conditions. Supported core rules include unused-export, unused-member, unreachable-file, unused-dependency, unused-dev-dependency, and constant-condition.",
+              "examples": [
+                ["files", "dependencies"],
+                ["exports"],
+                ["files", "dependencies", "exports", "conditions"]
+              ]
+            },
+            "dryRun": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, logs fixes without modifying files."
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "default": false,
+      "description": "Configures automated dead-code removal. Boolean true uses the conservative default fix categories; use an object to opt into source-level export or condition fixes."
+    },
+    "output": {
+      "type": "string",
+      "enum": ["terminal", "json", "sarif"],
+      "default": "terminal",
+      "description": "Output format for analysis results. 'terminal' produces human-readable coloured output; 'json' emits machine-readable JSON to stdout; 'sarif' emits SARIF 2.1 JSON for IDE and CI integrations."
+    },
+    "json": {
+      "type": "boolean",
+      "default": false,
+      "deprecated": true,
+      "description": "Deprecated. Use 'output: \"json\"' instead. When true, outputs analysis findings in raw JSON format to stdout."
+    },
+    "rules": {
+      "type": "object",
+      "description": "Map of rule names to their severity level overrides.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["error", "warning", "off"]
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Explicit enable/disable overrides for individual plugins. Use the plugin's name string as the key. Setting a value to false disables the plugin even if its auto-detection would enable it; setting it to true forces it on regardless of detection.",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "examples": [
+        {
+          "nextjs-plugin": true,
+          "nestjs-plugin": false
+        }
+      ]
+    },
+    "layers": {
+      "type": "object",
+      "description": "Advanced engine layer settings for execution and solver layers.",
+      "additionalProperties": false,
+      "properties": {
+        "smtTimeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10000,
+          "description": "Maximum time limit in milliseconds allocated to the SMT solver per proof attempt."
+        },
+        "isolateMemoryLimitMb": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 128,
+          "description": "Maximum V8 isolate heap memory limit in Megabytes allocated per worker thread."
+        },
+        "enableConcolicProof": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enables concolic execution engine for deep reachability and dead-path proofs."
+        },
+        "skip3": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skips Execution Layer 3 (SMT/Z3 solver) pass during analysis."
+        },
+        "skip4": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skips Execution Layer 4 (WASM sandbox) pass during analysis."
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
