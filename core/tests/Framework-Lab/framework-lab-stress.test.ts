@@ -38,6 +38,7 @@ const expectedFindings = new Set([
   "unused-export|packages/ui/src/UnusedPanel.tsx|export:UnusedPanel",
   "unused-export|scripts/esbuild-entry.ts|export:esbuildFixture",
   "unused-openapi-schema|openapi/openapi.yaml|schema:UnusedSchema",
+  "missing-dependency|package.json|",
   "unused-dependency|apps/nest-api/package.json|package:graphql",
   "unused-dependency|apps/next-app/package.json|package:react-dom",
   "unused-dependency|package.json|package:@apollo/server",

@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { compileGlobs, matchesAnyGlob } from "./fs-utils.js";
 import { resolveLocalSpecifier } from "./fs-utils.js";
 import { ObjectMemberPlugin } from "./plugins/object-member-plugin.js";
+import { parse as parseJsonc, type ParseError } from "jsonc-parser";
 
 // ── Verbose debug helper ────────────────────────────────────────────────────
 // All engine-level debug messages go to stderr so they never pollute JSON /
@@ -15,6 +16,31 @@ import { ObjectMemberPlugin } from "./plugins/object-member-plugin.js";
 function dbg(verbose: boolean | undefined, msg: string): void {
   if (verbose) console.error(msg);
 }
+function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/** JSONC is the native format of tsconfig/jsconfig files. */
+function isJsoncConfig(filename: string): boolean {
+  const base = filename.replace(/\\/g, "/").split("/").pop() ?? "";
+  return (
+    base.endsWith(".jsonc") ||
+    /^tsconfig(?:\.[^/]+)?\.json$/.test(base) ||
+    /^jsconfig(?:\.[^/]+)?\.json$/.test(base)
+  );
+}
+
+function parsePluginJson(content: string, filename: string): unknown {
+  const text = stripBom(content);
+  if (!isJsoncConfig(filename)) return JSON.parse(text);
+  const errors: ParseError[] = [];
+  const value = parseJsonc(text, errors, { allowTrailingComma: true });
+  if (errors.length > 0) {
+    throw new Error(`Invalid JSONC in ${filename}`);
+  }
+  return value ?? null;
+}
+
 function safeResolve(rootDir: string, targetPath: string): string | null {
   // Always resolve relative to rootDir
   const resolved = path.resolve(rootDir, targetPath);
@@ -29,6 +55,10 @@ function safeResolve(rootDir: string, targetPath: string): string | null {
 export class PluginEngine {
   private plugins: AnalyzerPlugin[] = [];
   private findings: Finding[] = [];
+  /** Adapter identity is stable across the init and execution passes. */
+  private adapter?: PluginAdapter;
+  /** File stem aliases for bundled plugins whose name differs from the filename. */
+  private pluginFileStems = new WeakMap<AnalyzerPlugin, string>();
 
   constructor() {
     // Object-member analysis is a core correctness rule. Register it
@@ -82,6 +112,7 @@ export class PluginEngine {
               const pluginLifecycle = plugin.lifecycle;
               if (pluginName && pluginLifecycle) {
                 const stem = file.replace(/\.(?:[cm]?js|ts)$/i, "");
+                this.pluginFileStems.set(plugin, stem);
                 const sourceModule = [...context.modules.values()].find((candidate) => {
                   const normalized = candidate.id.replace(/\\/g, "/");
                   return (
@@ -148,7 +179,10 @@ export class PluginEngine {
     this.findings = [];
 
     const verbose = context.options?.verbose;
-    const adapter = this.createAdapter(context);
+    // Reuse one adapter so plugin state written during onProjectInit survives
+    // the second pass, and rebind it to the final context.
+    const adapter = this.adapter ?? (this.adapter = this.createAdapter(context));
+    (adapter as any)._setContext(context);
     // Compile ignore globs once per engine pass instead of once per module.
     const compiledIgnorePatterns = compileGlobs(context.options?.ignore ?? []);
 
@@ -187,7 +221,9 @@ export class PluginEngine {
 
       for (const plugin of this.plugins) {
         try {
-          const override = pluginOverrides[plugin.name];
+          const fileStem = this.pluginFileStems.get(plugin);
+          const override =
+            pluginOverrides[plugin.name] ?? (fileStem ? pluginOverrides[fileStem] : undefined);
 
           if (override === false) {
             // Explicitly disabled by config – skip detection entirely.
@@ -244,11 +280,13 @@ export class PluginEngine {
           }
           await plugin.lifecycle.onProjectInit(adapter);
         } catch (err) {
-          console.error(`[Plugin Engine] Error in onProjectInit for ${plugin.name}:`, err);
+          plugin.enabled = false;
+          this.recordPluginError(plugin, "onProjectInit", err, context.options.rootDir);
         }
       }
     }
 
+    const pendingPluginHooks: Promise<void>[] = [];
     for (const module of context.modules.values()) {
       // Check ignore list resolved from options (including plugin config updates)
       if (matchesAnyGlob(module.id, compiledIgnorePatterns, context.options?.rootDir)) {
@@ -262,10 +300,8 @@ export class PluginEngine {
           try {
             await plugin.lifecycle.onFileStart(module.id, adapter);
           } catch (err) {
-            console.error(
-              `[Plugin Engine] Error in onFileStart for ${plugin.name} on ${module.id}:`,
-              err,
-            );
+            plugin.enabled = false;
+            this.recordPluginError(plugin, "onFileStart", err, module.id);
           }
         }
       }
@@ -275,17 +311,19 @@ export class PluginEngine {
           for (const plugin of this.plugins) {
             if (plugin.enabled && plugin.lifecycle.onASTNode) {
               try {
-                plugin.lifecycle.onASTNode(node, module.id, adapter, ancestors);
+                const result = plugin.lifecycle.onASTNode(node, module.id, adapter, ancestors);
+                if (result && typeof (result as PromiseLike<void>).then === "function") {
+                  pendingPluginHooks.push(
+                    Promise.resolve(result).catch((err) => {
+                      if (!plugin.enabled) return;
+                      plugin.enabled = false;
+                      this.recordPluginError(plugin, "onASTNode", err, module.id);
+                    }),
+                  );
+                }
               } catch (err) {
-                this.findings.push({
-                  rule: "plugin-error",
-                  severity: "warning",
-                  confidence: "medium",
-                  message: `Plugin '${plugin.name}' failed while analyzing '${module.id}': ${String(err)}`,
-                  file: module.id,
-                  evidence: { plugin: plugin.name, phase: "onASTNode" },
-                });
                 plugin.enabled = false;
+                this.recordPluginError(plugin, "onASTNode", err, module.id);
               }
             }
           }
@@ -294,15 +332,15 @@ export class PluginEngine {
         console.error(`[Plugin Engine] Error during AST traversal for ${module.id}:`, err);
       }
     }
+    await Promise.all(pendingPluginHooks);
     for (const plugin of this.plugins) {
-      if (plugin.enabled && plugin.lifecycle.onAnalysisComplete) {
+      if (plugin.enabled && plugin.lifecycle.onAnalysisComplete && runOptions.skipDetection) {
         try {
-          if (!runOptions.skipDetection) {
-            dbg(verbose, `[Plugin Engine] Running onAnalysisComplete for ${plugin.name}`);
-          }
+          dbg(verbose, `[Plugin Engine] Running onAnalysisComplete for ${plugin.name}`);
           await plugin.lifecycle.onAnalysisComplete(adapter);
         } catch (err) {
-          console.error(`[Plugin Engine] Error in onAnalysisComplete for ${plugin.name}:`, err);
+          plugin.enabled = false;
+          this.recordPluginError(plugin, "onAnalysisComplete", err, context.options.rootDir);
         }
       }
     }
@@ -318,6 +356,22 @@ export class PluginEngine {
     }
 
     return this.findings;
+  }
+
+  private recordPluginError(
+    plugin: AnalyzerPlugin,
+    phase: string,
+    err: unknown,
+    file: string,
+  ): void {
+    this.findings.push({
+      rule: "plugin-error",
+      severity: "warning",
+      confidence: "medium",
+      message: `Plugin '${plugin.name}' failed during ${phase}: ${String(err)}`,
+      file,
+      evidence: { plugin: plugin.name, phase },
+    });
   }
 
   createAdapter(context: AnalysisContext): PluginAdapter {
@@ -367,7 +421,7 @@ export class PluginEngine {
       }
       return projectFiles;
     };
-    return {
+    const adapter: PluginAdapter = {
       getAst: (fileId) => context.modules.get(fileId)?.ast,
       getSymbol: (name, fileId) => {
         const module = context.modules.get(fileId);
@@ -473,7 +527,7 @@ export class PluginEngine {
         if (!safePath) return null;
         try {
           const content = await fs.readFile(safePath, "utf8");
-          return JSON.parse(content);
+          return parsePluginJson(content, filename);
         } catch {
           return null;
         }
@@ -522,9 +576,12 @@ export class PluginEngine {
         ) {
           return;
         }
+        const sourcePath = path.isAbsolute(sourceFileId)
+          ? sourceFileId
+          : path.resolve(context.options.rootDir, sourceFileId);
         const requestedPath = path.isAbsolute(referencedPath)
           ? referencedPath
-          : path.resolve(path.dirname(sourceFileId), referencedPath);
+          : path.resolve(path.dirname(sourcePath), referencedPath);
         const absolutePath = resolvePluginPath(requestedPath);
         context.reachable?.add(absolutePath);
         context.runtimeUsedFiles?.add(absolutePath);
@@ -657,6 +714,10 @@ export class PluginEngine {
       },
       hasFramework: (name) => context.options.frameworks?.includes(name) ?? false,
     };
+    (adapter as any)._setContext = (next: AnalysisContext) => {
+      context = next;
+    };
+    return adapter;
 
     function resolvePluginPath(requestedPath: string): string {
       const canonical = path.normalize(requestedPath);

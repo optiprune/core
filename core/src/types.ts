@@ -604,7 +604,12 @@ export interface PluginAdapter {
 export interface PluginLifecycle {
   onProjectInit?(adapter: PluginAdapter): void | Promise<void>;
   onFileStart?(fileId: string, adapter: PluginAdapter): void | Promise<void>;
-  onASTNode?(node: any, fileId: string, adapter: PluginAdapter, ancestors?: any[]): void;
+  onASTNode?(
+    node: any,
+    fileId: string,
+    adapter: PluginAdapter,
+    ancestors?: any[],
+  ): void | Promise<void>;
   onAnalysisComplete?(adapter: PluginAdapter): void | Promise<void>;
 }
 
