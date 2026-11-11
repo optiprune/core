@@ -6,6 +6,7 @@ import {
   SyntaxKind,
   type ParseError,
 } from "jsonc-parser";
+import * as yaml from "js-yaml";
 
 export interface JsonPosition {
   line: number;
@@ -225,4 +226,23 @@ export function repairJsonDocument(input: string): string | undefined {
 
 export function formatJsonDiagnostic(diagnostic: JsonDiagnostic): string {
   return `${diagnostic.message} (${diagnostic.code}) at ${diagnostic.location.start.line}:${diagnostic.location.start.column}`;
+}
+
+/**
+ * Safe plugin-facing JSONC parser. Unlike the historical per-plugin regex
+ * parsers this is string-aware, accepts BOM/comments/trailing commas, and
+ * refuses to return partially recovered data for malformed documents.
+ */
+export function parsePluginJson<T = unknown>(input: string): T | null {
+  const result = parseJsonDocument<T>(input);
+  return result.value === undefined ? null : result.value;
+}
+
+/** Parse YAML only when js-yaml can produce a complete value. */
+export function parsePluginYaml<T = unknown>(input: string): T | null {
+  try {
+    return yaml.load(input) as T;
+  } catch {
+    return null;
+  }
 }

@@ -73,8 +73,8 @@ function isCommitizenInvocation(content: string): boolean {
 function isGlobalOrTransientExecution(content: string): boolean {
   return (
     /\bnpx\s+(?:--yes\s+)?(?:cz|git-cz|commitizen)\b/.test(content) ||
-    /\bpnpm\s+dlx\s+(?:cz|git-cz|commitizen)\b/.test(content) ||
-    /\byarn\s+dlx\s+(?:cz|git-cz|commitizen)\b/.test(content) ||
+    /\bpnpm\s+(?:exec|dlx)\s+(?:cz|git-cz|commitizen)\b/.test(content) ||
+    /\byarn\s+(?:exec|dlx)\s+(?:cz|git-cz|commitizen)\b/.test(content) ||
     /\bbunx\s+(?:cz|git-cz|commitizen)\b/.test(content)
   );
 }
@@ -177,13 +177,13 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       if (await adapter.folderExists(configFile)) return true;
     }
 
-    const hookFiles = await adapter.findFiles(HOOK_PATTERNS);
+    const hookFiles = await adapter.findFilesByGlob(HOOK_PATTERNS);
     for (const hookFile of hookFiles) {
       const raw = await readRawFile(adapter, hookFile);
       if (raw && isCommitizenInvocation(raw)) return true;
     }
 
-    const workflowFiles = await adapter.findFiles(WORKFLOW_PATTERNS);
+    const workflowFiles = await adapter.findFilesByGlob(WORKFLOW_PATTERNS);
     for (const workflow of workflowFiles) {
       const raw = await readRawFile(adapter, workflow);
       if (raw && isCommitizenInvocation(raw)) return true;
@@ -248,7 +248,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       }
 
       // 4. Git hook configurations
-      const hookFiles = await adapter.findFiles(HOOK_PATTERNS);
+      const hookFiles = await adapter.findFilesByGlob(HOOK_PATTERNS);
       for (const hookFile of hookFiles) {
         const raw = await readRawFile(adapter, hookFile);
         if (raw && isCommitizenInvocation(raw)) {
@@ -261,7 +261,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       }
 
       // 5. GitHub Actions workflows
-      const workflowFiles = await adapter.findFiles(WORKFLOW_PATTERNS);
+      const workflowFiles = await adapter.findFilesByGlob(WORKFLOW_PATTERNS);
       for (const workflow of workflowFiles) {
         const raw = await readRawFile(adapter, workflow);
         if (raw && isCommitizenInvocation(raw)) {

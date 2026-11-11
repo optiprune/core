@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, packageRoot, staticPropertyName } from "../plugin-utils.js";
 
 /**
  * Recognized Stryker Mutator configuration files
@@ -22,7 +23,7 @@ const STRYKER_CLI_PACKAGE = "@stryker-mutator/api";
  * Normalizes plugin names referenced in Stryker config strings to full npm package names
  */
 function normalizeStrykerPlugin(name: string): string {
-  if (name.startsWith("@stryker-mutator/") || name.startsWith("stryker-")) {
+  if (name.startsWith("@") || name.startsWith("stryker-")) {
     return name;
   }
   // Standard Stryker plugin naming convention
@@ -54,7 +55,7 @@ function processStrykerConfig(config: Record<string, any>, adapter: any): void {
     const checkersList = Array.isArray(config.checkers) ? config.checkers : [config.checkers];
     for (const checker of checkersList) {
       if (typeof checker === "string") {
-        adapter.markPackageAsUsed(`@stryker-mutator/${checker}-checker`);
+        adapter.markPackageAsUsed(checker.startsWith("@") || checker.startsWith("stryker-") ? checker : `@stryker-mutator/${checker}-checker`);
       }
     }
   }
@@ -69,11 +70,8 @@ function processStrykerConfig(config: Record<string, any>, adapter: any): void {
   // Process reporters array: reporters: ['html', 'clear-text', 'progress', 'dashboard']
   if (config.reporters && Array.isArray(config.reporters)) {
     for (const reporter of config.reporters) {
-      if (
-        typeof reporter === "string" &&
-        (reporter.startsWith("@") || reporter.startsWith("stryker-"))
-      ) {
-        adapter.markPackageAsUsed(reporter);
+      if (typeof reporter === "string") {
+        adapter.markPackageAsUsed(reporter.startsWith("@") || reporter.startsWith("stryker-") ? packageRoot(reporter) : `@stryker-mutator/${reporter}-reporter`);
       }
     }
   }
@@ -116,7 +114,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (/\bstryker\b/.test(s) || s.includes("stryker run")),
+            (s) => typeof s === "string" && hasCommand(s, ["stryker"]),
           )
         ) {
           return true;
@@ -169,7 +167,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
             if (
               typeof scriptContent === "string" &&
-              (/\bstryker\b/.test(scriptContent) || scriptContent.includes("stryker run"))
+              hasCommand(scriptContent, ["stryker"])
             ) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
@@ -178,12 +176,12 @@ export const StrykerPlugin: AnalyzerPlugin = {
       }
 
       // 5. Parse standalone JSON config files if present
-      const jsonConfigFile = (await adapter.folderExists("stryker.config.json"))
+      const jsonConfigFile = (await fileExists(adapter, "stryker.config.json"))
         ? "stryker.config.json"
-        : (await adapter.folderExists("stryker.conf.json"))
+        : (await fileExists(adapter, "stryker.conf.json"))
           ? "stryker.conf.json"
           : (await adapter.folderExists(".stryker.conf.json"))
-            ? ".stryker.conf.json"
+          ? ".stryker.conf.json"
             : null;
 
       if (jsonConfigFile) {
@@ -220,15 +218,14 @@ export const StrykerPlugin: AnalyzerPlugin = {
           t.isMemberExpression(node.left) &&
           t.isIdentifier(node.left.object) &&
           node.left.object.name === "module" &&
-          t.isIdentifier(node.left.property) &&
-          node.left.property.name === "exports"
+          staticPropertyName(node.left.property) === "exports"
         ) {
           adapter.markAsUsed(fileId);
         }
 
         // AST Property Inspection for testRunner, plugins, and checkers
-        if (t.isObjectProperty(node) && t.isIdentifier(node.key)) {
-          const keyName = node.key.name;
+        if (t.isObjectProperty(node)) {
+          const keyName = staticPropertyName(node.key);
 
           // testRunner: 'jest' -> @stryker-mutator/jest-runner
           if (keyName === "testRunner" && t.isStringLiteral(node.value)) {
@@ -247,11 +244,11 @@ export const StrykerPlugin: AnalyzerPlugin = {
           // checkers: ['typescript'] -> @stryker-mutator/typescript-checker
           if (keyName === "checkers") {
             if (t.isStringLiteral(node.value)) {
-              adapter.markPackageAsUsed(`@stryker-mutator/${node.value.value}-checker`);
+              adapter.markPackageAsUsed(node.value.value.startsWith("@") ? node.value.value : `@stryker-mutator/${node.value.value}-checker`);
             } else if (t.isArrayExpression(node.value)) {
               for (const el of node.value.elements) {
                 if (t.isStringLiteral(el)) {
-                  adapter.markPackageAsUsed(`@stryker-mutator/${el.value}-checker`);
+                  adapter.markPackageAsUsed(el.value.startsWith("@") ? el.value : `@stryker-mutator/${el.value}-checker`);
                 }
               }
             }

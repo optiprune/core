@@ -1,6 +1,7 @@
 import { AnalyzerPlugin, PluginAdapter } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { parsePluginJson, staticPropertyName } from "../plugin-utils.js";
 
 const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"];
 
@@ -37,55 +38,7 @@ const CLOUDFLARE_PACKAGES = [
   "@cloudflare/ai",
 ];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    let cleanJson = "";
-    let quote = false;
-    let escaped = false;
-    let lineComment = false;
-    let blockComment = false;
-    for (let index = 0; index < content.length; index += 1) {
-      const current = content[index] ?? "";
-      const next = content[index + 1] ?? "";
-      if (lineComment) {
-        if (current === "\\n" || current === "\\r") {
-          lineComment = false;
-          cleanJson += current;
-        }
-        continue;
-      }
-      if (blockComment) {
-        if (current === "*" && next === "/") {
-          blockComment = false;
-          index += 1;
-        }
-        continue;
-      }
-      if (quote) {
-        cleanJson += current;
-        if (escaped) escaped = false;
-        else if (current === "\\\\") escaped = true;
-        else if (current === '"') quote = false;
-        continue;
-      }
-      if (current === '"') {
-        quote = true;
-        cleanJson += current;
-      } else if (current === "/" && next === "/") {
-        lineComment = true;
-        index += 1;
-      } else if (current === "/" && next === "*") {
-        blockComment = true;
-        index += 1;
-      } else {
-        cleanJson += current;
-      }
-    }
-    return JSON.parse(cleanJson.replace(/,(\s*[\]}])/g, "$1"));
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 function addBinding(value: unknown, bindings: Set<string>): void {
   if (typeof value === "string" && /^[A-Za-z_$][\w$]*$/.test(value)) bindings.add(value);
@@ -103,7 +56,7 @@ function collectJsonConfig(
   if (!value || typeof value !== "object") return;
 
   for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
-    if (childKey === "main" || childKey === "entry-point") {
+    if ((childKey === "main" || childKey === "entry-point") && (key === undefined || key === "site")) {
       if (typeof childValue === "string") info.entryPoints.push(childValue);
     }
     if (childKey === "binding") addBinding(childValue, info.bindings);
@@ -116,7 +69,19 @@ function collectJsonConfig(
 function collectTomlConfig(content: string, info: WranglerConfigInfo): void {
   let section = "";
   for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*/, "").trim();
+    let quotedString = false;
+    let quote = "";
+    let line = "";
+    for (let i = 0; i < rawLine.length; i += 1) {
+      const ch = rawLine[i];
+      if ((ch === "'" || ch === '"') && rawLine[i - 1] !== "\\") {
+        if (!quotedString) { quotedString = true; quote = ch; }
+        else if (quote === ch) quotedString = false;
+      }
+      if (ch === "#" && !quotedString) break;
+      line += ch;
+    }
+    line = line.trim();
     if (!line) continue;
     const table = line.match(/^\[\[?([^\]]+)\]\]?$/);
     if (table) {
@@ -127,9 +92,13 @@ function collectTomlConfig(content: string, info: WranglerConfigInfo): void {
     if (!assignment) continue;
     const key = assignment[1] ?? "";
     const rawValue = assignment[2]?.trim() ?? "";
-    const quoted = rawValue.match(/^['\"]([^'\"]*)['\"](?:\s|$)/)?.[1];
-    if ((key === "main" || key === "entry-point") && quoted) info.entryPoints.push(quoted);
+    const quoted = rawValue.match(/^(['\"])((?:\\.|(?!\1).)*)\1(?:\s|$)/)?.[2];
+    const array = rawValue.match(/^\[\s*(['\"])(.*?)\1(?:\s*,\s*(['\"])(.*?)\3)*\s*\]$/);
+    if ((key === "main" || key === "entry-point") && quoted) info.entryPoints.push(quoted.replace(/\\([\\"'])/g, "$1"));
     if (key === "binding") addBinding(quoted, info.bindings);
+    if ((key === "main" || key === "entry-point") && array) {
+      for (const match of rawValue.matchAll(/(['\"])((?:\\.|(?!\1).)*)\1/g)) info.entryPoints.push(match[2] ?? "");
+    }
     if ((section === "vars" || section.endsWith(".vars")) && /^[A-Za-z_$][\w$]*$/.test(key)) {
       info.bindings.add(key);
     }
@@ -181,16 +150,14 @@ async function readWranglerConfig(adapter: PluginAdapter, configFile: string): P
 function bindingNameFromMemberExpression(node: any): string | undefined {
   if (!node || (node.type !== "MemberExpression" && node.type !== "OptionalMemberExpression"))
     return undefined;
-  if (node.computed || !t.isIdentifier(node.property)) return undefined;
-  const propertyName = node.property.name;
+  const propertyName = staticPropertyName(node.property);
+  if (!propertyName) return undefined;
   if (t.isIdentifier(node.object) && node.object.name === "env") return propertyName;
   const object = node.object;
   if (
     object &&
     (object.type === "MemberExpression" || object.type === "OptionalMemberExpression") &&
-    !object.computed &&
-    t.isIdentifier(object.property) &&
-    object.property.name === "env"
+    staticPropertyName(object.property) === "env"
   ) {
     return propertyName;
   }
@@ -347,7 +314,7 @@ export const WranglerPlugin: AnalyzerPlugin = {
       for (const jsonConfigName of ["wrangler.jsonc", "wrangler.json"]) {
         const content = await adapter.readFile(jsonConfigName);
         if (content) {
-          const parsed = parseJsonc(content);
+          const parsed = parseJsonc<Record<string, any>>(content);
           if (parsed) {
             if (typeof parsed.main === "string") {
               adapter.markAsUsed(parsed.main);
@@ -444,9 +411,9 @@ export const WranglerPlugin: AnalyzerPlugin = {
           for (const property of node.id.properties ?? []) {
             if (
               (property.type === "Property" || property.type === "ObjectProperty") &&
-              t.isIdentifier(property.key)
+              staticPropertyName(property.key)
             ) {
-              markBindingUsed(fileId, property.key.name);
+              markBindingUsed(fileId, staticPropertyName(property.key)!);
               adapter.markPackageAsUsed("wrangler");
             }
           }
@@ -457,11 +424,10 @@ export const WranglerPlugin: AnalyzerPlugin = {
       if (t.isExportDefaultDeclaration(node) && t.isObjectExpression(node.declaration)) {
         node.declaration.properties.forEach((prop: any) => {
           if (
-            t.isObjectProperty(prop) &&
-            t.isIdentifier(prop.key) &&
-            ["fetch", "scheduled", "queue", "trace", "email"].includes(prop.key.name)
+            (t.isObjectProperty(prop) || t.isObjectMethod(prop)) &&
+            ["fetch", "scheduled", "queue", "trace", "email"].includes(staticPropertyName(prop.key) ?? "")
           ) {
-            adapter.markAsUsed(fileId, prop.key.name);
+            adapter.markAsUsed(fileId, staticPropertyName(prop.key));
           }
         });
       }

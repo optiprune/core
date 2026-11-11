@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, parsePluginJson, parsePluginYaml, staticPropertyName } from "../plugin-utils.js";
 
 const SEMANTIC_RELEASE_CONFIG_FILES = [
   ".releaserc",
@@ -16,17 +17,7 @@ const SEMANTIC_RELEASE_CONFIG_FILES = [
   "release.config.ts",
 ];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 export const SemanticReleasePlugin: AnalyzerPlugin = {
   name: "semantic-release-plugin",
@@ -59,7 +50,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           scriptValues.some(
             (s) =>
               typeof s === "string" &&
-              (s.includes("semantic-release") || s.includes("npx semantic-release")),
+              hasCommand(s, ["semantic-release"]),
           )
         ) {
           return true;
@@ -68,7 +59,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
     }
 
     for (const configFile of SEMANTIC_RELEASE_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -107,7 +98,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of SEMANTIC_RELEASE_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -124,7 +115,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking semantic-release CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (typeof scriptContent === "string" && scriptContent.includes("semantic-release")) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["semantic-release"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("semantic-release");
           }
@@ -137,6 +128,19 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           const content = await adapter.readFile(jsonConfigName);
           if (content) {
             const parsed = parseJsonc(content);
+            if (parsed) {
+              releaseConfig = parsed;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!releaseConfig) {
+        for (const yamlConfigName of [".releaserc.yaml", ".releaserc.yml"]) {
+          const content = await adapter.readFile(yamlConfigName);
+          if (content) {
+            const parsed = parsePluginYaml(content);
             if (parsed) {
               releaseConfig = parsed;
               break;
@@ -205,7 +209,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
           node?.type === "AssignmentExpression" &&
           node.left?.type === "MemberExpression" &&
           node.left?.object?.name === "module" &&
-          node.left?.property?.name === "exports"
+          staticPropertyName(node.left?.property) === "exports"
         ) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("semantic-release");
@@ -213,7 +217,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
 
         // Search for plugins in JS configuration objects
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
+          const keyName = staticPropertyName(node.key);
 
           if (keyName === "plugins" && t.isArrayExpression(node.value)) {
             node.value.elements.forEach((el: any) => {

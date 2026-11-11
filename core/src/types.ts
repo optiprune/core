@@ -554,6 +554,8 @@ export interface PluginAdapter {
   readJson(filename: string): Promise<any | null>;
   /** Check whether a directory (or file) exists relative to the project root. Useful for detecting tool directories like .husky, .git, etc. */
   folderExists(folderName: string): Promise<boolean>;
+  /** Check whether a regular file exists relative to the project root. */
+  fileExists?(fileName: string): Promise<boolean>;
   /** Find project files by exact basename while excluding dependency and build output directories. */
   findFiles(fileNames: string[]): Promise<string[]>;
   /** Find project files matching static glob patterns with the engine's standard project filtering. */
@@ -583,6 +585,7 @@ export interface PluginAdapter {
   addIgnorePatterns(patterns: string[]): void;
   /** Add project-file patterns that define the framework's analysis scope. */
   addProjectPatterns(patterns: string[]): void;
+  markFilesByGlob?(patterns: string[]): Promise<void>;
   /** Exclude files from unreachable-file reports without removing them from analysis. */
   addUnreachableFileIgnorePatterns(patterns: string[]): void;
   /** Exclude dependencies that a framework configuration declares as externally managed. */

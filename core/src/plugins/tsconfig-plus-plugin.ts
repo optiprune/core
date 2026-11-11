@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, normalizeRelativeFile, parsePluginJson } from "../plugin-utils.js";
 
 const TSCONFIG_FILE_PATTERN = /^tsconfig(\..+)?\.json$/;
 
@@ -16,17 +17,7 @@ const DEFAULT_TSCONFIG_VARIANTS = [
 
 const TYPESCRIPT_PACKAGES = ["typescript", "ts-node", "tsx", "@types/node"];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 export const TsconfigPlusPlugin: AnalyzerPlugin = {
   name: "tsconfig-plus-plugin",
@@ -56,7 +47,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
         if (
           scriptValues.some(
             (s) =>
-              typeof s === "string" && (s.includes("tsc ") || s === "tsc" || s.includes("tsc--")),
+      typeof s === "string" && hasCommand(s, ["tsc", "ts-node", "tsx"]),
           )
         ) {
           return true;
@@ -83,8 +74,10 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
 
       // 2. Scan and parse all found tsconfig*.json files
       let hasConfigFile = false;
-      for (const configFile of DEFAULT_TSCONFIG_VARIANTS) {
-        if (await adapter.folderExists(configFile)) {
+      const discovered = await adapter.findFilesByGlob(["tsconfig*.json"]);
+      const configFiles = [...new Set([...DEFAULT_TSCONFIG_VARIANTS, ...discovered])];
+      for (const configFile of configFiles) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
 
@@ -92,7 +85,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
           if (content) {
             const configObj = parseJsonc(content);
             if (configObj) {
-              processTsconfigObject(configObj, adapter);
+              processTsconfigObject(configObj, adapter, configFile);
             }
           }
         }
@@ -108,11 +101,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("tsc ") ||
-              scriptContent === "tsc" ||
-              scriptContent.includes("tsc -") ||
-              scriptContent.includes("tscbuild"))
+              typeof scriptContent === "string" && hasCommand(scriptContent, ["tsc", "ts-node", "tsx"])
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("typescript");
@@ -161,11 +150,11 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
 /**
  * Parses deep tsconfig properties: extends, compilerOptions, paths, references, etc.
  */
-function processTsconfigObject(config: Record<string, any>, adapter: any): void {
+function processTsconfigObject(config: Record<string, any>, adapter: any, configFile = "tsconfig.json"): void {
   // A. Extends chain (e.g. extends: "@tsconfig/strictest/tsconfig.json" or "./tsconfig.base.json")
   if (typeof config.extends === "string") {
     if (config.extends.startsWith(".") || config.extends.startsWith("/")) {
-      adapter.markAsUsed(config.extends);
+          adapter.markRelativeFileAsUsed(configFile, config.extends);
     } else {
       // Extends shared tsconfig package: @tsconfig/node18, @sveltejs/kit/tsconfig.json
       const pkgName = config.extends.startsWith("@")
@@ -179,7 +168,7 @@ function processTsconfigObject(config: Record<string, any>, adapter: any): void 
     config.extends.forEach((extPath: any) => {
       if (typeof extPath === "string") {
         if (extPath.startsWith(".") || extPath.startsWith("/")) {
-          adapter.markAsUsed(extPath);
+          adapter.markRelativeFileAsUsed(configFile, extPath);
         } else {
           const pkgName = extPath.startsWith("@")
             ? extPath.split("/").slice(0, 2).join("/")
@@ -194,7 +183,7 @@ function processTsconfigObject(config: Record<string, any>, adapter: any): void 
   if (Array.isArray(config.references)) {
     config.references.forEach((ref: any) => {
       if (typeof ref?.path === "string") {
-        adapter.markAsUsed(ref.path);
+        adapter.markRelativeFileAsUsed(configFile, ref.path);
       }
     });
   }
@@ -204,7 +193,11 @@ function processTsconfigObject(config: Record<string, any>, adapter: any): void 
     if (Array.isArray(config[field])) {
       config[field].forEach((filePath: any) => {
         if (typeof filePath === "string") {
-          adapter.markAsUsed(filePath);
+              if (filePath.includes("*") || filePath.includes("?")) {
+                adapter.markAsUsed(normalizeRelativeFile(configFile, filePath));
+              } else {
+                adapter.markRelativeFileAsUsed(configFile, filePath);
+              }
         }
       });
     }
@@ -216,14 +209,14 @@ function processTsconfigObject(config: Record<string, any>, adapter: any): void 
     // 1. Output & Declaration Directories
     ["outDir", "declarationDir", "rootDir", "baseUrl"].forEach((dirKey) => {
       if (typeof opts[dirKey] === "string") {
-        adapter.markAsUsed(opts[dirKey]);
+        adapter.markRelativeFileAsUsed(configFile, opts[dirKey]);
       }
     });
 
     // 2. RootDirs array (multi-root project setup)
     if (Array.isArray(opts.rootDirs)) {
       opts.rootDirs.forEach((rDir: any) => {
-        if (typeof rDir === "string") adapter.markAsUsed(rDir);
+        if (typeof rDir === "string") adapter.markRelativeFileAsUsed(configFile, rDir);
       });
     }
 
@@ -234,7 +227,11 @@ function processTsconfigObject(config: Record<string, any>, adapter: any): void 
           targets.forEach((targetPath: any) => {
             if (typeof targetPath === "string") {
               const cleanPath = targetPath.replace(/\/\*$/, "");
-              adapter.markAsUsed(cleanPath);
+              if (cleanPath.includes("*") || cleanPath.includes("?")) {
+                adapter.markAsUsed(normalizeRelativeFile(configFile, cleanPath));
+              } else {
+                adapter.markRelativeFileAsUsed(configFile, cleanPath);
+              }
             }
           });
         }
@@ -258,7 +255,7 @@ function processTsconfigObject(config: Record<string, any>, adapter: any): void 
     if (Array.isArray(opts.typeRoots)) {
       opts.typeRoots.forEach((typeRoot: any) => {
         if (typeof typeRoot === "string") {
-          adapter.markAsUsed(typeRoot);
+          adapter.markRelativeFileAsUsed(configFile, typeRoot);
         }
       });
     }

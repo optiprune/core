@@ -542,6 +542,15 @@ export class PluginEngine {
           return false;
         }
       },
+      fileExists: async (fileName) => {
+        const safePath = safeResolve(context.options.rootDir, fileName);
+        if (!safePath) return false;
+        try {
+          return (await fs.stat(safePath)).isFile();
+        } catch {
+          return false;
+        }
+      },
       findFiles: async (fileNames) => {
         const names = new Set(fileNames);
         return (await discoverProjectFiles()).filter((file) => names.has(path.basename(file)));
@@ -662,6 +671,12 @@ export class PluginEngine {
         context.options.projectPatterns = Array.from(
           new Set([...(context.options.projectPatterns ?? []), ...validPatterns]),
         );
+      },
+      markFilesByGlob: async (patterns) => {
+        const matchers = compileGlobs(patterns);
+        for (const file of await discoverProjectFiles()) {
+          if (matchesAnyGlob(file, matchers)) adapter.markAsUsed(file);
+        }
       },
       addUnreachableFileIgnorePatterns: (patterns) => {
         const validPatterns = patterns.filter(

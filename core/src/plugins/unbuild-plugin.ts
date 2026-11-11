@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, parsePluginJson, staticPropertyName } from "../plugin-utils.js";
 
 const UNBUILD_CONFIG_FILES = [
   "build.config.ts",
@@ -14,17 +15,7 @@ const UNBUILD_CONFIG_FILES = [
 
 const UNBUILD_PACKAGES = ["unbuild", "mkdist", "untun"];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 export const UnbuildPlugin: AnalyzerPlugin = {
   name: "unbuild-plugin",
@@ -42,7 +33,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
 
       if (
         Object.keys(allDeps).some((dep) => dep === "unbuild" || dep === "mkdist") ||
-        pkg.unbuild
+        (pkg.unbuild && typeof pkg.unbuild === "object" && !Array.isArray(pkg.unbuild))
       ) {
         return true;
       }
@@ -51,7 +42,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("unbuild") || s.includes("unbuild ")),
+            (s) => typeof s === "string" && hasCommand(s, ["unbuild", "mkdist"]),
           )
         ) {
           return true;
@@ -61,7 +52,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
 
     // 2. Check for configuration files
     for (const configFile of UNBUILD_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -91,7 +82,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of UNBUILD_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -99,7 +90,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
 
       // 3. Process package.json "unbuild" block if present
       let unbuildConfig: any = null;
-      if (pkg?.unbuild) {
+      if (pkg?.unbuild && typeof pkg.unbuild === "object" && !Array.isArray(pkg.unbuild)) {
         hasConfigFile = true;
         adapter.markAsUsed("package.json", "unbuild");
         unbuildConfig = pkg.unbuild;
@@ -109,8 +100,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("unbuild") || scriptContent.includes("unbuild "))
+            typeof scriptContent === "string" && hasCommand(scriptContent, ["unbuild", "mkdist"])
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("unbuild");
@@ -225,11 +215,10 @@ export const UnbuildPlugin: AnalyzerPlugin = {
                       el.properties.forEach((p: any) => {
                         if (
                           t.isObjectProperty(p) &&
-                          t.isIdentifier(p.key) &&
-                          ["input", "builder"].includes(p.key.name) &&
+                          staticPropertyName(p.key) === "input" &&
                           t.isStringLiteral(p.value)
                         ) {
-                          adapter.markAsUsed(p.value.value);
+                          adapter.markRelativeFileAsUsed(fileId, p.value.value);
                         }
                       });
                     }
@@ -274,10 +263,15 @@ function processUnbuildConfigObj(config: any, adapter: any): void {
   if (Array.isArray(entries)) {
     entries.forEach((entry: any) => {
       if (typeof entry === "string") {
-        adapter.markAsUsed(entry);
+        if (entry.includes("*") || entry.includes("?")) adapter.markAsUsed(entry);
+        else adapter.markRelativeFileAsUsed("build.config.json", entry);
       } else if (typeof entry === "object" && entry !== null) {
         if (typeof entry.input === "string") {
-          adapter.markAsUsed(entry.input);
+          if (entry.input.includes("*") || entry.input.includes("?")) {
+            adapter.markAsUsed(entry.input);
+          } else {
+            adapter.markRelativeFileAsUsed("build.config.json", entry.input);
+          }
         }
       }
     });

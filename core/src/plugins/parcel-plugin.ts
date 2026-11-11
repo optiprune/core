@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, parsePluginJson } from "../plugin-utils.js";
 
 const PARCEL_CONFIG_FILES = [
   ".parcelrc",
@@ -15,17 +16,7 @@ const PARCEL_CONFIG_FILES = [
 
 const PARCEL_CORE_PACKAGES = ["parcel", "parcel-bundler", "@parcel/config-default"];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 export const ParcelPlugin: AnalyzerPlugin = {
   name: "parcel-plugin",
@@ -52,14 +43,14 @@ export const ParcelPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (scriptValues.some((s) => typeof s === "string" && s.includes("parcel"))) {
+        if (scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["parcel"]))) {
           return true;
         }
       }
     }
 
     for (const configFile of PARCEL_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -96,7 +87,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
       // 2. Protect standalone Parcel configuration files
       let hasConfigFile = false;
       for (const configFile of PARCEL_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -105,11 +96,15 @@ export const ParcelPlugin: AnalyzerPlugin = {
       // 3. Extract entry points defined in package.json "source" and "targets"
       if (pkg) {
         if (typeof pkg.source === "string") {
-          adapter.markAsUsed(pkg.source);
+          if (pkg.source.includes("*") || pkg.source.includes("?")) adapter.markAsUsed(pkg.source);
+          else adapter.markRelativeFileAsUsed("package.json", pkg.source);
           adapter.markAsUsed("package.json", "source");
         } else if (Array.isArray(pkg.source)) {
           pkg.source.forEach((s: string) => {
-            if (typeof s === "string") adapter.markAsUsed(s);
+            if (typeof s === "string") {
+              if (s.includes("*") || s.includes("?")) adapter.markAsUsed(s);
+              else adapter.markRelativeFileAsUsed("package.json", s);
+            }
           });
           adapter.markAsUsed("package.json", "source");
         }
@@ -119,10 +114,15 @@ export const ParcelPlugin: AnalyzerPlugin = {
           for (const targetKey of Object.keys(pkg.targets)) {
             const target = pkg.targets[targetKey];
             if (target && typeof target.source === "string") {
-              adapter.markAsUsed(target.source);
+              if (target.source.includes("*") || target.source.includes("?"))
+                adapter.markAsUsed(target.source);
+              else adapter.markRelativeFileAsUsed("package.json", target.source);
             } else if (target && Array.isArray(target.source)) {
               target.source.forEach((s: string) => {
-                if (typeof s === "string") adapter.markAsUsed(s);
+                if (typeof s === "string") {
+                  if (s.includes("*") || s.includes("?")) adapter.markAsUsed(s);
+                  else adapter.markRelativeFileAsUsed("package.json", s);
+                }
               });
             }
           }
@@ -132,10 +132,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking Parcel CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("parcel ") || scriptContent === "parcel")
-          ) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["parcel"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("parcel");
           }
@@ -143,9 +140,16 @@ export const ParcelPlugin: AnalyzerPlugin = {
       }
 
       // 5. Inspect .parcelrc / .parcelrc.json for plugins, extends, and transformers
-      const parcelRcContent = await adapter.readFile(".parcelrc");
+      let parcelConfigName: string | undefined;
+      for (const candidate of PARCEL_CONFIG_FILES) {
+        if (await fileExists(adapter, candidate)) {
+          parcelConfigName = candidate;
+          break;
+        }
+      }
+      const parcelRcContent = parcelConfigName ? await adapter.readFile(parcelConfigName) : null;
       if (parcelRcContent) {
-        const parcelRc = parseJsonc(parcelRcContent);
+        const parcelRc = parseJsonc<Record<string, any>>(parcelRcContent);
         if (parcelRc) {
           // Process extends: "@parcel/config-default"
           if (typeof parcelRc.extends === "string") {

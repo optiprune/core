@@ -21,6 +21,8 @@ const ELECTRON_VITE_CONFIG_FILES = [
   "electron.vite.config.js",
   "electron.vite.config.mjs",
   "electron.vite.config.cjs",
+  "electron.vite.config.mts",
+  "electron.vite.config.cts",
 ];
 
 const WXT_CONFIG_FILES = ["wxt.config.ts", "wxt.config.js", "wxt.config.mjs", "wxt.config.cjs"];
@@ -32,6 +34,10 @@ const VITE_CONFIG_FILES = [
   "vite.config.cjs",
   "pwa-assets.config.ts",
   "pwa-assets.config.js",
+  "pwa-assets.config.mjs",
+  "pwa-assets.config.cjs",
+  "pwa-assets.config.mts",
+  "pwa-assets.config.cts",
 ];
 
 export const ViteSpecializedPlugin: AnalyzerPlugin = {
@@ -143,7 +149,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
         adapter.markPackageAsUsed("wxt");
       }
 
-      if (basename.startsWith("pwa-assets.config.")) {
+      if (VITE_CONFIG_FILES.includes(basename) && basename.startsWith("pwa-assets.config.")) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("@vite-pwa/assets-generator");
       }
@@ -160,9 +166,9 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
 
       // 4. File-Based Pages & Layouts Routing (vite-plugin-pages, vite-plugin-vue-layouts-next)
       if (
-        normalized.includes("/src/pages/") ||
-        normalized.includes("/src/layouts/") ||
-        normalized.includes("/src/routes/")
+        normalized.includes("/src/pages/") || normalized.startsWith("src/pages/") ||
+        normalized.includes("/src/layouts/") || normalized.startsWith("src/layouts/") ||
+        normalized.includes("/src/routes/") || normalized.startsWith("src/routes/")
       ) {
         adapter.markAsUsed(fileId);
       }
@@ -196,6 +202,22 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           source.startsWith("@wxt-dev/") ||
           source.startsWith("@vite-pwa/")
         ) {
+          adapter.markPackageAsUsed(source.startsWith("@wxt-dev/") ? source.split("/").slice(0, 2).join("/") : source.startsWith("@vite-pwa/") ? source.split("/").slice(0, 2).join("/") : source);
+          adapter.markAsUsed(fileId);
+        }
+      }
+
+      if (t.isExportNamedDeclaration(node) && (node as any).source?.value) {
+        const source = (node as any).source.value;
+        if (SPECIALIZED_VITE_PACKAGES.includes(source) || source.startsWith("@wxt-dev/") || source.startsWith("@vite-pwa/")) {
+          adapter.markPackageAsUsed(source);
+          adapter.markAsUsed(fileId);
+        }
+      }
+
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require" && t.isStringLiteral(node.arguments?.[0])) {
+        const source = node.arguments[0].value;
+        if (SPECIALIZED_VITE_PACKAGES.includes(source) || source.startsWith("@wxt-dev/") || source.startsWith("@vite-pwa/")) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
@@ -228,8 +250,8 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           for (const prop of firstArg.properties) {
             if (
               (prop as any).key &&
-              t.isIdentifier((prop as any).key) &&
-              (prop as any).key.name === "input"
+              ((t.isIdentifier((prop as any).key) && (prop as any).key.name === "input") ||
+                (t.isStringLiteral((prop as any).key) && (prop as any).key.value === "input"))
             ) {
               const val = (prop as any).value;
 

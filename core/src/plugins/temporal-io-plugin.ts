@@ -88,7 +88,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
       };
 
       const hasTemporalDep = Object.keys(allDeps).some(
-        (p) => p === "temporalio" || p.startsWith("@temporalio/"),
+        (p) => p === "temporalio" || p === "@temporalio/workflow" || p === "@temporalio/worker",
       );
 
       // 1. Safeguard installed @temporalio/* packages in package.json
@@ -133,8 +133,10 @@ export const TemporalPlugin: AnalyzerPlugin = {
       // 5. Report missing dependency if configuration or workflows exist without temporal packages
       const hasWorkflowDir =
         (await adapter.folderExists("src/workflows")) || (await adapter.folderExists("workflows"));
+      const hasActivityDir =
+        (await adapter.folderExists("src/activities")) || (await adapter.folderExists("activities"));
 
-      if ((hasConfigFile || hasWorkflowDir) && !hasTemporalDep) {
+      if ((hasConfigFile || hasWorkflowDir || hasActivityDir) && !hasTemporalDep) {
         adapter.emitFinding({
           rule: "missing-dependency",
           severity: "error",
@@ -142,7 +144,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
           file: "package.json",
           message:
             "Temporal configuration or workflows directory found, but '@temporalio/workflow' or '@temporalio/worker' is not listed in package.json.",
-          evidence: { hasConfigFile, hasWorkflowDir },
+          evidence: { hasConfigFile, hasWorkflowDir, hasActivityDir },
         });
       }
     },
@@ -158,14 +160,8 @@ export const TemporalPlugin: AnalyzerPlugin = {
       }
 
       // Protect source files in workflow or activity directories
-      if (
-        normalized.includes("/workflows/") ||
-        normalized.includes("/activities/") ||
-        normalized.startsWith("workflows/") ||
-        normalized.startsWith("activities/") ||
-        normalized.startsWith("src/workflows/") ||
-        normalized.startsWith("src/activities/")
-      ) {
+      const segments = normalized.split("/");
+      if (segments.includes("workflows") || segments.includes("activities")) {
         adapter.markAsUsed(fileId);
       }
     },
@@ -228,9 +224,7 @@ export const TemporalPlugin: AnalyzerPlugin = {
 
       // 4. Detect exported Workflow or Activity functions in workflow/activity files
       if (
-        normalized.includes("workflow") ||
-        normalized.includes("activity") ||
-        normalized.includes("activities")
+        normalized.split("/").some((segment: string) => ["workflow", "workflows", "activity", "activities"].includes(segment))
       ) {
         // Protect export default functions
         if (t.isExportDefaultDeclaration(node)) {

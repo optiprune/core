@@ -1,6 +1,13 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import {
+  fileExists,
+  packageRoot,
+  parsePluginJson,
+  parsePluginYaml,
+  staticPropertyName,
+} from "../plugin-utils.js";
 
 const CSPELL_CONFIG_FILES = [
   ".cspell.json",
@@ -24,17 +31,7 @@ const CSPELL_CONFIG_FILES = [
   "cspell.config.yml",
 ];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 export const CspellPlugin: AnalyzerPlugin = {
   name: "cspell-plugin",
@@ -71,7 +68,7 @@ export const CspellPlugin: AnalyzerPlugin = {
 
     // 2. Check for CSpell configuration files
     for (const configFile of CSPELL_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -103,7 +100,7 @@ export const CspellPlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of CSPELL_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -144,6 +141,25 @@ export const CspellPlugin: AnalyzerPlugin = {
             if (parsed) {
               cspellConfig = parsed;
               break;
+            }
+          }
+        }
+        if (!cspellConfig) {
+          for (const yamlConfigName of [
+            ".cspell.yaml",
+            ".cspell.yml",
+            "cspell.yaml",
+            "cspell.yml",
+            "cspell.config.yaml",
+            "cspell.config.yml",
+          ]) {
+            const content = await adapter.readFile(yamlConfigName);
+            if (content) {
+              const parsed = parsePluginYaml(content);
+              if (parsed) {
+                cspellConfig = parsed;
+                break;
+              }
             }
           }
         }
@@ -212,7 +228,7 @@ export const CspellPlugin: AnalyzerPlugin = {
 
         // Inspect properties in JS config object
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
+          const keyName = staticPropertyName(node.key);
 
           // Extract dictionaryDefinitions: [{ path: './custom-words.txt' }]
           if (keyName === "dictionaryDefinitions" && t.isArrayExpression(node.value)) {
@@ -221,11 +237,10 @@ export const CspellPlugin: AnalyzerPlugin = {
                 el.properties.forEach((prop: any) => {
                   if (
                     t.isObjectProperty(prop) &&
-                    t.isIdentifier(prop.key) &&
-                    prop.key.name === "path" &&
+                    staticPropertyName(prop.key) === "path" &&
                     t.isStringLiteral(prop.value)
                   ) {
-                    adapter.markAsUsed(prop.value.value);
+                    adapter.markRelativeFileAsUsed(fileId, prop.value.value);
                   }
                 });
               }
@@ -238,7 +253,7 @@ export const CspellPlugin: AnalyzerPlugin = {
               if (t.isStringLiteral(el)) {
                 const importVal = el.value;
                 if (importVal.startsWith(".") || importVal.startsWith("/")) {
-                  adapter.markAsUsed(importVal);
+                  adapter.markRelativeFileAsUsed(fileId, importVal);
                 } else {
                   adapter.markPackageAsUsed(importVal);
                 }
@@ -258,7 +273,7 @@ function processCspellConfigObj(config: any, adapter: any): void {
   if (Array.isArray(config.dictionaryDefinitions)) {
     config.dictionaryDefinitions.forEach((dict: any) => {
       if (typeof dict?.path === "string") {
-        adapter.markAsUsed(dict.path);
+        adapter.markRelativeFileAsUsed("cspell.json", dict.path);
       }
     });
   }
@@ -268,9 +283,9 @@ function processCspellConfigObj(config: any, adapter: any): void {
     config.imports.forEach((imp: string) => {
       if (typeof imp === "string") {
         if (imp.startsWith(".") || imp.startsWith("/")) {
-          adapter.markAsUsed(imp);
+          adapter.markRelativeFileAsUsed("cspell.json", imp);
         } else {
-          adapter.markPackageAsUsed(imp);
+          adapter.markPackageAsUsed(packageRoot(imp));
         }
       }
     });

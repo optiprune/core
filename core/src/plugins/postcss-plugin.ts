@@ -1,6 +1,12 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import {
+  fileExists,
+  parsePluginJson,
+  parsePluginYaml,
+  staticPropertyName,
+} from "../plugin-utils.js";
 
 const POSTCSS_CONFIG_FILES = [
   "postcss.config.js",
@@ -18,17 +24,7 @@ const POSTCSS_CONFIG_FILES = [
   ".postcssrc.mjs",
 ];
 
-function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
-}
+const parseJsonc = parsePluginJson;
 
 export const PostCSSPlugin: AnalyzerPlugin = {
   name: "postcss-plugin",
@@ -72,7 +68,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
 
     // 2. Check for configuration files
     for (const configFile of POSTCSS_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -115,7 +111,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of POSTCSS_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -148,6 +144,19 @@ export const PostCSSPlugin: AnalyzerPlugin = {
           const content = await adapter.readFile(jsonConfigName);
           if (content) {
             const parsed = parseJsonc(content);
+            if (parsed) {
+              postcssConfig = parsed;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!postcssConfig) {
+        for (const yamlConfigName of [".postcssrc.yaml", ".postcssrc.yml"]) {
+          const content = await adapter.readFile(yamlConfigName);
+          if (content) {
+            const parsed = parsePluginYaml(content);
             if (parsed) {
               postcssConfig = parsed;
               break;
@@ -223,7 +232,7 @@ export const PostCSSPlugin: AnalyzerPlugin = {
 
         // Detect plugins in postcss.config.js / postcss.config.ts
         if (t.isObjectProperty(node)) {
-          const keyName = t.isIdentifier(node.key) ? node.key.name : (node.key as any).value;
+          const keyName = staticPropertyName(node.key);
 
           if (keyName === "plugins") {
             const val = node.value;
@@ -232,7 +241,16 @@ export const PostCSSPlugin: AnalyzerPlugin = {
             // or plugins: ['tailwindcss', 'autoprefixer']
             if (t.isArrayExpression(val)) {
               val.elements.forEach((el: any) => {
-                if (t.isCallExpression(el) && t.isIdentifier(el.callee)) {
+                if (t.isCallExpression(el) && t.isCallExpression(el.callee)) {
+                  const nested = el.callee;
+                  if (
+                    t.isIdentifier(nested.callee) &&
+                    nested.callee.name === "require" &&
+                    t.isStringLiteral(nested.arguments?.[0])
+                  ) {
+                    adapter.markPackageAsUsed(nested.arguments[0].value);
+                  }
+                } else if (t.isCallExpression(el) && t.isIdentifier(el.callee)) {
                   if (el.callee.name === "require" && el.arguments.length > 0) {
                     const arg = el.arguments[0];
                     if (t.isStringLiteral(arg)) {
