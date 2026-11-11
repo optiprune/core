@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 /**
  * Recognized Bumpp configuration files
@@ -22,7 +23,7 @@ function processBumppConfigObject(configObj: any, adapter: any): void {
 
   const extractExecute = (execVal: any) => {
     if (typeof execVal === "string") {
-      const tokens = execVal.split(/\s+/);
+      const tokens = tokenizeCommand(execVal);
       for (const token of tokens) {
         const clean = token.replace(/^["']|["']$/g, "");
         if (!clean.startsWith("-") && /\.[jt]sx?$/.test(clean)) {

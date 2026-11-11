@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const TSX_PACKAGES = [
   "tsx",
@@ -9,7 +10,7 @@ const TSX_PACKAGES = [
 ];
 
 function invokesTsx(script: string): boolean {
-  const tokens = script.split(/\s+/).filter(Boolean);
+  const tokens = tokenizeCommand(script).filter(Boolean);
   return tokens.some((token, index) => {
     const normalized = token.replace(/^['\"]|['\"]$/g, "");
     if (normalized === "tsx" || normalized.endsWith("/tsx") || normalized.endsWith("\\\\tsx"))
@@ -22,7 +23,7 @@ function invokesTsx(script: string): boolean {
 }
 
 function invokesEsbuildRegister(script: string): boolean {
-  return script.split(/\s+/).some((token) => {
+  return tokenizeCommand(script).some((token) => {
     const normalized = token.replace(/^['\"]|['\"]$/g, "");
     return normalized === "esbuild-register" || normalized.endsWith("/esbuild-register");
   });
@@ -88,7 +89,7 @@ export const TsxPlugin: AnalyzerPlugin = {
             }
 
             // Extract target TypeScript entry point after tsx command & flags
-            const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
+            const tokens = tokenizeCommand(scriptContent).filter((t) => t.trim().length > 0);
 
             const tsxIndex = tokens.findIndex(
               (t) => t === "tsx" || t.endsWith("/tsx") || t.endsWith("\\tsx"),

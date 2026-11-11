@@ -1,4 +1,5 @@
 import { AnalyzerPlugin } from "../types.js";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const TS_NODE_PACKAGES = ["ts-node", "tsconfig-paths"];
 
@@ -85,7 +86,7 @@ export const TsNodePlugin: AnalyzerPlugin = {
             }
 
             // Extract target TypeScript file argument (e.g., "ts-node src/index.ts" -> "src/index.ts")
-            const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
+            const tokens = tokenizeCommand(scriptContent).filter((t) => t.trim().length > 0);
             const tsNodeIdx = tokens.findIndex((t) => t.includes("ts-node"));
 
             if (tsNodeIdx !== -1) {

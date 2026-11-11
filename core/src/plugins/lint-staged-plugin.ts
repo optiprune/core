@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const LINT_STAGED_CONFIG_FILES = [
   ".lintstagedrc",
@@ -117,7 +118,7 @@ export const LintStagedPlugin: AnalyzerPlugin = {
       if (t.isStringLiteral(node) || (node.type === "Literal" && typeof node.value === "string")) {
         const cmdStr = node.value.trim();
         if (cmdStr && !cmdStr.startsWith(".") && !cmdStr.startsWith("/")) {
-          const firstWord = cmdStr.split(/\s+/)[0];
+          const firstWord = tokenizeCommand(cmdStr)[0];
           if (firstWord && !firstWord.startsWith("-")) {
             adapter.markPackageAsUsed(firstWord);
           }

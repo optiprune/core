@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand } from "../plugin-utils.js";
 
 const PNPM_CONFIG_FILES = [
   "pnpm-workspace.yaml",
@@ -29,9 +30,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some((s) => typeof s === "string" && (s.includes("pnpm ") || s === "pnpm"))
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["pnpm"]))) {
           return true;
         }
       }
@@ -56,10 +55,7 @@ export const PnpmPlugin: AnalyzerPlugin = {
       // 2. Track npm scripts invoking pnpm CLI (e.g., "build": "pnpm -r build")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("pnpm ") || scriptContent === "pnpm")
-          ) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["pnpm"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
           }
         }

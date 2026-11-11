@@ -1,6 +1,13 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import {
+  fileExists,
+  hasCommand,
+  parsePluginJson,
+  parsePluginYaml,
+  staticPropertyName,
+} from "../plugin-utils.js";
 
 const SERVERLESS_CONFIG_FILES = [
   "serverless.yml",
@@ -17,15 +24,7 @@ const SERVERLESS_CONFIG_FILES = [
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
+  return parsePluginJson<T>(content);
 }
 
 export const ServerlessPlugin: AnalyzerPlugin = {
@@ -52,23 +51,14 @@ export const ServerlessPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("serverless ") ||
-                s === "serverless" ||
-                s.includes("sls ") ||
-                s === "sls"),
-          )
-        ) {
+        if (scriptValues.some((s) => hasCommand(s, ["serverless", "sls"]))) {
           return true;
         }
       }
     }
 
     for (const configFile of SERVERLESS_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return await adapter.folderExists(".serverless");
@@ -104,7 +94,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of SERVERLESS_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -113,10 +103,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking Serverless CLI (sls or serverless)
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("serverless") || scriptContent.includes("sls"))
-          ) {
+          if (hasCommand(scriptContent, ["serverless", "sls"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("serverless");
           }
@@ -124,12 +111,14 @@ export const ServerlessPlugin: AnalyzerPlugin = {
       }
 
       // 4. Inspect JSON/YAML serverless configs for plugins and handlers
-      const jsonContent = await adapter.readFile("serverless.json");
-      if (jsonContent) {
-        const parsed = parseJsonc(jsonContent);
-        if (parsed) {
-          processServerlessConfigObj(parsed, adapter);
-        }
+      for (const configFile of SERVERLESS_CONFIG_FILES) {
+        const content = await adapter.readFile(configFile);
+        if (!content) continue;
+        const parsed =
+          configFile.endsWith(".yml") || configFile.endsWith(".yaml")
+            ? parsePluginYaml(content)
+            : parseJsonc(content);
+        if (parsed) processServerlessConfigObj(parsed, adapter);
       }
 
       // 5. Emit finding if config file is present without serverless package
@@ -190,7 +179,7 @@ export const ServerlessPlugin: AnalyzerPlugin = {
           node?.type === "AssignmentExpression" &&
           node.left?.type === "MemberExpression" &&
           node.left?.object?.name === "module" &&
-          node.left?.property?.name === "exports"
+          (node.left?.property?.name === "exports" || node.left?.property?.value === "exports")
         ) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("serverless");
@@ -202,9 +191,9 @@ export const ServerlessPlugin: AnalyzerPlugin = {
             if (!t.isObjectExpression(objExpr)) return;
 
             objExpr.properties.forEach((prop: any) => {
-              if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
+              if (t.isObjectProperty(prop) && !!staticPropertyName(prop.key)) {
                 // Protect plugins listed in config: plugins: ['serverless-esbuild', 'serverless-offline']
-                if (prop.key.name === "plugins") {
+                if (staticPropertyName(prop.key) === "plugins") {
                   const val = prop.value;
                   if (t.isArrayExpression(val)) {
                     val.elements.forEach((el: any) => {
@@ -218,17 +207,22 @@ export const ServerlessPlugin: AnalyzerPlugin = {
                 }
 
                 // Protect function handlers: functions: { hello: { handler: 'src/handler.hello' } }
-                if (prop.key.name === "functions" && t.isObjectExpression(prop.value)) {
+                if (
+                  staticPropertyName(prop.key) === "functions" &&
+                  t.isObjectExpression(prop.value)
+                ) {
                   prop.value.properties.forEach((funcProp: any) => {
                     if (t.isObjectProperty(funcProp) && t.isObjectExpression(funcProp.value)) {
                       funcProp.value.properties.forEach((handlerProp: any) => {
                         if (
                           t.isObjectProperty(handlerProp) &&
-                          t.isIdentifier(handlerProp.key) &&
-                          handlerProp.key.name === "handler" &&
+                          staticPropertyName(handlerProp.key) === "handler" &&
                           t.isStringLiteral(handlerProp.value)
                         ) {
-                          const handlerPath = handlerProp.value.value.split(".")[0];
+                          const handlerPath = handlerProp.value.value.slice(
+                            0,
+                            handlerProp.value.value.lastIndexOf("."),
+                          );
                           if (handlerPath) {
                             adapter.markAsUsed(handlerPath);
                           }
@@ -264,7 +258,7 @@ function processServerlessConfigObj(config: any, adapter: any): void {
   if (typeof config.functions === "object" && config.functions !== null) {
     Object.values(config.functions).forEach((func: any) => {
       if (typeof func?.handler === "string") {
-        const handlerFile = func.handler.split(".")[0];
+        const handlerFile = func.handler.slice(0, func.handler.lastIndexOf("."));
         if (handlerFile) adapter.markAsUsed(handlerFile);
       }
     });

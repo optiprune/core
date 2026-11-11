@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const ESBUILD_CONFIG_FILES = [
   "esbuild.config.js",
@@ -118,7 +119,7 @@ export const ESBuildPlugin: AnalyzerPlugin = {
             adapter.markPackageAsUsed("esbuild");
 
             // Extract CLI files (ignoring flags like --bundle or --outdir=dist)
-            const tokens = script.split(/\s+/);
+            const tokens = tokenizeCommand(script);
             for (const token of tokens) {
               const cleanToken = token.replace(/['"]/g, "");
               if (!cleanToken.startsWith("-") && /\.[jt]sx?$/.test(cleanToken)) {

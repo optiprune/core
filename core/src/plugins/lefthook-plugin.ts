@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const LEFTHOOK_CONFIG_FILES = [
   "lefthook.yml",
@@ -99,7 +100,7 @@ export const LefthookPlugin: AnalyzerPlugin = {
             adapter.markPackageAsUsed(cliMatch[1]);
           } else {
             // Direct tool invocation (e.g., "run: eslint {staged_files}")
-            const firstToken = rawCmd.split(/\s+/)[0];
+            const firstToken = tokenizeCommand(rawCmd)[0];
             if (
               firstToken &&
               !firstToken.startsWith(".") &&

@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand } from "../plugin-utils.js";
 
 const OXFMT_CONFIG_FILES = [
   ".oxfmtrc",
@@ -37,13 +38,7 @@ export const OxfmtPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("oxfmt") || s.includes("npx oxfmt") || s.includes("bunx oxfmt")),
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["oxfmt"]))) {
           return true;
         }
       }
@@ -81,12 +76,7 @@ export const OxfmtPlugin: AnalyzerPlugin = {
         // 4. Mark scripts invoking oxfmt as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              (scriptContent.includes("oxfmt") ||
-                scriptContent.includes("npx oxfmt") ||
-                scriptContent.includes("bunx oxfmt"))
-            ) {
+            if (typeof scriptContent === "string" && hasCommand(scriptContent, ["oxfmt"])) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }

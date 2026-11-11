@@ -2,6 +2,7 @@ import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import type { PluginAdapter } from "../types.js";
 import path from "pathe";
+import { hasCommand } from "../plugin-utils.js";
 
 const VITE_CONFIG_FILES = [
   "vite.config.js",
@@ -147,6 +148,14 @@ export const VitePlugin: AnalyzerPlugin = {
       if (VITE_CORE_PACKAGES.some((pkgName) => pkgName in allDeps)) {
         return true;
       }
+
+      if (
+        Object.values(pkg.scripts ?? {}).some(
+          (script) => typeof script === "string" && hasCommand(script, ["vite"]),
+        )
+      ) {
+        return true;
+      }
     }
 
     for (const configFile of VITE_CONFIG_FILES) {
@@ -202,10 +211,7 @@ export const VitePlugin: AnalyzerPlugin = {
       // Track npm scripts invoking Vite CLI (e.g. "dev": "vite", "build": "vite build")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("vite ") || scriptContent === "vite")
-          ) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["vite"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("vite");
           }

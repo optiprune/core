@@ -1,19 +1,12 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, parsePluginJson, tokenizeCommand } from "../plugin-utils.js";
 
 const NODEMON_CONFIG_FILES = ["nodemon.json", ".nodemonignore"];
 
 function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
+  return parsePluginJson<T>(content);
 }
 
 export const NodemonPlugin: AnalyzerPlugin = {
@@ -36,11 +29,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && (s.includes("nodemon ") || s === "nodemon"),
-          )
-        ) {
+        if (scriptValues.some((s) => hasCommand(s, ["nodemon"]))) {
           return true;
         }
       }
@@ -48,7 +37,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
 
     // 2. Check for configuration files
     for (const configFile of NODEMON_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -73,7 +62,7 @@ export const NodemonPlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of NODEMON_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -90,15 +79,12 @@ export const NodemonPlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking Nodemon CLI (e.g. "dev": "nodemon src/index.ts")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("nodemon ") || scriptContent === "nodemon")
-          ) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["nodemon"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("nodemon");
 
             // Extract entry script target from command: "nodemon src/server.js" -> "src/server.js"
-            const parts = scriptContent.split(/\s+/);
+            const parts = tokenizeCommand(scriptContent);
             const nodemonIdx = parts.findIndex((p) => p === "nodemon");
             if (nodemonIdx !== -1 && parts[nodemonIdx + 1]) {
               const target = parts
@@ -182,12 +168,14 @@ export const NodemonPlugin: AnalyzerPlugin = {
 function processNodemonConfigObj(configObj: Record<string, any>, adapter: any): void {
   // Extract target execution script: script: "src/index.ts"
   if (typeof configObj.script === "string") {
-    adapter.markAsUsed(configObj.script);
+    if (adapter.markFilesByGlob && /[*?{}]/.test(configObj.script))
+      void adapter.markFilesByGlob([configObj.script]);
+    else adapter.markRelativeFileAsUsed("nodemon.json", configObj.script);
   }
 
   // Extract custom execution string: exec: "ts-node src/index.ts"
   if (typeof configObj.exec === "string") {
-    const parts = configObj.exec.split(/\s+/);
+    const parts = tokenizeCommand(configObj.exec);
     parts.forEach((part: string) => {
       if (part.includes(".") && !part.startsWith("-")) {
         adapter.markAsUsed(part);
@@ -199,11 +187,13 @@ function processNodemonConfigObj(configObj: Record<string, any>, adapter: any): 
   if (Array.isArray(configObj.watch)) {
     configObj.watch.forEach((watchPath: any) => {
       if (typeof watchPath === "string") {
-        adapter.markAsUsed(watchPath);
+        if (adapter.markFilesByGlob) void adapter.markFilesByGlob([watchPath]);
+        else adapter.markRelativeFileAsUsed("nodemon.json", watchPath);
       }
     });
   } else if (typeof configObj.watch === "string") {
-    adapter.markAsUsed(configObj.watch);
+    if (adapter.markFilesByGlob) void adapter.markFilesByGlob([configObj.watch]);
+    else adapter.markRelativeFileAsUsed("nodemon.json", configObj.watch);
   }
 }
 

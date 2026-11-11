@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
+import { packageRoot, tokenizeCommand } from "../plugin-utils.js";
 
 const PRE_COMMIT_CONFIG_FILES = [
   ".pre-commit-config.yaml",
@@ -92,16 +93,17 @@ export const PreCommitPlugin: AnalyzerPlugin = {
           if (trimmed.startsWith("entry:")) {
             const entryValue = trimmed.replace(/^entry:\s*/, "").replace(/^['"]|['"]$/g, "");
 
-            if (entryValue.includes("npx ")) {
-              const parts = entryValue.split("npx ")[1]?.split(" ");
-              if (parts && parts[0]) {
-                adapter.markPackageAsUsed(parts[0]);
-              }
-            } else if (entryValue.includes("npm run ")) {
-              const scriptName = entryValue.split("npm run ")[1]?.split(" ")[0];
-              if (scriptName) {
-                adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-              }
+            const tokens = tokenizeCommand(entryValue);
+            const npx = tokens.indexOf("npx");
+            if (npx >= 0) {
+              let i = npx + 1;
+              while (i < tokens.length && (tokens[i]?.startsWith("-") || tokens[i - 1] === "-p"))
+                i++;
+              if (tokens[i]) adapter.markPackageAsUsed(packageRoot(tokens[i] ?? ""));
+            }
+            const npm = tokens.indexOf("npm");
+            if (npm >= 0 && tokens[npm + 1] === "run" && tokens[npm + 2]) {
+              adapter.markAsUsed("package.json", `scripts:${tokens[npm + 2]}`);
             }
           }
         }

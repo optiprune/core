@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
+import { packageRoot, tokenizeCommand } from "../plugin-utils.js";
 
 const COMMON_CLI_BINARIES = [
   "tsc",
@@ -171,29 +172,20 @@ export const WireitPlugin: AnalyzerPlugin = {
 };
 
 function parseWireitCommand(commandStr: string, adapter: any): void {
-  const trimmed = commandStr.trim();
-
-  // 1. Direct CLI binary execution (e.g. "tsc -b", "vitest run", "eslint .")
-  const firstWord = trimmed.split(/\s+/)[0]?.replace(/['"]/g, "");
-  if (firstWord && COMMON_CLI_BINARIES.includes(firstWord)) {
-    adapter.markPackageAsUsed(firstWord);
+  const tokens = tokenizeCommand(commandStr.trim());
+  const first = tokens[0];
+  if (first && COMMON_CLI_BINARIES.includes(first)) adapter.markPackageAsUsed(first);
+  const npx = tokens.indexOf("npx");
+  if (npx >= 0) {
+    let i = npx + 1;
+    while (i < tokens.length && (tokens[i]?.startsWith("-") || tokens[i - 1] === "-p")) i++;
+    if (tokens[i]) adapter.markPackageAsUsed(packageRoot(tokens[i] ?? ""));
   }
-
-  // 2. Extract npx CLI package invocations: "npx tsc" or "npx eslint ."
-  if (trimmed.includes("npx ")) {
-    const parts = trimmed.split("npx ")[1]?.trim().split(" ");
-    const pkgName = parts?.find((p) => !p.startsWith("-"));
-    if (pkgName) {
-      adapter.markPackageAsUsed(pkgName);
-    }
-  }
-
-  // 3. Extract npm run / yarn / pnpm script invocations: "npm run lint"
-  if (trimmed.includes("npm run ") || trimmed.includes("pnpm run ") || trimmed.includes("yarn ")) {
-    const match = trimmed.match(/(?:npm run|pnpm run|yarn)\s+([a-zA-Z0-9_:-]+)/);
-    if (match && match[1]) {
-      adapter.markAsUsed("package.json", `scripts:${match[1]}`);
-    }
+  for (const tool of ["npm", "pnpm", "yarn"]) {
+    const index = tokens.indexOf(tool);
+    if (index < 0) continue;
+    const i = tokens[index + 1] === "run" ? index + 2 : index + 1;
+    if (tokens[i]) adapter.markAsUsed("package.json", `scripts:${tokens[i]}`);
   }
 }
 

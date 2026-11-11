@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, hasCommand, parsePluginJson } from "../plugin-utils.js";
 
 const I18NEXT_PARSER_CONFIG_FILES = [
   "i18next-parser.config.js",
@@ -14,15 +15,7 @@ const I18NEXT_PARSER_CONFIG_FILES = [
 ];
 
 function parseJsonc<T = any>(content: string): T | null {
-  try {
-    const cleanJson = content
-      .replace(/\/\/.*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/,(\s*[\]}])/g, "$1");
-    return JSON.parse(cleanJson);
-  } catch {
-    return null;
-  }
+  return parsePluginJson<T>(content);
 }
 
 export const I18nextParserPlugin: AnalyzerPlugin = {
@@ -45,15 +38,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              (s.includes("i18next-parser ") ||
-                s === "i18next-parser" ||
-                s.includes("i18next-parser")),
-          )
-        ) {
+        if (scriptValues.some((s) => hasCommand(s, ["i18next-parser"]))) {
           return true;
         }
       }
@@ -61,7 +46,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
 
     // 2. Check for configuration files
     for (const configFile of I18NEXT_PARSER_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     return false;
@@ -87,7 +72,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       // 2. Protect standalone configuration files
       let hasConfigFile = false;
       for (const configFile of I18NEXT_PARSER_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
         }
@@ -104,7 +89,7 @@ export const I18nextParserPlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking i18next-parser CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (typeof scriptContent === "string" && scriptContent.includes("i18next-parser")) {
+          if (hasCommand(scriptContent, ["i18next-parser"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("i18next-parser");
           }
@@ -232,11 +217,13 @@ function processParserConfigObj(configObj: Record<string, any>, adapter: any): v
   if (Array.isArray(configObj.input)) {
     configObj.input.forEach((inputGlob: any) => {
       if (typeof inputGlob === "string") {
-        adapter.markAsUsed(inputGlob);
+        if (adapter.markFilesByGlob) void adapter.markFilesByGlob([inputGlob]);
+        else adapter.markRelativeFileAsUsed("i18next-parser.config.json", inputGlob);
       }
     });
   } else if (typeof configObj.input === "string") {
-    adapter.markAsUsed(configObj.input);
+    if (adapter.markFilesByGlob) void adapter.markFilesByGlob([configObj.input]);
+    else adapter.markRelativeFileAsUsed("i18next-parser.config.json", configObj.input);
   }
 
   // Extract output template path

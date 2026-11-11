@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand, tokenizeCommand } from "../plugin-utils.js";
 
 const BUN_CONFIG_FILES = ["bunfig.toml", "bun.lockb", "bun.lock"];
 
@@ -174,7 +175,7 @@ export const BunPlugin: AnalyzerPlugin = {
 
     if (pkg?.scripts) {
       for (const script of Object.values(pkg.scripts) as string[]) {
-        if (typeof script === "string" && (script.includes("bun") || script.includes("bunx"))) {
+        if (typeof script === "string" && hasCommand(script, ["bun", "bunx"])) {
           return true;
         }
       }
@@ -259,12 +260,12 @@ export const BunPlugin: AnalyzerPlugin = {
         for (const [name, script] of Object.entries(pkg.scripts)) {
           if (typeof script !== "string") continue;
 
-          if (script.includes("bun") || script.includes("bunx")) {
+          if (hasCommand(script, ["bun", "bunx"])) {
             adapter.markAsUsed("package.json", `scripts:${name}`);
             await markBunCliPreloads(adapter, script);
           }
 
-          const tokens = script.split(/\s+/);
+          const tokens = tokenizeCommand(script);
           for (const token of tokens) {
             const clean = token.replace(/^["']|["']$/g, "");
 

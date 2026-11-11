@@ -65,9 +65,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
         ...pkg?.peerDependencies,
       };
 
-      const hasParcel = Object.keys(allDeps).some(
-        (p) => p === "parcel" || p === "parcel-bundler" || p.startsWith("@parcel/"),
-      );
+      const hasParcel = Object.keys(allDeps).some((p) => p === "parcel" || p === "parcel-bundler");
 
       // 1. Safeguard all installed Parcel ecosystem packages in package.json
       if (hasParcel) {
@@ -96,13 +94,15 @@ export const ParcelPlugin: AnalyzerPlugin = {
       // 3. Extract entry points defined in package.json "source" and "targets"
       if (pkg) {
         if (typeof pkg.source === "string") {
-          if (pkg.source.includes("*") || pkg.source.includes("?")) adapter.markAsUsed(pkg.source);
+          if ((pkg.source.includes("*") || pkg.source.includes("?")) && adapter.markFilesByGlob)
+            void adapter.markFilesByGlob([pkg.source]);
           else adapter.markRelativeFileAsUsed("package.json", pkg.source);
           adapter.markAsUsed("package.json", "source");
         } else if (Array.isArray(pkg.source)) {
           pkg.source.forEach((s: string) => {
             if (typeof s === "string") {
-              if (s.includes("*") || s.includes("?")) adapter.markAsUsed(s);
+              if ((s.includes("*") || s.includes("?")) && adapter.markFilesByGlob)
+                void adapter.markFilesByGlob([s]);
               else adapter.markRelativeFileAsUsed("package.json", s);
             }
           });
@@ -114,13 +114,17 @@ export const ParcelPlugin: AnalyzerPlugin = {
           for (const targetKey of Object.keys(pkg.targets)) {
             const target = pkg.targets[targetKey];
             if (target && typeof target.source === "string") {
-              if (target.source.includes("*") || target.source.includes("?"))
-                adapter.markAsUsed(target.source);
+              if (
+                (target.source.includes("*") || target.source.includes("?")) &&
+                adapter.markFilesByGlob
+              )
+                void adapter.markFilesByGlob([target.source]);
               else adapter.markRelativeFileAsUsed("package.json", target.source);
             } else if (target && Array.isArray(target.source)) {
               target.source.forEach((s: string) => {
                 if (typeof s === "string") {
-                  if (s.includes("*") || s.includes("?")) adapter.markAsUsed(s);
+                  if ((s.includes("*") || s.includes("?")) && adapter.markFilesByGlob)
+                    void adapter.markFilesByGlob([s]);
                   else adapter.markRelativeFileAsUsed("package.json", s);
                 }
               });
@@ -181,6 +185,8 @@ export const ParcelPlugin: AnalyzerPlugin = {
                   adapter.markPackageAsUsed(p);
                 }
               });
+            } else if (typeof configEntry === "string") {
+              adapter.markPackageAsUsed(configEntry);
             } else if (typeof configEntry === "object") {
               for (const pluginList of Object.values<any>(configEntry)) {
                 if (Array.isArray(pluginList)) {
@@ -215,7 +221,7 @@ export const ParcelPlugin: AnalyzerPlugin = {
       const basename = path.basename(normalized);
 
       // Protect Parcel configuration files
-      if (PARCEL_CONFIG_FILES.includes(basename)) {
+      if (PARCEL_CONFIG_FILES.includes(basename) && !normalized.includes("/")) {
         adapter.markAsUsed(fileId);
         adapter.markPackageAsUsed("parcel");
       }
@@ -224,13 +230,28 @@ export const ParcelPlugin: AnalyzerPlugin = {
     onASTNode: (node, fileId, adapter) => {
       const normalized = fileId.replace(/\\/g, "/");
       const basename = path.basename(normalized);
-      const isConfigFile = PARCEL_CONFIG_FILES.includes(basename);
+      const isConfigFile = PARCEL_CONFIG_FILES.includes(basename) && !normalized.includes("/");
 
       // 1. Detect ESM imports for @parcel/* packages
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
         if (source === "parcel" || source.startsWith("@parcel/")) {
           adapter.markPackageAsUsed(source);
+          adapter.markAsUsed(fileId);
+        }
+      }
+
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require"
+      ) {
+        const source = node.arguments?.[0];
+        if (
+          t.isStringLiteral(source) &&
+          (source.value === "parcel" || source.value.startsWith("@parcel/"))
+        ) {
+          adapter.markPackageAsUsed(source.value);
           adapter.markAsUsed(fileId);
         }
       }
@@ -247,7 +268,8 @@ export const ParcelPlugin: AnalyzerPlugin = {
           node?.type === "AssignmentExpression" &&
           (node as any).left?.type === "MemberExpression" &&
           (node as any).left?.object?.name === "module" &&
-          (node as any).left?.property?.name === "exports"
+          ((node as any).left?.property?.name === "exports" ||
+            (node as any).left?.property?.value === "exports")
         ) {
           adapter.markAsUsed(fileId);
           adapter.markPackageAsUsed("parcel");

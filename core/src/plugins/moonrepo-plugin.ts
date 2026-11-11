@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const MOON_WORKSPACE_FILES = [
   ".moon/workspace.yml",
@@ -77,7 +78,7 @@ export const MoonrepoPlugin: AnalyzerPlugin = {
           const rawCmd = match[1]?.trim();
           if (!rawCmd) continue;
 
-          const tokens = rawCmd.split(/\s+/).filter((t) => t.length > 0);
+          const tokens = tokenizeCommand(rawCmd).filter((t) => t.length > 0);
           const firstToken = tokens[0];
 
           if (firstToken && !firstToken.startsWith("-")) {

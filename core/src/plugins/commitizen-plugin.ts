@@ -1,6 +1,7 @@
 import { AnalyzerPlugin, PluginAdapter } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists } from "../plugin-utils.js";
 
 const COMMITIZEN_CORE_PACKAGES = ["commitizen", "cz-cli"];
 
@@ -64,7 +65,9 @@ function hasCommitizenDependency(packageJson: any): boolean {
 
 function isCommitizenInvocation(content: string): boolean {
   return (
-    /(?:^|[\s&|;])(?:cz|git-cz|commitizen)(?:\s|$)/.test(content) ||
+    /(?:^|[&|;]\s*)(?:\.\/)?(?:node_modules\/\.bin\/)?(?:cz|git-cz|commitizen)(?:\s|$)/.test(
+      content,
+    ) ||
     /\b(?:npx|pnpm|yarn|bunx)\s+(?:--yes\s+)?(?:cz|git-cz|commitizen)\b/.test(content) ||
     /\b(?:pnpm|yarn)\s+(?:exec|dlx)\s+(?:cz|git-cz|commitizen)\b/.test(content)
   );
@@ -87,8 +90,7 @@ function resolveCommitizenAdapter(
   if (!pathOrPkg || typeof pathOrPkg !== "string") return;
 
   if (pathOrPkg.startsWith(".") && !pathOrPkg.includes("node_modules")) {
-    const localPath = path.resolve(baseDir, pathOrPkg);
-    adapter.markAsUsed(localPath);
+    adapter.markRelativeFileAsUsed(baseDir || ".", pathOrPkg);
     return;
   }
 
@@ -174,7 +176,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
     }
 
     for (const configFile of COMMITIZEN_CONFIG_FILES) {
-      if (await adapter.folderExists(configFile)) return true;
+      if (await fileExists(adapter, configFile)) return true;
     }
 
     const hookFiles = await adapter.findFilesByGlob(HOOK_PATTERNS);
@@ -205,7 +207,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
 
       // 1. Mark dedicated config files and parse contents robustly
       for (const configFile of COMMITIZEN_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           hasConfigFile = true;
           adapter.markAsUsed(configFile);
 
@@ -273,6 +275,7 @@ export const CommitizenPlugin: AnalyzerPlugin = {
       const isUsedInProject =
         hasConfigFile ||
         Boolean(pkg?.config?.commitizen) ||
+        Boolean(pkg?.config?.["cz-customizable"]) ||
         hasScriptInvocation ||
         hasHookInvocation ||
         hasWorkflowInvocation;
@@ -294,7 +297,11 @@ export const CommitizenPlugin: AnalyzerPlugin = {
 
       // 7. Report missing dependency if locally required without a transient runner
       const requiresLocalDep =
-        hasConfigFile || hasHookInvocation || (hasScriptInvocation && !onlyTransientInvocation);
+        hasConfigFile ||
+        hasHookInvocation ||
+        hasWorkflowInvocation ||
+        Boolean(pkg?.config?.["cz-customizable"]) ||
+        (hasScriptInvocation && !onlyTransientInvocation);
 
       if (isUsedInProject && !declaredCommitizen && requiresLocalDep) {
         adapter.emitFinding({

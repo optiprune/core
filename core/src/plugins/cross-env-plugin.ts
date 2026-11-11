@@ -1,4 +1,5 @@
 import { AnalyzerPlugin } from "../types.js";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const CROSS_ENV_PACKAGES = ["cross-env"];
 
@@ -56,7 +57,7 @@ export const CrossEnvPlugin: AnalyzerPlugin = {
 
           // 3. Extract target CLI command executed AFTER environment variables
           // Example: "cross-env NODE_ENV=production FOO=bar vite build" -> target CLI is "vite"
-          const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
+          const tokens = tokenizeCommand(scriptContent).filter((t) => t.trim().length > 0);
 
           const crossEnvIndex = tokens.findIndex((t) => t.includes("cross-env"));
           if (crossEnvIndex !== -1) {

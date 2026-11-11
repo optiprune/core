@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand } from "../plugin-utils.js";
 
 const YARN_CONFIG_FILES = ["yarn.lock", ".yarnrc", ".yarnrc.yml", ".yarnrc.yaml"];
 
@@ -34,9 +35,7 @@ export const YarnPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some((s) => typeof s === "string" && (s.includes("yarn ") || s === "yarn"))
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["yarn"]))) {
           return true;
         }
       }
@@ -71,10 +70,7 @@ export const YarnPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking Yarn CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (
-            typeof scriptContent === "string" &&
-            (scriptContent.includes("yarn ") || scriptContent === "yarn")
-          ) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["yarn"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
           }
         }

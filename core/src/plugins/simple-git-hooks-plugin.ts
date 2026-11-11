@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { packageRoot, tokenizeCommand } from "../plugin-utils.js";
 
 const SIMPLE_GIT_HOOKS_CONFIG_FILES = [
   ".simple-git-hooks.json",
@@ -209,24 +210,24 @@ function processHookCommands(configObj: Record<string, any>, adapter: any): void
 }
 
 function parseHookCommandString(commandStr: string, adapter: any): void {
-  // Extract npx commands: "npx lint-staged" or "npx --no-install prettier"
-  if (commandStr.includes("npx ")) {
-    const parts = commandStr.split("npx ")[1]?.trim().split(" ");
-    const pkgName = parts?.find((p) => !p.startsWith("-"));
-    if (pkgName) {
-      adapter.markPackageAsUsed(pkgName);
-    }
+  const tokens = tokenizeCommand(commandStr);
+  const runner = tokens.findIndex(
+    (token, index) =>
+      token === "npx" ||
+      token === "bunx" ||
+      ((token === "exec" || token === "dlx") &&
+        ["pnpm", "yarn", "bun"].includes(tokens[index - 1] ?? "")),
+  );
+  if (runner >= 0) {
+    let i = runner + 1;
+    while (i < tokens.length && (tokens[i]?.startsWith("-") || tokens[i - 1] === "-p")) i++;
+    if (tokens[i]) adapter.markPackageAsUsed(packageRoot(tokens[i] ?? ""));
   }
-
-  // Extract npm run / yarn / pnpm script invocations: "npm run lint"
-  if (commandStr.includes("npm run ") || commandStr.includes("pnpm run ")) {
-    const scriptName = commandStr
-      .split(/run\s+/)[1]
-      ?.trim()
-      .split(" ")[0];
-    if (scriptName) {
-      adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-    }
+  for (const tool of ["npm", "pnpm"]) {
+    const index = tokens.indexOf(tool);
+    if (index < 0) continue;
+    if (tokens[index + 1] === "run" && tokens[index + 2])
+      adapter.markAsUsed("package.json", `scripts:${tokens[index + 2]}`);
   }
 }
 

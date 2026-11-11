@@ -1,5 +1,6 @@
 import { AnalyzerPlugin } from "../types.js";
 import path from "pathe";
+import { packageRoot, tokenizeCommand } from "../plugin-utils.js";
 
 const TRAVIS_CONFIG_FILES = [".travis.yml", ".travis.yaml"];
 
@@ -85,37 +86,22 @@ export const TravisCiPlugin: AnalyzerPlugin = {
 };
 
 function parseTravisYamlCommands(yamlContent: string, adapter: any): void {
-  const lines = yamlContent.split("\n");
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Detect npx invocations: npx <package> or npx --no-install <package>
-    if (trimmed.includes("npx ")) {
-      const parts = trimmed.split("npx ")[1]?.trim().split(" ");
-      const pkgName = parts?.find((p) => !p.startsWith("-"));
-      if (pkgName) {
-        adapter.markPackageAsUsed(pkgName);
-      }
+  for (const line of yamlContent.split("\n")) {
+    const tokens = tokenizeCommand(line.trim());
+    const npx = tokens.indexOf("npx");
+    if (npx >= 0) {
+      let i = npx + 1;
+      while (i < tokens.length && (tokens[i]?.startsWith("-") || tokens[i - 1] === "-p")) i++;
+      if (tokens[i]) adapter.markPackageAsUsed(packageRoot(tokens[i] ?? ""));
     }
-
-    // Detect npm run / yarn / pnpm script invocations: npm run test, yarn build, pnpm run lint
-    if (
-      trimmed.includes("npm run ") ||
-      trimmed.includes("yarn ") ||
-      trimmed.includes("pnpm ") ||
-      trimmed.includes("pnpm run ")
-    ) {
-      const scriptMatch = trimmed.match(/(?:npm run|yarn|pnpm run|pnpm)\s+([a-zA-Z0-9_:-]+)/);
-      if (scriptMatch && scriptMatch[1]) {
-        const scriptName = scriptMatch[1];
-        // Exclude standard CLI flags/commands
-        if (!["test", "build", "install", "run", "add"].includes(scriptName)) {
-          adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-        } else if (scriptName === "test" || scriptName === "build") {
-          adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-        }
-      }
+    for (const tool of ["npm", "yarn", "pnpm"]) {
+      const index = tokens.indexOf(tool);
+      if (index < 0) continue;
+      let i = index + 1;
+      if (tokens[i] === "run") i++;
+      while (i < tokens.length && tokens[i]?.startsWith("-")) i++;
+      if (tokens[i] && !["install", "add", "exec", "dlx"].includes(tokens[i] ?? ""))
+        adapter.markAsUsed("package.json", `scripts:${tokens[i]}`);
     }
   }
 }

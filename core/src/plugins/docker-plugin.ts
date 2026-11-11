@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand, packageRoot, tokenizeCommand } from "../plugin-utils.js";
 
 const DOCKER_CONFIG_FILES = [
   "Dockerfile",
@@ -222,40 +223,25 @@ function parseDockerComposeCommands(composeStr: string, adapter: any): void {
  * Parses command strings to extract invoked npm scripts, npx tools, and runtimes
  */
 function parseCommandString(cmdLine: string, adapter: any): void {
-  // 1. Detect npx invocations: "RUN npx prisma generate" -> "prisma"
-  if (cmdLine.includes("npx ")) {
-    const parts = cmdLine.split("npx ")[1]?.trim().split(" ");
-    const pkgName = parts?.find((p) => !p.startsWith("-"));
-    if (pkgName) {
-      const cleanPkg = pkgName.replace(/['"[\]]/g, "");
-      adapter.markPackageAsUsed(cleanPkg);
+  const rawTokens = tokenizeCommand(cmdLine);
+  const tokens = ["RUN", "CMD", "ENTRYPOINT"].includes(rawTokens[0] ?? "")
+    ? rawTokens.slice(1)
+    : rawTokens;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token === "npx" && hasCommand(tokens.join(" "), ["npx"])) {
+      let j = i + 1;
+      while (j < tokens.length && (tokens[j]?.startsWith("-") || tokens[j - 1] === "-p")) j++;
+      if (tokens[j]) adapter.markPackageAsUsed(packageRoot(tokens[j] ?? ""));
     }
-  }
-
-  // 2. Detect common CLI runtimes (ts-node, tsx, pm2, etc.)
-  for (const runtime of COMMON_RUNTIMES) {
-    if (cmdLine.includes(runtime)) {
-      adapter.markPackageAsUsed(runtime);
-    }
-  }
-
-  // 3. Extract npm run / yarn / pnpm / bun script invocations
-  if (
-    cmdLine.includes("npm run ") ||
-    cmdLine.includes("yarn ") ||
-    cmdLine.includes("pnpm ") ||
-    cmdLine.includes("pnpm run ") ||
-    cmdLine.includes("bun run ") ||
-    cmdLine.includes("bun ")
-  ) {
-    const match = cmdLine.match(/(?:npm run|yarn|pnpm run|pnpm|bun run|bun)\s+([a-zA-Z0-9_:-]+)/);
-    if (match && match[1]) {
-      const scriptName = match[1].replace(/['"[\]]/g, "");
-      if (!["test", "build", "install", "run", "add", "start"].includes(scriptName)) {
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-      } else if (["test", "build", "start"].includes(scriptName)) {
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-      }
+    if (COMMON_RUNTIMES.includes(token ?? "") && hasCommand(tokens.join(" "), [token ?? ""]))
+      adapter.markPackageAsUsed(token ?? "");
+    if (["npm", "yarn", "pnpm", "bun"].includes(token ?? "")) {
+      let j = i + 1;
+      if (tokens[j] === "run") j++;
+      while (j < tokens.length && tokens[j]?.startsWith("-")) j++;
+      if (tokens[j] && !["install", "add", "exec", "dlx"].includes(tokens[j] ?? ""))
+        adapter.markAsUsed("package.json", `scripts:${tokens[j]}`);
     }
   }
 }

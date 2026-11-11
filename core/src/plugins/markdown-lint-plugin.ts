@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { tokenizeCommand } from "../plugin-utils.js";
 
 const MARKDOWNLINT_CONFIG_FILES = [
   ".markdownlint.json",
@@ -107,7 +108,7 @@ export const MarkdownlintPlugin: AnalyzerPlugin = {
             }
 
             // Extract target markdown files/globs (e.g., "markdownlint '**/*.md'")
-            const tokens = scriptContent.split(/\s+/).filter((t) => t.trim().length > 0);
+            const tokens = tokenizeCommand(scriptContent).filter((t) => t.trim().length > 0);
 
             const mlIndex = tokens.findIndex(
               (t) => t.includes("markdownlint") || t.includes("markdownlint-cli2"),

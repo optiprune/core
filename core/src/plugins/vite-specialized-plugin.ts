@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { fileExists, packageRoot, hasCommand } from "../plugin-utils.js";
 
 const SPECIALIZED_VITE_PACKAGES = [
   "electron-vite",
@@ -67,7 +68,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
     }
 
     for (const file of [...ELECTRON_VITE_CONFIG_FILES, ...WXT_CONFIG_FILES]) {
-      if (await adapter.folderExists(file)) return true;
+      if (await fileExists(adapter, file)) return true;
     }
 
     if (await adapter.folderExists("entrypoints")) return true;
@@ -98,14 +99,14 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
 
       // 2. Protect Electron Vite & WXT configuration files
       for (const configFile of ELECTRON_VITE_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("electron-vite");
         }
       }
 
       for (const configFile of WXT_CONFIG_FILES) {
-        if (await adapter.folderExists(configFile)) {
+        if (await fileExists(adapter, configFile)) {
           adapter.markAsUsed(configFile);
           adapter.markPackageAsUsed("wxt");
         }
@@ -124,8 +125,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
               scriptContent.includes("electron-vite") ||
               scriptContent.includes("wxt") ||
               scriptContent.includes("pwa-assets-generator") ||
-              scriptContent.includes("vite-plus") ||
-              scriptContent.includes("vite build")
+              hasCommand(scriptContent, ["vite-plus", "vite"])
             ) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
@@ -165,16 +165,8 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       // corresponding config reference.
 
       // 4. File-Based Pages & Layouts Routing (vite-plugin-pages, vite-plugin-vue-layouts-next)
-      if (
-        normalized.includes("/src/pages/") ||
-        normalized.startsWith("src/pages/") ||
-        normalized.includes("/src/layouts/") ||
-        normalized.startsWith("src/layouts/") ||
-        normalized.includes("/src/routes/") ||
-        normalized.startsWith("src/routes/")
-      ) {
-        adapter.markAsUsed(fileId);
-      }
+      // Convention directories are only protected when an explicit config/import
+      // has been observed; basename-only heuristics otherwise hide dead files.
 
       // 5. Laravel Vite assets entry directory
       if (normalized.includes("resources/css/") || normalized.includes("resources/js/")) {
@@ -219,11 +211,12 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
       if (t.isExportNamedDeclaration(node) && (node as any).source?.value) {
         const source = (node as any).source.value;
         if (
-          SPECIALIZED_VITE_PACKAGES.includes(source) ||
-          source.startsWith("@wxt-dev/") ||
-          source.startsWith("@vite-pwa/")
+          typeof source === "string" &&
+          (SPECIALIZED_VITE_PACKAGES.includes(source) ||
+            source.startsWith("@wxt-dev/") ||
+            source.startsWith("@vite-pwa/"))
         ) {
-          adapter.markPackageAsUsed(source);
+          adapter.markPackageAsUsed(packageRoot(source));
           adapter.markAsUsed(fileId);
         }
       }
@@ -240,7 +233,7 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           source.startsWith("@wxt-dev/") ||
           source.startsWith("@vite-pwa/")
         ) {
-          adapter.markPackageAsUsed(source);
+          adapter.markPackageAsUsed(packageRoot(source));
           adapter.markAsUsed(fileId);
         }
       }
@@ -278,13 +271,13 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
               const val = (prop as any).value;
 
               if (t.isStringLiteral(val)) {
-                adapter.markAsUsed(val.value);
+                adapter.markRelativeFileAsUsed(fileId, val.value);
               }
 
               if (val && val.type === "ArrayExpression") {
                 val.elements.forEach((el: any) => {
                   if (el && t.isStringLiteral(el)) {
-                    adapter.markAsUsed(el.value);
+                    adapter.markRelativeFileAsUsed(fileId, el.value);
                   }
                 });
               }

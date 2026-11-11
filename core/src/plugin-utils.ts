@@ -25,15 +25,40 @@ export function normalizeRelativeFile(sourceFile: string, value: string): string
   );
 }
 
-/** Conservative command detection that avoids comments and arbitrary substrings. */
+/** Tokenize a shell-like command without treating words inside arguments as executables. */
+export function tokenizeCommand(script: unknown): string[] {
+  if (typeof script !== "string") return [];
+  const cleaned = script.replace(/(^|\s)#.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, " ");
+  return (
+    cleaned
+      .match(/&&|\|\||[;|]|"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|[^\s]+/g)
+      ?.map((token) => token.replace(/^(?:"|')|(?:"|')$/g, "")) ?? []
+  );
+}
+
+/** Conservative command detection that rejects echo/text mentions and arbitrary substrings. */
 export function hasCommand(script: unknown, commands: string[]): boolean {
-  if (typeof script !== "string") return false;
-  const cleaned = script
-    .replace(/(^|\s)#.*$/gm, "$1")
-    .replace(/\/\/.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, " ");
-  const names = commands.map((command) => command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(`(?:^|[\\s;&|])(?:${names.join("|")})(?=$|[\\s;&|])`).test(cleaned);
+  const tokens = tokenizeCommand(script);
+  const names = new Set(commands);
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const executable = token?.split(/[\\/]/).pop();
+    if (!executable || !names.has(executable)) continue;
+    let segmentStart = i;
+    while (segmentStart > 0 && !["&&", "||", ";", "|"].includes(tokens[segmentStart - 1] ?? ""))
+      segmentStart--;
+    const command = tokens[segmentStart];
+    const prior = tokens.slice(segmentStart, i);
+    if (
+      segmentStart === i ||
+      command === "npx" ||
+      command === "bunx" ||
+      ((prior.includes("exec") || prior.includes("dlx") || prior.includes("x")) &&
+        ["npm", "pnpm", "yarn", "bun"].includes(command ?? ""))
+    )
+      return true;
+  }
+  return false;
 }
 
 export function isPathLike(value: string): boolean {

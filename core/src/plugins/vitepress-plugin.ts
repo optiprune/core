@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand } from "../plugin-utils.js";
 
 const VITEPRESS_CONFIG_FILES = [
   ".vitepress/config.ts",
@@ -31,7 +32,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (scriptValues.some((s) => typeof s === "string" && s.includes("vitepress"))) {
+        if (scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["vitepress"]))) {
           return true;
         }
       }
@@ -76,7 +77,7 @@ export const VitepressPlugin: AnalyzerPlugin = {
       // 3. Track npm scripts invoking VitePress CLI (e.g. "docs:dev": "vitepress dev docs")
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (typeof scriptContent === "string" && scriptContent.includes("vitepress")) {
+          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["vitepress"])) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("vitepress");
           }

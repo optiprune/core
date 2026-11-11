@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { hasCommand } from "../plugin-utils.js";
 
 const CAPACITOR_CONFIG_FILES = [
   "capacitor.config.json",
@@ -394,11 +395,7 @@ export const CapacitorPlugin: AnalyzerPlugin = {
         if (pkg.scripts && typeof pkg.scripts === "object") {
           const scriptValues = Object.values(pkg.scripts);
           if (
-            scriptValues.some(
-              (s) =>
-                typeof s === "string" &&
-                (/\bcap\b/.test(s) || /\bcapacitor\b/.test(s) || s.includes("npx cap")),
-            )
+            scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["cap", "capacitor"]))
           ) {
             return true;
           }
@@ -440,7 +437,7 @@ export const CapacitorPlugin: AnalyzerPlugin = {
               typeof scriptContent === "string" &&
               (/\bcap\b/.test(scriptContent) ||
                 /\bcapacitor\b/.test(scriptContent) ||
-                scriptContent.includes("npx cap"))
+                hasCommand(scriptContent, ["cap"]))
             ) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }

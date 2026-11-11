@@ -1,6 +1,7 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
+import { normalizeRelativeFile, packageRoot } from "../plugin-utils.js";
 
 const EXECA_PACKAGES = ["execa", "gulp-execa"];
 
@@ -58,7 +59,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
       if (t.isImportDeclaration(node)) {
         const source = node.source.value;
         if (EXECA_PACKAGES.includes(source)) {
-          adapter.markPackageAsUsed(source);
+          adapter.markPackageAsUsed(packageRoot(source));
           adapter.markAsUsed(fileId);
         }
       }
@@ -71,7 +72,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
       ) {
         const arg = node.arguments[0];
         if (t.isStringLiteral(arg) && EXECA_PACKAGES.includes(arg.value)) {
-          adapter.markPackageAsUsed(arg.value);
+          adapter.markPackageAsUsed(packageRoot(arg.value));
           adapter.markAsUsed(fileId);
         }
       }
@@ -123,7 +124,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
 
           // Special handling for execaNode('src/script.js')
           if (calleeName === "execaNode" && t.isStringLiteral(firstArg)) {
-            adapter.markAsUsed(firstArg.value);
+            adapter.markRelativeFileAsUsed(fileId, firstArg.value);
           }
 
           // Single string command: execa('npm run test')
@@ -140,7 +141,7 @@ export const ExecaPlugin: AnalyzerPlugin = {
           ) {
             secondArg.elements.forEach((el: any) => {
               if (t.isStringLiteral(el) && el.value.includes(".")) {
-                adapter.markAsUsed(el.value);
+                adapter.markRelativeFileAsUsed(fileId, el.value);
               }
             });
           }
@@ -154,31 +155,25 @@ export const ExecaPlugin: AnalyzerPlugin = {
  * Parses raw command strings executed via execa to mark referenced npm scripts or npx tools
  */
 function parseExecaCommandString(cmdStr: string, adapter: any): void {
-  // Extract npx package invocations: "npx eslint ."
-  if (cmdStr.includes("npx ")) {
-    const parts = cmdStr.split("npx ")[1]?.trim().split(" ");
-    const pkgName = parts?.find((p) => !p.startsWith("-"));
-    if (pkgName) {
-      adapter.markPackageAsUsed(pkgName);
+  const tokens =
+    cmdStr
+      .match(/(?:[^\s"']|"[^"]*"|'[^']*')+/g)
+      ?.map((x) => x.replace(/^(?:"|')|(?:"|')$/g, "")) ?? [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tool = tokens[i];
+    if (!tool) continue;
+    if (tool === "npx") {
+      let j = i + 1;
+      while (j < tokens.length && (tokens[j]?.startsWith("-") || tokens[j - 1] === "-p")) j++;
+      if (tokens[j]) adapter.markPackageAsUsed(packageRoot(tokens[j] ?? ""));
+      continue;
     }
-  }
-
-  // Extract npm run / yarn / pnpm / bun script invocations: "npm run build"
-  if (
-    cmdStr.includes("npm run ") ||
-    cmdStr.includes("yarn ") ||
-    cmdStr.includes("pnpm ") ||
-    cmdStr.includes("pnpm run ") ||
-    cmdStr.includes("bun run ") ||
-    cmdStr.includes("bun ")
-  ) {
-    const match = cmdStr.match(/(?:npm run|yarn|pnpm run|pnpm|bun run|bun)\s+([a-zA-Z0-9_:-]+)/);
-    if (match && match[1]) {
-      const scriptName = match[1].replace(/['"[\]]/g, "");
-      if (!["test", "build", "install", "run", "add", "start"].includes(scriptName)) {
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
-      } else if (["test", "build", "start"].includes(scriptName)) {
-        adapter.markAsUsed("package.json", `scripts:${scriptName}`);
+    if (["npm", "yarn", "pnpm", "bun"].includes(tool)) {
+      let j = i + 1;
+      if (tokens[j] === "run") j++;
+      while (j < tokens.length && tokens[j]?.startsWith("-")) j++;
+      if (tokens[j] && !["install", "add", "exec", "dlx"].includes(tokens[j] ?? "")) {
+        adapter.markAsUsed("package.json", `scripts:${tokens[j]}`);
       }
     }
   }
