@@ -1,7 +1,13 @@
 import { AnalyzerPlugin } from "../types.js";
 import { t } from "../ast-utils.js";
 import path from "pathe";
-import { fileExists, hasCommand, parsePluginJson, parsePluginYaml, staticPropertyName } from "../plugin-utils.js";
+import {
+  fileExists,
+  hasCommand,
+  parsePluginJson,
+  parsePluginYaml,
+  staticPropertyName,
+} from "../plugin-utils.js";
 
 const SEMANTIC_RELEASE_CONFIG_FILES = [
   ".releaserc",
@@ -47,11 +53,7 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) =>
-              typeof s === "string" &&
-              hasCommand(s, ["semantic-release"]),
-          )
+          scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["semantic-release"]))
         ) {
           return true;
         }
@@ -115,7 +117,10 @@ export const SemanticReleasePlugin: AnalyzerPlugin = {
       // 4. Track npm scripts invoking semantic-release CLI
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-          if (typeof scriptContent === "string" && hasCommand(scriptContent, ["semantic-release"])) {
+          if (
+            typeof scriptContent === "string" &&
+            hasCommand(scriptContent, ["semantic-release"])
+          ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("semantic-release");
           }

@@ -41,9 +41,7 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
         if (
-          scriptValues.some(
-            (s) => typeof s === "string" && hasCommand(s, ["unbuild", "mkdist"]),
-          )
+          scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["unbuild", "mkdist"]))
         ) {
           return true;
         }
@@ -100,7 +98,8 @@ export const UnbuildPlugin: AnalyzerPlugin = {
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
-            typeof scriptContent === "string" && hasCommand(scriptContent, ["unbuild", "mkdist"])
+            typeof scriptContent === "string" &&
+            hasCommand(scriptContent, ["unbuild", "mkdist"])
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("unbuild");

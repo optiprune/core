@@ -55,7 +55,11 @@ function processStrykerConfig(config: Record<string, any>, adapter: any): void {
     const checkersList = Array.isArray(config.checkers) ? config.checkers : [config.checkers];
     for (const checker of checkersList) {
       if (typeof checker === "string") {
-        adapter.markPackageAsUsed(checker.startsWith("@") || checker.startsWith("stryker-") ? checker : `@stryker-mutator/${checker}-checker`);
+        adapter.markPackageAsUsed(
+          checker.startsWith("@") || checker.startsWith("stryker-")
+            ? checker
+            : `@stryker-mutator/${checker}-checker`,
+        );
       }
     }
   }
@@ -71,7 +75,11 @@ function processStrykerConfig(config: Record<string, any>, adapter: any): void {
   if (config.reporters && Array.isArray(config.reporters)) {
     for (const reporter of config.reporters) {
       if (typeof reporter === "string") {
-        adapter.markPackageAsUsed(reporter.startsWith("@") || reporter.startsWith("stryker-") ? packageRoot(reporter) : `@stryker-mutator/${reporter}-reporter`);
+        adapter.markPackageAsUsed(
+          reporter.startsWith("@") || reporter.startsWith("stryker-")
+            ? packageRoot(reporter)
+            : `@stryker-mutator/${reporter}-reporter`,
+        );
       }
     }
   }
@@ -112,11 +120,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
 
       if (pkg.scripts) {
         const scriptValues = Object.values(pkg.scripts);
-        if (
-          scriptValues.some(
-            (s) => typeof s === "string" && hasCommand(s, ["stryker"]),
-          )
-        ) {
+        if (scriptValues.some((s) => typeof s === "string" && hasCommand(s, ["stryker"]))) {
           return true;
         }
       }
@@ -165,10 +169,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
         // 4. Mark scripts running stryker CLI as used
         if (pkg.scripts) {
           for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
-            if (
-              typeof scriptContent === "string" &&
-              hasCommand(scriptContent, ["stryker"])
-            ) {
+            if (typeof scriptContent === "string" && hasCommand(scriptContent, ["stryker"])) {
               adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             }
           }
@@ -181,7 +182,7 @@ export const StrykerPlugin: AnalyzerPlugin = {
         : (await fileExists(adapter, "stryker.conf.json"))
           ? "stryker.conf.json"
           : (await adapter.folderExists(".stryker.conf.json"))
-          ? ".stryker.conf.json"
+            ? ".stryker.conf.json"
             : null;
 
       if (jsonConfigFile) {
@@ -244,11 +245,17 @@ export const StrykerPlugin: AnalyzerPlugin = {
           // checkers: ['typescript'] -> @stryker-mutator/typescript-checker
           if (keyName === "checkers") {
             if (t.isStringLiteral(node.value)) {
-              adapter.markPackageAsUsed(node.value.value.startsWith("@") ? node.value.value : `@stryker-mutator/${node.value.value}-checker`);
+              adapter.markPackageAsUsed(
+                node.value.value.startsWith("@")
+                  ? node.value.value
+                  : `@stryker-mutator/${node.value.value}-checker`,
+              );
             } else if (t.isArrayExpression(node.value)) {
               for (const el of node.value.elements) {
                 if (t.isStringLiteral(el)) {
-                  adapter.markPackageAsUsed(el.value.startsWith("@") ? el.value : `@stryker-mutator/${el.value}-checker`);
+                  adapter.markPackageAsUsed(
+                    el.value.startsWith("@") ? el.value : `@stryker-mutator/${el.value}-checker`,
+                  );
                 }
               }
             }

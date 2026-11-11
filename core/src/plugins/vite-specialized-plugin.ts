@@ -166,9 +166,12 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
 
       // 4. File-Based Pages & Layouts Routing (vite-plugin-pages, vite-plugin-vue-layouts-next)
       if (
-        normalized.includes("/src/pages/") || normalized.startsWith("src/pages/") ||
-        normalized.includes("/src/layouts/") || normalized.startsWith("src/layouts/") ||
-        normalized.includes("/src/routes/") || normalized.startsWith("src/routes/")
+        normalized.includes("/src/pages/") ||
+        normalized.startsWith("src/pages/") ||
+        normalized.includes("/src/layouts/") ||
+        normalized.startsWith("src/layouts/") ||
+        normalized.includes("/src/routes/") ||
+        normalized.startsWith("src/routes/")
       ) {
         adapter.markAsUsed(fileId);
       }
@@ -202,22 +205,41 @@ export const ViteSpecializedPlugin: AnalyzerPlugin = {
           source.startsWith("@wxt-dev/") ||
           source.startsWith("@vite-pwa/")
         ) {
-          adapter.markPackageAsUsed(source.startsWith("@wxt-dev/") ? source.split("/").slice(0, 2).join("/") : source.startsWith("@vite-pwa/") ? source.split("/").slice(0, 2).join("/") : source);
+          adapter.markPackageAsUsed(
+            source.startsWith("@wxt-dev/")
+              ? source.split("/").slice(0, 2).join("/")
+              : source.startsWith("@vite-pwa/")
+                ? source.split("/").slice(0, 2).join("/")
+                : source,
+          );
           adapter.markAsUsed(fileId);
         }
       }
 
       if (t.isExportNamedDeclaration(node) && (node as any).source?.value) {
         const source = (node as any).source.value;
-        if (SPECIALIZED_VITE_PACKAGES.includes(source) || source.startsWith("@wxt-dev/") || source.startsWith("@vite-pwa/")) {
+        if (
+          SPECIALIZED_VITE_PACKAGES.includes(source) ||
+          source.startsWith("@wxt-dev/") ||
+          source.startsWith("@vite-pwa/")
+        ) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }
       }
 
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name === "require" && t.isStringLiteral(node.arguments?.[0])) {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee) &&
+        node.callee.name === "require" &&
+        t.isStringLiteral(node.arguments?.[0])
+      ) {
         const source = node.arguments[0].value;
-        if (SPECIALIZED_VITE_PACKAGES.includes(source) || source.startsWith("@wxt-dev/") || source.startsWith("@vite-pwa/")) {
+        if (
+          SPECIALIZED_VITE_PACKAGES.includes(source) ||
+          source.startsWith("@wxt-dev/") ||
+          source.startsWith("@vite-pwa/")
+        ) {
           adapter.markPackageAsUsed(source);
           adapter.markAsUsed(fileId);
         }

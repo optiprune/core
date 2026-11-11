@@ -134,7 +134,8 @@ export const TemporalPlugin: AnalyzerPlugin = {
       const hasWorkflowDir =
         (await adapter.folderExists("src/workflows")) || (await adapter.folderExists("workflows"));
       const hasActivityDir =
-        (await adapter.folderExists("src/activities")) || (await adapter.folderExists("activities"));
+        (await adapter.folderExists("src/activities")) ||
+        (await adapter.folderExists("activities"));
 
       if ((hasConfigFile || hasWorkflowDir || hasActivityDir) && !hasTemporalDep) {
         adapter.emitFinding({
@@ -224,7 +225,11 @@ export const TemporalPlugin: AnalyzerPlugin = {
 
       // 4. Detect exported Workflow or Activity functions in workflow/activity files
       if (
-        normalized.split("/").some((segment: string) => ["workflow", "workflows", "activity", "activities"].includes(segment))
+        normalized
+          .split("/")
+          .some((segment: string) =>
+            ["workflow", "workflows", "activity", "activities"].includes(segment),
+          )
       ) {
         // Protect export default functions
         if (t.isExportDefaultDeclaration(node)) {

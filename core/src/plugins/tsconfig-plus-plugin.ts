@@ -46,8 +46,7 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
         const scriptValues = Object.values(pkg.scripts);
         if (
           scriptValues.some(
-            (s) =>
-      typeof s === "string" && hasCommand(s, ["tsc", "ts-node", "tsx"]),
+            (s) => typeof s === "string" && hasCommand(s, ["tsc", "ts-node", "tsx"]),
           )
         ) {
           return true;
@@ -101,7 +100,8 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
       if (pkg?.scripts) {
         for (const [scriptName, scriptContent] of Object.entries(pkg.scripts)) {
           if (
-              typeof scriptContent === "string" && hasCommand(scriptContent, ["tsc", "ts-node", "tsx"])
+            typeof scriptContent === "string" &&
+            hasCommand(scriptContent, ["tsc", "ts-node", "tsx"])
           ) {
             adapter.markAsUsed("package.json", `scripts:${scriptName}`);
             adapter.markPackageAsUsed("typescript");
@@ -150,11 +150,15 @@ export const TsconfigPlusPlugin: AnalyzerPlugin = {
 /**
  * Parses deep tsconfig properties: extends, compilerOptions, paths, references, etc.
  */
-function processTsconfigObject(config: Record<string, any>, adapter: any, configFile = "tsconfig.json"): void {
+function processTsconfigObject(
+  config: Record<string, any>,
+  adapter: any,
+  configFile = "tsconfig.json",
+): void {
   // A. Extends chain (e.g. extends: "@tsconfig/strictest/tsconfig.json" or "./tsconfig.base.json")
   if (typeof config.extends === "string") {
     if (config.extends.startsWith(".") || config.extends.startsWith("/")) {
-          adapter.markRelativeFileAsUsed(configFile, config.extends);
+      adapter.markRelativeFileAsUsed(configFile, config.extends);
     } else {
       // Extends shared tsconfig package: @tsconfig/node18, @sveltejs/kit/tsconfig.json
       const pkgName = config.extends.startsWith("@")
@@ -193,11 +197,11 @@ function processTsconfigObject(config: Record<string, any>, adapter: any, config
     if (Array.isArray(config[field])) {
       config[field].forEach((filePath: any) => {
         if (typeof filePath === "string") {
-              if (filePath.includes("*") || filePath.includes("?")) {
-                adapter.markAsUsed(normalizeRelativeFile(configFile, filePath));
-              } else {
-                adapter.markRelativeFileAsUsed(configFile, filePath);
-              }
+          if (filePath.includes("*") || filePath.includes("?")) {
+            adapter.markAsUsed(normalizeRelativeFile(configFile, filePath));
+          } else {
+            adapter.markRelativeFileAsUsed(configFile, filePath);
+          }
         }
       });
     }
