@@ -38,6 +38,44 @@ export interface ImportUsage {
   reExportOnly: boolean;
 }
 
+interface CompiledPathAlias {
+  alias: string;
+  targets: string[];
+  wildcardCount: number;
+  matcher: RegExp;
+}
+
+const compiledPathAliasCache = new WeakMap<object, CompiledPathAlias[]>();
+
+function compiledPathAliases(options: ResolvedOptions): CompiledPathAlias[] {
+  const cached = compiledPathAliasCache.get(options);
+  if (cached) return cached;
+
+  const compiled = [...options.pathAliases.entries()]
+    .map(([alias, targets]) => {
+      const wildcardCount = (alias.match(/\*/g) ?? []).length;
+      const aliasPattern = alias
+        .split("*")
+        .map((part) => part.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"))
+        .join("(.*)");
+      return {
+        alias,
+        targets: [...targets],
+        wildcardCount,
+        matcher: new RegExp(`^${aliasPattern}$`),
+      };
+    })
+    .sort((left, right) => {
+      if (left.wildcardCount !== right.wildcardCount) {
+        return left.wildcardCount - right.wildcardCount;
+      }
+      return right.alias.length - left.alias.length;
+    });
+
+  compiledPathAliasCache.set(options, compiled);
+  return compiled;
+}
+
 /** Return whether a JSDoc tag gives an export/member a configured semantic. */
 export function hasTagSemantic(
   value: { tags?: string[]; isIgnored?: boolean; isPublic?: boolean },
@@ -182,25 +220,15 @@ function resolveEdge(
   }
 
   // 2. Try tsconfig path aliases. Match the most specific alias first and
-  // substitute every wildcard capture in order (`@/*/test/*` is valid), rather
-  // than reusing only the first capture.
+  // substitute every wildcard capture in order (`@/*/test/*` is valid),
+  // rather than reusing only the first capture.
   if (!target && options.pathAliases.size > 0) {
-    const aliases = [...options.pathAliases.entries()].sort(([left], [right]) => {
-      const leftWildcards = (left.match(/\*/g) ?? []).length;
-      const rightWildcards = (right.match(/\*/g) ?? []).length;
-      if (leftWildcards !== rightWildcards) return leftWildcards - rightWildcards;
-      return right.length - left.length;
-    });
-
-    for (const [alias, targets] of aliases) {
-      const wildcardCount = (alias.match(/\*/g) ?? []).length;
-      const aliasPattern = alias
-        .split("*")
-        .map((part) => part.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"))
-        .join("(.*)");
-      const match = edge.rawSpecifier.match(new RegExp(`^${aliasPattern}$`));
+    for (const { alias, targets, wildcardCount, matcher } of compiledPathAliases(options)) {
+      const match = edge.rawSpecifier.match(matcher);
       if (!match) continue;
       const sourceDirectory = path.dirname(source.id);
+      // Target ordering cannot be cached with the alias matcher: the preferred
+      // target depends on the importing file's sourceDirectory.
       const orderedTargets = [...targets].sort((left, right) => {
         const parentSegments = (candidate: string) =>
           path

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 import path from "pathe";
 import { afterEach, describe, expect, it } from "vitest";
 import { analyze } from "../../src/index.js";
@@ -53,6 +54,35 @@ describe("OptiPrune regressions", () => {
     expect(result.findings.some((finding) => finding.rule === "constant-condition")).toBe(false);
     expect(result.findings.some((finding) => finding.rule === "contradictory-guard")).toBe(false);
     expect(result.findings.some((finding) => finding.rule === "unreachable-statement")).toBe(true);
+  });
+
+  it("resolves repeated path aliases from the regression fixture", async () => {
+    const root = fileURLToPath(
+      new URL("../fixtures/regressions/path-alias-cache", import.meta.url),
+    );
+    const result = await analyze({
+      rootDir: root,
+      entry: ["src/index.ts"],
+      includeConventionalEntries: false,
+      reportUnusedExports: false,
+      skip3: true,
+      skip4: true,
+    });
+
+    expect(result.findings.filter((finding) => finding.rule === "unresolved-import")).toHaveLength(
+      0,
+    );
+    const unreachableFiles = result.findings.filter(
+      (finding) => finding.rule === "unreachable-file",
+    );
+    expect(unreachableFiles).toHaveLength(1);
+    expect(unreachableFiles[0]?.file.endsWith("/src/broad/lib/beta.ts")).toBe(true);
+    expect(result.modules).toHaveLength(5);
+    expect(result.modules.some((module) => module.path.endsWith("src/lib/beta.ts"))).toBe(true);
+    expect(result.modules.some((module) => module.path.endsWith("src/gamma.ts"))).toBe(true);
+    expect(result.modules.some((module) => module.path.endsWith("src/broad/lib/beta.ts"))).toBe(
+      true,
+    );
   });
 
   it("resolves pnpm store binaries to their actual packages", async () => {

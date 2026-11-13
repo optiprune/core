@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@*": ["src/broad/*"],
+      "@/*": ["src/*"],
+      "@lib/*": ["src/lib/*"]
+    }
+  }
+}
