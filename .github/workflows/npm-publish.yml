@@ -29,12 +29,12 @@ jobs:
 
       - name: Publish @optiprune/core
         run: |
-          VERSION=$(node -p "require('./packages/core/package.json').version")
+          VERSION=$(node -p "require('./core/package.json').version")
           TAG=$(node -e "const m = '$VERSION'.match(/-([a-zA-Z]+)/); console.log(m ? m[1] : 'latest')")
           npm publish --workspace @optiprune/core --access public --provenance --tag "$TAG"
 
       - name: Publish @optiprune/language-server
         run: |
-          VERSION=$(node -p "require('./packages/language-server/package.json').version")
+          VERSION=$(node -p "require('./language-server/package.json').version")
           TAG=$(node -e "const m = '$VERSION'.match(/-([a-zA-Z]+)/); console.log(m ? m[1] : 'latest')")
           npm publish --workspace @optiprune/language-server --access public --provenance --tag "$TAG"
