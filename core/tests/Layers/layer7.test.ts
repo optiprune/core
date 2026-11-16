@@ -117,4 +117,41 @@ describe("Layer 7: Non-Standard Entry & Implicit Binding Engine", () => {
     expect(context.reachable.has("/test/locales/en.json")).toBe(true);
     expect(context.reachable.has("/test/locales/fr.json")).toBe(true);
   });
+
+  it("uses central resolver semantics for dynamic pattern edges", async () => {
+    const source = "/test/plugins.ts";
+    const target = "/test/plugins/example.ts";
+    const modules = new Map<string, ModuleRecord>();
+    modules.set(source, {
+      ...parseModule("await import(`./plugins/${name}`);", source),
+      edges: [
+        {
+          source,
+          rawSpecifier: "./plugins/${name}",
+          kind: "dynamic-pattern",
+          importedNames: [],
+          resolution: "unknown",
+          dynamicPattern: {
+            prefix: "./plugins/",
+            suffix: "",
+            baseDirectory: "",
+            candidates: [],
+          },
+        },
+      ],
+    });
+    modules.set(target, { ...parseModule("export const value = 1;", target), edges: [] });
+    const context: AnalysisContext = {
+      options: mockOptions,
+      modules,
+      entryPoints: new Set([source]),
+      reachable: new Set([source]),
+      maybeReachable: new Set(),
+      components: [],
+      usedExports: new Set(),
+    };
+
+    await analyzeLayer7(context);
+    expect(context.reachable.has(target)).toBe(true);
+  });
 });

@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "pathe";
 import { afterEach, describe, expect, it } from "vitest";
-import { analyze } from "../../src/index.js";
+import { analyze, propagatePluginReachability } from "../../src/index.js";
 import { calculateReachability } from "../../src/graph.js";
 import { PluginEngine } from "../../src/engine.js";
 import { parseModule } from "../../src/parser.js";
@@ -187,6 +187,27 @@ describe("hardening regressions", () => {
     });
     await engine.run(context, { skipDetection: true });
     expect(context.reachable.has(file)).toBe(true);
+  });
+
+  it("propagates an unknown dynamic boundary from a plugin-marked file", async () => {
+    const file = "/repo/src/plugin-entry.ts";
+    const parsed = parseModule("const name = 'dynamic'; await import(name);", file);
+    parsed.hasUnknownDynamicBoundary = true;
+    const modules = new Map([[file, parsed]]);
+    const context = pluginContext("/repo", modules);
+    const engine = new PluginEngine();
+    engine.register({
+      name: "boundary-marking-plugin",
+      version: "1.0.0",
+      enabled: true,
+      lifecycle: { onFileStart: (_file, adapter) => adapter.markAsUsed("src/plugin-entry") },
+    });
+
+    await engine.run(context, { skipDetection: true });
+    propagatePluginReachability(context, modules);
+
+    expect(context.reachable.has(file)).toBe(true);
+    expect(context.hasReachableUnknownDynamicBoundary).toBe(true);
   });
 
   it("preserves info severity in terminal and SARIF output", () => {

@@ -507,9 +507,8 @@ async function resolveDynamicImports(
           // Mark the corresponding edge as resolved to suppress the warning.
           // We match on location first; if that fails (e.g. the column was
           // computed differently for a template-literal pattern edge) we fall
-          // back to matching by line only, and finally to marking *all*
-          // unknown-dynamic / dynamic-pattern edges in the file as resolved
-          // when the simulation produced at least one concrete target.
+          // back to matching by line only. A simulation result belongs only to
+          // this candidate; unrelated dynamic edges must remain inconclusive.
           const module = context.modules.get(file);
           if (module) {
             if (context.options.verbose) {
@@ -544,18 +543,6 @@ async function resolveDynamicImports(
 
             if (edge) {
               edge.resolution = "resolved";
-            } else {
-              // Last-resort: mark all unresolved dynamic edges in this file.
-              // This is safe because the simulation produced concrete targets,
-              // so we know the import is genuinely reachable.
-              for (const e of module.edges) {
-                if (
-                  (e.kind === "unknown-dynamic" || e.kind === "dynamic-pattern") &&
-                  e.resolution !== "resolved"
-                ) {
-                  e.resolution = "resolved";
-                }
-              }
             }
           }
 

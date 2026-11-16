@@ -295,6 +295,23 @@ export function shouldFail(report: AnalysisReport, failOn: ResolvedOptions["fail
     (f) => f.severity !== "info" && CONFIDENCE_RANK[f.confidence] >= failThreshold,
   );
 }
+
+/** @internal Recalculate graph reachability after plugin-provided marks. */
+export function propagatePluginReachability(
+  context: AnalysisContext,
+  modules: Map<string, ModuleRecord>,
+): void {
+  const newReachability = calculateReachability(
+    modules,
+    context.reachable,
+    context.options.ignoreUnknownImport,
+  );
+  for (const r of newReachability.reachable) context.reachable.add(r);
+  for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
+  context.hasReachableUnknownDynamicBoundary ||= newReachability.hasReachableUnknownDynamicBoundary;
+  calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
+}
+
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
 
@@ -759,14 +776,7 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   // --- RE-CALCULATE REACHABILITY ---
   // Ensure that plugin marks (reachable files) are propagated through the graph
-  const newReachability = calculateReachability(
-    modules,
-    context.reachable,
-    resolvedOptions.ignoreUnknownImport,
-  );
-  for (const r of newReachability.reachable) context.reachable.add(r);
-  for (const mr of newReachability.maybeReachable) context.maybeReachable.add(mr);
-  calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
+  propagatePluginReachability(context, modules);
 
   // Headless Living Graph Engine: Initial Ingestion
   for (const module of modules.values()) {

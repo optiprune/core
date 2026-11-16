@@ -2,6 +2,7 @@ import type { AnalysisContext, Finding, ModuleRecord, Range, DependencyEdge } fr
 import { walkAst } from "./parser.js";
 import { SemanticGraph } from "./semantic-graph.js";
 import path from "pathe";
+import { resolveDynamicPattern } from "./fs-utils.js";
 import fs from "node:fs";
 
 export interface Layer7Result {
@@ -211,19 +212,19 @@ async function analyzeDynamicSpecifiers(
   context: AnalysisContext,
 ): Promise<ResolvedDynamicImport[]> {
   const results: ResolvedDynamicImport[] = [];
-  const allFiles = Array.from(context.modules.keys());
+  const allFiles = new Set(context.modules.keys());
 
   for (const module of context.modules.values()) {
     for (const edge of module.edges) {
       if (edge.kind === "dynamic-pattern" && edge.dynamicPattern) {
         const { prefix, suffix } = edge.dynamicPattern;
 
-        // Bounded glob search over mapped modules
-        const resolvedFiles = allFiles.filter((f) => {
-          const relative = path.relative(path.dirname(module.id), f);
-          const normalizedRelative = relative.startsWith(".") ? relative : "./" + relative;
-          return normalizedRelative.startsWith(prefix) && normalizedRelative.endsWith(suffix);
-        });
+        // Reuse graph resolver semantics, including extension aliases and
+        // directory-boundary checks, instead of comparing raw relative paths.
+        // An entirely unknown template has no local prefix in the parser's
+        // representation. Treat it as project-local (`./`) for this legacy
+        // Layer-7 discovery path; the graph still keeps the edge uncertain.
+        const resolvedFiles = resolveDynamicPattern(module.id, prefix || "./", suffix, allFiles);
 
         if (resolvedFiles.length > 0) {
           results.push({

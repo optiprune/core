@@ -218,4 +218,54 @@ describe("Layer 4: resilient TypeScript dynamic-import simulation", () => {
     expect(context.reachable).toContain(targetFile);
     expect(context.usedExports).toContain(`${targetFile}:resilientPlugin`);
   });
+
+  it("does not resolve an unrelated dynamic edge from one simulation candidate", async () => {
+    const rootDir = "/virtual/project";
+    const sourceFile = path.join(rootDir, "entry.ts");
+    const targetFile = path.join(rootDir, "plugins", "resilient-plugin.ts");
+    const unrelatedFile = path.join(rootDir, "plugins", "other-plugin.ts");
+    const resolvedEdge: DependencyEdge = {
+      source: sourceFile,
+      rawSpecifier: "./plugins/${…}.ts",
+      kind: "dynamic-pattern",
+      importedNames: ["*"],
+      resolution: "unknown",
+      location: { start: { line: 3, column: 6 }, end: { line: 3, column: 52 } },
+      dynamicPattern: { prefix: "./plugins/", suffix: ".ts", baseDirectory: "", candidates: [] },
+    };
+    const unrelatedEdge: DependencyEdge = {
+      ...resolvedEdge,
+      rawSpecifier: "./plugins/${other}.ts",
+      location: { start: { line: 10, column: 6 }, end: { line: 10, column: 52 } },
+    };
+    const context: AnalysisContext = {
+      options: makeOptions(rootDir),
+      modules: new Map([
+        [sourceFile, makeModule(sourceFile, { edges: [resolvedEdge, unrelatedEdge] })],
+        [targetFile, makeModule(targetFile)],
+        [unrelatedFile, makeModule(unrelatedFile)],
+      ]),
+      entryPoints: new Set([sourceFile]),
+      reachable: new Set([sourceFile]),
+      maybeReachable: new Set(),
+      hasReachableUnknownDynamicBoundary: false,
+      components: [],
+      usedExports: new Set(),
+      candidateBranches: [],
+      dynamicImportCandidates: [
+        {
+          file: sourceFile,
+          line: 3,
+          column: 6,
+          expression: "import('./plugins/' + suffix + '.ts')",
+          contextCode:
+            "const suffix = 'resilient-plugin'; await import('./plugins/' + suffix + '.ts');",
+        },
+      ],
+    };
+
+    await analyzeLayer4(context);
+    expect(resolvedEdge.resolution).toBe("resolved");
+    expect(unrelatedEdge.resolution).toBe("unknown");
+  });
 });

@@ -966,11 +966,12 @@ export function resolvePackageExportTargets(
   }
 
   const all: string[] = [];
-  collectPackageExportStrings(matchedValue, new Set(all), false);
+  const collected = new Set<string>();
+  collectPackageExportStrings(matchedValue, collected, production);
   const target = pickPackageExportTarget(matchedValue, production);
   return {
     target,
-    all: [...new Set(all)],
+    all: [...collected],
     matched: true,
   };
 }

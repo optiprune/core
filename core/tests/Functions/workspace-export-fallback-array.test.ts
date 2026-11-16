@@ -81,6 +81,16 @@ describe("package export subpath resolution", () => {
     expect(resolvePackageExportTargets(field, "./missing")).toMatchObject({ matched: false });
   });
 
+  it("retains every ordered fallback candidate for filesystem resolution", () => {
+    expect(
+      resolvePackageExportTargets({ ".": ["./dist/missing.js", "./src/index.ts"] }, "."),
+    ).toMatchObject({
+      target: "./dist/missing.js",
+      all: ["./dist/missing.js", "./src/index.ts"],
+      matched: true,
+    });
+  });
+
   it("treats a bare condition map or array as the root export", () => {
     expect(resolvePackageExportTargets({ import: "./dist/index.js" }, ".").target).toBe(
       "./dist/index.js",

@@ -169,8 +169,11 @@ function packageNameFromSpecifier(specifier: string): string | null {
     : (specifier.split("/")[0] ?? null);
 }
 
-function referencedPackagesFromSource(source: string): string[] {
+function referencedPackagesFromSource(source: string, ast?: unknown): string[] {
   const packages = new Set<string>();
+  // Triple-slash references are deliberately comment syntax, so retain this
+  // explicitly supported directive. Do not use a source regex for import(),
+  // which also matches comments and arbitrary string contents.
   for (const match of source.matchAll(/^\s*\/\/\/\s*<reference\s+types=["']([^"']+)["']/gm)) {
     const reference = match[1];
     if (typeof reference === "string") {
@@ -178,12 +181,31 @@ function referencedPackagesFromSource(source: string): string[] {
       if (packageName) packages.add(packageName);
     }
   }
-  for (const match of source.matchAll(/import\s*\(\s*["']([^"']+)["']\s*\)/g)) {
-    const specifier = match[1];
-    if (typeof specifier === "string") {
-      const packageName = packageNameFromSpecifier(specifier);
+  // JSDoc import types are an explicit supported type context, unlike free
+  // prose in comments. Restrict the scan to one `/** ... */` block at a time
+  // so an unrelated string or neighbouring comment cannot create evidence.
+  for (const comment of source.matchAll(/\/\*\*[\s\S]*?\*\//g)) {
+    const block = comment[0] ?? "";
+    if (!/@(?:type|param|returns?|throws|implements|extends)\b/.test(block)) continue;
+    for (const match of block.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) {
+      const packageName = packageNameFromSpecifier(match[1] ?? "");
       if (packageName) packages.add(packageName);
     }
+  }
+  if (ast) {
+    walkAst(ast, (node: any) => {
+      if (node.type !== "ImportExpression") return;
+      const argument = node.source ?? node.argument;
+      const specifier =
+        typeof argument?.value === "string"
+          ? argument.value
+          : typeof argument?.literal?.value === "string"
+            ? argument.literal.value
+            : undefined;
+      const packageName =
+        typeof specifier === "string" ? packageNameFromSpecifier(specifier) : null;
+      if (packageName) packages.add(packageName);
+    });
   }
   return [...packages];
 }
@@ -534,7 +556,7 @@ export async function analyzeLayer6(context: AnalysisContext): Promise<Finding[]
     // dependency edges even though they do not produce ordinary import AST
     // nodes. Keep them in the dependency evidence map so @types/* and ambient
     // packages are not reported as unused.
-    for (const pkgName of referencedPackagesFromSource(module.sourceText ?? "")) {
+    for (const pkgName of referencedPackagesFromSource(module.sourceText ?? "", module.ast)) {
       pkgImports.add(pkgName);
       globalImports.add(pkgName);
       const importingFiles = packageFiles.get(pkgName) || new Set<string>();
