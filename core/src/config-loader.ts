@@ -54,6 +54,7 @@ export const DEFAULT_CONFIG: ResolvedOptions = {
   verbose: false,
   fix: false,
   stopNewCacheOnUpdate: false,
+  maxWorkers: 4,
   workspaceGlobs: [],
   projectPatterns: [],
   unreachableFileIgnorePatterns: [],
@@ -366,6 +367,10 @@ export function mergeConfig(base: ResolvedOptions, userConfig: Config): Resolved
     rules,
     plugins,
     stopNewCacheOnUpdate: userConfig.stopNewCacheOnUpdate ?? base.stopNewCacheOnUpdate,
+    maxWorkers:
+      typeof userConfig.maxWorkers === "number" && Number.isFinite(userConfig.maxWorkers)
+        ? Math.max(0, Math.floor(userConfig.maxWorkers))
+        : base.maxWorkers,
     ...(userConfig.failOn !== undefined && { failOn: userConfig.failOn }),
     ...(userConfig.reportUnusedExports !== undefined && {
       reportUnusedExports: userConfig.reportUnusedExports,

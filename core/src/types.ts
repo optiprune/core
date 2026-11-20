@@ -262,6 +262,8 @@ export interface AnalyzerOptions {
   fix?: boolean | FixConfig;
   /** Reuse cache entries across Core or plugin version updates. */
   stopNewCacheOnUpdate?: boolean;
+  /** Maximum parser workers; defaults to a conservative adaptive limit. */
+  maxWorkers?: number;
   cacheFrom?: string;
   cacheTo?: string;
 }
@@ -347,6 +349,8 @@ export interface Config {
   fix?: boolean | FixConfig;
   /** Reuse cache entries across Core or plugin version updates. */
   stopNewCacheOnUpdate?: boolean;
+  /** Maximum parser workers; defaults to a conservative adaptive limit. */
+  maxWorkers?: number;
   layers?: {
     smtTimeoutMs?: number;
     isolateMemoryLimitMb?: number;
@@ -403,7 +407,9 @@ export interface ResolvedOptions {
   cacheFrom?: string;
   cacheTo?: string;
   /** Reuse cache entries across Core or plugin version updates. */
-  stopNewCacheOnUpdate: boolean;
+  stopNewCacheOnUpdate?: boolean;
+  /** Maximum parser workers; defaults to a conservative adaptive limit. */
+  maxWorkers: number;
   layers: {
     smtTimeoutMs: number;
     isolateMemoryLimitMb: number;

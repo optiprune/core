@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "pathe";
-import { PluginEngine } from "../../src/engine.js";
+import { PluginEngine, selectPluginExport } from "../../src/engine.js";
 import { parseModule } from "../../src/parser.js";
 import type { AnalysisContext, AnalyzerPlugin } from "../../src/types.js";
 
@@ -28,6 +28,35 @@ function moduleRecord(id: string) {
 }
 
 describe("Plugin engine lifecycle regressions", () => {
+  const plugin: AnalyzerPlugin = {
+    name: "export-selection-plugin",
+    version: "1.0.0",
+    lifecycle: {},
+  };
+
+  it("prefers a valid default export over unrelated named exports", () => {
+    expect(selectPluginExport({ unrelated: { value: true }, default: plugin })).toEqual({
+      plugin,
+      exportName: "default",
+    });
+  });
+
+  it("accepts an explicit plugin export behind unrelated exports", () => {
+    expect(selectPluginExport({ helper: () => undefined, plugin })).toEqual({
+      plugin,
+      exportName: "plugin",
+    });
+  });
+
+  it("rejects ambiguous or invalid plugin exports", () => {
+    expect(() => selectPluginExport({ first: plugin, second: { ...plugin } })).toThrow(
+      "Ambiguous plugin exports",
+    );
+    expect(() => selectPluginExport({ helper: { value: true } })).toThrow(
+      "No valid AnalyzerPlugin export found",
+    );
+  });
+
   it("keeps adapter-scoped state across the init and execution passes", async () => {
     const engine = new PluginEngine();
     const probe: AnalyzerPlugin = {

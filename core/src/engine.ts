@@ -41,6 +41,45 @@ function parsePluginJson(content: string, filename: string): unknown {
   return value ?? null;
 }
 
+function isAnalyzerPlugin(value: unknown): value is AnalyzerPlugin {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<AnalyzerPlugin>;
+  return (
+    typeof candidate.name === "string" &&
+    typeof candidate.version === "string" &&
+    !!candidate.lifecycle &&
+    typeof candidate.lifecycle === "object"
+  );
+}
+
+/** Select a plugin export without allowing unrelated exports to win by order. */
+export function selectPluginExport(module: Record<string, unknown>): {
+  plugin: AnalyzerPlugin;
+  exportName: string;
+} {
+  const defaultExport = module.default;
+  if (isAnalyzerPlugin(defaultExport)) {
+    return { plugin: defaultExport, exportName: "default" };
+  }
+
+  const explicitPlugin = module.plugin;
+  if (isAnalyzerPlugin(explicitPlugin)) {
+    return { plugin: explicitPlugin, exportName: "plugin" };
+  }
+
+  const candidates = Object.entries(module).filter(
+    ([name, value]) => name !== "default" && isAnalyzerPlugin(value),
+  );
+  if (candidates.length === 1) {
+    const [exportName, plugin] = candidates[0]!;
+    return { plugin: plugin as AnalyzerPlugin, exportName };
+  }
+  if (candidates.length > 1) {
+    throw new Error(`Ambiguous plugin exports: ${candidates.map(([name]) => name).join(", ")}`);
+  }
+  throw new Error("No valid AnalyzerPlugin export found");
+}
+
 function safeResolve(rootDir: string, targetPath: string): string | null {
   // Always resolve relative to rootDir
   const resolved = path.resolve(rootDir, targetPath);
@@ -98,11 +137,19 @@ export class PluginEngine {
           try {
             const pluginPath = pathToFileURL(path.join(pluginsDir, file)).href;
             const module = await import(pluginPath);
-            const keys = Object.keys(module);
-            const firstKey = keys[0];
-            const plugin = module.default || (firstKey ? (module as any)[firstKey] : null);
+            const { plugin, exportName } = selectPluginExport(module as Record<string, unknown>);
+            // ESM/TypeScript interop can expose the same object through both a
+            // named export and `default`; retain every alias for graph marks.
+            const sourceExportNames = [
+              ...new Set(
+                Object.entries(module)
+                  .filter(([, value]) => value === plugin)
+                  .map(([name]) => name),
+              ),
+              exportName,
+            ];
 
-            if (plugin && typeof plugin === "object") {
+            if (plugin) {
               // These property reads are the real dynamic registry contract.
               // Forward the observed reads to the analysis graph rather than
               // suppressing object-member diagnostics by path or name.
@@ -122,7 +169,7 @@ export class PluginEngine {
                     normalized.endsWith(`/plugins/${stem}.js`)
                   );
                 });
-                if (sourceModule && firstKey) {
+                if (sourceModule) {
                   // A computed import from the plugin registry is a concrete
                   // runtime edge even though the static graph cannot connect
                   // `readdir()` to each individual plugin file. Preserve that
@@ -130,14 +177,19 @@ export class PluginEngine {
                   // cannot hide the remaining dynamically loaded plugins.
                   context.reachable?.add(sourceModule.id);
                   context.runtimeUsedFiles?.add(sourceModule.id);
-                  context.usedExports?.add(`${sourceModule.id}:${firstKey}`);
-                  context.usedExports?.add(`${sourceModule.id}:default`);
-                  for (const memberName of ["name", "version", "detect", "lifecycle"]) {
-                    if (memberName === "version" && pluginVersion === undefined) continue;
-                    if (memberName === "detect" && pluginDetect === undefined) continue;
-                    if (memberName === "lifecycle" && pluginLifecycle === undefined) continue;
-                    context.runtimeUsedMembers?.add(`${sourceModule.id}:${firstKey}:${memberName}`);
-                    context.usedMembers.add(`${sourceModule.id}:${firstKey}:${memberName}`);
+                  for (const sourceExportName of sourceExportNames) {
+                    context.usedExports?.add(`${sourceModule.id}:${sourceExportName}`);
+                    for (const memberName of ["name", "version", "detect", "lifecycle"]) {
+                      if (memberName === "version" && pluginVersion === undefined) continue;
+                      if (memberName === "detect" && pluginDetect === undefined) continue;
+                      if (memberName === "lifecycle" && pluginLifecycle === undefined) continue;
+                      context.runtimeUsedMembers?.add(
+                        `${sourceModule.id}:${sourceExportName}:${memberName}`,
+                      );
+                      context.usedMembers.add(
+                        `${sourceModule.id}:${sourceExportName}:${memberName}`,
+                      );
+                    }
                   }
                 }
                 if (registerPlugins) this.register(plugin);
@@ -376,7 +428,21 @@ export class PluginEngine {
 
   createAdapter(context: AnalysisContext): PluginAdapter {
     let projectFiles: Promise<string[]> | undefined;
+    let projectFilesKey = "";
+    const globResults = new Map<string, Promise<string[]>>();
+    const discoveryKey = (): string =>
+      [
+        context.options.rootDir,
+        context.options.ignoreTests ? "tests" : "all",
+        ...(context.options.ignore ?? []).map((pattern) => pattern.replace(/\\/g, "/")).sort(),
+      ].join("\u0000");
     const discoverProjectFiles = async (): Promise<string[]> => {
+      const key = discoveryKey();
+      if (key !== projectFilesKey) {
+        projectFilesKey = key;
+        projectFiles = undefined;
+        globResults.clear();
+      }
       if (!projectFiles) {
         projectFiles = (async () => {
           const ignoredDirectories = new Set([
@@ -556,8 +622,19 @@ export class PluginEngine {
         return (await discoverProjectFiles()).filter((file) => names.has(path.basename(file)));
       },
       findFilesByGlob: async (patterns) => {
-        const matchers = compileGlobs(patterns);
-        return (await discoverProjectFiles()).filter((file) => matchesAnyGlob(file, matchers));
+        const key = `${discoveryKey()}\u0000${patterns
+          .map((pattern) => pattern.replace(/\\/g, "/"))
+          .sort()
+          .join("\u0000")}`;
+        let result = globResults.get(key);
+        if (!result) {
+          const matchers = compileGlobs(patterns);
+          result = discoverProjectFiles().then((files) =>
+            files.filter((file) => matchesAnyGlob(file, matchers)),
+          );
+          globResults.set(key, result);
+        }
+        return result;
       },
       emitFinding: (finding: Omit<Finding, "rule"> & { rule?: string }) => {
         this.findings.push({

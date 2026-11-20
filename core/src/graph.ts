@@ -486,28 +486,29 @@ export function edgeTargets(edge: DependencyEdge): string[] {
   return edge.dynamicPattern?.candidates ?? [];
 }
 
-function adjacencyFor(modules: Map<string, ModuleRecord>, moduleId: string): string[] {
-  const module = modules.get(moduleId);
-  if (!module) {
-    return [];
-  }
-  return module.edges.flatMap(edgeTargets).filter((target) => modules.has(target));
+interface AdjacencyIndex {
+  forward: Map<string, string[]>;
+  reverse: Map<string, string[]>;
 }
 
-function reverseAdjacency(modules: Map<string, ModuleRecord>): Map<string, string[]> {
+function buildAdjacencyIndex(modules: Map<string, ModuleRecord>): AdjacencyIndex {
+  const forward = new Map<string, string[]>();
   const reverse = new Map<string, string[]>();
   for (const moduleId of modules.keys()) {
+    forward.set(moduleId, []);
     reverse.set(moduleId, []);
   }
   for (const module of modules.values()) {
-    for (const target of module.edges.flatMap(edgeTargets)) {
+    const targets = module.edges.flatMap(edgeTargets).filter((target) => modules.has(target));
+    forward.set(module.id, targets);
+    for (const target of targets) {
       const reverseTargets = reverse.get(target);
       if (reverseTargets) {
         reverseTargets.push(module.id);
       }
     }
   }
-  return reverse;
+  return { forward, reverse };
 }
 
 /** Kosaraju with explicit stacks avoids stack overflows on deep graphs and cycles. */
@@ -516,6 +517,7 @@ export function stronglyConnectedComponents(
 ): StronglyConnectedComponent[] {
   const visited = new Set<string>();
   const finishOrder: string[] = [];
+  const adjacency = buildAdjacencyIndex(modules);
 
   for (const root of modules.keys()) {
     if (visited.has(root)) {
@@ -523,7 +525,11 @@ export function stronglyConnectedComponents(
     }
     const stack: Array<{ moduleId: string; nextIndex: number; neighbors: string[] }> = [];
     visited.add(root);
-    stack.push({ moduleId: root, nextIndex: 0, neighbors: adjacencyFor(modules, root) });
+    stack.push({
+      moduleId: root,
+      nextIndex: 0,
+      neighbors: adjacency.forward.get(root) ?? [],
+    });
 
     while (stack.length > 0) {
       const frame = stack[stack.length - 1];
@@ -538,7 +544,7 @@ export function stronglyConnectedComponents(
           stack.push({
             moduleId: neighbor,
             nextIndex: 0,
-            neighbors: adjacencyFor(modules, neighbor),
+            neighbors: adjacency.forward.get(neighbor) ?? [],
           });
         }
       } else {
@@ -548,7 +554,6 @@ export function stronglyConnectedComponents(
     }
   }
 
-  const reverse = reverseAdjacency(modules);
   const assigned = new Set<string>();
   const components: StronglyConnectedComponent[] = [];
 
@@ -566,7 +571,7 @@ export function stronglyConnectedComponents(
         continue;
       }
       members.push(current);
-      for (const neighbor of reverse.get(current) ?? []) {
+      for (const neighbor of adjacency.reverse.get(current) ?? []) {
         if (!assigned.has(neighbor)) {
           assigned.add(neighbor);
           stack.push(neighbor);
@@ -575,7 +580,8 @@ export function stronglyConnectedComponents(
     }
     members.sort((left, right) => left.localeCompare(right));
     const selfLoop =
-      members.length === 1 && adjacencyFor(modules, members[0] ?? "").includes(members[0] ?? "");
+      members.length === 1 &&
+      (adjacency.forward.get(members[0] ?? "") ?? []).includes(members[0] ?? "");
     components.push({
       id: components.length,
       modules: members,
