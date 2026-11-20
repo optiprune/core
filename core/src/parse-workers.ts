@@ -14,7 +14,7 @@ interface ParseResult {
   moduleRecord: ModuleRecord;
 }
 
-const MAX_WORKERS = 4;
+export const DEFAULT_MAX_WORKERS = 4;
 const MIN_WORKER_TASKS = 20;
 
 export async function parseModulesSynchronously(
@@ -33,12 +33,16 @@ export async function parseModulesSynchronously(
  */
 export async function parseModulesInWorkers(
   tasks: ParseTask[],
+  configuredMaxWorkers = DEFAULT_MAX_WORKERS,
 ): Promise<Map<string, ModuleRecord>> {
   if (tasks.length === 0) return new Map();
 
   const parallelism = os.availableParallelism?.() ?? os.cpus().length;
   const workerUrl = new URL("./parse-worker.js", import.meta.url);
-  const workerCount = Math.min(tasks.length, MAX_WORKERS, Math.max(0, parallelism - 1));
+  const maxWorkers = Number.isFinite(configuredMaxWorkers)
+    ? Math.max(0, Math.floor(configuredMaxWorkers))
+    : DEFAULT_MAX_WORKERS;
+  const workerCount = Math.min(tasks.length, maxWorkers, Math.max(0, parallelism - 1));
 
   // Worker startup and structured-clone overhead is larger than the benefit for
   // small batches. A 2-vCPU host also intentionally stays synchronous because

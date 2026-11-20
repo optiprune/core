@@ -31,6 +31,7 @@ import {
   parseCacheContent,
   saveCache,
   getFileHash,
+  getAnalysisCacheSignature,
   isCacheValid,
   AnalysisCache,
 } from "./cache.js";
@@ -312,15 +313,40 @@ export function propagatePluginReachability(
   calculateComponentReachability(context.components, context.reachable, context.maybeReachable);
 }
 
+async function readSourceFilesBounded(
+  files: string[],
+  concurrency = 16,
+): Promise<Map<string, string>> {
+  const sourceTexts = new Map<string, string>();
+  let cursor = 0;
+  const workerCount = Math.min(files.length, Math.max(1, Math.floor(concurrency)));
+  const readNext = async (): Promise<void> => {
+    while (cursor < files.length) {
+      const file = files[cursor++];
+      if (!file) continue;
+      let rawText: string;
+      try {
+        rawText = await fsp.readFile(file, "utf8");
+      } catch (e: any) {
+        if (e.code === "ENOENT") continue;
+        throw e;
+      }
+      sourceTexts.set(file, rawText.charCodeAt(0) === 0xfeff ? rawText.slice(1) : rawText);
+    }
+  };
+  await Promise.all(Array.from({ length: workerCount }, () => readNext()));
+  return sourceTexts;
+}
+
 export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport> {
   const resolvedOptions = await resolveOptions(options);
 
   // Load only the traditional per-file AST cache. Reports are always rebuilt so
   // plugin, graph, and configuration changes cannot return stale analysis.
   let cache: AnalysisCache;
-  if ((options as any).cacheFrom && fs.existsSync((options as any).cacheFrom)) {
+  if (resolvedOptions.cacheFrom && fs.existsSync(resolvedOptions.cacheFrom)) {
     try {
-      cache = parseCacheContent(fs.readFileSync((options as any).cacheFrom, "utf-8"));
+      cache = parseCacheContent(fs.readFileSync(resolvedOptions.cacheFrom, "utf-8"));
     } catch {
       cache = loadCache(resolvedOptions.rootDir);
     }
@@ -363,6 +389,14 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
 
   const pluginEngine = new PluginEngine();
   const pluginFindings = await pluginEngine.run(earlyContext);
+  const cacheSignature = getAnalysisCacheSignature(
+    resolvedOptions,
+    pluginEngine.getEnabledPluginVersions(),
+  );
+  if (!resolvedOptions.stopNewCacheOnUpdate && cache.signature !== cacheSignature) {
+    cache = { ...cache, signature: cacheSignature, entries: {} };
+  }
+  newCache.signature = cacheSignature;
   // Package-manager and framework plugins can contribute workspace patterns
   // during their early configuration pass. Build topology only after those
   // declarations have been applied so no workspace metadata is discarded.
@@ -451,22 +485,16 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   let filesRecovered = 0;
   let filesFallback = 0;
   let hasFrameworkNodes = false;
-  const sourceTexts = new Map<string, string>();
+  const sourceTexts = await readSourceFilesBounded(allSourceFiles);
   const uncachedTasks: Array<{ file: string; sourceText: string }> = [];
   const uncachedHashes = new Map<string, string>();
 
   // Read files once, reuse valid ASTs immediately, and send only cache misses
-  // to the bounded parser worker pool.
+  // to the bounded parser worker pool. The read map is populated concurrently,
+  // while all later loops retain the deterministic discovered-file ordering.
   for (const file of allSourceFiles) {
-    let rawText: string;
-    try {
-      rawText = await fsp.readFile(file, "utf8");
-    } catch (e: any) {
-      if (e.code === "ENOENT") continue;
-      throw e;
-    }
-    const sourceText = rawText.charCodeAt(0) === 0xfeff ? rawText.slice(1) : rawText;
-    sourceTexts.set(file, sourceText);
+    const sourceText = sourceTexts.get(file);
+    if (sourceText === undefined) continue;
     const cached = cache.entries[file];
     if (cached && isCacheValid(cached, sourceText)) {
       newCache.entries[file] = cached;
@@ -1371,13 +1399,19 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
     const normalized = absolute.replace(/\\/g, "/");
     return process.platform === "win32" ? normalized.toLowerCase() : normalized;
   };
+  const findingsByFile = new Map<string, Finding[]>();
+  for (const finding of report.findings) {
+    if (!finding.file) continue;
+    const key = canonicalFilePath(finding.file);
+    const grouped = findingsByFile.get(key) ?? [];
+    grouped.push(finding);
+    findingsByFile.set(key, grouped);
+  }
   newCache.fileStats = Object.fromEntries(
     [...sourceTexts.keys()].map((file) => [
       file,
       {
-        findings: report.findings.filter(
-          (finding) => canonicalFilePath(finding.file) === canonicalFilePath(file),
-        ),
+        findings: findingsByFile.get(canonicalFilePath(file)) ?? [],
       },
     ]),
   );
@@ -1387,12 +1421,20 @@ export async function analyze(options: AnalyzerOptions): Promise<AnalysisReport>
   saveCache(resolvedOptions.rootDir, newCache);
 
   // Support external cache-to path
-  if ((options as any).cacheTo) {
+  if (resolvedOptions.cacheTo) {
     try {
-      const dir = path.dirname((options as any).cacheTo);
+      const dir = path.dirname(resolvedOptions.cacheTo);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync((options as any).cacheTo, JSON.stringify(newCache, null, 2));
-    } catch (e) {}
+      const temporaryPath = `${resolvedOptions.cacheTo}.${process.pid}.${Date.now()}.tmp`;
+      fs.writeFileSync(temporaryPath, JSON.stringify(newCache, null, 2));
+      fs.renameSync(temporaryPath, resolvedOptions.cacheTo);
+    } catch (error) {
+      if (resolvedOptions.verbose) {
+        console.error(
+          `[Cache] Could not write cacheTo '${resolvedOptions.cacheTo}': ${String(error)}`,
+        );
+      }
+    }
   }
 
   return report;

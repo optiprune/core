@@ -213,6 +213,22 @@ async function analyzeDynamicSpecifiers(
 ): Promise<ResolvedDynamicImport[]> {
   const results: ResolvedDynamicImport[] = [];
   const allFiles = new Set(context.modules.keys());
+  const directoryIndex = new Map<string, string[]>();
+  for (const file of allFiles) {
+    let directory = path.normalize(path.dirname(file));
+    const root = path.parse(directory).root;
+    while (directory.startsWith(root)) {
+      const bucket = directoryIndex.get(directory) ?? [];
+      bucket.push(file);
+      directoryIndex.set(directory, bucket);
+      if (directory === root) break;
+      const parent = path.dirname(directory);
+      if (parent === directory) break;
+      directory = parent;
+    }
+  }
+  for (const files of directoryIndex.values())
+    files.sort((left, right) => left.localeCompare(right));
 
   for (const module of context.modules.values()) {
     for (const edge of module.edges) {
@@ -224,7 +240,19 @@ async function analyzeDynamicSpecifiers(
         // An entirely unknown template has no local prefix in the parser's
         // representation. Treat it as project-local (`./`) for this legacy
         // Layer-7 discovery path; the graph still keeps the edge uncertain.
-        const resolvedFiles = resolveDynamicPattern(module.id, prefix || "./", suffix, allFiles);
+        const directoryPrefix = prefix.endsWith("/") ? prefix.slice(0, -1) : undefined;
+        const directoryRoot = directoryPrefix
+          ? path.normalize(path.resolve(path.dirname(module.id), directoryPrefix))
+          : undefined;
+        const indexedCandidates = directoryRoot
+          ? new Set(directoryIndex.get(directoryRoot) ?? [])
+          : allFiles;
+        const resolvedFiles = resolveDynamicPattern(
+          module.id,
+          prefix || "./",
+          suffix,
+          indexedCandidates,
+        );
 
         if (resolvedFiles.length > 0) {
           results.push({

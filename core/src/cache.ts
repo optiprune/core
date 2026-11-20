@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "pathe";
 import crypto from "node:crypto";
-import type { ModuleRecord } from "./types.js";
+import type { ModuleRecord, ResolvedOptions } from "./types.js";
 
 export const CACHE_VERSION = "3.0";
 
@@ -16,6 +16,8 @@ export interface CacheEntry {
 /** Persistent cache of parsed module records only. Analysis results are never cached. */
 export interface AnalysisCache {
   version: string;
+  /** Fingerprint of parser/core/plugin/options semantics used to build entries. */
+  signature?: string;
   entries: Record<string, CacheEntry>;
   /** Optional compatibility metadata consumed by the language-server integration. */
   report?: unknown;
@@ -28,6 +30,38 @@ const CACHE_FILE = "cache.json";
 
 export function getFileHash(content: string): string {
   return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+export function getAnalysisCacheSignature(
+  options: Pick<
+    ResolvedOptions,
+    | "extensions"
+    | "ignore"
+    | "ignoreTests"
+    | "ignoreUnknownImport"
+    | "production"
+    | "entry"
+    | "plugins"
+  >,
+  pluginVersions: Record<string, string>,
+): string {
+  const contract = {
+    cacheContract: CACHE_VERSION,
+    parserContract: "parser-v1",
+    extensions: [...options.extensions].sort(),
+    ignore: [...options.ignore].sort(),
+    ignoreTests: options.ignoreTests,
+    ignoreUnknownImport: options.ignoreUnknownImport,
+    production: options.production,
+    entry: [...options.entry].sort(),
+    plugins: Object.fromEntries(
+      Object.entries(options.plugins).sort(([left], [right]) => left.localeCompare(right)),
+    ),
+    pluginVersions: Object.fromEntries(
+      Object.entries(pluginVersions).sort(([left], [right]) => left.localeCompare(right)),
+    ),
+  };
+  return getFileHash(JSON.stringify(contract));
 }
 
 function sanitizeEntries(entries: unknown): Record<string, CacheEntry> {
@@ -60,6 +94,7 @@ export function parseCacheContent(raw: string): AnalysisCache {
     ) {
       return {
         version: typeof parsed.version === "string" ? parsed.version : CACHE_VERSION,
+        ...(typeof parsed.signature === "string" && { signature: parsed.signature }),
         entries: sanitizeEntries(parsed.entries),
         ...(parsed.report !== undefined && { report: parsed.report }),
         ...(parsed.fileStats &&
@@ -92,7 +127,15 @@ export function saveCache(rootDir: string, cache: AnalysisCache): void {
   try {
     const dirPath = path.join(rootDir, CACHE_DIR);
     fs.mkdirSync(dirPath, { recursive: true });
-    fs.writeFileSync(path.join(dirPath, CACHE_FILE), JSON.stringify(cache));
+    const targetPath = path.join(dirPath, CACHE_FILE);
+    const temporaryPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(temporaryPath, JSON.stringify(cache));
+    fs.renameSync(temporaryPath, targetPath);
+    try {
+      fs.unlinkSync(temporaryPath);
+    } catch {
+      // The rename already committed the cache; cleanup is best-effort.
+    }
   } catch {
     // Cache writes are best-effort and must never fail an analysis.
   }
